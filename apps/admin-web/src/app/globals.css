@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+@layer components {
+  .btn-jairo {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+
+  .btn-jairo:not(:disabled):hover {
+    transform: translateY(-4px) scale(1.02) !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1) !important;
+  }
+
+  .btn-jairo:not(:disabled):active {
+    transform: translateY(-1px) scale(0.96) !important;
+  }
+}

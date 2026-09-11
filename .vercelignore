@@ -1,0 +1,50 @@
+# ─────────────────────────────────────────────────────────────
+# .vercelignore — o que NÃO sobe para o build da Vercel
+# Sintaxe igual à do .gitignore.
+#
+# ⚠️ `packages/core/` NÃO ENTRA NESTA LISTA, e isso é deliberado.
+# O admin-web consome o @jairo/core como TypeScript CRU, via
+# `transpilePackages: ["@jairo/core"]` do next.config.ts — não há
+# artefato compilado para substituí-lo (o core não tem script de
+# build). São 16 arquivos do admin-web importando dele. Ignorar a
+# pasta faz o build morrer em "Module not found: Can't resolve
+# '@jairo/core'".
+# ─────────────────────────────────────────────────────────────
+
+# App mobile — Expo/React Native, nada dele vai para a web
+apps/mobile-app/
+
+# Banco: SQL executado à mão no SQL Editor, não pelo build
+supabase/
+
+# Metadados de repositório e ferramentas locais
+.git/
+.github/
+.husky/
+.vscode/
+.eslintrc.json
+
+# Documentação
+README.md
+CLAUDE.md
+CLAUDE_CODE_MOBILE_PROMPT_01.md
+AGENTS.md
+
+# Modelos de ambiente (as variáveis reais vêm do painel da Vercel)
+.env.example
+.env.*.example
+
+# Rascunhos e cópias
+*.backup.*
+*.bak
+
+# Caches e artefatos locais
+.cache/
+.turbo/
+.expo/
+dist/
+build/
+
+# Lixo de sistema operacional
+.DS_Store
+Thumbs.db

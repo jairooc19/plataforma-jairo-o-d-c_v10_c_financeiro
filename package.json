@@ -1,0 +1,20 @@
+{
+  "name": "plataforma-jairo-o-d-c-v4",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "web": "npm run dev -w @jairo/admin-web",
+    "core:build": "npm run build -w @jairo/core"
+  },
+  "overrides": {
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.3"
+  },
+  "dependencies": {
+    "@react-native-picker/picker": "2.11.4"
+  }
+}
