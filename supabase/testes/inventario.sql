@@ -12,8 +12,9 @@
 -- Editor descarta — a lição do degrau 4).
 --
 -- ⚠️ COMECE PELO BLOCO 1: ele já diz OK ou DIVERGE, sem você precisar contar
--- nada. Os blocos 2 a 7 são o detalhe, para investigar uma divergência ou para
--- mandar o retrato completo do banco.
+-- nada. Se a linha das FUNÇÕES divergir, o BLOCO 1B aponta exatamente qual
+-- função está sobrando, faltando ou duplicada. Os blocos 2 a 8 são o detalhe,
+-- para investigar ou para mandar o retrato completo do banco.
 --
 -- ---------------------------------------------------------------------------
 -- ⚠️ AS TRÊS ARMADILHAS QUE ESTE ARQUIVO EVITA (e que uma contagem ingênua não)
@@ -88,6 +89,95 @@ SELECT x.objeto      AS "objeto",
            15
   ) x
  ORDER BY x.objeto;
+
+
+-- ===========================================================================
+-- BLOCO 1B — QUANDO O PLACAR DE FUNÇÕES DIVERGE: quem é a intrusa?
+--
+-- Este bloco compara, nome por nome, o que está no banco com as 25 funções que
+-- o `plataforma_01_schema.sql` cria. Ele responde três perguntas de uma vez:
+--
+--   • SOBRANDO   — está no banco e não está no schema (resto de versão antiga)
+--   • FALTANDO   — está no schema e não chegou ao banco (o 01 não rodou inteiro)
+--   • DUPLICADA  — o mesmo nome com DUAS assinaturas
+--
+-- ⚠️ "DUPLICADA" É A CAUSA MAIS PROVÁVEL DE UMA FUNÇÃO A MAIS, e a mais
+-- perigosa. No PostgreSQL, `CREATE OR REPLACE FUNCTION` só substitui quando a
+-- LISTA DE ARGUMENTOS é idêntica: mudar um parâmetro CRIA UMA SEGUNDA FUNÇÃO em
+-- vez de trocar a primeira, e a antiga continua chamável. Este projeto já tem
+-- registro disso — `get_user_by_email_for_invite` existiu como `(text)` na v9 e
+-- virou `(text, uuid)` na v10; o `plataforma_00_reset.sql` derruba AS DUAS
+-- assinaturas de propósito, com um comentário explicando que derrubar só uma
+-- deixaria viva justamente a versão aberta que a v10 fechou.
+--
+-- Cole este bloco inteiro (limpe o editor antes).
+-- ===========================================================================
+SELECT z.situacao   AS "situacao",
+       z.funcao     AS "funcao",
+       z.argumentos AS "argumentos"
+  FROM (
+    -- 1) No banco, fora do schema: resto de versão antiga.
+    SELECT '1. SOBRANDO no banco'::text AS situacao,
+           p.proname::text              AS funcao,
+           pg_get_function_identity_arguments(p.oid) AS argumentos
+      FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE n.nspname = 'public'
+       AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid = p.oid AND d.deptype = 'e')
+       AND p.proname NOT IN (
+         'admin_list_all_tenants', 'admin_list_tenant_modules', 'admin_list_user_tenants',
+         'admin_list_users', 'admin_promote_to_owner', 'admin_set_tenant_module',
+         'admin_sync_user_tenants', 'admin_update_global_settings', 'can_view_user_profile',
+         'check_is_tenant_member', 'check_is_tenant_owner', 'check_profile_completed',
+         'delete_user_permanently', 'ensure_google_user_profile', 'gerar_slug_empresa',
+         'get_user_by_email_for_invite', 'handle_auto_confirm_email', 'handle_new_user',
+         'is_superuser', 'marcar_atualizacao', 'modulo_contratado', 'modulos_do_membro',
+         'registrar_auditoria', 'sync_auth_users', 'validar_modulos_do_membro'
+       )
+
+    UNION ALL
+
+    -- 2) No schema, fora do banco: o 01 não rodou até o fim.
+    SELECT '2. FALTANDO no banco',
+           e.nome,
+           '(não existe)'
+      FROM (VALUES
+         ('admin_list_all_tenants'), ('admin_list_tenant_modules'), ('admin_list_user_tenants'),
+         ('admin_list_users'), ('admin_promote_to_owner'), ('admin_set_tenant_module'),
+         ('admin_sync_user_tenants'), ('admin_update_global_settings'), ('can_view_user_profile'),
+         ('check_is_tenant_member'), ('check_is_tenant_owner'), ('check_profile_completed'),
+         ('delete_user_permanently'), ('ensure_google_user_profile'), ('gerar_slug_empresa'),
+         ('get_user_by_email_for_invite'), ('handle_auto_confirm_email'), ('handle_new_user'),
+         ('is_superuser'), ('marcar_atualizacao'), ('modulo_contratado'), ('modulos_do_membro'),
+         ('registrar_auditoria'), ('sync_auth_users'), ('validar_modulos_do_membro')
+       ) AS e(nome)
+     WHERE NOT EXISTS (
+       SELECT 1 FROM pg_proc p
+         JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND p.proname = e.nome
+     )
+
+    UNION ALL
+
+    -- 3) O mesmo nome com mais de uma assinatura.
+    SELECT '3. DUPLICADA (2 assinaturas)',
+           p.proname::text,
+           pg_get_function_identity_arguments(p.oid)
+      FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE n.nspname = 'public'
+       AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid = p.oid AND d.deptype = 'e')
+       AND p.proname IN (
+         SELECT p2.proname
+           FROM pg_proc p2
+           JOIN pg_namespace n2 ON n2.oid = p2.pronamespace
+          WHERE n2.nspname = 'public'
+            AND NOT EXISTS (SELECT 1 FROM pg_depend d2 WHERE d2.objid = p2.oid AND d2.deptype = 'e')
+          GROUP BY p2.proname
+         HAVING count(*) > 1
+       )
+  ) z
+ ORDER BY z.situacao, z.funcao, z.argumentos;
 
 
 -- ===========================================================================
