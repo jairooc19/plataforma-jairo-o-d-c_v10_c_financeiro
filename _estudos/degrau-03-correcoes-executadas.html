@@ -646,13 +646,14 @@ formatarBRL(123456)              →  "R$ 1.234,56"</code></pre>
   <h3>O que eu já fiz por você</h3>
   <ol class="steps">
     <li>Transformei a pasta em repositório: <code>git init</code>.</li>
-    <li>Tirei a <strong>primeira fotografia</strong>, com o projeto como estava antes destas correções (commit <code>d463721</code>, no ramo <code>main</code>).</li>
-    <li>Criei um <strong>ramo de trabalho</strong> chamado <code>degrau-03-correcoes</code> e fiz todas as mudanças nele. O <code>main</code> continua intacto, exatamente como estava.</li>
+    <li>Tirei a <strong>primeira fotografia</strong>, com o projeto como estava antes destas correções (commit <code>d463721</code>, no ramo <code>master</code>).</li>
+    <li>Criei um <strong>ramo de trabalho</strong> chamado <code>degrau-03-correcoes</code> e fiz todas as mudanças nele (commit <code>2b9e42e</code>).</li>
+    <li>Com a sua autorização, levei as correções para o <code>master</code> e as enviei ao GitHub — o que fez a Vercel republicar o site.</li>
   </ol>
 
   <div class="highlight-box">
     <span class="box-title">Por que dois ramos</span>
-    Pense em duas pastas paralelas: <code>main</code> é "como estava antes" e <code>degrau-03-correcoes</code> é "com as correções". Você troca entre elas com um comando, sem copiar nada à mão. Se as correções não agradarem, o antes continua lá.
+    Pense em duas pastas paralelas: <code>master</code> é o ramo principal e <code>degrau-03-correcoes</code> foi o ramo de trabalho. Enquanto as correções viveram só no ramo de trabalho, o principal seguiu intacto — foi isso que permitiu revisar tudo sem risco. Depois do <code>merge</code> os dois apontam para o mesmo ponto, e o estado anterior continua guardado no commit <code>d463721</code>.
   </div>
 
   <h3>Os cinco comandos que resolvem 95% do dia a dia</h3>
@@ -664,20 +665,28 @@ formatarBRL(123456)              →  "R$ 1.234,56"</code></pre>
         <tr><td><code>git add -A</code></td><td>Seleciona tudo o que mudou para a próxima fotografia</td><td>Antes de gravar</td></tr>
         <tr><td><code>git commit -m "o que mudou"</code></td><td>Tira a fotografia</td><td>Ao terminar algo que funciona</td></tr>
         <tr><td><code>git log --oneline</code></td><td>Lista as fotografias</td><td>Para achar onde voltar</td></tr>
-        <tr><td><code>git switch main</code></td><td>Troca para o ramo "como estava antes"</td><td>Para comparar ou desfazer tudo</td></tr>
+        <tr><td><code>git switch master</code></td><td>Volta para o ramo principal</td><td>Depois de trabalhar noutro ramo</td></tr>
+        <tr><td><code>git push origin master</code></td><td>Envia as fotografias ao GitHub</td><td>⚠️ <strong>Sem isto, o site publicado continua o antigo</strong></td></tr>
       </tbody>
     </table>
   </div>
 
-  <h3>Como aceitar estas correções (quando você aprovar)</h3>
+  <h3>Como as correções foram publicadas (feito em 11/09/2026)</h3>
 <pre><code>cd "C:\PLATAFORMA-JAIRO-O-D-C_v10 - C FINANCEIRO"
-git switch main
-git merge degrau-03-correcoes</code></pre>
-  <p class="small">Isso leva as correções para o ramo principal. Enquanto você não fizer isso, elas ficam guardadas no ramo de trabalho.</p>
+git switch master
+git merge degrau-03-correcoes
+git push origin master</code></pre>
+  <p class="small">O <code>merge</code> leva as correções ao ramo principal; o <code>push</code> as envia ao GitHub, de onde a Vercel reconstrói o site.</p>
 
-  <h3>Como desfazer tudo, se quiser</h3>
-<pre><code>git switch main</code></pre>
-  <p class="small">Só isso: o projeto volta ao estado anterior às correções. O ramo <code>degrau-03-correcoes</code> continua existindo, caso você mude de ideia.</p>
+  <div class="callout callout-vermelho">
+    <span class="box-title">A armadilha que isto custou, na prática</span>
+    <p style="margin-top:6px">Entre o commit e o push, o site publicado continuou sendo <strong>o código antigo</strong>. O sintoma foi enganoso: o Painel de Engenharia recusava a senha nova e aceitava a antiga (<code>1qaz</code>), e a "Triagem de Usuários" aparecia vazia. Nenhum dos dois era defeito do banco — era a versão anterior no ar, e a triagem antiga dependia da chave mestra que já havia sido removida da Vercel.</p>
+    <p><strong>A regra:</strong> commit guarda na sua máquina; <strong>só o <code>push</code> publica</strong>. Ao testar um comportamento novo, confirme antes qual commit a Vercel construiu.</p>
+  </div>
+
+  <h3>Como voltar ao estado anterior, se precisar</h3>
+<pre><code>git switch -c antes-das-correcoes d463721</code></pre>
+  <p class="small">Cria um ramo novo na fotografia anterior às correções, sem apagar nada. Para desfazer de vez no ramo principal, use <code>git revert</code> — nunca <code>git reset --hard</code> em algo que já foi enviado ao GitHub.</p>
 
   <h3>Como desfazer só um arquivo que você bagunçou</h3>
 <pre><code>git restore caminho/do/arquivo.ts        # volta o arquivo à última fotografia
@@ -686,7 +695,7 @@ git restore .                            # volta TODOS os arquivos modificados</
   <div class="callout callout-vermelho">
     <span class="box-title">Duas precauções</span>
     <ul>
-      <li><strong>O git não é backup.</strong> Ele vive dentro da mesma pasta: se o computador queimar, some junto. Quando quiser proteção de verdade, o passo é criar um repositório no GitHub (privado) e enviar — posso fazer isso com você num degrau próprio.</li>
+      <li><strong>O git sozinho não é backup.</strong> Ele vive dentro da mesma pasta: se o computador queimar, some junto. ✅ <strong>Isto já está resolvido</strong> — o projeto está no GitHub (<code>jairooc19/plataforma-jairo-o-d-c_v10_c_financeiro</code>), e cada <code>git push</code> atualiza essa cópia.</li>
       <li><strong>Arquivos <code>.env</code> ficam de fora de propósito.</strong> O <code>.gitignore</code> do projeto já os exclui: senhas e chaves não devem entrar no histórico.</li>
     </ul>
   </div>
@@ -789,7 +798,8 @@ git restore .                            # volta TODOS os arquivos modificados</
         <tr><td>Build de produção</td><td><code>npm run build:web</code></td><td>"Compiled successfully" e 10 rotas</td></tr>
         <tr><td>Tudo de uma vez</td><td><code>npm run verificar</code></td><td>Os três acima, em ordem</td></tr>
         <tr><td>As travas do banco</td><td><code>supabase/testes/teste_rls.sql</code> no SQL Editor</td><td>Dez linhas "PASSOU"</td></tr>
-        <tr><td>O que mudou em cada arquivo</td><td><code>git diff main..degrau-03-correcoes</code></td><td>Linha a linha, tudo o que eu alterei</td></tr>
+        <tr><td>O que mudou em cada arquivo</td><td><code>git diff d463721..HEAD</code></td><td>Linha a linha, tudo o que eu alterei</td></tr>
+        <tr><td>Qual commit está publicado</td><td><code>git log origin/master --oneline -1</code></td><td>Precisa bater com o seu <code>git log --oneline -1</code></td></tr>
       </tbody>
     </table>
   </div>
