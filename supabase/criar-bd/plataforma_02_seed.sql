@@ -35,13 +35,13 @@ INSERT INTO public.global_settings (
 ) VALUES (
     1,
     'PLATAFORMA JAIRO O D C',
-    '#ffffff',
-    '#ffffff',
-    '#1d4ed8',
-    '#64748b',
-    '#f8fafc',
-    '#e2e8f0',
-    '#e2e8f0',
+    '#ADB5BD',
+    '#ADB5BD',
+    '#000000',
+    '#000000',
+    '#F1F8E9',
+    '#000000',
+    '#000000',
     'jairooc19@gmail.com'
 )
 ON CONFLICT (id) DO UPDATE SET

@@ -126,13 +126,13 @@ CREATE TABLE IF NOT EXISTS public.users (
 CREATE TABLE IF NOT EXISTS public.global_settings (
     id integer PRIMARY KEY CHECK (id = 1), -- Garante linha única
     system_title text NOT NULL DEFAULT 'PLATAFORMA JAIRO O D C',
-    color_header_bg text NOT NULL DEFAULT '#ffffff',
-    color_footer_bg text NOT NULL DEFAULT '#ffffff',
-    color_header_text text NOT NULL DEFAULT '#1d4ed8',
-    color_footer_text text NOT NULL DEFAULT '#64748b',
-    color_bg_general text NOT NULL DEFAULT '#f8fafc',
-    color_button_border text NOT NULL DEFAULT '#e2e8f0',
-    color_border_header_footer text NOT NULL DEFAULT '#e2e8f0',
+    color_header_bg text NOT NULL DEFAULT '#ADB5BD',
+    color_footer_bg text NOT NULL DEFAULT '#ADB5BD',
+    color_header_text text NOT NULL DEFAULT '#000000',
+    color_footer_text text NOT NULL DEFAULT '#000000',
+    color_bg_general text NOT NULL DEFAULT '#F1F8E9',
+    color_button_border text NOT NULL DEFAULT '#000000',
+    color_border_header_footer text NOT NULL DEFAULT '#000000',
     admin_emails text NOT NULL DEFAULT 'jairooc19@gmail.com',
     updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -219,8 +219,8 @@ INSERT INTO public.global_settings (
     id, system_title, color_header_bg, color_footer_bg, color_header_text,
     color_footer_text, color_bg_general, color_button_border, color_border_header_footer, admin_emails
 ) VALUES (
-    1, 'PLATAFORMA JAIRO O D C', '#ffffff', '#ffffff', '#1d4ed8',
-    '#64748b', '#f8fafc', '#e2e8f0', '#e2e8f0', 'jairooc19@gmail.com'
+    1, 'PLATAFORMA JAIRO O D C', '#ADB5BD', '#ADB5BD', '#000000',
+    '#000000', '#F1F8E9', '#000000', '#000000', 'jairooc19@gmail.com'
 ) ON CONFLICT (id) DO NOTHING;
 
 
