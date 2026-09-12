@@ -1,0 +1,1317 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Degrau 6 — Projeto do Módulo Controle Financeiro (rodada 1)</title>
+<style>
+  /* ============================================================
+     CORES PRESERVADAS NA IMPRESSÃO (fora de @media print)
+     ============================================================ */
+  *, *::before, *::after {
+    box-sizing: border-box;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  :root {
+    --azul: #2c5282;
+    --azul-escuro: #1a365d;
+    --fundo-pagina: #fbfcfd;
+    --fundo-azul: #f0f4f8;
+    --fundo-verde: #f0f9f7;
+    --fundo-ambar: #fef5e7;
+    --fundo-vermelho: #fdf0f0;
+    --fundo-cinza: #f5f6f8;
+    --fundo-roxo: #f4f1f9;
+    --borda: #d9e2ec;
+    --borda-forte: #9fb3c8;
+    --texto: #000000;
+    --verde: #276749;
+    --ambar: #975a16;
+    --vermelho: #9b2c2c;
+    --roxo: #553c9a;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background-color: var(--fundo-pagina);
+    color: var(--texto);
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.62;
+  }
+
+  .page { max-width: 980px; margin: 0 auto; padding: 32px 28px 80px; }
+
+  h1, h2, h3, h4 { color: var(--texto); line-height: 1.25; }
+  h1 { font-size: 30px; margin: 0 0 6px; letter-spacing: -0.3px; }
+  h2 { font-size: 22px; margin: 0 0 14px; padding-bottom: 8px; border-bottom: 3px solid var(--azul); }
+  h3 { font-size: 17px; margin: 22px 0 8px; }
+  h4 { font-size: 15px; margin: 16px 0 6px; }
+  p { margin: 8px 0; }
+  ul, ol { margin: 8px 0; padding-left: 22px; }
+  li { margin: 3px 0; }
+  a { color: var(--azul); }
+  strong { font-weight: 700; }
+
+  code, .mono {
+    font-family: Consolas, "SFMono-Regular", Menlo, monospace;
+    font-size: 13px;
+    background-color: var(--fundo-cinza);
+    border: 1px solid var(--borda);
+    border-radius: 4px;
+    padding: 0 4px;
+    overflow-wrap: anywhere;
+  }
+  pre {
+    font-family: Consolas, "SFMono-Regular", Menlo, monospace;
+    font-size: 13px;
+    background-color: var(--fundo-cinza);
+    border: 1px solid var(--borda);
+    border-radius: 6px;
+    padding: 12px 14px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 10px 0;
+  }
+  pre code { border: 0; padding: 0; background-color: transparent; }
+
+  /* ---------- Cabeçalho ---------- */
+  .doc-header {
+    background-color: var(--fundo-azul);
+    border: 1px solid var(--borda);
+    border-left: 6px solid var(--azul);
+    border-radius: 10px;
+    padding: 22px 24px;
+    margin-bottom: 28px;
+  }
+  .doc-header .eyebrow {
+    font-size: 12px; font-weight: 700; letter-spacing: 1.2px;
+    text-transform: uppercase; color: var(--azul); margin: 0 0 6px;
+  }
+  .prompt-literal {
+    background-color: #ffffff;
+    border: 1px dashed var(--borda-forte);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 14px 0 8px;
+    font-size: 13.5px;
+    white-space: pre-wrap;
+    max-height: 460px;
+    overflow-y: auto;
+  }
+  .prompt-literal .rotulo {
+    display: block; font-size: 11px; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--azul); margin-bottom: 6px;
+  }
+  .meta { font-size: 13px; margin: 4px 0 0; }
+
+  /* ---------- Sumário ---------- */
+  .toc {
+    background-color: #ffffff; border: 1px solid var(--borda);
+    border-radius: 10px; padding: 18px 24px; margin-bottom: 32px;
+  }
+  .toc ol { columns: 2; column-gap: 32px; margin: 0; }
+  .toc li { break-inside: avoid; }
+  .toc a { color: var(--texto); text-decoration: none; border-bottom: 1px dotted var(--borda-forte); }
+  .toc a:hover { color: var(--azul); }
+
+  /* ---------- Seções ---------- */
+  section {
+    background-color: #ffffff; border: 1px solid var(--borda);
+    border-radius: 10px; padding: 22px 24px; margin-bottom: 26px;
+  }
+
+  /* ---------- Caixas ---------- */
+  .highlight-box, .example-box, .bonus-section, .callout {
+    border-radius: 8px; padding: 12px 16px; margin: 12px 0; border: 1px solid var(--borda);
+  }
+  .highlight-box { background-color: var(--fundo-azul); border-left: 5px solid var(--azul); }
+  .example-box { background-color: var(--fundo-verde); border-left: 5px solid var(--verde); }
+  .callout-ambar { background-color: var(--fundo-ambar); border-left: 5px solid var(--ambar); }
+  .callout-vermelho { background-color: var(--fundo-vermelho); border-left: 5px solid var(--vermelho); }
+  .callout-roxo { background-color: var(--fundo-roxo); border-left: 5px solid var(--roxo); }
+  .bonus-section { background-color: var(--fundo-ambar); border-left: 5px solid var(--ambar); }
+  .box-title {
+    display: block; font-weight: 700; font-size: 13px; letter-spacing: 0.6px;
+    text-transform: uppercase; margin-bottom: 4px;
+  }
+
+  /* ---------- Selos ---------- */
+  .tag {
+    display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.4px;
+    padding: 1px 8px; border-radius: 999px; border: 1px solid var(--borda-forte);
+    white-space: nowrap; vertical-align: 1px;
+  }
+  .tag-ok { background-color: var(--fundo-verde); }
+  .tag-par { background-color: var(--fundo-ambar); }
+  .tag-nao { background-color: var(--fundo-vermelho); }
+  .tag-dec { background-color: var(--fundo-azul); }
+  .tag-pro { background-color: var(--fundo-roxo); }
+
+  /* ---------- Tabelas ---------- */
+  .table-wrap { width: 100%; overflow-x: auto; margin: 12px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  thead th {
+    background-color: var(--azul); color: #ffffff; text-align: left;
+    font-weight: 700; padding: 8px 10px; border: 1px solid var(--azul);
+  }
+  tbody td { padding: 7px 10px; border: 1px solid var(--borda); vertical-align: top; overflow-wrap: anywhere; }
+  tbody tr:nth-child(even) td { background-color: var(--fundo-azul); }
+
+  .steps { counter-reset: passo; list-style: none; padding-left: 0; }
+  .steps > li {
+    counter-increment: passo; position: relative; padding: 6px 0 6px 40px;
+    border-bottom: 1px dotted var(--borda);
+  }
+  .steps > li::before {
+    content: counter(passo); position: absolute; left: 0; top: 6px;
+    width: 26px; height: 26px; border-radius: 50%;
+    background-color: var(--azul); color: #ffffff; font-weight: 700;
+    font-size: 13px; text-align: center; line-height: 26px;
+  }
+
+  .antes-depois { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0; }
+  .antes, .depois { border-radius: 8px; padding: 12px 14px; border: 1px solid var(--borda); font-size: 13.5px; }
+  .antes { background-color: var(--fundo-vermelho); }
+  .depois { background-color: var(--fundo-verde); }
+  .antes b, .depois b { display: block; margin-bottom: 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; }
+
+  .small { font-size: 13px; }
+
+  /* ---------- Diagrama do "sol e peças" ---------- */
+  .lego { margin: 16px 0; }
+  .lego-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; align-items: stretch;
+  }
+  .peca {
+    border: 2px dashed var(--borda-forte); border-radius: 10px;
+    background-color: var(--fundo-cinza); padding: 12px 14px; font-size: 13.5px;
+  }
+  .peca b { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 4px; }
+  .sol {
+    border: 3px solid var(--azul); border-radius: 12px;
+    background-color: var(--fundo-azul); padding: 16px 18px; text-align: center;
+  }
+  .sol b { display: block; font-size: 15px; letter-spacing: 0.4px; }
+  .conector { text-align: center; font-size: 20px; line-height: 1; margin: 6px 0; letter-spacing: 6px; }
+
+  /* ---------- Árvore de pastas ---------- */
+  .arvore {
+    font-family: Consolas, "SFMono-Regular", Menlo, monospace;
+    font-size: 13px; line-height: 1.5;
+    background-color: var(--fundo-cinza); border: 1px solid var(--borda);
+    border-radius: 8px; padding: 14px 16px; margin: 12px 0; white-space: pre;
+    overflow-x: auto;
+  }
+  .arvore .p { background-color: #e3ecf7; }  /* plataforma */
+  .arvore .m { background-color: #efe6d4; }  /* módulo */
+  .legenda { font-size: 12.5px; margin: 8px 0 0; }
+  .chip {
+    display: inline-block; padding: 1px 8px; border-radius: 4px;
+    border: 1px solid var(--borda-forte); font-size: 12px; margin-right: 6px;
+  }
+  .chip-p { background-color: #e3ecf7; }
+  .chip-m { background-color: #efe6d4; }
+
+  /* ============================================================
+     BOTÃO E MENU DE IMPRESSÃO
+     ============================================================ */
+  .print-container { position: fixed; top: 16px; right: 16px; z-index: 1000; }
+  .print-button {
+    background-color: var(--azul); color: #ffffff; border: 0; border-radius: 8px;
+    padding: 10px 16px; font: inherit; font-weight: 700; font-size: 14px;
+    cursor: pointer; box-shadow: 0 4px 14px rgba(26, 54, 93, 0.25);
+  }
+  .print-button:hover { background-color: var(--azul-escuro); }
+  .print-menu {
+    display: none; position: absolute; top: calc(100% + 6px); right: 0;
+    min-width: 220px; background-color: #ffffff; border: 1px solid var(--borda);
+    border-radius: 8px; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14); padding: 6px;
+  }
+  .print-menu.open { display: block; }
+  .print-option {
+    display: block; width: 100%; text-align: left; background-color: transparent;
+    color: var(--texto); border: 0; border-radius: 6px; padding: 10px 12px;
+    font: inherit; font-size: 14px; cursor: pointer;
+  }
+  .print-option:hover, .print-option:focus { background-color: var(--fundo-azul); outline: none; }
+  .print-option small { display: block; font-size: 12px; }
+
+  @media (max-width: 720px) {
+    .page { padding: 70px 14px 60px; }
+    .toc ol { columns: 1; }
+    .antes-depois { grid-template-columns: 1fr; }
+    .lego-grid { grid-template-columns: 1fr; }
+    section { padding: 16px; }
+  }
+
+  /* ============================================================
+     MODO PRETO & BRANCO — classe .print-bw no <body>
+     ============================================================ */
+  body.print-bw, body.print-bw * {
+    color: #000000 !important; background-color: #ffffff !important;
+    border-color: #000000 !important; fill: #000000 !important;
+    stroke: #000000 !important; text-shadow: none !important;
+  }
+  body.print-bw table thead, body.print-bw table thead th {
+    background-color: #333333 !important; color: #ffffff !important;
+  }
+  body.print-bw tbody tr:nth-child(even) td { background-color: #f4f4f4 !important; }
+  body.print-bw .highlight-box, body.print-bw .example-box, body.print-bw .bonus-section,
+  body.print-bw .callout, body.print-bw .doc-header, body.print-bw .antes,
+  body.print-bw .depois, body.print-bw pre, body.print-bw code,
+  body.print-bw .arvore, body.print-bw .peca, body.print-bw .sol { background-color: #f2f2f2 !important; }
+  body.print-bw .arvore .p { background-color: #e0e0e0 !important; }
+  body.print-bw .arvore .m { background-color: #ffffff !important; }
+  body.print-bw .tag, body.print-bw .chip { background-color: #e6e6e6 !important; }
+  body.print-bw .steps > li::before { background-color: #333333 !important; color: #ffffff !important; }
+
+  /* ============================================================
+     IMPRESSÃO A4 — só layout, quebras, margens e exibição
+     ============================================================ */
+  @page { size: A4; margin: 0.5cm; }
+
+  @media print {
+    .print-container { display: none !important; }
+    body { margin: 0; padding: 0; }
+    .page { max-width: none; margin: 0; padding: 0; }
+    section { page-break-inside: avoid; margin: 0 0 12px; }
+    section h2 { page-break-inside: avoid; page-break-after: avoid; }
+    h2, h3, h4 { page-break-after: avoid; }
+    .toc, .highlight-box, .bonus-section, .example-box, .callout, .antes-depois,
+    .lego, .arvore { page-break-inside: avoid; }
+    table { page-break-inside: avoid; }
+    tr { page-break-inside: avoid; }
+    .table-wrap, pre, .prompt-literal, .arvore { overflow: visible; }
+    .prompt-literal { max-height: none; }
+    a { border-style: none; }
+    * { box-shadow: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="print-container">
+  <button type="button" class="print-button" id="printButton" aria-haspopup="true" aria-expanded="false" aria-controls="printMenu">
+    🖨️ Imprimir ▾
+  </button>
+  <div class="print-menu" id="printMenu" role="menu">
+    <button type="button" class="print-option" id="printColor" role="menuitem">
+      Cores (A4)
+      <small>Mantém as cores exatamente como na tela</small>
+    </button>
+    <button type="button" class="print-option" id="printBW" role="menuitem">
+      Preto &amp; Branco (A4)
+      <small>Converte tudo para preto, cinzas e branco</small>
+    </button>
+  </div>
+</div>
+
+<div class="page">
+
+<header class="doc-header">
+  <p class="eyebrow">Projeto C FINANCEIRO · Degrau 6 de N · Análise da minuta (rodada 1 do debate)</p>
+  <h1>Módulo Controle Financeiro: o que a minuta já resolve, o que ela deixa aberto e o que colide com a plataforma</h1>
+  <div class="prompt-literal">
+<span class="rotulo">A sua minuta, transcrita literalmente</span>MÓDULO: CONTROLE FINANCEIRO
+
+MÓDULO: CONTROLE FINANCEIRO: O QUE É: É um sistema que possibilita qualquer pessoa fazer sua gestão financeira, através de registros das entradas e saídas de seu dinheiro, dentro de uma estrutura simples, intuitiva e didática, que possibilitar visualizar dashboards informativos que contém as informações indispensáveis para acompanhamentos e tomadas de decisões.
+
+MÓDULO: CONTROLE FINANCEIRO: TECNOLOGIAS: A SER DEFINIDA, SERÁ QUE VALE APENA SER EM PYTHON?
+
+MÓDULO: CONTROLE FINANCEIRO: CARACTERÍSTICAS GERAIS: São características que estarão em tudo que for desenvolvido no “MÓDULO: CONTROLE FINANCEIRO”: Característica geral “TODAS AS TELAS SE ADAPTAM AUTOMATICAMENTE AS DIFERENTES TELAS QUE ESTIVEREM RODANDO O SISTEMA”, 100% responsivo funciona em qualquer tamanho de tela. Característica “DESIGN (a aparência visual, identidade estética) SOFISTICADO COM ÍCONES MAIS REALISTAS POSSÍVEL”, do Font Awesome “ANIMAÇÕES SUAVES FADE-IN, SLIDE, HOVER EFFECTS”, “MODAIS ELEGANTES COM EFEITOS DE TRANSIÇÃO”, “UX BLUR EVENT PARA VALIDAÇÃO AUTOMÁTICA”, características “LETRAS MAIÚSCULAS EM TODOS OS TÍTULOS, NOMES DE CAMPOS, MENUS, ITENS DE MENUS”.
+
+MÓDULO: CONTROLE FINANCEIRO: TELA: PRINCIPAL: CONCEITO: É a tela inicial do Módulo CONTROLE FINANCEIRO.
+
+MÓDULO: CONTROLE FINANCEIRO: TELA: PRINCIPAL: LAYOUT (a estrutura e organização dos elementos) na tela PRINCIPAL: Todos os elementos centralizados. Todos os elementos ficando um abaixo do outro. Elemento “BARRA FIXA NO TOPO EM MAIÚSCULAS” com o título "CONTROLE FINANCEIRO", é o primeiro elemento da TELA: PRINCIPAL. Elemento “DINHEIRO DO PERÍODO” é o segundo elemento da TELA: PRINCIPAL, ao clicar apresenta tela informando que está em desenvolvimento. Elemento “BARRA FIXA NA PARTE INFERIOR, SEMPRE VISÍVEL”, é o terceiro elemento da TELA: PRINCIPAL. Elemento "OPÇÕES, ÍCONE DE MENU (é o quarto elemento da TELA: PRINCIPAL) COM 3 OPÇÕES: “CADASTROS” COM SUB-OPÇÃO “CONTA MOVIMENTO”, E SUB-OPÇÃO “CONTA IDENTIFICADORA”; OPÇÃO “CONFIGURAÇÕES”, OPÇÃO “DASHBOARDS”, OPÇÃO “LANÇAMENTOS”, OPÇÃO “ORÇAMENTO”.
+
+[… as seções de CADASTROS CONTAS MOVIMENTOS, CADASTROS CONTAS IDENTIFICADORAS DOS MOVIMENTOS, LANÇAMENTOS e CONFERÊNCIA DA CONTA seguem integralmente na minuta original, e cada elemento delas é analisado nas seções 6 a 11 deste documento, citado campo por campo.]</div>
+  <p class="meta small">A minuta é longa; acima está o começo literal e, no corpo do documento, <strong>cada elemento dela é citado e analisado um a um</strong>. As instruções gerais do seu pedido (honestidade, público, estilo, bônus, formato de entrega) foram aplicadas mas não transcritas, como nos degraus anteriores.</p>
+  <p class="meta"><strong>Data:</strong> 12/09/2026 · <strong>Nenhum arquivo de código foi alterado</strong> — este degrau é só debate.</p>
+</header>
+
+<nav class="toc" aria-label="Sumário">
+  <h2 style="border-bottom:0; padding-bottom:0; margin-bottom:10px;">Sumário</h2>
+  <ol>
+    <li><a href="#s1">Como ler este documento</a></li>
+    <li><a href="#s2">Resposta curta: eu entendi a minuta?</a></li>
+    <li><a href="#s3">O módulo em uma página (o que eu entendi)</a></li>
+    <li><a href="#s4">A sua pergunta: vale a pena ser em Python?</a></li>
+    <li><a href="#s5">As características gerais: duas colidem com a plataforma</a></li>
+    <li><a href="#s6">Tela Principal: análise elemento por elemento</a></li>
+    <li><a href="#s7">Cadastro de Contas Movimento</a></li>
+    <li><a href="#s8">Cadastro de Contas Identificadoras</a></li>
+    <li><a href="#s9">Lançamentos: o coração do módulo</a></li>
+    <li><a href="#s10">Conferência da Conta: o extrato com saldo</a></li>
+    <li><a href="#s11">O que falta especificar (telas citadas sem detalhe)</a></li>
+    <li><a href="#s12">O modelo de dados proposto</a></li>
+    <li><a href="#s13">As funções do banco propostas</a></li>
+    <li><a href="#s14">Onde o módulo encaixa na plataforma (o LEGO)</a></li>
+    <li><a href="#s15">Os 6 buracos conceituais</a></li>
+    <li><a href="#s16">As 14 perguntas que eu preciso que você responda</a></li>
+    <li><a href="#s17">Bônus: sugestões de alta relevância</a></li>
+    <li><a href="#s18">Plano de fases proposto</a></li>
+    <li><a href="#s19">Como continuamos o debate</a></li>
+  </ol>
+</nav>
+
+<section id="s1">
+  <h2>1. Como ler este documento</h2>
+  <p>Este é o <strong>primeiro turno de um debate</strong>, não um projeto fechado. O objetivo aqui é um só: separar o que a sua minuta já decidiu do que ela deixou em aberto, para que <strong>você</strong> feche o que falta antes de existir uma única linha de SQL.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Selo</th><th>Significa</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag tag-ok">ENTENDI</span></td><td>A minuta é clara e eu sei exatamente o que construir. Repito com as minhas palavras para você conferir.</td></tr>
+        <tr><td><span class="tag tag-par">AMBÍGUO</span></td><td>Dá para ler de duas maneiras. Eu digo as duas e recomendo uma — mas quem decide é você.</td></tr>
+        <tr><td><span class="tag tag-nao">CONFLITO</span></td><td>O que a minuta pede briga com algo que <strong>já existe</strong> na plataforma. Não dá para ter os dois; é escolha.</td></tr>
+        <tr><td><span class="tag tag-pro">PROPOSTA</span></td><td>Desenho que eu estou sugerindo para preencher uma lacuna. Não estava na minuta.</td></tr>
+        <tr><td><span class="tag tag-dec">DECISÃO SUA</span></td><td>Ponto de dono, não de programador. Eu explico o efeito de cada caminho.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout callout-ambar">
+    <span class="box-title">Uma promessa sobre honestidade</span>
+    <p style="margin-top:6px">Eu <strong>não vou completar a sua minuta por conta própria</strong>. Onde ela é omissa, eu marco como pergunta em vez de inventar um requisito e depois construir como se você tivesse pedido. Isso é mais lento agora e muito mais barato depois: requisito inventado só aparece quando a tela está pronta e errada.</p>
+  </div>
+</section>
+
+<section id="s2">
+  <h2>2. Resposta curta: eu entendi a minuta?</h2>
+  <p><strong>Sim, na maior parte.</strong> A minuta é mais detalhada do que a média — ela desce ao nível de campo, de validação e de comportamento de tela, o que é exatamente o que um projeto precisa. Em números:</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Avaliação</th><th>Quantidade</th><th>Onde está neste documento</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag tag-ok">ENTENDI</span> — claro e construível</td><td><strong>31 elementos</strong> (todos os campos de cadastro e de lançamento, as validações, os filtros, a estrutura do extrato)</td><td>Seções 6 a 10</td></tr>
+        <tr><td><span class="tag tag-par">AMBÍGUO</span> — preciso da sua decisão</td><td><strong>14 pontos</strong></td><td>Seção 16 (a lista numerada)</td></tr>
+        <tr><td><span class="tag tag-nao">CONFLITO</span> — briga com a plataforma</td><td><strong>2 pontos</strong> (responsividade × bloqueio móvel; Font Awesome × lucide)</td><td>Seção 5</td></tr>
+        <tr><td>Erros de digitação / contagem</td><td><strong>3</strong> (o "3 opções" que são 5; um copiar-e-colar; uma tela sem detalhamento)</td><td>Seções 6, 8 e 11</td></tr>
+        <tr><td><span class="tag tag-pro">BURACOS CONCEITUAIS</span> — faltam no desenho</td><td><strong>6</strong> (transferência entre contas, saldo de abertura, o que o REGIME faz, estorno, fechamento de período, exclusão × histórico)</td><td>Seção 15</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="highlight-box">
+    <span class="box-title">O ponto mais importante deste documento</span>
+    <p style="margin-top:6px">A minuta descreve <strong>telas</strong> com muita precisão e <strong>regras de negócio</strong> com menos. Isso é natural — a tela é o que se vê. Mas num módulo financeiro as regras invisíveis (o que é saldo, o que entra no saldo, o que acontece quando se apaga um lançamento de três meses atrás) são justamente as que, se ficarem para depois, obrigam a refazer tabela com dado dentro. É por isso que a seção 15 existe.</p>
+  </div>
+</section>
+
+<section id="s3">
+  <h2>3. O módulo em uma página (o que eu entendi)</h2>
+  <p>Reescrevo a minuta com as minhas palavras. Se algo aqui estiver errado, é o ponto mais urgente a corrigir — tudo o mais depende disto.</p>
+
+  <div class="example-box">
+    <span class="box-title">O módulo, em seis frases</span>
+    <ol>
+      <li>O usuário cadastra <strong>onde o dinheiro fica</strong> — as <em>Contas Movimento</em> (caixa, banco, e "outras").</li>
+      <li>Cadastra também <strong>por que o dinheiro se moveu</strong> — as <em>Contas Identificadoras</em> (despesa, receita, "outras"). É o que o mercado chama de categoria ou plano de contas.</li>
+      <li>Registra <strong>lançamentos</strong>: uma data, uma conta movimento, uma conta identificadora, entrada ou saída, um valor e um histórico.</li>
+      <li>Ao lançar, vê <strong>ao lado, na mesma tela</strong>, o extrato da conta escolhida, com saldo calculado linha a linha — para conferir contra o extrato do banco.</li>
+      <li>Depois, consulta e imprime.</li>
+      <li>No futuro: dashboards e orçamento.</li>
+    </ol>
+  </div>
+
+  <h3>3.1 O fluxo, desenhado</h3>
+  <div class="lego">
+    <div class="lego-grid">
+      <div class="peca"><b>1. Cadastrar</b>CONTA MOVIMENTO<br><span class="small">"BANCO ITAÚ", "CARTEIRA"<br>tipo: CAIXA OU BANCO / OUTRAS</span></div>
+      <div class="peca"><b>2. Cadastrar</b>CONTA IDENTIFICADORA<br><span class="small">"SALÁRIO", "ALUGUEL", "MERCADO"<br>tipo: DESPESA / RECEITA / OUTRAS</span></div>
+      <div class="peca"><b>3. Lançar</b>O MOVIMENTO<br><span class="small">data + conta + identificadora<br>+ entrada/saída + valor</span></div>
+    </div>
+    <div class="conector">▼ ▼ ▼</div>
+    <div class="sol">
+      <b>O EXTRATO COM SALDO</b>
+      saldo inicial → linha a linha → totais de entrada e saída
+    </div>
+    <p class="legenda small">Note que os dois cadastros respondem a perguntas <strong>diferentes</strong>: "onde está o dinheiro?" e "por que ele se moveu?". Um lançamento sempre cruza as duas. É o desenho clássico de partidas dobradas simplificado — e é um bom desenho.</p>
+  </div>
+
+  <h3>3.2 Um exemplo concreto, ponta a ponta</h3>
+  <p>Para não ficar abstrato: suponha o mês de setembro na conta "BANCO ITAÚ".</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>DATA</th><th>ORDEM</th><th>CONTA IDENTIFICADORA</th><th>ENTRADA</th><th>SAÍDA</th><th>SALDO</th><th>HISTÓRICO</th></tr></thead>
+      <tbody>
+        <tr><td>31/08</td><td>—</td><td><strong>SALDO INICIAL</strong></td><td></td><td></td><td><strong>1.200,00</strong></td><td></td></tr>
+        <tr><td>05/09</td><td>1</td><td>SALÁRIO</td><td>3.000,00</td><td></td><td>4.200,00</td><td>SALÁRIO AGOSTO</td></tr>
+        <tr><td>05/09</td><td>2</td><td>ALUGUEL</td><td></td><td>1.500,00</td><td>2.700,00</td><td>ALUGUEL SETEMBRO</td></tr>
+        <tr><td>12/09</td><td>1</td><td>MERCADO</td><td></td><td>420,50</td><td>2.279,50</td><td>COMPRA DO MÊS</td></tr>
+        <tr><td colspan="3"><strong>TOTAIS DO PERÍODO</strong></td><td><strong>3.000,00</strong></td><td><strong>1.920,50</strong></td><td><strong>2.279,50</strong></td><td></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Repare em duas coisas que a minuta acertou e que costumam faltar em projetos assim:</p>
+  <ul>
+    <li><strong>A ORDEM NO EXTRATO</strong> existe porque o banco não diz a hora — dois lançamentos no mesmo dia precisam de um critério de desempate, senão o saldo linha a linha fica diferente do extrato impresso do banco. É um detalhe de quem já conciliou conta na vida real.</li>
+    <li><strong>O SALDO INICIAL com data de um dia antes</strong> é o que faz o extrato "fechar" com o do banco. Sem essa linha, o usuário não consegue comparar.</li>
+  </ul>
+</section>
+
+<section id="s4">
+  <h2>4. A sua pergunta: vale a pena ser em Python?</h2>
+  <p><span class="tag tag-nao">CONFLITO</span> <strong>Não. Para este módulo, dentro desta plataforma, Python seria um erro estrutural</strong> — e eu prefiro explicar o porquê com detalhe a só dar o veredito, porque a pergunta é boa e a resposta ensina como o LEGO funciona.</p>
+
+  <h3>4.1 O motivo principal: o módulo é uma peça, não um programa</h3>
+  <p>O degrau 5 montou o soquete: um módulo é uma peça que se pluga na Plataforma Jairo O D C. Para se plugar, ele precisa usar <strong>o mesmo login, a mesma empresa ativa, as mesmas permissões e o mesmo banco</strong> da plataforma. Tudo isso hoje é TypeScript (o <code>@jairo/core</code>) rodando dentro do Next.js, falando com o PostgreSQL do Supabase.</p>
+  <p>Um módulo em Python não seria uma peça encaixada: seria <strong>um segundo sistema ao lado</strong>. Veja o que ele obrigaria a criar, item por item:</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>O que a plataforma já resolve</th><th>O que o módulo Python precisaria fazer de novo</th></tr></thead>
+      <tbody>
+        <tr><td>Login (Google, senha, sessão, cookies)</td><td>Validar o token do Supabase por conta própria, em outra linguagem, e manter isso correto para sempre</td></tr>
+        <tr><td>Empresa ativa e papel do membro</td><td>Reimplementar a leitura de <code>tenant_members</code> e a decisão de permissão</td></tr>
+        <tr><td>Dinheiro em centavos (<code>lib/dinheiro.ts</code>, 19 testes)</td><td>Reescrever a mesma matemática em Python — e manter as duas versões concordando</td></tr>
+        <tr><td>Datas com o fuso do Brasil (<code>lib/datas.ts</code>)</td><td>Idem</td></tr>
+        <tr><td>Um único endereço na internet (a Vercel)</td><td>Um segundo serviço hospedado, com outro endereço, outro deploy, outro custo e outra conta para manter</td></tr>
+        <tr><td>Telas com o white-label (cores e título do banco)</td><td>Ler as mesmas configurações e reimplementar a aparência, para o módulo não parecer outro produto</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout callout-vermelho">
+    <span class="box-title">E o pior: desplugar deixaria de ser simples</span>
+    <p style="margin-top:6px">O <code>MODULOS.md</code> promete que desconectar um módulo é "apagar 5 pastas e remover 3 linhas". Com um serviço Python separado, desconectar passaria a incluir <strong>derrubar um servidor, cancelar um domínio e limpar variáveis de ambiente em dois lugares</strong> — e reconectar exigiria repetir tudo. A peça teria fios pendurados fora do soquete.</p>
+  </div>
+
+  <h3>4.2 O segundo motivo: nada neste módulo pede Python</h3>
+  <p>Python brilha em cálculo científico, aprendizado de máquina, processamento de grandes volumes e automação de sistema. Vamos olhar o que a sua minuta realmente pede:</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>O que a minuta pede</th><th>Onde isso é melhor feito</th></tr></thead>
+      <tbody>
+        <tr><td>Somar entradas e saídas; calcular saldo linha a linha</td><td><strong>No PostgreSQL</strong>, com uma função de janela (<code>SUM() OVER</code>). É uma linha de SQL e roda onde o dado está — nem TypeScript nem Python fazem melhor. Ver seção 10.</td></tr>
+        <tr><td>Validar campo em branco, valor ≤ zero, nome repetido</td><td>Na tela (conforto imediato) <strong>e</strong> no banco (a garantia). Os dois já são o padrão do projeto.</td></tr>
+        <tr><td>Buscar os 4 primeiros registros que contêm o texto digitado</td><td>No PostgreSQL, com <code>ILIKE</code> + <code>unaccent</code> (extensão já instalada) + <code>LIMIT 4</code>.</td></tr>
+        <tr><td>Telas responsivas, modais, animações, ícones</td><td>No navegador: React + Tailwind, como o resto da plataforma. Python não desenha tela.</td></tr>
+        <tr><td>Impressão em cores e P&amp;B</td><td>No navegador, com CSS de impressão — exatamente o mecanismo deste documento que você está lendo.</td></tr>
+        <tr><td>Dashboards (fase futura)</td><td>No navegador, com uma biblioteca de gráficos. Python geraria imagens estáticas, sem interação.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>4.3 Onde Python faria sentido neste projeto</h3>
+  <p><span class="tag tag-pro">PROPOSTA</span> Para ser justo com a pergunta: <strong>há um lugar legítimo</strong>, e vale registrar para o futuro. Python é excelente como <em>ferramenta de bancada</em> — um script que você roda na sua máquina, de vez em quando, fora da aplicação:</p>
+  <ul>
+    <li>Ler um extrato OFX/CSV do banco e transformá-lo num arquivo pronto para conferência (você decidiu no degrau 3 que <strong>não haverá importação</strong>, mas se um dia mudar de ideia, é aqui).</li>
+    <li>Gerar um relatório analítico pesado uma vez por mês.</li>
+    <li>Uma rotina de manutenção do banco, rodada por você, no servidor.</li>
+  </ul>
+  <p>Nesses casos o script é uma ferramenta, não parte do módulo: não tem tela, não tem login, não fica no ar. E aí a regra do <code>CLAUDE.md</code> se aplica — se um dia ele precisar da chave mestra do banco, essa chave nasce e morre dentro do próprio script.</p>
+
+  <div class="highlight-box">
+    <span class="box-title">A recomendação, em uma frase</span>
+    <p style="margin-top:6px">O módulo Controle Financeiro deve ser escrito <strong>na mesma tecnologia da plataforma</strong>: TypeScript no <code>@jairo/core</code> (regras de negócio), React/Next.js no <code>admin-web</code> (telas) e <strong>PostgreSQL para tudo que é conta, soma e trava</strong> (é onde o dado vive e onde a regra não pode ser burlada). Sem dependência nova de linguagem, sem segundo servidor, e o desplugar continua sendo cinco pastas e três linhas.</p>
+  </div>
+</section>
+
+<section id="s5">
+  <h2>5. As características gerais: duas colidem com a plataforma</h2>
+  <p>As características que você listou (responsivo, design sofisticado, ícones realistas, animações suaves, modais com transição, validação no <em>blur</em>, maiúsculas em títulos e campos) são todas viáveis. Duas, porém, batem em decisões que <strong>já estão no ar</strong>.</p>
+
+  <h3>5.1 CONFLITO — "100% responsivo, funciona em qualquer tamanho de tela"</h3>
+  <p><span class="tag tag-nao">CONFLITO</span> <strong>Fato verificado agora, no código:</strong> o <code>admin-web</code> <em>bloqueia telas menores que 768px</em>. São duas camadas, e a documentação as descreve como decisão consciente:</p>
+  <ul>
+    <li>O componente <code>MobileBlocker</code> mede a largura real da janela e <strong>cobre qualquer rota</strong> com uma cortina que diz: <em>"Este sistema web funciona apenas em telas maiores. Para usar em celular, baixe o app mobile."</em></li>
+    <li>O <code>proxy.ts</code> ainda barra por <em>user agent</em> em <code>/dashboard</code>, redirecionando para <code>/mobile-blocked</code>.</li>
+  </ul>
+  <p>Ou seja: se o módulo for construído dentro do <code>admin-web</code> (que é onde o foco está, por sua decisão de 12/09), <strong>nenhuma tela dele abrirá em celular</strong> — não importa quão responsivo seja o CSS. As duas coisas não podem ser verdade ao mesmo tempo.</p>
+  <div class="antes-depois">
+    <div class="antes">
+      <b>Caminho A — manter o bloqueio</b>
+      O módulo é responsivo de 768px para cima (tablet em paisagem, notebook, monitor). Celular fica para o aplicativo, quando ele voltar.<br><br>
+      <strong>Custo:</strong> nenhum. É o estado atual.<br>
+      <strong>Ganho:</strong> a tela de lançamento com duas colunas (lançamento + conferência) só faz sentido com largura — em 360px ela empilha e perde o propósito de conferir lado a lado.
+    </div>
+    <div class="depois">
+      <b>Caminho B — abrir o módulo no celular</b>
+      Acrescentar as rotas do financeiro à lista <code>ROTAS_SEM_BLOQUEIO</code>, como já se fez com <code>/privacidade</code>.<br><br>
+      <strong>Custo:</strong> é mexer na <strong>plataforma</strong>, não no módulo (uma linha em <code>mobileBlock.ts</code>) — e some a coerência de "web é desktop, celular é app".<br>
+      <strong>Risco:</strong> a tela de duas colunas precisaria de um desenho alternativo para telas estreitas, que a minuta não descreve.
+    </div>
+  </div>
+  <p><span class="tag tag-dec">DECISÃO SUA</span> <strong>Minha recomendação: Caminho A.</strong> Motivo prático, não teórico: você mesmo adiou o aplicativo e definiu o foco no <code>admin-web</code>; e a tela mais importante do módulo — lançar conferindo o extrato ao lado — é uma tela de largura. Ser "responsivo" de 768px para cima já cobre tablet e notebook.</p>
+
+  <h3>5.2 CONFLITO — ícones do Font Awesome</h3>
+  <p><span class="tag tag-nao">CONFLITO</span> A plataforma usa <strong><code>lucide-react</code></strong> (versão 1.14) na web, e o <code>CLAUDE.md</code> tem uma proibição explícita sobre importar ícone fora do registro central no aplicativo. Trazer o Font Awesome significaria:</p>
+  <ul>
+    <li>uma <strong>dependência nova</strong> só para o módulo — e a regra R2 do LEGO diz que o módulo <em>usa</em> o que a plataforma oferece, não instala um paralelo;</li>
+    <li><strong>duas famílias de ícone na mesma tela</strong>: o cabeçalho e o menu da plataforma em lucide, o conteúdo do módulo em Font Awesome. Isso é visível — pesos de traço e cantos diferentes;</li>
+    <li>peso extra no pacote (o Font Awesome completo é grande; o uso correto exige importar ícone a ícone, como já fazemos com o lucide).</li>
+  </ul>
+  <p><span class="tag tag-dec">DECISÃO SUA</span> <strong>Minha recomendação:</strong> usar <code>lucide-react</code>, que já está lá. Sobre "ícones mais realistas possível": o lucide é um traço limpo, e ele tem os ícones deste domínio — carteira, banco, cofre, cartão, seta de entrada e de saída, calendário, gráfico. Se o que você quer é um visual <em>mais ilustrado</em>, isso se consegue com <strong>cor e tamanho</strong> (ícone grande em círculo colorido, como já é o padrão dos cartões do painel) sem trocar de biblioteca. Se depois de ver ficar insatisfeito, trocamos — mas trocar depois de escolher custa pouco, e instalar duas bibliotecas custa para sempre.</p>
+
+  <h3>5.3 As outras características: todas viáveis, com uma observação em cada</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Característica</th><th>Viável?</th><th>Observação honesta</th></tr></thead>
+      <tbody>
+        <tr><td>Animações suaves (fade-in, slide, hover)</td><td><span class="tag tag-ok">SIM</span></td><td>Tailwind já está no projeto e o <code>admin-web</code> já usa <code>animate-fade-in</code>. Sem dependência nova.</td></tr>
+        <tr><td>Modais elegantes com transição</td><td><span class="tag tag-ok">SIM</span></td><td>Já existe o padrão no projeto (o <code>ProfileModal</code>), inclusive a regra de <strong>montar o modal só quando aberto</strong> — o que evita reabrir com dado velho.</td></tr>
+        <tr><td>Validação automática no <em>blur</em></td><td><span class="tag tag-ok">SIM</span></td><td>Recomendo combinar: valida ao sair do campo <strong>e</strong> ao salvar. Só no blur, um campo nunca visitado passa batido.</td></tr>
+        <tr><td>Maiúsculas em títulos, campos e menus</td><td><span class="tag tag-ok">SIM</span></td><td>Duas coisas diferentes, e vale distinguir: <strong>rótulo</strong> em maiúscula é CSS (<code>text-transform</code>); <strong>dado digitado</strong> em maiúscula é conversão de verdade, antes de gravar. A minuta pede as duas, e é o que o projeto já faz nos nomes.</td></tr>
+        <tr><td>Design sofisticado</td><td><span class="tag tag-ok">SIM</span></td><td>O módulo herda o white-label (cores do banco, hoje a paleta cinza/preta que você definiu). Assim ele parece parte do sistema, não um enxerto.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="s6">
+  <h2>6. Tela Principal: análise elemento por elemento</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Elemento da minuta</th><th>Leitura</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>1º — "BARRA FIXA NO TOPO EM MAIÚSCULAS" com o título "CONTROLE FINANCEIRO"</td>
+          <td><span class="tag tag-ok">ENTENDI</span> <span class="tag tag-par">AMBÍGUO</span> A plataforma <strong>já tem</strong> um cabeçalho fixo próprio (com o título do sistema, a empresa ativa, trocar empresa, perfil e sair). Pergunta 1 da seção 16: a barra do módulo é uma <strong>segunda</strong> barra abaixo da da plataforma, ou o módulo só troca o título da barra existente? Duas barras fixas consomem altura de tela.</td>
+        </tr>
+        <tr>
+          <td>2º — "DINHEIRO DO PERÍODO", ao clicar informa que está em desenvolvimento</td>
+          <td><span class="tag tag-par">AMBÍGUO</span> Entendi que é um <strong>marcador de lugar</strong> — o espaço reservado para o resumo do período, que ainda não será construído. O que não sei é <strong>como ele se parece agora</strong>: um cartão grande com um valor de exemplo? Um botão? Um bloco cinza com "EM DESENVOLVIMENTO"? Pergunta 2.</td>
+        </tr>
+        <tr>
+          <td>3º — "BARRA FIXA NA PARTE INFERIOR, SEMPRE VISÍVEL"</td>
+          <td><span class="tag tag-par">AMBÍGUO</span> A minuta não diz <strong>o que vai dentro dela</strong>. Hoje a plataforma tem um rodapé institucional (© e versão). Pergunta 3: essa barra inferior é o rodapé institucional, ou é uma barra de ação (por exemplo, atalhos para LANÇAR e PESQUISAR)?</td>
+        </tr>
+        <tr>
+          <td>4º — "OPÇÕES, ÍCONE DE MENU COM 3 OPÇÕES"</td>
+          <td><span class="tag tag-nao">ERRO DE CONTAGEM</span> A minuta diz <strong>3 opções</strong> e em seguida lista <strong>5</strong>: CADASTROS (com duas sub-opções), CONFIGURAÇÕES, DASHBOARDS, LANÇAMENTOS e ORÇAMENTO. Assumi que valem as 5 listadas. Pergunta 4 confirma.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout callout-ambar">
+    <span class="box-title">Uma observação de ordem, que parece pequena e não é</span>
+    <p style="margin-top:6px">A minuta diz que o menu é o <strong>quarto</strong> elemento, <em>depois</em> da barra inferior. Se a barra inferior é fixa no pé da tela, o menu ficaria… onde? Entendi que a ordem 1-2-3-4 descreve <strong>a ordem em que você pensou os elementos</strong>, não a posição física: a barra superior fica em cima, a inferior embaixo, e o conteúdo (o "DINHEIRO DO PERÍODO" e o menu) no meio. O menu de opções, sendo um ícone, normalmente vive <strong>dentro de uma das barras</strong>. Pergunta 5: o ícone de menu fica na barra de cima, na de baixo, ou é um botão no meio da tela?</p>
+  </div>
+</section>
+
+<section id="s7">
+  <h2>7. Cadastro de Contas Movimento</h2>
+  <p>Esta tela está <strong>bem especificada</strong>. Vou repetir o que entendi e marcar os três pontos que precisam de decisão.</p>
+
+  <h3>7.1 O que eu entendi <span class="tag tag-ok">ENTENDI</span></h3>
+  <ul>
+    <li><strong>NOME DA CONTA MOVIMENTO</strong>: campo de texto que converte para maiúsculas enquanto se digita; a partir do <strong>primeiro caractere</strong> busca no banco e mostra <strong>até 4 sugestões</strong> de registros que <em>contenham</em> o texto em qualquer posição (não só no começo); pode-se clicar numa sugestão; não grava em branco; não grava nome repetido.</li>
+    <li><strong>TIPO DA CONTA MOVIMENTO</strong>: lista fixa, sem digitação.</li>
+    <li><strong>PESQUISAR</strong>: com "TODOS", filtro por nome (mesma busca de 4 sugestões), filtro por tipo, e os filtros <strong>se cruzam</strong> (nome + tipo juntos).</li>
+    <li><strong>ÚLTIMOS ADICIONADOS</strong>: lista tudo na ordem do último gravado.</li>
+    <li><strong>OPÇÕES por registro</strong>: EDITAR e EXCLUIR, e o EXCLUIR é <strong>recusado se houver lançamento usando aquela conta</strong>.</li>
+    <li><strong>IMPRIMIR</strong>: só habilita se a pesquisa trouxe registros; abre <strong>nova guia</strong> com layout próprio para impressão, em cores ou P&amp;B / PDF.</li>
+  </ul>
+
+  <div class="example-box">
+    <span class="box-title">Sobre a busca "em qualquer posição": o que isso custa e por que está certo aqui</span>
+    <p style="margin-top:6px">Buscar "ITA" e encontrar "BANCO ITAÚ" exige procurar no <strong>meio</strong> do texto (<code>ILIKE '%ITA%'</code>). Isso é mais custoso que buscar por começo, porque o banco não pode usar um índice comum — ele lê a tabela. <strong>Na escala deste módulo isso é irrelevante</strong>: contas movimento são poucas por empresa (cinco, dez, vinte). Com <code>LIMIT 4</code>, a resposta é instantânea.</p>
+    <p><strong>Onde isso mudaria:</strong> se um dia a busca "em qualquer posição" for aplicada a <em>lançamentos</em> (que podem ser dezenas de milhares), aí sim vale um índice especial (<code>pg_trgm</code>, que <strong>não</strong> está instalada hoje). Fica anotado como decisão futura, não agora.</p>
+  </div>
+
+  <h3>7.2 Os pontos que precisam de decisão</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Ponto</th><th>Análise</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>a</td>
+          <td>"TIPO: CAIXA OU BANCO, OUTRAS"</td>
+          <td><span class="tag tag-par">AMBÍGUO</span> Isso são <strong>dois</strong> valores (<code>CAIXA OU BANCO</code> e <code>OUTRAS</code>) ou <strong>três</strong> (<code>CAIXA</code>, <code>BANCO</code>, <code>OUTRAS</code>)? Li como dois, porque está escrito como uma expressão só. <strong>Mas recomendo três</strong>: separar caixa de banco é útil no dashboard ("quanto tenho em espécie × quanto está em banco") e juntar depois é trivial, separar depois exige mexer em dado gravado. <strong>Pergunta 6.</strong></td>
+        </tr>
+        <tr>
+          <td>b</td>
+          <td>"não permite gravar registros iguais"</td>
+          <td><span class="tag tag-par">AMBÍGUO</span> Igual <strong>para quem</strong>? Na plataforma, tudo pertence a uma empresa. Entendi: não pode haver duas contas com o mesmo nome <strong>na mesma empresa</strong> — e duas empresas diferentes podem ter, cada uma, a sua "CARTEIRA". <strong>E os acentos?</strong> "ÁGUA" e "AGUA" são nomes diferentes para o banco. Recomendo tratá-los como iguais (temos a extensão <code>unaccent</code>), senão o mesmo cadastro entra duas vezes escrito de dois jeitos. <strong>Pergunta 7.</strong></td>
+        </tr>
+        <tr>
+          <td>c</td>
+          <td>EXCLUIR recusado se houver movimento</td>
+          <td><span class="tag tag-ok">ENTENDI</span> e é a decisão certa. <span class="tag tag-pro">PROPOSTA</span> Sugiro acrescentar a alternativa que o projeto já usa para empresas: além de EXCLUIR (que só funciona se a conta nunca foi usada), ter <strong>DESATIVAR</strong> — a conta para de aparecer nas listas de lançamento novo, mas o histórico continua íntegro. Sem isso, uma conta encerrada no banco fica para sempre na lista de escolha. <strong>Pergunta 8.</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="s8">
+  <h2>8. Cadastro de Contas Identificadoras</h2>
+  <p>A tela é <strong>simétrica</strong> à anterior — mesmos campos, mesma busca, mesmos filtros, mesma impressão, com "TIPO" sendo DESPESA / RECEITA / OUTRAS. Isso é bom: telas gêmeas significam código compartilhado e comportamento previsível para o usuário.</p>
+
+  <div class="callout callout-vermelho">
+    <span class="box-title">Um erro de copiar-e-colar na minuta</span>
+    <p style="margin-top:6px">No fim desta seção, a minuta diz:</p>
+    <pre>em “EXCLUIR” não aceitar se existir registro de movimento relacionado a “CONTA MOVIMENTO”</pre>
+    <p>Na tela de <strong>contas identificadoras</strong>, a checagem tem de ser contra a <strong>conta identificadora</strong>, não contra a conta movimento. Entendi como: <em>"não aceitar se existir lançamento que use esta conta identificadora"</em>. <strong>Pergunta 9</strong> confirma — é quase certo que foi só um descuido de edição, mas eu não corrijo requisito por conta própria.</p>
+  </div>
+
+  <h3>8.1 A pergunta de fundo: o TIPO da identificadora e o TIPO do movimento podem se contradizer?</h3>
+  <p><span class="tag tag-par">AMBÍGUO</span> Este é, para mim, <strong>o ponto conceitual mais importante dos dois cadastros</strong>. Veja o cruzamento possível:</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Conta identificadora</th><th>Tipo do movimento no lançamento</th><th>Faz sentido?</th></tr></thead>
+      <tbody>
+        <tr><td>ALUGUEL (DESPESA)</td><td>SAÍDA</td><td>✅ o caso normal</td></tr>
+        <tr><td>SALÁRIO (RECEITA)</td><td>ENTRADA</td><td>✅ o caso normal</td></tr>
+        <tr><td>ALUGUEL (DESPESA)</td><td><strong>ENTRADA</strong></td><td>⚠️ <strong>sim, em um caso real</strong>: o locador devolveu uma cobrança indevida. É um <em>estorno</em>. Se o sistema proibir, o usuário vai registrar como "OUTRAS RECEITAS" e o relatório de aluguel ficará errado.</td></tr>
+        <tr><td>MERCADO (DESPESA)</td><td><strong>ENTRADA</strong></td><td>⚠️ idem: devolução de produto.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p><strong>Minha recomendação:</strong> <em>avisar, sem bloquear</em>. Quando o cruzamento for incomum (despesa com entrada), a tela mostra um aviso — "ESTA É UMA CONTA DE DESPESA E VOCÊ ESTÁ LANÇANDO UMA ENTRADA. CONFIRMA?" — e deixa seguir. Bloquear produziria dado pior (categoria errada para não brigar com o sistema), e não avisar deixaria passar erro de digitação. <strong>Pergunta 10.</strong></p>
+</section>
+
+<section id="s9">
+  <h2>9. Lançamentos: o coração do módulo</h2>
+  <p>Onze campos, e a minuta descreve cada um. Vou analisar em tabela e depois abrir os três que precisam de discussão longa.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Campo</th><th>O que entendi</th><th>Leitura</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>CONTA MOVIMENTO</strong></td>
+          <td>Lista de todas as contas cadastradas, em ordem alfabética; obrigatório; só aceita o que existe no cadastro; tem "+ ADICIONAR NOVA" que abre o cadastro e, ao gravar, volta para o lançamento <strong>já com a conta nova escolhida</strong></td>
+          <td><span class="tag tag-ok">ENTENDI</span> — ver 9.1, sobre <em>como</em> abrir o cadastro sem perder o que já foi digitado</td>
+        </tr>
+        <tr>
+          <td><strong>TIPO DA CONTA MOVIMENTO</strong></td>
+          <td>Mostra o tipo da conta escolhida, vindo do cadastro; <strong>grava na tabela de lançamentos</strong>; obrigatório</td>
+          <td><span class="tag tag-par">AMBÍGUO</span> — ver 9.2, o ponto da cópia do dado</td>
+        </tr>
+        <tr>
+          <td><strong>DATA DO MOVIMENTO</strong></td>
+          <td>Vem em branco; obrigatório; aceita digitar ou escolher no calendário</td>
+          <td><span class="tag tag-ok">ENTENDI</span> — tipo <code>date</code> no banco (não <code>timestamptz</code>), como o <code>CLAUDE.md</code> exige para data de calendário</td>
+        </tr>
+        <tr>
+          <td><strong>ORDEM NO EXTRATO</strong></td>
+          <td>Número inteiro, sem decimais, pode ficar em branco</td>
+          <td><span class="tag tag-ok">ENTENDI</span> <span class="tag tag-pro">+ proposta</span> — ver 9.3</td>
+        </tr>
+        <tr>
+          <td><strong>TIPO DO MOVIMENTO</strong></td>
+          <td>ENTRADA ou SAÍDA; obrigatório</td>
+          <td><span class="tag tag-ok">ENTENDI</span></td>
+        </tr>
+        <tr>
+          <td><strong>PROPRIEDADE</strong></td>
+          <td>PRÓPRIO ou TERCEIROS; obrigatório</td>
+          <td><span class="tag tag-par">AMBÍGUO</span> — a minuta diz <em>que</em> grava, não diz <strong>o que muda</strong>. Buraco B4 (seção 15)</td>
+        </tr>
+        <tr>
+          <td><strong>REGIME</strong></td>
+          <td>CAIXA ou COMPETÊNCIA; obrigatório</td>
+          <td><span class="tag tag-par">AMBÍGUO</span> — o mais delicado de todos. Buraco B3 (seção 15)</td>
+        </tr>
+        <tr>
+          <td><strong>CONTA IDENTIFICADORA</strong></td>
+          <td>Igual à conta movimento: lista alfabética, obrigatória, só o que existe, com "+ ADICIONAR NOVA"</td>
+          <td><span class="tag tag-ok">ENTENDI</span></td>
+        </tr>
+        <tr>
+          <td><strong>TIPO DA CONTA IDENTIFICADORA</strong></td>
+          <td>Mostra o tipo vindo do cadastro; grava no lançamento; obrigatório</td>
+          <td><span class="tag tag-par">AMBÍGUO</span> — mesmo ponto do 9.2</td>
+        </tr>
+        <tr>
+          <td><strong>VALOR DO LANÇAMENTO</strong></td>
+          <td>Campo financeiro; <strong>não aceita zero nem negativo</strong></td>
+          <td><span class="tag tag-ok">ENTENDI</span> — e é uma decisão <strong>boa</strong>: ver 9.4</td>
+        </tr>
+        <tr>
+          <td><strong>HISTÓRICO DO MOVIMENTO</strong></td>
+          <td>Texto, convertido para maiúsculas</td>
+          <td><span class="tag tag-par">AMBÍGUO</span> — é obrigatório? tem limite de tamanho? <strong>Pergunta 11</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>9.1 O "+ ADICIONAR NOVA" precisa ser um modal, não uma navegação</h3>
+  <p>A minuta diz: <em>"ter a função + ADICIONAR NOVA, que abre TELA: CADASTROS CONTAS MOVIMENTOS, ao gravar o registro retornar para tela LANÇAMENTOS preenchendo o campo"</em>.</p>
+  <p>O comportamento descrito está claro e é ótimo (é o atalho que evita abandonar o lançamento no meio). O <strong>como</strong> importa muito:</p>
+  <div class="antes-depois">
+    <div class="antes">
+      <b>Se for navegação de página</b>
+      O usuário está lançando, já preencheu data, valor e histórico. Clica em "+ ADICIONAR NOVA", <strong>a página troca</strong>, ele cadastra, volta… <strong>e o que tinha digitado se perdeu</strong> — a não ser que o sistema guarde o formulário inteiro em algum lugar antes de sair.
+    </div>
+    <div class="depois">
+      <b>Se for modal (recomendado)</b>
+      A tela de lançamento <strong>continua lá</strong>, atrás; abre uma janela pequena com os dois campos do cadastro (nome e tipo); ao gravar, a janela fecha e a conta nova já aparece escolhida. Nada se perde, e é o padrão que a plataforma já usa.
+    </div>
+  </div>
+  <p><span class="tag tag-pro">PROPOSTA</span> Modal. E, no modal, apenas os dois campos do cadastro — sem a parte de pesquisa e impressão, que não fazem sentido ali.</p>
+
+  <h3>9.2 Gravar o TIPO dentro do lançamento: cópia ou fotografia?</h3>
+  <p>A minuta pede que o <strong>tipo</strong> (da conta movimento e da identificadora) seja <strong>gravado na tabela de lançamentos</strong>, não apenas exibido. Isso tem uma consequência que vale entender antes de decidir, porque é irreversível na prática.</p>
+  <div class="example-box">
+    <span class="box-title">O exemplo que mostra a diferença</span>
+    <p style="margin-top:6px">Em janeiro você cadastra "PIX RECEBIDO" como <strong>RECEITA</strong> e faz 80 lançamentos. Em junho você percebe que classificou errado e muda o cadastro para <strong>OUTRAS</strong>.</p>
+    <ul>
+      <li><strong>Se o tipo NÃO estiver gravado no lançamento</strong> (vem por consulta ao cadastro): os 80 lançamentos de janeiro passam a ser "OUTRAS" <em>retroativamente</em>. O relatório de janeiro, que você já imprimiu e arquivou, muda de conteúdo.</li>
+      <li><strong>Se o tipo ESTIVER gravado no lançamento</strong> (como a minuta pede): os 80 de janeiro continuam RECEITA — eles guardam o que era verdade no dia. O relatório antigo continua batendo. Mas de junho em diante o mesmo nome aparece com dois tipos diferentes, e alguém vai perguntar por quê.</li>
+    </ul>
+  </div>
+  <p><span class="tag tag-dec">DECISÃO SUA</span> Não existe resposta universal: a primeira opção é <em>"a verdade é o cadastro de hoje"</em>; a segunda é <em>"a verdade é o que estava valendo no dia do lançamento"</em>. Contabilidade costuma preferir a segunda.</p>
+  <p><strong>Minha recomendação:</strong> <strong>gravar</strong>, como você pediu — e deixar isso <em>escrito</em> no módulo como decisão consciente, porque é exatamente o tipo de coisa que, seis meses depois, parece um bug ("por que este lançamento diz RECEITA se a conta é OUTRAS?"). <strong>Pergunta 12.</strong></p>
+
+  <h3>9.3 ORDEM NO EXTRATO em branco: como ordenar o que não tem ordem</h3>
+  <p>O campo pode ficar vazio, e isso levanta uma questão concreta: se em 05/09 houver três lançamentos e só um tiver ordem preenchida, <strong>qual vem primeiro?</strong></p>
+  <p><span class="tag tag-pro">PROPOSTA</span> A ordenação do extrato seria: <strong>data</strong>, depois <strong>ordem</strong> (os vazios por último), depois <strong>o instante em que o lançamento foi criado</strong> (que o banco já grava). Assim nunca há empate — e sem um desempate final, dois lançamentos idênticos poderiam trocar de lugar entre duas aberturas da mesma tela, mudando o saldo linha a linha e assustando o usuário.</p>
+  <p><span class="tag tag-pro">PROPOSTA (bônus N4)</span> Quando o usuário escolher a conta e a data, o sistema pode <strong>sugerir</strong> a próxima ordem daquele dia (se já há 2 lançamentos em 05/09, sugere 3). Ele pode apagar ou trocar. Isso poupa digitação em conciliação, que é quando se lançam muitas linhas seguidas.</p>
+
+  <h3>9.4 O valor sempre positivo: por que isso está certo</h3>
+  <p>A minuta manda <strong>não aceitar valor ≤ 0</strong>, e deixa o sinal por conta do TIPO DO MOVIMENTO. Isso evita uma ambiguidade clássica e cara: em sistemas que aceitam valor negativo, acaba existindo <em>"SAÍDA de -100"</em>, que ninguém sabe se é saída de 100, entrada de 100 ou erro de digitação. Com valor sempre positivo, <strong>há uma só forma de representar cada fato</strong>.</p>
+  <p>No banco isso é garantido por um <code>CHECK (valor_centavos &gt; 0)</code> — não só pela tela, porque tela se contorna.</p>
+  <div class="callout callout-ambar">
+    <span class="box-title">E o dinheiro: centavos inteiros, sem exceção</span>
+    <p style="margin-top:6px">O <code>CLAUDE.md</code> proíbe ponto flutuante para dinheiro, e o projeto já tem <code>lib/dinheiro.ts</code> com 19 testes justamente para isso. O motivo em uma linha: <code>0.1 + 0.2</code> não dá <code>0.3</code> em ponto flutuante, e <code>10.10 × 3</code> dá <code>30.299999999999997</code>. Num extrato com 300 linhas somadas, esse erro aparece no saldo. Então: <strong>valor guardado como número inteiro de centavos</strong> (R$ 420,50 → <code>42050</code>), e a conversão para "R$ 420,50" acontece só na hora de mostrar.</p>
+  </div>
+</section>
+
+<section id="s10">
+  <h2>10. Conferência da Conta: o extrato com saldo</h2>
+  <p>Esta é a parte mais valiosa da minuta, e a mais bem pensada. Ela descreve exatamente o que um extrato precisa ter para <strong>ser conferido contra o do banco</strong>.</p>
+
+  <h3>10.1 O que entendi <span class="tag tag-ok">ENTENDI</span></h3>
+  <ul>
+    <li>Escolhe-se uma <strong>CONTA MOVIMENTO</strong> e um <strong>PERÍODO</strong> (data inicial e final, ambas em branco no começo).</li>
+    <li>A <strong>primeira linha</strong> é o SALDO INICIAL, com data de <strong>um dia antes</strong> do início do período, e valor igual a <em>todas as entradas menos todas as saídas anteriores ao período</em>, naquela conta.</li>
+    <li>Depois, uma linha por lançamento, com: DATA, ORDEM, CONTA IDENTIFICADORA, ENTRADA (só se for entrada), SAÍDA (só se for saída), <strong>SALDO recalculado a cada linha</strong> e HISTÓRICO.</li>
+    <li>No fim, <strong>totais</strong> de entradas e de saídas.</li>
+  </ul>
+
+  <h3>10.2 Onde essa conta deve ser feita — e por que não na tela</h3>
+  <p>Um saldo acumulado linha a linha pode ser calculado em três lugares. Vale ver os três:</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Onde</th><th>Como seria</th><th>Problema</th></tr></thead>
+      <tbody>
+        <tr><td>No navegador (JavaScript)</td><td>Busca as linhas e vai somando num laço</td><td>Se a tela mostrar por páginas (50 de cada vez), o saldo da página 2 precisa saber onde a 1 parou. E qualquer mudança de ordenação na tela muda o saldo — <strong>silenciosamente</strong></td></tr>
+        <tr><td>No servidor (TypeScript)</td><td>Busca tudo e soma antes de mandar</td><td>Funciona, mas traz todos os lançamentos do período para a memória só para somar. Desperdício</td></tr>
+        <tr><td><strong>No PostgreSQL</strong> <span class="tag tag-pro">recomendado</span></td><td>Uma <strong>função de janela</strong>: <code>SUM(...) OVER (ORDER BY data, ordem, criado_em)</code></td><td>Nenhum. O banco faz isso numa passagem, ordenado, e devolve a coluna SALDO pronta</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Em linguagem simples: a função de janela é o recurso do PostgreSQL que permite dizer <em>"para cada linha, me dê a soma de tudo o que veio até aqui, nesta ordem"</em>. É precisamente a definição de saldo acumulado. O desenho proposto é uma função <code>fin_extrato(conta, data_inicial, data_final)</code> que devolve as linhas já com saldo, mais o saldo inicial e os totais.</p>
+
+  <div class="example-box">
+    <span class="box-title">O ganho prático de calcular no banco</span>
+    <p style="margin-top:6px">O saldo passa a ser <strong>a mesma conta</strong> na tela, no relatório impresso e num futuro dashboard — porque os três chamam a mesma função. Se o cálculo morasse na tela, o relatório impresso teria de repetir a lógica, e o dia em que uma das cópias fosse corrigida e a outra não, o usuário veria dois saldos diferentes para o mesmo mês. É a regra do "cérebro único" do projeto, aplicada à aritmética.</p>
+  </div>
+
+  <h3>10.3 Três perguntas que o extrato levanta</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Pergunta</th><th>Por que importa</th></tr></thead>
+      <tbody>
+        <tr><td>a</td><td>O extrato considera <strong>todos</strong> os lançamentos, ou filtra por REGIME?</td><td>Se um lançamento de COMPETÊNCIA não é dinheiro que saiu da conta, ele não deveria alterar o saldo do extrato — senão o saldo nunca vai bater com o do banco, que é o propósito da tela. <strong>Pergunta 13</strong> (ligada ao buraco B3)</td></tr>
+        <tr><td>b</td><td>E a PROPRIEDADE (próprio × terceiros)?</td><td>Dinheiro de terceiros que está na sua conta <strong>afeta o saldo</strong> (está lá) mas não é seu. O extrato deveria somar tudo (para bater com o banco) e o dashboard separar. <strong>Pergunta 14</strong></td></tr>
+        <tr><td>c</td><td>Se o PERÍODO ficar em branco, o que acontece?</td><td>Mostra tudo desde o começo? Nada até escolher? Últimos 30 dias? A minuta diz que os campos começam vazios, mas não o que exibir nesse estado. <strong>Pergunta 15</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="s11">
+  <h2>11. O que falta especificar (telas citadas sem detalhe)</h2>
+  <p>Estas partes aparecem na minuta como nome, sem descrição. Não é crítica — é o mapa do que ainda precisa ser dito, e a maior parte pode ficar para fases seguintes.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Item</th><th>O que a minuta diz</th><th>O que falta</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>LANÇAMENTOS › PESQUISAR</strong></td>
+          <td>Existe o botão, ao lado de "NOVO LANÇAMENTO"</td>
+          <td><span class="tag tag-nao">FALTA TUDO</span> — quais filtros (período, conta, identificadora, tipo, valor, texto no histórico)? o que a lista mostra? dá para editar e excluir dali? imprime? <strong>Esta é a segunda tela mais usada do módulo</strong> — quem lança, depois procura</td>
+        </tr>
+        <tr>
+          <td><strong>Editar um lançamento</strong></td>
+          <td>Não mencionado</td>
+          <td>Pode-se corrigir um lançamento? Todos os campos ou só alguns? Há limite de tempo (ver buraco B5)?</td>
+        </tr>
+        <tr>
+          <td><strong>CONFIGURAÇÕES</strong></td>
+          <td>Opção do menu</td>
+          <td>Configurações de quê? (Sugestões no bônus: período padrão, conta favorita, formato de data, casas decimais)</td>
+        </tr>
+        <tr>
+          <td><strong>DASHBOARDS</strong></td>
+          <td>Opção do menu; citado no "O QUE É" como objetivo</td>
+          <td>Quais indicadores? A resposta a isto é o que define se o modelo de dados precisa de mais alguma coluna — por isso perguntei na seção 16</td>
+        </tr>
+        <tr>
+          <td><strong>ORÇAMENTO</strong></td>
+          <td>Opção do menu</td>
+          <td>Orçamento por conta identificadora e por mês? Compara previsto × realizado? Isso exigiria <strong>uma quarta tabela</strong> (<code>fin_orcamentos</code>) — nada demais, mas é escopo próprio</td>
+        </tr>
+        <tr>
+          <td><strong>DINHEIRO DO PERÍODO</strong></td>
+          <td>"ao clicar apresenta tela informando que está em desenvolvimento"</td>
+          <td>Entendi que é intencionalmente um marcador. Só falta a aparência (pergunta 2)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="highlight-box">
+    <span class="box-title">Minha sugestão de recorte para a primeira entrega</span>
+    <p style="margin-top:6px">Fechar <strong>cadastros + novo lançamento + conferência da conta + pesquisar lançamentos</strong>, e deixar CONFIGURAÇÕES, DASHBOARDS e ORÇAMENTO como itens de menu que abrem "EM DESENVOLVIMENTO" — exatamente o tratamento que você já deu ao "DINHEIRO DO PERÍODO". Assim o módulo <strong>fica útil de verdade</strong> no primeiro ciclo (dá para registrar e conferir a vida financeira inteira), e o resto vem com o aprendizado do uso. Detalho na seção 18.</p>
+  </div>
+</section>
+
+<section id="s12">
+  <h2>12. O modelo de dados proposto</h2>
+  <p><span class="tag tag-pro">PROPOSTA</span> Três tabelas, todas com o prefixo <code>fin_</code> (regra R6 do LEGO). Isto é <strong>rascunho para debate</strong>, não SQL final — está aqui para você ver as decisões tomando forma.</p>
+
+  <h3>12.1 <code>fin_contas_movimento</code> — onde o dinheiro fica</h3>
+  <pre>id               uuid      (chave)
+tenant_id        uuid      → tenants(id)        ⚠️ toda linha pertence a uma empresa
+nome             text      NOT NULL             gravado em MAIÚSCULAS
+tipo             text      NOT NULL             CHECK: 'CAIXA OU BANCO' | 'OUTRAS'   ← pergunta 6
+is_active        boolean   NOT NULL default true   ← desativar em vez de excluir (pergunta 8)
+saldo_inicial_centavos  bigint  NOT NULL default 0  ← PROPOSTA, buraco B2
+created_at / updated_at timestamptz
+
+UNIQUE (tenant_id, nome)     ← "não grava repetido", por empresa (pergunta 7)</pre>
+
+  <h3>12.2 <code>fin_contas_identificadoras</code> — por que o dinheiro se moveu</h3>
+  <pre>id               uuid      (chave)
+tenant_id        uuid      → tenants(id)
+nome             text      NOT NULL             MAIÚSCULAS
+tipo             text      NOT NULL             CHECK: 'DESPESA' | 'RECEITA' | 'OUTRAS'
+is_active        boolean   NOT NULL default true
+created_at / updated_at timestamptz
+
+UNIQUE (tenant_id, nome)</pre>
+
+  <h3>12.3 <code>fin_lancamentos</code> — o movimento</h3>
+  <pre>id                     uuid      (chave)
+tenant_id              uuid      → tenants(id)
+conta_movimento_id     uuid      → fin_contas_movimento(id)      ON DELETE RESTRICT ⚠️
+conta_identificadora_id uuid     → fin_contas_identificadoras(id) ON DELETE RESTRICT ⚠️
+tipo_conta_movimento       text  NOT NULL   ← a "fotografia" do tipo (9.2, pergunta 12)
+tipo_conta_identificadora  text  NOT NULL   ← idem
+data_movimento         date      NOT NULL   ⚠️ `date`, nunca `timestamptz`
+ordem_extrato          integer   NULL       pode ficar em branco
+tipo_movimento         text      NOT NULL   CHECK: 'ENTRADA' | 'SAIDA'
+propriedade            text      NOT NULL   CHECK: 'PROPRIO' | 'TERCEIROS'
+regime                 text      NOT NULL   CHECK: 'CAIXA' | 'COMPETENCIA'
+valor_centavos         bigint    NOT NULL   CHECK (valor_centavos &gt; 0)   ⚠️ centavos inteiros
+historico              text      NULL?      MAIÚSCULAS (pergunta 11)
+criado_por             uuid      → users(id)   ← PROPOSTA: quem lançou
+created_at / updated_at timestamptz
+
+ÍNDICES: (tenant_id, conta_movimento_id, data_movimento, ordem_extrato)  ← o extrato
+         (tenant_id, data_movimento)                                     ← relatórios
+         (tenant_id, conta_identificadora_id)                            ← por categoria</pre>
+
+  <div class="callout callout-vermelho">
+    <span class="box-title">O <code>ON DELETE RESTRICT</code> é o que faz a sua regra valer no banco</span>
+    <p style="margin-top:6px">Você pediu que EXCLUIR uma conta seja recusado quando houver movimento. Escrever isso <strong>só na tela</strong> seria frágil (tela se contorna). Com <code>ON DELETE RESTRICT</code> na chave estrangeira, <strong>o próprio PostgreSQL recusa</strong> apagar uma conta que tenha lançamento — venha o pedido de onde vier. A tela então só precisa transformar o erro do banco numa frase compreensível.</p>
+    <p>É o mesmo mecanismo que hoje protege <code>tenants.owner_id</code> e que o inventário do degrau 5 mostrou funcionando.</p>
+  </div>
+
+  <div class="callout callout-ambar">
+    <span class="box-title">Uma armadilha técnica que eu já vi de perto (e que vale registrar agora)</span>
+    <p style="margin-top:6px">Se decidirmos que "ÁGUA" e "AGUA" são o mesmo nome (pergunta 7), a forma natural seria um índice único sobre <code>unaccent(nome)</code>. <strong>Isso não funciona direto no PostgreSQL:</strong> a função <code>unaccent()</code> é declarada como <em>STABLE</em>, e índice exige <em>IMMUTABLE</em>. A saída conhecida é criar uma função própria, marcada como imutável, que chame o <code>unaccent</code> com o dicionário explícito. Não é difícil — mas é o tipo de detalhe que, descoberto na hora de rodar, custa uma sessão. Anoto aqui para não custar depois.</p>
+  </div>
+</section>
+
+<section id="s13">
+  <h2>13. As funções do banco propostas</h2>
+  <p><span class="tag tag-pro">PROPOSTA</span> Seguindo a regra do projeto (<em>"toda lógica multi-passo é uma função SQL única"</em>) e o que o degrau 3 estabeleceu (<em>"quem autoriza é o banco"</em>):</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Função</th><th>O que faz</th><th>Por que no banco</th></tr></thead>
+      <tbody>
+        <tr><td><code>fin_extrato(conta, ini, fim)</code></td><td>Devolve saldo inicial + linhas com saldo acumulado + totais</td><td>Função de janela; e o mesmo número serve tela, impressão e dashboard</td></tr>
+        <tr><td><code>fin_buscar_contas_movimento(texto)</code></td><td>Até 4 sugestões, sem acento, em qualquer posição</td><td>A busca é do banco; a tela só desenha</td></tr>
+        <tr><td><code>fin_buscar_identificadoras(texto)</code></td><td>Idem</td><td>Idem</td></tr>
+        <tr><td><code>fin_saldo_atual(conta)</code></td><td>O saldo de hoje de uma conta</td><td>Reúso: "DINHEIRO DO PERÍODO" e dashboards vão precisar</td></tr>
+        <tr><td><code>fin_gravar_lancamento(...)</code></td><td>Valida e grava em uma transação (inclusive a "fotografia" dos tipos)</td><td>Se a tela montasse o registro, ela poderia gravar um tipo que não corresponde à conta</td></tr>
+        <tr><td><code>fin_transferir(...)</code> <span class="tag tag-pro">novo</span></td><td>Cria as duas pernas de uma transferência entre contas, atomicamente</td><td>Buraco B1 — ver seção 15</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>E a <strong>RLS</strong> nas três tabelas, com a mesma forma que o degrau 5 provou: toda policy começa por <code>tenant_id</code>, usando as funções <code>check_is_tenant_member()</code> / <code>check_is_tenant_owner()</code> que já existem. Sem isso, a empresa A leria os lançamentos da empresa B com a chave pública do site.</p>
+</section>
+
+<section id="s14">
+  <h2>14. Onde o módulo encaixa na plataforma (o LEGO)</h2>
+  <p>Isto já está resolvido pelo degrau 5 — vale só mostrar como o financeiro se acomoda no soquete pronto:</p>
+  <div class="arvore"><span class="p">apps/admin-web/src/app/dashboard/</span><span class="m">financeiro/</span><span class="p">        </span><span class="m">← as telas (a pasta É a rota)</span><span class="p">
+apps/admin-web/src/components/</span><span class="m">financeiro/</span><span class="p">           </span><span class="m">← os componentes</span><span class="p">
+packages/core/src/modules/</span><span class="m">financeiro/</span><span class="p">               </span><span class="m">← regras + manifesto.ts</span><span class="p">
+supabase/</span><span class="m">criar-bd-financeiro/</span><span class="p">                        </span><span class="m">← as 3 tabelas fin_*</span><span class="p">
+supabase/testes/</span><span class="m">teste_financeiro.sql</span><span class="p">                </span><span class="m">← as travas do módulo</span></div>
+  <p class="legenda"><span class="chip chip-p">azul = plataforma</span><span class="chip chip-m">bege = módulo</span></p>
+  <ul>
+    <li><strong>Três linhas de solda</strong>: o manifesto entra no registro do Core e no <code>index.ts</code>; o seed do módulo grava a linha <code>financeiro</code> em <code>platform_modules</code>.</li>
+    <li><strong>Para o usuário ver o módulo</strong>: o Desenvolvedor contrata o módulo para a empresa (tela <code>/dashboard/modulos</code>) e o Proprietário libera ao membro. As duas chaves do degrau 5.</li>
+    <li><strong>Auditoria</strong>: conforme a sua decisão 5 do degrau 4 — o módulo audita <code>UPDATE</code> e <code>DELETE</code>, não <code>INSERT</code>.</li>
+  </ul>
+
+  <div class="callout callout-vermelho">
+    <span class="box-title">A pendência que trava a modelagem: o papel DEPENDENTE</span>
+    <p style="margin-top:6px">Desde o degrau 3 está "a definir" o que um <strong>Dependente</strong> pode fazer. No financeiro isso deixa de ser abstrato:</p>
+    <ul>
+      <li>O Dependente pode <strong>criar</strong> lançamento? (por exemplo, um filho ou funcionário registrando despesas)</li>
+      <li>Pode <strong>ver todos</strong> os lançamentos da empresa, ou só os que ele mesmo criou?</li>
+      <li>Pode <strong>editar/excluir</strong> o que criou? E o que outros criaram?</li>
+      <li>Pode ver o <strong>saldo</strong> das contas? (é a informação mais sensível do módulo)</li>
+      <li>Pode mexer nos <strong>cadastros</strong> de contas?</li>
+    </ul>
+    <p>Isso não é detalhe de tela: muda a <strong>RLS</strong> e pode exigir a coluna <code>criado_por</code> (que já propus) e até um conceito de "visibilidade". Responder isto é o <strong>pré-requisito número um</strong> para a modelagem final. <strong>Pergunta 16.</strong></p>
+  </div>
+</section>
+
+<section id="s15">
+  <h2>15. Os 6 buracos conceituais</h2>
+  <p>Estes não estão na minuta e, na minha leitura, são os que mais doem se ficarem para depois — porque todos mexem em <strong>estrutura de dado</strong>, e mexer em estrutura com dado dentro é caro.</p>
+
+  <h3>B1 — Transferência entre contas <span class="tag tag-nao">FALTA</span></h3>
+  <p>Você tira R$ 500 do BANCO e põe na CARTEIRA. Isso é <strong>um</strong> fato com <strong>duas</strong> pernas: uma SAÍDA no banco e uma ENTRADA na carteira. Com o modelo atual, o usuário faria dois lançamentos soltos — e aí:</p>
+  <ul>
+    <li>ele precisa de uma conta identificadora chamada "TRANSFERÊNCIA", que não é despesa nem receita (vai cair em "OUTRAS");</li>
+    <li><strong>o total de despesas do mês fica inflado</strong> se ele classificar como despesa, e o de receitas também — o dinheiro apenas mudou de bolso, não entrou nem saiu do patrimônio;</li>
+    <li>se apagar uma perna e esquecer a outra, o saldo de uma conta fica errado para sempre.</li>
+  </ul>
+  <p><span class="tag tag-pro">PROPOSTA</span> Uma tela "TRANSFERÊNCIA" que pede origem, destino, data, valor e histórico, e grava <strong>as duas pernas numa transação só</strong>, marcadas com um mesmo identificador de par (<code>transferencia_id</code>). Benefícios: o extrato de cada conta mostra o movimento (bate com o banco), e os dashboards podem excluir transferências das somas de receita e despesa — que é o certo. <strong>Pergunta 17.</strong></p>
+
+  <h3>B2 — Saldo de abertura da conta <span class="tag tag-nao">FALTA</span></h3>
+  <p>O usuário começa a usar o módulo hoje, e a conta do banco dele já tem R$ 1.200. Como esse valor entra? Hoje há duas saídas possíveis:</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Caminho</th><th>Como fica</th><th>Efeito colateral</th></tr></thead>
+      <tbody>
+        <tr><td>Campo <code>saldo_inicial</code> no cadastro da conta</td><td>O extrato soma esse valor antes de tudo</td><td>Limpo, mas o valor não aparece como linha — e alguém vai procurar de onde veio</td></tr>
+        <tr><td>Um lançamento de abertura</td><td>Uma ENTRADA com identificadora "SALDO ANTERIOR"</td><td>Aparece no extrato (bom) mas <strong>entra no total de entradas do período</strong>, inflando o relatório do primeiro mês</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p><span class="tag tag-pro">PROPOSTA</span> O campo no cadastro (primeiro caminho), <strong>e</strong> o extrato mostrando-o dentro da linha "SALDO INICIAL", que já existe na sua minuta. Assim ele é visível sem contaminar os totais. <strong>Pergunta 18.</strong></p>
+
+  <h3>B3 — O que o REGIME faz? <span class="tag tag-par">AMBÍGUO, e é o mais sério</span></h3>
+  <p>A minuta manda gravar CAIXA ou COMPETÊNCIA, mas não diz o efeito. E o efeito é grande:</p>
+  <div class="example-box">
+    <span class="box-title">O exemplo que mostra o problema</span>
+    <p style="margin-top:6px">Em 28/08 você recebe a conta de luz de agosto, R$ 300, para pagar em 10/09.</p>
+    <ul>
+      <li><strong>Regime de competência</strong> diz: essa despesa é <strong>de agosto</strong> (foi agosto que consumiu a luz).</li>
+      <li><strong>Regime de caixa</strong> diz: essa despesa é <strong>de setembro</strong> (foi quando o dinheiro saiu).</li>
+    </ul>
+    <p>Os dois estão certos — para perguntas diferentes. O problema é que <strong>um único campo "DATA DO MOVIMENTO" não consegue representar as duas datas</strong>. Se o lançamento de competência usar a data 28/08, o extrato da conta bancária vai mostrar uma saída de R$ 300 em agosto que <strong>o banco não tem</strong> — e a conferência, que é o propósito da tela, deixa de fechar.</p>
+  </div>
+  <p><span class="tag tag-pro">PROPOSTA</span> Três caminhos possíveis, do mais simples ao mais completo:</p>
+  <ol class="steps">
+    <li><strong>Só caixa na primeira fase.</strong> O campo REGIME continua gravado (fica o registro), mas <strong>o extrato considera apenas lançamentos de CAIXA</strong>. Simples, honesto, e a conferência bate. O "COMPETÊNCIA" ganha sentido quando os dashboards existirem.</li>
+    <li><strong>Duas datas.</strong> <code>data_movimento</code> (quando o dinheiro andou — usada no extrato) e <code>data_competencia</code> (a qual mês o fato pertence — usada nos relatórios). É o desenho correto de quem faz as duas visões, e custa uma coluna a mais decidida <strong>agora</strong>.</li>
+    <li><strong>Contas a pagar/receber separadas.</strong> Uma quarta tabela para o que foi <em>previsto</em> e ainda não aconteceu, que ao ser paga <em>gera</em> o lançamento de caixa. É o desenho profissional completo — e escopo de outro módulo, honestamente.</li>
+  </ol>
+  <p><strong>Minha recomendação: caminho 2 agora, comportamento do caminho 1 na primeira fase.</strong> Ou seja: já criar as duas colunas de data (porque coluna nova depois é migração com dado dentro), mas, na primeira entrega, o extrato usa só a data do movimento e só lançamentos de caixa. <strong>Pergunta 13/19.</strong></p>
+
+  <h3>B4 — O que a PROPRIEDADE faz? <span class="tag tag-par">AMBÍGUO</span></h3>
+  <p>"PRÓPRIO" × "TERCEIROS" está claro como classificação, mas não como <strong>regra</strong>. Minha leitura: dinheiro de terceiros que passa pela sua conta (você recebeu para repassar) <strong>afeta o saldo</strong> — ele está fisicamente lá — mas <strong>não é patrimônio seu</strong>. Então: o extrato soma tudo (para bater com o banco) e o futuro dashboard mostra "SALDO TOTAL" e "SALDO PRÓPRIO" separados. <strong>Pergunta 14.</strong></p>
+
+  <h3>B5 — Edição retroativa e fechamento de período <span class="tag tag-nao">FALTA</span></h3>
+  <p>Nada na minuta impede alterar um lançamento de janeiro em dezembro. Isso significa que <strong>um relatório impresso e arquivado pode deixar de corresponder ao sistema</strong>, sem rastro visível. Como o projeto já tem trilha de auditoria, o rastro existe no banco — mas ninguém olha o log por acidente.</p>
+  <p><span class="tag tag-pro">PROPOSTA</span> Ou um aviso ("ESTE LANÇAMENTO É DE UM PERÍODO JÁ CONFERIDO. CONFIRMA A ALTERAÇÃO?"), ou um <strong>fechamento de período</strong> por conta (a partir de tal data, só leitura). O primeiro é barato e resolve 90%. <strong>Pergunta 20.</strong></p>
+
+  <h3>B6 — Excluir lançamento: apaga ou cancela? <span class="tag tag-par">AMBÍGUO</span></h3>
+  <p>A minuta prevê EXCLUIR nos cadastros, mas não fala de excluir <em>lançamento</em>. Duas posturas:</p>
+  <ul>
+    <li><strong>Apagar de verdade</strong>: o registro sai da tabela; o rastro fica só no <code>audit_log</code>.</li>
+    <li><strong>Cancelar</strong> (<em>soft delete</em>): o registro fica marcado como cancelado, sai das somas e continua visível numa consulta de histórico.</li>
+  </ul>
+  <p>Para dinheiro, a segunda é a prática comum — mas ela torna toda consulta um pouco mais complexa (é preciso lembrar de filtrar os cancelados, sempre). <strong>Minha recomendação:</strong> apagar de verdade, confiando na auditoria que já existe, <strong>e</strong> a tela pedindo confirmação com os dados do lançamento à vista. Mais simples, e o rastro está garantido. <strong>Pergunta 21.</strong></p>
+</section>
+
+<section id="s16">
+  <h2>16. As 21 perguntas que eu preciso que você responda</h2>
+  <p>Esta é a seção que faz o debate andar. Para cada pergunta eu dou <strong>a minha recomendação</strong> — se concordar com todas, basta responder <em>"aceito as recomendações"</em> e eu monto a segunda versão do projeto. Onde discordar, responda só o número.</p>
+
+  <h3>16.1 Tela principal e aparência</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Pergunta</th><th>Minha recomendação</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>A "BARRA FIXA NO TOPO" do módulo é uma segunda barra, abaixo do cabeçalho da plataforma, ou o módulo só muda o título da barra existente?</td><td><strong>Uma faixa fina do módulo</strong> abaixo do cabeçalho da plataforma, com "CONTROLE FINANCEIRO" e o menu de opções. Duas barras grossas comem a tela</td></tr>
+        <tr><td>2</td><td>Como o "DINHEIRO DO PERÍODO" se parece enquanto não existir? Cartão grande com valores de exemplo, ou bloco neutro escrito "EM DESENVOLVIMENTO"?</td><td><strong>Cartão grande, no lugar definitivo, com o texto "EM DESENVOLVIMENTO"</strong> — sem números de exemplo, que confundem quem vê</td></tr>
+        <tr><td>3</td><td>O que vai dentro da "BARRA FIXA NA PARTE INFERIOR"? É o rodapé institucional (© e versão) ou uma barra de ações?</td><td><strong>Rodapé institucional</strong>, que já existe na plataforma. Barra de ação fixa no pé costuma disputar espaço com o teclado do tablet</td></tr>
+        <tr><td>4</td><td>Confirma que o menu tem <strong>5</strong> opções (CADASTROS, CONFIGURAÇÕES, DASHBOARDS, LANÇAMENTOS, ORÇAMENTO) e não 3?</td><td><strong>As 5 listadas</strong>, com CADASTROS abrindo as duas sub-opções</td></tr>
+        <tr><td>5</td><td>O ícone do menu fica na barra de cima, na de baixo, ou solto no meio da tela?</td><td><strong>Na barra de cima</strong>, à direita — é onde o usuário procura</td></tr>
+        <tr><td>6</td><td>"TIPO DA CONTA MOVIMENTO" tem <strong>dois</strong> valores ("CAIXA OU BANCO", "OUTRAS") ou <strong>três</strong> ("CAIXA", "BANCO", "OUTRAS")?</td><td><strong>Três</strong>. Separar agora é grátis; separar depois é migração de dado</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>16.2 Cadastros</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Pergunta</th><th>Minha recomendação</th></tr></thead>
+      <tbody>
+        <tr><td>7</td><td>"Não grava registros iguais": igual dentro da <strong>mesma empresa</strong> (e ignorando acento), certo?</td><td><strong>Sim para os dois</strong>: único por empresa e tratando "ÁGUA" = "AGUA"</td></tr>
+        <tr><td>8</td><td>Além de EXCLUIR, quer <strong>DESATIVAR</strong> conta (sai das listas, histórico intacto)?</td><td><strong>Sim.</strong> É o que permite encerrar uma conta bancária sem perder o passado</td></tr>
+        <tr><td>9</td><td>Na tela de contas identificadoras, o EXCLUIR deve checar lançamentos da <strong>identificadora</strong> (a minuta diz "conta movimento" — foi descuido?)</td><td><strong>Sim, checar a identificadora.</strong> Confirme que foi descuido de edição</td></tr>
+        <tr><td>10</td><td>Lançar ENTRADA numa conta de DESPESA (estorno): bloquear, avisar ou aceitar em silêncio?</td><td><strong>Avisar e deixar seguir.</strong> Bloquear produz dado pior; silenciar deixa passar erro de digitação</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>16.3 Lançamentos</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Pergunta</th><th>Minha recomendação</th></tr></thead>
+      <tbody>
+        <tr><td>11</td><td>O HISTÓRICO é obrigatório? Tem limite de tamanho?</td><td><strong>Opcional, até 200 caracteres.</strong> Obrigatório atrapalha o lançamento em série; sem limite, quebra o layout do extrato impresso</td></tr>
+        <tr><td>12</td><td>Confirma gravar o TIPO das contas <strong>dentro</strong> do lançamento (a "fotografia" da seção 9.2)?</td><td><strong>Sim, gravar</strong> — como você pediu. Fica documentado como decisão consciente</td></tr>
+        <tr><td>13</td><td>O extrato considera <strong>todos</strong> os lançamentos ou <strong>só os de regime CAIXA</strong>?</td><td><strong>Só CAIXA.</strong> É o que faz o saldo bater com o extrato do banco — o propósito da tela</td></tr>
+        <tr><td>14</td><td>PROPRIEDADE: TERCEIROS entra no saldo do extrato?</td><td><strong>Entra</strong> (o dinheiro está lá), e o dashboard futuro separa "SALDO TOTAL" de "SALDO PRÓPRIO"</td></tr>
+        <tr><td>15</td><td>Com o PERÍODO em branco, o extrato mostra o quê?</td><td><strong>O mês corrente</strong>, já preenchido. Zero cliques para o caso mais comum, e o usuário troca se quiser</td></tr>
+        <tr><td>16</td><td><strong>O papel DEPENDENTE:</strong> pode lançar? ver todos os lançamentos ou só os próprios? editar/excluir? ver saldo? mexer nos cadastros?</td><td><strong>Proposta:</strong> pode criar lançamento; vê <strong>todos</strong> os da empresa; edita/exclui <strong>só os que criou</strong>; vê saldo; <strong>não</strong> mexe nos cadastros. (É a pergunta mais importante da lista — ela muda a RLS)</td></tr>
+        <tr><td>17</td><td>Quer a tela de <strong>TRANSFERÊNCIA ENTRE CONTAS</strong> (buraco B1)?</td><td><strong>Sim</strong>, e já na primeira fase. Sem ela, todo dashboard futuro nasce com receita e despesa infladas</td></tr>
+        <tr><td>18</td><td>Saldo de abertura: campo no cadastro da conta (buraco B2)?</td><td><strong>Sim</strong>, com o valor aparecendo na linha "SALDO INICIAL" do extrato</td></tr>
+        <tr><td>19</td><td>Criar <strong>duas datas</strong> (movimento e competência) desde já, mesmo que a primeira fase use só a do movimento?</td><td><strong>Sim.</strong> Coluna criada agora é de graça; criada depois é migração com dado dentro</td></tr>
+        <tr><td>20</td><td>Alterar lançamento de período antigo: livre, com aviso, ou bloqueado por fechamento?</td><td><strong>Com aviso</strong> na primeira fase; fechamento de período só se o uso mostrar necessidade</td></tr>
+        <tr><td>21</td><td>Excluir lançamento: apaga de verdade ou marca como cancelado?</td><td><strong>Apaga de verdade</strong>, com confirmação mostrando os dados — o rastro fica na auditoria que já existe</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout callout-roxo">
+    <span class="box-title">Se você só puder responder três</span>
+    <p style="margin-top:6px">Responda a <strong>16 (o Dependente)</strong>, a <strong>13/19 (o regime e as datas)</strong> e a <strong>17 (transferência)</strong>. As três mexem em estrutura de dado; todas as outras mexem em tela, e tela se muda a qualquer momento sem dor.</p>
+  </div>
+</section>
+
+<section id="s17">
+  <h2>17. Bônus: sugestões de alta relevância</h2>
+  <p>Coisas que não estão na minuta, que eu recomendo, e o motivo prático de cada uma. Nenhuma é obrigatória.</p>
+
+  <h3>N1 — Marcar o lançamento como "CONFERIDO" (conciliação)</h3>
+  <p>A sua tela chama-se <em>Conferência da Conta</em> — então o passo natural é poder <strong>marcar</strong> o que já foi conferido contra o extrato do banco. Uma coluna booleana e uma caixinha em cada linha. O ganho é grande e concreto: na conferência do mês seguinte, você olha só o que não está marcado. Sem isso, toda conferência recomeça do zero.</p>
+
+  <h3>N2 — "REPETIR ÚLTIMO LANÇAMENTO" e lançamento em série</h3>
+  <p>Quem concilia um mês lança 30, 50, 80 linhas de uma vez. Duas coisas fazem uma diferença enorme nesse cenário: depois de gravar, o formulário <strong>mantém conta movimento e data</strong> (que repetem) e limpa o resto; e um botão que copia o último lançamento para editar. É pouco código e muda a experiência de "trabalhoso" para "fluido".</p>
+
+  <h3>N3 — Data futura: permitir com aviso</h3>
+  <p>Digitar "2062" em vez de "2026" é o erro de digitação mais comum em campo de data — e um lançamento em 2062 <strong>não aparece em nenhum relatório</strong>, então ninguém descobre. Sugiro aceitar data futura (há casos legítimos: um pagamento agendado) mas <strong>avisar</strong> quando for além de, digamos, 90 dias.</p>
+
+  <h3>N4 — Limite de sanidade no valor</h3>
+  <p>Mesmo raciocínio: o campo financeiro deve avisar quando o valor for absurdamente fora do padrão da conta (por exemplo, mil vezes maior que a média dos últimos lançamentos). Erro de digitação em valor — "150000" em vez de "1500,00" — destrói o saldo e é difícil de achar depois.</p>
+
+  <h3>N5 — O relatório impresso pode reaproveitar o mecanismo destes estudos</h3>
+  <p>Você pediu impressão em nova guia, em cores ou P&amp;B. <strong>O mecanismo já está escrito e testado</strong>: é o mesmo botão flutuante com as duas opções que existe nos HTMLs dos degraus 1, 3, 4, 5 e neste. Em vez de inventar um, o módulo reaproveita o padrão: mesmo comportamento, e você já sabe usá-lo.</p>
+
+  <h3>N6 — Exportar a pesquisa em CSV</h3>
+  <p>Complemento barato da impressão: um botão "EXPORTAR" que gera CSV do que está na tela. Serve para conferir no Excel, mandar para o contador e guardar. (Atenção de segurança conhecida: valores de texto que começam com <code>=</code> viram fórmula no Excel; o gerador precisa neutralizar isso.)</p>
+
+  <h3>N7 — Anexar comprovante: decidir agora, construir depois</h3>
+  <p>Guardar a foto da nota ou o PDF do comprovante junto ao lançamento é o pedido que sempre aparece no segundo mês de uso. Tecnicamente é o Storage do Supabase, que <strong>ainda não é usado neste projeto</strong> — então traz política de acesso, limite de tamanho e custo. Não recomendo na primeira fase; recomendo <strong>decidir que vai existir</strong>, para que o modelo já preveja a relação.</p>
+
+  <h3>N8 — Os testes do módulo antes das telas</h3>
+  <p>O <code>MODULOS.md</code> já manda: banco primeiro, tela por último, com o <code>teste_&lt;nome&gt;.sql</code> provando o isolamento entre empresas <strong>antes</strong> de existir interface. Para o financeiro, os testes mínimos seriam: (a) empresa A não lê lançamento da empresa B; (b) valor zero é recusado pelo banco; (c) apagar conta com movimento é recusado; (d) o saldo do extrato confere com a soma manual; (e) Dependente só faz o que a resposta 16 permitir.</p>
+
+  <h3>N9 — Um "modo primeira vez" para o usuário novo</h3>
+  <p>Quem abre o módulo pela primeira vez não tem conta nem categoria nenhuma — e uma tela de lançamento com duas listas vazias é uma parede. Duas saídas: um texto curto explicando a ordem ("PRIMEIRO CADASTRE UMA CONTA, DEPOIS UMA CATEGORIA") ou <strong>oferecer um conjunto inicial</strong> ("CARTEIRA", "BANCO", e categorias comuns como SALÁRIO, MERCADO, MORADIA, TRANSPORTE) que o usuário aceita ou recusa. A segunda é mais trabalho e muito mais gentil.</p>
+
+  <h3>N10 — Guardar quem lançou</h3>
+  <p>A coluna <code>criado_por</code> que propus na seção 12 tem um uso imediato se a resposta 16 disser que o Dependente edita só o que criou — sem ela, essa regra não é implementável. E mesmo que não, ela responde "quem lançou isso?" sem precisar caçar no log de auditoria.</p>
+</section>
+
+<section id="s18">
+  <h2>18. Plano de fases proposto</h2>
+  <p><span class="tag tag-pro">PROPOSTA</span> O que eu construiria, em que ordem, e por quê. Isto é sugestão de recorte — você decide o tamanho de cada entrega.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Fase</th><th>O que entra</th><th>Por que nesta ordem</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>0 — O encaixe</strong></td>
+          <td>As 5 pastas do módulo, o manifesto, o SQL das 3 tabelas + RLS + funções, o <code>teste_financeiro.sql</code>, o seed que grava <code>financeiro</code> no catálogo, e as 3 soldas</td>
+          <td>Sem isto nada aparece na plataforma. E o teste roda <strong>antes</strong> de existir tela, como o degrau 3 ensinou</td>
+        </tr>
+        <tr>
+          <td><strong>1 — Registrar e conferir</strong></td>
+          <td>Os dois cadastros (com busca, filtros, editar, excluir/desativar, imprimir), NOVO LANÇAMENTO com a CONFERÊNCIA ao lado, TRANSFERÊNCIA, e PESQUISAR lançamentos</td>
+          <td><strong>Aqui o módulo já é útil de verdade:</strong> dá para registrar e conferir a vida financeira inteira. Tudo o mais é análise do que foi registrado</td>
+        </tr>
+        <tr>
+          <td><strong>2 — Ver</strong></td>
+          <td>"DINHEIRO DO PERÍODO" de verdade, e os DASHBOARDS (a definir quais indicadores)</td>
+          <td>Só faz sentido com dado dentro. E os indicadores certos só se sabem depois de usar um mês</td>
+        </tr>
+        <tr>
+          <td><strong>3 — Planejar</strong></td>
+          <td>ORÇAMENTO (previsto × realizado por categoria e mês) e CONFIGURAÇÕES</td>
+          <td>Orçamento é comparação contra o realizado — precisa do realizado existindo</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="highlight-box">
+    <span class="box-title">O que eu faria diferente da ordem da minuta, e por quê</span>
+    <p style="margin-top:6px">A minuta lista as telas na ordem em que se navega (principal → cadastros → lançamentos). Eu construiria na ordem <strong>inversa da dependência</strong>: banco e travas primeiro, depois a tela que gera dado (lançamento), depois as que leem dado (pesquisa, dashboards). Motivo: uma tela bonita sobre um modelo errado dá a sensação de progresso e precisa ser jogada fora quando o modelo muda. Foi assim que a v9 chegou ao degrau 3 com um buraco de segurança: <strong>a tela escondia o botão, e ninguém tinha testado o banco.</strong></p>
+  </div>
+</section>
+
+<section id="s19">
+  <h2>19. Como continuamos o debate</h2>
+  <ol class="steps">
+    <li><strong>Você responde as 21 perguntas</strong> da seção 16 — ou diz "aceito as recomendações" e aponta só as que quer mudar.</li>
+    <li><strong>Eu devolvo a segunda versão do projeto</strong>, em HTML como este: o modelo de dados fechado (com o SQL completo, comentado, para você ler antes de existir), as telas descritas campo a campo já com as suas decisões, e as regras de permissão do Dependente escritas.</li>
+    <li><strong>Você valida ou manda mais uma rodada.</strong> Repetimos até você dizer "está aprovado".</li>
+    <li><strong>Só então</strong>, em outro degrau, eu executo: as 5 pastas, o SQL, os testes e as telas — nessa ordem.</li>
+  </ol>
+
+  <div class="callout callout-ambar">
+    <span class="box-title">Duas coisas que eu não vou fazer sem você pedir</span>
+    <p style="margin-top:6px"><strong>1.</strong> Não vou criar nenhum arquivo do módulo neste degrau — nem pasta, nem SQL, nem tela. Você foi explícito, e o fluxo do projeto é esse desde o degrau 1.</p>
+    <p><strong>2.</strong> Não vou preencher as lacunas por conta própria na segunda versão. Onde você não responder, o item volta marcado como pendente — em vez de aparecer construído como se tivesse sido pedido.</p>
+  </div>
+
+  <h3>19.1 O que já está garantido, independentemente das respostas</h3>
+  <p>Estas decisões não dependem do debate porque já são regra do projeto — vale saber que estão incluídas no preço:</p>
+  <ul>
+    <li><strong>Dinheiro em centavos inteiros</strong> (<code>lib/dinheiro.ts</code>), nunca ponto flutuante.</li>
+    <li><strong>Datas de calendário como <code>date</code></strong>, fuso do Brasil tratado por <code>lib/datas.ts</code>.</li>
+    <li><strong>RLS em todas as tabelas do módulo</strong>, toda policy começando por <code>tenant_id</code>.</li>
+    <li><strong>Prefixo <code>fin_</code></strong> em todo objeto de banco, e as 5 pastas com o nome do módulo.</li>
+    <li><strong>Nenhuma alteração em tabela da plataforma</strong> — o módulo aponta para ela por chave estrangeira (regra R5).</li>
+    <li><strong>O SQL será executado no ambiente local antes de chegar a você</strong> — o que o degrau 5 montou e que já pegou dois defeitos que o banco publicado não mostraria.</li>
+    <li><strong>Tudo em TypeScript + PostgreSQL</strong>, sem Python e sem segundo servidor (seção 4).</li>
+  </ul>
+
+  <div class="highlight-box">
+    <span class="box-title">Minha avaliação honesta da sua minuta, para fechar</span>
+    <p style="margin-top:6px">É uma boa minuta — melhor que a média do que se vê como "especificação". Ela acerta o essencial do domínio (dois cadastros com papéis distintos, valor sempre positivo com o sinal vindo do tipo, ordem no extrato para desempatar o mesmo dia, saldo inicial com data anterior) e desce a detalhes de usabilidade que só quem já usou um sistema desses pensa.</p>
+    <p>O que falta é o <strong>invisível</strong>: o que o REGIME faz, como o dinheiro entra na primeira vez, como se transfere entre contas, e quem pode o quê. São quatro conversas curtas — e são exatamente as que precisam acontecer <strong>antes</strong> da primeira tabela, porque cada uma delas mexe em coluna.</p>
+  </div>
+</section>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var container = document.querySelector('.print-container');
+  var printButton = document.getElementById('printButton');
+  var printMenu = document.getElementById('printMenu');
+  var optionColor = document.getElementById('printColor');
+  var optionBW = document.getElementById('printBW');
+  var body = document.body;
+  var printing = false;
+
+  if (!container || !printButton || !printMenu || !optionColor || !optionBW) {
+    console.error('[Impressão] Elementos do menu não encontrados.');
+    return;
+  }
+
+  function openMenu() {
+    printMenu.classList.add('open');
+    printButton.setAttribute('aria-expanded', 'true');
+  }
+
+  function closeMenu() {
+    printMenu.classList.remove('open');
+    printButton.setAttribute('aria-expanded', 'false');
+  }
+
+  function toggleMenu() {
+    if (printMenu.classList.contains('open')) {
+      closeMenu();
+    } else {
+      openMenu();
+    }
+  }
+
+  // Marca o intervalo em que a janela de impressão está aberta.
+  window.addEventListener('beforeprint', function () {
+    printing = true;
+  });
+
+  window.addEventListener('afterprint', function () {
+    printing = false;
+    body.classList.remove('print-bw');
+  });
+
+  // OPÇÃO "CORES (A4)": remove .print-bw, espera 100ms e imprime.
+  function printInColor() {
+    body.classList.remove('print-bw');
+    setTimeout(function () {
+      window.print();
+    }, 100);
+  }
+
+  // OPÇÃO "PRETO & BRANCO (A4)": adiciona .print-bw, espera 100ms, imprime
+  // e remove a classe 100ms depois (se a janela de impressão já tiver fechado).
+  function printInBlackAndWhite() {
+    body.classList.add('print-bw');
+    setTimeout(function () {
+      window.print();
+      setTimeout(function () {
+        if (!printing) {
+          body.classList.remove('print-bw');
+        }
+      }, 100);
+    }, 100);
+  }
+
+  printButton.addEventListener('click', function (event) {
+    event.stopPropagation();
+    toggleMenu();
+  });
+
+  // Cliques e toques dentro do menu não sobem até o document.
+  printMenu.addEventListener('click', function (event) {
+    event.stopPropagation();
+  });
+
+  printMenu.addEventListener('mousedown', function (event) {
+    event.stopPropagation();
+  });
+
+  printMenu.addEventListener('touchstart', function (event) {
+    event.stopPropagation();
+  }, { passive: true });
+
+  optionColor.addEventListener('click', function (event) {
+    event.stopPropagation();
+    closeMenu();
+    printInColor();
+  });
+
+  optionBW.addEventListener('click', function (event) {
+    event.stopPropagation();
+    closeMenu();
+    printInBlackAndWhite();
+  });
+
+  // Fecha só quando o clique acontece FORA do container.
+  document.addEventListener('click', function (event) {
+    if (!container.contains(event.target)) {
+      closeMenu();
+    }
+  });
+
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') {
+      closeMenu();
+    }
+  });
+
+  console.log('[Impressão] Menu de impressão carregado com sucesso (Cores A4 e Preto & Branco A4).');
+})();
+</script>
+
+</body>
+</html>
