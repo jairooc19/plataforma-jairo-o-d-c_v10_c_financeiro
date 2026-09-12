@@ -71,6 +71,14 @@ ter, e **de fora deste repositório**. Duas consequências:
 segurança e as funções das extensões (`uuid-ossp`, `unaccent`), que moram no `public` neste
 banco. O `plataforma_00_reset.sql` derruba por NOME, um a um, de propósito.
 
+⚠️ **`request.jwt.claims = ''` SÓ NÃO ESTOURA PORQUE A `auth.uid()` DO SUPABASE TRATA
+ISSO.** A função deles faz `NULLIF(..., '')` **antes** do cast; uma implementação que faça
+`''::json` direto quebra com *"input string ended unexpectedly"*. E o erro não aparece onde
+se espera: ele estoura **dentro do gatilho de auditoria**, no meio de um INSERT que nada
+tem a ver com sessão. Por isso o `teste_rls.sql` passou a gravar `'{}'` para "sair da
+sessão" — JSON válido sem `sub`, que devolve `NULL` em qualquer implementação. Descoberto
+ao rodar o teste num PostgreSQL puro (2026-09-12).
+
 ⚠️ **O SQL EDITOR DO SUPABASE EXECUTA TODO O TEXTO DO PAINEL, NÃO O QUE VOCÊ ACABOU DE
 COLAR.** Resto da execução anterior entra junto, e o erro aponta para uma linha que parece
 ser do comando novo. Foi assim que um placar de contagem quebrou com
@@ -1068,7 +1076,8 @@ plataforma-jairo-o-d-c-v4/
 │   │   ├── plataforma_00_reset.sql    → Demolidor: derruba tudo do CORE
 │   │   ├── plataforma_01_schema.sql   → Construtor: schema consolidado v10
 │   │   └── plataforma_02_seed.sql     → Hidratador: dados iniciais obrigatórios
-│   ├── testes/             → teste_rls.sql (14 travas) + inventario.sql (confere o schema)
+│   ├── testes/             → teste_rls.sql (14 travas), inventario.sql (confere o schema)
+│   │   └── ambiente-local/ → 🆕 sobe um PostgreSQL descartável e valida o SQL antes do Supabase
 │   ├── migrations/         → vazia; ler o README antes do primeiro dado real
 │   └── config.toml         → Configuração do Supabase CLI
 ├── scripts/
@@ -1095,6 +1104,14 @@ npm test             # 19 testes do Core (node:test, sem dependências)
 npm run modulos:verificar   # 🆕 o verificador de LEGO (plataforma × módulos)
 npm run verificar    # testes + verificador + lint + build, em sequência
 ```
+
+> 🧪 **O SQL TAMBÉM PODE SER VALIDADO AQUI, E DEVE SER** (a partir de 2026-09-12):
+> `supabase/testes/ambiente-local/` sobe um PostgreSQL descartável, aplica o
+> `plataforma_01_schema.sql` de verdade e roda o `teste_rls.sql` — as 14 travas deram
+> PASSOU localmente **e** no banco publicado. Antes de entregar SQL, rode lá: até este
+> degrau, todo arquivo SQL ia para a mão do dono do projeto sem nunca ter sido executado.
+> O que o ambiente local **não** prova: GoTrue (login, OAuth), PostgREST e configurações
+> de painel. Ver o `README.md` daquela pasta.
 
 > ⚠️ **O DONO DO PROJETO NÃO RODA NADA DISSO** (dito em 2026-09-12): o ciclo dele é
 > **enviar ao GitHub → a Vercel constrói → ele abre o sistema publicado e testa**, e o

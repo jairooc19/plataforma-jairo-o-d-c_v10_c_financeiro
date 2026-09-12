@@ -13,8 +13,10 @@
 --
 -- ⚠️ COMECE PELO BLOCO 1: ele já diz OK ou DIVERGE, sem você precisar contar
 -- nada. Se a linha das FUNÇÕES divergir, o BLOCO 1B aponta exatamente qual
--- função está sobrando, faltando ou duplicada. Os blocos 2 a 8 são o detalhe,
--- para investigar ou para mandar o retrato completo do banco.
+-- função está sobrando, faltando ou duplicada. Os blocos 2 a 8 são o detalhe.
+-- O BLOCO 9 é o retrato compacto do banco inteiro (uma linha por objeto, ~15 KB
+-- — é este que vale colar numa conversa); o BLOCO 10 é o retrato completo em
+-- JSON (mais de 300 KB, para arquivar).
 --
 -- ---------------------------------------------------------------------------
 -- ⚠️ AS TRÊS ARMADILHAS QUE ESTE ARQUIVO EVITA (e que uma contagem ingênua não)
@@ -354,3 +356,311 @@ SELECT z.situacao   AS "situacao",
 --   FROM public.tenant_modules tm
 --   JOIN public.tenants t ON t.id = tm.tenant_id
 --  ORDER BY t.tenant_name, tm.module_id;
+
+
+-- ===========================================================================
+-- BLOCO 9 — O RETRATO COMPACTO (é este que você me manda)
+--
+-- Uma linha por objeto, em texto curto: tabelas com as colunas resumidas,
+-- chaves e checks, funções com assinatura, policies, gatilhos, privilégios de
+-- `anon`/`authenticated`, extensões, event triggers do ambiente e o soquete dos
+-- módulos. No banco de hoje dá ~153 linhas (uns 15 KB) — cabe numa conversa.
+--
+-- ⚠️ PREFIRA ESTE AO BLOCO 10. O retrato em JSON do bloco 10 passa de 300 KB:
+-- serve para arquivar (botão de baixar do SQL Editor), não para colar num chat.
+--
+-- ✅ VALIDADO em PostgreSQL 18 (12/09/2026), contra um banco criado com o
+-- `plataforma_01_schema.sql` de verdade — ver `ambiente-local/`.
+--
+-- COMO LER a linha de tabela: `NN` = NOT NULL, `=` = valor padrão,
+-- `[RLS on]` = escudo ligado. **Qualquer `*** DESLIGADA ***` é grave.**
+-- ===========================================================================
+SELECT z.linha AS "retrato_compacto"
+  FROM (
+    -- 1. TABELAS, com as colunas resumidas numa linha só
+    SELECT 1 AS ordem, c.relname::text AS chave,
+           format('TABELA %s [RLS %s] :: %s',
+                  c.relname,
+                  CASE WHEN c.relrowsecurity THEN 'on' ELSE '*** DESLIGADA ***' END,
+                  (SELECT string_agg(
+                            a.attname || ' ' || format_type(a.atttypid, a.atttypmod)
+                            || CASE WHEN a.attnotnull THEN ' NN' ELSE '' END
+                            || CASE WHEN pg_get_expr(ad.adbin, ad.adrelid) IS NOT NULL
+                                    THEN ' =' || pg_get_expr(ad.adbin, ad.adrelid) ELSE '' END,
+                            ' | ' ORDER BY a.attnum)
+                     FROM pg_attribute a
+                     LEFT JOIN pg_attrdef ad ON ad.adrelid = a.attrelid AND ad.adnum = a.attnum
+                    WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped)
+           ) AS linha
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE n.nspname = 'public' AND c.relkind = 'r'
+
+    UNION ALL
+
+    -- 2. CHAVES E CHECKS
+    SELECT 2, con.conrelid::regclass::text || '/' || con.conname,
+           format('REGRA %s.%s :: %s', con.conrelid::regclass, con.conname, pg_get_constraintdef(con.oid))
+      FROM pg_constraint con
+      JOIN pg_class c     ON c.oid = con.conrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE n.nspname = 'public'
+
+    UNION ALL
+
+    -- 3. FUNÇÕES
+    SELECT 3, p.proname::text,
+           format('FUNCAO %s(%s) -> %s%s%s',
+                  p.proname,
+                  pg_get_function_identity_arguments(p.oid),
+                  pg_get_function_result(p.oid),
+                  CASE WHEN p.prosecdef THEN ' [SECURITY DEFINER]' ELSE '' END,
+                  CASE WHEN p.proname = 'rls_auto_enable' THEN ' [DO AMBIENTE, nao do schema]' ELSE '' END)
+      FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE n.nspname = 'public'
+       AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid = p.oid AND d.deptype = 'e')
+
+    UNION ALL
+
+    -- 4. POLICIES
+    SELECT 4, pol.tablename || '/' || pol.policyname,
+           format('POLICY %s "%s" %s TO %s', pol.tablename, pol.policyname, pol.cmd, pol.roles::text)
+      FROM pg_policies pol
+     WHERE pol.schemaname = 'public'
+
+    UNION ALL
+
+    -- 5. GATILHOS
+    SELECT 5, n.nspname || '.' || c.relname || '/' || t.tgname,
+           format('GATILHO %s.%s %s %s %s -> %s()',
+                  n.nspname, c.relname, t.tgname,
+                  CASE WHEN (t.tgtype & 2) > 0 THEN 'BEFORE' ELSE 'AFTER' END,
+                  concat_ws('/',
+                    CASE WHEN (t.tgtype &  4) > 0 THEN 'INSERT' END,
+                    CASE WHEN (t.tgtype &  8) > 0 THEN 'DELETE' END,
+                    CASE WHEN (t.tgtype & 16) > 0 THEN 'UPDATE' END),
+                  p.proname)
+      FROM pg_trigger t
+      JOIN pg_class c     ON c.oid = t.tgrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      JOIN pg_proc p      ON p.oid = t.tgfoid
+     WHERE NOT t.tgisinternal AND n.nspname IN ('public', 'auth')
+
+    UNION ALL
+
+    -- 6. PRIVILÉGIOS DE anon E authenticated (a segunda tranca)
+    SELECT 6, tp.table_name || '/' || tp.grantee || '/' || tp.privilege_type,
+           format('GRANT %s ON %s TO %s :: %s',
+                  tp.privilege_type, tp.table_name, tp.grantee,
+                  COALESCE((SELECT string_agg(cp.column_name, ', ' ORDER BY cp.column_name)
+                              FROM information_schema.column_privileges cp
+                             WHERE cp.table_schema = 'public'
+                               AND cp.table_name = tp.table_name
+                               AND cp.grantee = tp.grantee
+                               AND cp.privilege_type = tp.privilege_type),
+                           'tabela inteira'))
+      FROM information_schema.table_privileges tp
+     WHERE tp.table_schema = 'public'
+       AND tp.grantee IN ('anon', 'authenticated')
+
+    UNION ALL
+
+    -- 7. EXTENSÕES E EVENT TRIGGERS (o que é do ambiente)
+    SELECT 7, e.extname::text,
+           format('EXTENSAO %s %s (schema %s)', e.extname, e.extversion, n.nspname)
+      FROM pg_extension e
+      JOIN pg_namespace n ON n.oid = e.extnamespace
+
+    UNION ALL
+
+    SELECT 8, et.evtname::text,
+           format('EVENT TRIGGER %s (%s) -> %s() [ambiente]', et.evtname, et.evtevent, p.proname)
+      FROM pg_event_trigger et
+      JOIN pg_proc p ON p.oid = et.evtfoid
+
+    UNION ALL
+
+    -- 9. O SOQUETE DOS MÓDULOS
+    SELECT 9, pm.id,
+           format('MODULO NO CATALOGO %s "%s" ativo=%s', pm.id, pm.nome, pm.is_active)
+      FROM public.platform_modules pm
+
+    UNION ALL
+
+    SELECT 10, t.tenant_name || '/' || tm.module_id,
+           format('MODULO CONTRATADO %s por "%s" ativo=%s', tm.module_id, t.tenant_name, tm.is_active)
+      FROM public.tenant_modules tm
+      JOIN public.tenants t ON t.id = tm.tenant_id
+  ) z
+ ORDER BY z.ordem, z.chave;
+
+-- ===========================================================================
+-- BLOCO 10 — O RETRATO COMPLETO (JSON), PARA ARQUIVAR
+--
+-- O mesmo conteúdo do bloco 9 e mais: tipos exatos, definição de cada índice,
+-- cada constraint por extenso, retorno e volatilidade de cada função, as
+-- condições completas de cada policy.
+--
+-- ⚠️ SÃO MAIS DE 300 KB. Não cole a saída num chat: use o botão de baixar do
+-- SQL Editor e guarde o arquivo (por exemplo em `_estudos/`), ou rode o bloco 9,
+-- que diz o essencial em 15 KB.
+--
+-- ✅ VALIDADO em PostgreSQL 18 (12/09/2026).
+-- ===========================================================================
+SELECT jsonb_pretty(jsonb_build_object(
+  'gerado_em', now(),
+  'banco', current_database(),
+
+  'extensoes', (
+    SELECT jsonb_agg(jsonb_build_object(
+             'nome', e.extname,
+             'schema', n.nspname,
+             'versao', e.extversion
+           ) ORDER BY e.extname)
+      FROM pg_extension e
+      JOIN pg_namespace n ON n.oid = e.extnamespace
+  ),
+
+  'tabelas', (
+    SELECT jsonb_agg(x.retrato ORDER BY x.nome)
+      FROM (
+        SELECT c.relname AS nome,
+               jsonb_build_object(
+                 'tabela', c.relname,
+                 'rls_ligada', c.relrowsecurity,
+                 'colunas', (
+                   SELECT jsonb_agg(jsonb_build_object(
+                            'n', a.attnum,
+                            'coluna', a.attname,
+                            'tipo', format_type(a.atttypid, a.atttypmod),
+                            'permite_nulo', NOT a.attnotnull,
+                            'valor_padrao', pg_get_expr(ad.adbin, ad.adrelid)
+                          ) ORDER BY a.attnum)
+                     FROM pg_attribute a
+                     LEFT JOIN pg_attrdef ad
+                            ON ad.adrelid = a.attrelid AND ad.adnum = a.attnum
+                    WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
+                 ),
+                 'restricoes', (
+                   SELECT jsonb_agg(jsonb_build_object(
+                            'nome', con.conname,
+                            'tipo', CASE con.contype
+                                      WHEN 'p' THEN 'PRIMARY KEY'
+                                      WHEN 'f' THEN 'FOREIGN KEY'
+                                      WHEN 'u' THEN 'UNIQUE'
+                                      WHEN 'c' THEN 'CHECK'
+                                      ELSE con.contype::text END,
+                            'definicao', pg_get_constraintdef(con.oid)
+                          ) ORDER BY con.conname)
+                     FROM pg_constraint con
+                    WHERE con.conrelid = c.oid
+                 ),
+                 'indices', (
+                   SELECT jsonb_agg(pg_get_indexdef(i.indexrelid) ORDER BY pg_get_indexdef(i.indexrelid))
+                     FROM pg_index i
+                    WHERE i.indrelid = c.oid
+                 )
+               ) AS retrato
+          FROM pg_class c
+          JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = 'public' AND c.relkind = 'r'
+      ) x
+  ),
+
+  'funcoes', (
+    SELECT jsonb_agg(jsonb_build_object(
+             'funcao', p.proname,
+             'argumentos', pg_get_function_identity_arguments(p.oid),
+             'retorno', pg_get_function_result(p.oid),
+             'security_definer', p.prosecdef,
+             'volatilidade', CASE p.provolatile
+                               WHEN 'i' THEN 'IMMUTABLE'
+                               WHEN 's' THEN 'STABLE'
+                               ELSE 'VOLATILE' END,
+             'do_ambiente', (p.proname = 'rls_auto_enable')
+           ) ORDER BY p.proname)
+      FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE n.nspname = 'public'
+       AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid = p.oid AND d.deptype = 'e')
+  ),
+
+  'policies', (
+    SELECT jsonb_agg(jsonb_build_object(
+             'tabela', pol.tablename,
+             'policy', pol.policyname,
+             'comando', pol.cmd,
+             'para_quem', pol.roles,
+             'condicao_leitura', pol.qual,
+             'condicao_escrita', pol.with_check
+           ) ORDER BY pol.tablename, pol.policyname)
+      FROM pg_policies pol
+     WHERE pol.schemaname = 'public'
+  ),
+
+  'triggers', (
+    SELECT jsonb_agg(jsonb_build_object(
+             'esquema', n.nspname,
+             'tabela', c.relname,
+             'gatilho', t.tgname,
+             'quando', CASE WHEN (t.tgtype & 2) > 0 THEN 'BEFORE' ELSE 'AFTER' END,
+             'evento', concat_ws(' ou ',
+                         CASE WHEN (t.tgtype &  4) > 0 THEN 'INSERT' END,
+                         CASE WHEN (t.tgtype &  8) > 0 THEN 'DELETE' END,
+                         CASE WHEN (t.tgtype & 16) > 0 THEN 'UPDATE' END),
+             'funcao', p.proname
+           ) ORDER BY n.nspname, c.relname, t.tgname)
+      FROM pg_trigger t
+      JOIN pg_class c     ON c.oid = t.tgrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      JOIN pg_proc p      ON p.oid = t.tgfoid
+     WHERE NOT t.tgisinternal
+       AND n.nspname IN ('public', 'auth')
+  ),
+
+  'privilegios', (
+    SELECT jsonb_agg(jsonb_build_object(
+             'tabela', tp.table_name,
+             'papel', tp.grantee,
+             'privilegio', tp.privilege_type,
+             'colunas', COALESCE(
+               (SELECT string_agg(cp.column_name, ', ' ORDER BY cp.column_name)
+                  FROM information_schema.column_privileges cp
+                 WHERE cp.table_schema = 'public'
+                   AND cp.table_name = tp.table_name
+                   AND cp.grantee = tp.grantee
+                   AND cp.privilege_type = tp.privilege_type),
+               '(tabela inteira)')
+           ) ORDER BY tp.table_name, tp.grantee, tp.privilege_type)
+      FROM information_schema.table_privileges tp
+     WHERE tp.table_schema = 'public'
+       AND tp.grantee IN ('anon', 'authenticated')
+  ),
+
+  'event_triggers', (
+    SELECT jsonb_agg(jsonb_build_object(
+             'nome', et.evtname,
+             'evento', et.evtevent,
+             'ativo', et.evtenabled <> 'D',
+             'funcao', p.proname
+           ) ORDER BY et.evtname)
+      FROM pg_event_trigger et
+      JOIN pg_proc p ON p.oid = et.evtfoid
+  ),
+
+  'modulos_catalogo', (
+    SELECT COALESCE(jsonb_agg(jsonb_build_object(
+             'id', pm.id, 'nome', pm.nome, 'ativo', pm.is_active
+           ) ORDER BY pm.id), '[]'::jsonb)
+      FROM public.platform_modules pm
+  ),
+
+  'modulos_contratados', (
+    SELECT COALESCE(jsonb_agg(jsonb_build_object(
+             'empresa', t.tenant_name, 'modulo', tm.module_id, 'ativo', tm.is_active
+           ) ORDER BY t.tenant_name, tm.module_id), '[]'::jsonb)
+      FROM public.tenant_modules tm
+      JOIN public.tenants t ON t.id = tm.tenant_id
+  )
+)) AS retrato_do_banco;

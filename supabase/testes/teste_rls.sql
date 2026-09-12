@@ -29,6 +29,15 @@
 -- três usuários de teste, as empresas que eles criaram e o rastro disso em
 -- `audit_log`. Reexecutar o arquivo é seguro.
 --
+-- ⚠️ PARA "SAIR DA SESSÃO" O TESTE GRAVA `{}`, NÃO STRING VAZIA. Foi uma lição
+-- de 12/09/2026, ao rodar este arquivo num PostgreSQL puro: a `auth.uid()` do
+-- Supabase é escrita com `nullif(..., '')` ANTES do cast, e por isso tolera
+-- `request.jwt.claims = ''`. Uma implementação que faça `''::json` direto
+-- estoura com "input string ended unexpectedly" — e o erro aparece DENTRO do
+-- gatilho de auditoria, no meio de um INSERT que nada tem a ver com isso.
+-- Gravar `{}` é um JSON válido sem `sub`: `auth.uid()` devolve NULL em
+-- qualquer implementação, e o teste deixa de depender dessa sutileza.
+--
 -- ⚠️ POR QUE SIMULAR O LOGIN COM `set local role` E `request.jwt.claims`:
 -- é assim que o PostgREST (a API do Supabase) apresenta o usuário ao banco.
 -- `auth.uid()` lê exatamente esse parâmetro. Sem isso, tudo rodaria como o dono
@@ -179,7 +188,7 @@ BEGIN
   SELECT count(*) INTO v_qtd FROM public.users;
 
   RESET ROLE;
-  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM set_config('request.jwt.claims', '{}', true);
 
   INSERT INTO public.resultado_teste_rls VALUES (
     2,
@@ -209,7 +218,7 @@ BEGIN
   END;
 
   RESET ROLE;
-  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM set_config('request.jwt.claims', '{}', true);
 
   -- A recusa pode vir como erro (sem privilégio na coluna) OU em silêncio, com
   -- a RLS descartando a linha. As duas contam, desde que o valor não mude.
@@ -245,7 +254,7 @@ BEGIN
   END;
 
   RESET ROLE;
-  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM set_config('request.jwt.claims', '{}', true);
 
   SELECT count(*) INTO v_nasceu FROM public.tenants WHERE slug = 'empresa-pirata';
 
@@ -275,7 +284,7 @@ BEGIN
   END;
 
   RESET ROLE;
-  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM set_config('request.jwt.claims', '{}', true);
 
   INSERT INTO public.resultado_teste_rls VALUES (
     5,
@@ -311,7 +320,7 @@ BEGIN
   END;
 
   RESET ROLE;
-  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM set_config('request.jwt.claims', '{}', true);
 
   SELECT role INTO v_role FROM public.users WHERE id = '11111111-1111-1111-1111-111111111111';
   SELECT count(*) INTO v_empresas FROM public.tenants WHERE owner_id = '11111111-1111-1111-1111-111111111111';
@@ -461,7 +470,7 @@ BEGIN
   PERFORM set_config('request.jwt.claims', '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', true);
   PERFORM public.admin_set_tenant_module(v_tenant, 'teste_lego', true);
   RESET ROLE;
-  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM set_config('request.jwt.claims', '{}', true);
 
   BEGIN
     UPDATE public.tenant_members
@@ -504,7 +513,7 @@ BEGIN
   PERFORM set_config('request.jwt.claims', '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', true);
   v_retorno := public.admin_set_tenant_module(v_tenant, 'teste_lego', false);
   RESET ROLE;
-  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM set_config('request.jwt.claims', '{}', true);
 
   SELECT allowed_modules INTO v_ficou
     FROM public.tenant_members
@@ -541,7 +550,7 @@ BEGIN
   END;
 
   RESET ROLE;
-  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM set_config('request.jwt.claims', '{}', true);
 
   INSERT INTO public.resultado_teste_rls VALUES (
     13,
