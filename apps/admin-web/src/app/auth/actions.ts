@@ -2,85 +2,95 @@
 
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { authService } from "@jairo/core";
 import { mensagemDeErro } from "@/lib/erro";
 
 /**
- * 🔐 LOGIN COM PERSISTÊNCIA COOKIE SSR (PJODC v4)
- * Versão: v4 - Catraca em bypass (sem Cloudflare Turnstile) + sincronização
- * absoluta Cliente/Servidor via Cookies HTTP.
- * * Esta função executa no Servidor (Vercel/Terminal) e grava de forma federada
- * os cookies necessários para o funcionamento de Server Actions filhos.
+ * 🔐 LOGIN COM PERSISTÊNCIA EM COOKIE SSR (PJODC v10)
+ * Local: apps/admin-web/src/app/auth/actions.ts
+ *
+ * ===========================================================================
+ * ⚠️ O QUE MUDOU NA v10: O LOGIN DEIXOU DE USAR O CLIENTE COMPARTILHADO
+ * ===========================================================================
+ * Até a v9 esta ação chamava `authService.signIn`, que usa o cliente único do
+ * Core (`packages/core/src/lib/supabase.ts`). Esse cliente é um SINGLETON com
+ * `persistSession: true`: no servidor, ele guarda em memória a sessão do último
+ * login e a reaproveita nas chamadas seguintes — de OUTRAS pessoas.
+ *
+ * A documentação do Supabase é direta sobre isso: no servidor é preciso criar um
+ * cliente novo a cada requisição, porque senão "o usuário ficará logado como a
+ * pessoa errada". Hoje o estrago seria pequeno (a única leitura server-side com
+ * o cliente público é a das cores), mas a hora de arrumar é antes do módulo
+ * financeiro, não depois.
+ *
+ * Aqui o cliente nasce e morre DENTRO da requisição, já ligado ao pote de
+ * cookies daquela pessoa — e o mesmo cliente que autentica é o que grava a
+ * sessão, sem um segundo `setSession`.
+ *
+ * 🛡️ A "catraca" segue em bypass desde a v4: não há verificação anti-robô. Se um
+ * dia voltar, ela entra ANTES do `signInWithPassword`, aqui.
  */
-export async function loginWithCatracaAction(
-  email: string, 
-  pass: string
-) {
+export async function loginWithCatracaAction(email: string, pass: string) {
   try {
-    // 1. 🔑 EXECUÇÃO DO LOGIN NO CÉREBRO (CORE)
-    // A catraca opera em bypass na v4: não há verificação externa antes do login.
-    const authData = await authService.signIn(email, pass);
+    const cookieStore = await cookies();
 
-    // 2. 🍪 PULO DO GATO: PERSISTÊNCIA DE COOKIES NO SERVIDOR (SERVER-SIDE COOKIE WRITE)
-    // Instancia o cliente SSR nativo para injetar a sessão no pote de cookies HTTP.
-    // Isso garante que funções Server-Side (Middleware e outras Actions) leiam a sessão logada.
-    if (authData.session) {
-      const cookieStore = await cookies();
-      const supabaseServer = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-          cookies: {
-            getAll() {
-              return cookieStore.getAll();
-            },
-            setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
-              cookiesToSet.forEach(({ name, value, options }) => {
-                cookieStore.set(name, value, options);
-              });
-            },
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
           },
-        }
-      );
-
-      // Força a escrita física imediata dos tokens (access_token e refresh_token) nos cookies do navegador
-      const { error: setSessionError } = await supabaseServer.auth.setSession(authData.session);
-      
-      if (setSessionError) {
-        console.error("[LoginAction] Erro fatal ao injetar cookies de sessão SSR:", setSessionError);
-        throw new Error(`Erro de persistência: Não foi possível sincronizar os cookies estáveis de sessão: ${setSessionError.message}`);
+          setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+            });
+          },
+        },
       }
-    }
+    );
 
-    // 3. 📦 ENTREGA DO "PACOTE DE ACESSO" CONSOLIDADO
-    return { 
-      success: true, 
-      user: authData.user,
-      session: authData.session 
+    // Autentica E grava os cookies de sessão na mesma passagem: o
+    // `createServerClient` escreve os cookies pelo `setAll` acima.
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password: pass,
+    });
+
+    if (error) throw error;
+
+    /**
+     * 🔧 O PAPEL VEM DO BANCO, NÃO DA TELA (correção S5).
+     *
+     * Até a v9 o Painel de Engenharia abria por uma comparação de strings dentro
+     * do aplicativo (`admin@pjodc.ia` / `1qaz`) e por uma marca no
+     * `sessionStorage`. Agora, logo após o login, perguntamos ao banco se este
+     * usuário é superusuário — e quem responde é a função `is_superuser()`,
+     * que lê uma coluna que o cliente não pode escrever.
+     */
+    const { data: ehDev } = await supabase.rpc("is_superuser");
+
+    return {
+      success: true,
+      user: data.user,
+      session: data.session,
+      ehDesenvolvedor: ehDev === true,
     };
-
   } catch (error: unknown) {
-    // 🕵️ PERÍCIA: Tratamento de erros amigável para o usuário final
     // 🌍 Tradução das mensagens do Supabase Auth para português.
     // "Email not confirmed" só deve aparecer se o gatilho de auto-confirmação
     // (supabase/criar-bd/plataforma_01_schema.sql, seção 7.1) não estiver aplicado.
     const ERROS_TRADUZIDOS: Record<string, string> = {
-      'Invalid login credentials': 'Usuário ou senha inválidos.',
-      'Email not confirmed': 'Seu e-mail ainda não foi confirmado. Avise o administrador da plataforma.',
-      'User already registered': 'Este e-mail já está registrado.',
-      'Password should be at least 6 characters': 'A senha deve ter no mínimo 6 caracteres.',
-      'Invalid email': 'E-mail inválido.',
+      "Invalid login credentials": "Usuário ou senha inválidos.",
+      "Email not confirmed": "Seu e-mail ainda não foi confirmado. Avise o administrador da plataforma.",
+      "User already registered": "Este e-mail já está registrado.",
+      "Password should be at least 6 characters": "A senha deve ter no mínimo 6 caracteres.",
+      "Invalid email": "E-mail inválido.",
     };
 
-    // A mensagem crua vem do GoTrue em inglês; a tabela acima a traduz. Sem o
-    // `mensagemDeErro`, um erro lançado como string ou como objeto do PostgREST
-    // não tem `.message` e a busca na tabela devolveria `undefined` calado.
     const mensagemCrua = mensagemDeErro(error, "Erro inesperado na ponte de autenticação.");
     const errorMessage = ERROS_TRADUZIDOS[mensagemCrua] || mensagemCrua;
 
-    return { 
-      success: false, 
-      error: errorMessage 
-    };
+    return { success: false, error: errorMessage };
   }
 }

@@ -3,21 +3,38 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { ROTA_BLOQUEIO, ROTAS_PROTEGIDAS, isMobileUserAgent } from '@/lib/mobileBlock'
 
 /**
- * 🔵 MIDDLEWARE DE RENOVAÇÃO DE SESSÃO (Edge Runtime)
+ * 🔵 PROXY: RENOVAÇÃO DE SESSÃO E BLOQUEIO MÓVEL (PJODC v10)
+ * Local: apps/admin-web/src/proxy.ts
  *
- * Responsabilidade única: renovar o cookie de sessão do Supabase a cada requisição.
+ * ⚠️ ESTE ARQUIVO SE CHAMAVA `middleware.ts` ATÉ A v10. No Next.js 16 a
+ * convenção `middleware` está DEPRECIADA e foi renomeada para `proxy` — a
+ * documentação oficial diz, textualmente, que o nome antigo "está depreciado e
+ * foi renomeado para proxy". O conteúdo é o mesmo; mudam o nome do arquivo e o
+ * nome da função exportada.
  *
- * ⚠️ REGRA DE OURO DO EDGE RUNTIME:
- * Qualquer exceção não capturada aqui derruba TODAS as rotas com
- * 500 MIDDLEWARE_INVOCATION_FAILED — inclusive a página de login.
- * Por isso nada neste arquivo pode lançar: variáveis de ambiente são lidas
- * com fallback e a chamada de rede ao Supabase vive dentro de try/catch.
+ * ⚠️ E MUDA UMA COISA A MAIS, QUE PRECISA SER SABIDA: o `proxy` roda SEMPRE no
+ * runtime Node.js. A documentação é explícita: "Proxy defaults to using the
+ * Node.js runtime. The runtime config option is not available in Proxy files."
+ * O antigo `middleware` rodava no Edge. Para este arquivo isso é indiferente —
+ * ele só lê cookies, compara texto e chama o Supabase —, mas é a diferença que
+ * pode morder quem trouxer para cá algo que dependia do Edge.
+ *
+ * ⚠️ REGRA DE OURO: qualquer exceção não capturada aqui derruba TODAS as rotas,
+ * inclusive a página de login. Por isso nada neste arquivo pode lançar: as
+ * variáveis de ambiente são lidas com reserva e a chamada de rede vive dentro
+ * de try/catch.
+ *
+ * 🔐 O QUE ELE **NÃO** FAZ: autorizar. A documentação do Next.js avisa que uma
+ * mudança de `matcher` ou uma refatoração de rota pode tirar o proxy do caminho
+ * sem ninguém perceber, e por isso a verificação de identidade tem de estar
+ * também no destino. Nesta plataforma, quem autoriza de verdade é o banco
+ * (RLS + `is_superuser()`), não este arquivo.
  */
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // 📱 ESCUDO 0: celular não entra no painel.
   // Roda ANTES de tudo porque esta requisição vai virar redirecionamento de
   // qualquer jeito — renovar a sessão aqui seria trabalho de rede jogado fora.
@@ -36,10 +53,9 @@ export async function middleware(request: NextRequest) {
 
   // 🛡️ ESCUDO 1: sem credenciais, o createServerClient lançaria
   // "supabaseUrl is required" e mataria a aplicação inteira.
-  // Deixamos a requisição passar; a proteção real acontece nas páginas/actions.
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     console.error(
-      '[Middleware] NEXT_PUBLIC_SUPABASE_URL ou NEXT_PUBLIC_SUPABASE_ANON_KEY ausentes no build. Sessão não será renovada.'
+      '[Proxy] NEXT_PUBLIC_SUPABASE_URL ou NEXT_PUBLIC_SUPABASE_ANON_KEY ausentes no build. Sessão não será renovada.'
     )
     return response
   }
@@ -74,13 +90,13 @@ export async function middleware(request: NextRequest) {
   } catch (erro) {
     // 🛡️ ESCUDO 2: Supabase fora do ar, URL inválida ou cookie corrompido
     // não podem derrubar a plataforma. Segue sem sessão renovada.
-    console.error('[Middleware] Falha ao renovar a sessão do Supabase:', erro)
+    console.error('[Proxy] Falha ao renovar a sessão do Supabase:', erro)
   }
 
   return response
 }
 
-// Configuração para garantir que o middleware rode em todas as rotas necessárias
+// Roda em todas as rotas, menos arquivos estáticos e imagens.
 export const config = {
   matcher: [
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',

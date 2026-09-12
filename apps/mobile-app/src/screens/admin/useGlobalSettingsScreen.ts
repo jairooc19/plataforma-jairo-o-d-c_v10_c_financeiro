@@ -1,29 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
-import { settingsService, adminApiService, type GlobalSettings } from '@jairo/core';
+import { settingsService, PADROES_DE_FABRICA, type GlobalSettings } from '@jairo/core';
 import { errorService } from '@/services/errorService';
 
 /**
- * 🎨 PADRÕES DE FÁBRICA — os mesmos sete valores da web.
+ * 🎨 PADRÕES DE FÁBRICA — AGORA IMPORTADOS, NÃO COPIADOS (PJODC v10)
  *
- * ⚠️ ESTA LISTA É UMA SEGUNDA CÓPIA, e é preciso saber disso. A primeira está em
- * `apps/admin-web/src/app/dashboard/settings/page.tsx` (`FACTORY_DEFAULTS`), e
- * uma terceira, DIFERENTE, está no `DEFAULT_SETTINGS` do `settingsService` do
- * Core — aquela é a paleta de emergência de quando o banco não responde, não o
- * padrão de fábrica, e por isso os valores não batem. Unificá-las é uma mudança
- * de contrato do Core que atinge a web também; ficou fora do escopo desta
- * entrega. Ao mexer numa, mexa nas duas de propósito.
+ * ⚠️ ESTA LISTA ERA UMA SEGUNDA CÓPIA. Havia três no repositório: esta, a do
+ * `FACTORY_DEFAULTS` da web e a do `DEFAULT_SETTINGS` do Core — e a do SQL, com
+ * valores DIFERENTES dos outros dois. Restaurar o padrão pela web e rodar o seed
+ * davam resultados distintos. A v10 unificou tudo em
+ * `packages/core/src/constants/padroes.ts`; aqui só reexportamos para não
+ * quebrar quem já importava daqui.
  */
-export const PADROES_DE_FABRICA = {
-  system_title: 'PLATAFORMA JAIRO O D C',
-  color_header_bg: '#ffffff',
-  color_footer_bg: '#ffffff',
-  color_header_text: '#1d4ed8',
-  color_footer_text: '#64748b',
-  color_bg_general: '#f8fafc',
-  color_button_border: '#e2e8f0',
-  color_border_header_footer: '#e2e8f0',
-  admin_emails: 'jairooc19@gmail.com',
-} as const;
+export const PADROES_DE_FABRICA_MOBILE = PADROES_DE_FABRICA;
 
 /** As sete colunas de cor, derivadas do tipo — nunca uma lista solta de strings. */
 export type CampoCor = Exclude<keyof GlobalSettings, 'id' | 'system_title' | 'admin_emails'>;
@@ -52,20 +41,23 @@ export const ROTULO_COR: Record<CampoCor, string> = {
  * 🎨 CÉREBRO DOS AJUSTES GLOBAIS — MOBILE (PJODC v10)
  * Local: apps/mobile-app/src/screens/admin/useGlobalSettingsScreen.ts
  *
- * Espelho de `apps/admin-web/src/app/dashboard/settings/page.tsx`, com a mesma
- * divisão de trabalho que a web faz sem dizer:
+ * ===========================================================================
+ * ⚠️ O QUE MUDOU NA v10
+ * ===========================================================================
+ * A gravação ia por HTTP para `POST /api/settings` — uma rota com a chave mestra
+ * e SEM autenticação: quem soubesse o endereço trocava o título e as cores do
+ * sistema de qualquer lugar do mundo. Agora é a função
+ * `admin_update_global_settings`, que confere `is_superuser()` dentro do banco.
  *
- *   LEITURA  → `settingsService.getGlobalSettings()`, cliente ANON. `global_settings`
- *              é legível por qualquer um; é o que o boot do app já faz.
- *   GRAVAÇÃO → `adminApiService.salvarAjustesGlobais()`, que vai por HTTP à
- *              `/api/settings` do admin-web. Exige a SERVICE ROLE, e a service
- *              role não pode existir no aparelho.
+ *   LEITURA  → `settingsService.getGlobalSettings()`, cliente público. A linha
+ *              do white-label é legível por todos (é o que a guarita desenha
+ *              antes do login).
+ *   GRAVAÇÃO → `settingsService.updateGlobalSettings()`, que chama a função
+ *              administrativa.
  *
- * ⚠️ A GRAVAÇÃO DEPENDE DO ADMIN-WEB ESTAR NO AR e de `EXPO_PUBLIC_API_URL`
- * apontar para ele. Em desenvolvimento isso NÃO pode ser `localhost` — no
- * aparelho, `localhost` é o próprio aparelho. Ver `lib/apiBaseUrl.ts` no Core,
- * que recusa o valor com a instrução de correção em vez de deixar a chamada
- * falhar com "Network request failed".
+ * ⚠️ O QUE SE VÊ AQUI NÃO REPINTA O APP NA HORA. A paleta é lida no boot pelo
+ * `app/_layout.tsx`; a mudança aparece na próxima abertura. A web tem o mesmo
+ * comportamento.
  */
 export function useGlobalSettingsScreen() {
   const [ajustes, setAjustes] = useState<GlobalSettings | null>(null);
@@ -106,7 +98,7 @@ export function useGlobalSettingsScreen() {
     setSucesso(null);
 
     try {
-      await adminApiService.salvarAjustesGlobais(ajustes);
+      await settingsService.updateGlobalSettings(ajustes);
       setSucesso('Configurações globais atualizadas.');
     } catch (e) {
       errorService.registrar('AJUSTES', e);
@@ -126,8 +118,9 @@ export function useGlobalSettingsScreen() {
     setSucesso(null);
 
     try {
-      await adminApiService.salvarAjustesGlobais(PADROES_DE_FABRICA);
-      setAjustes({ id: 1, ...PADROES_DE_FABRICA });
+      const padroes: GlobalSettings = { id: 1, ...PADROES_DE_FABRICA };
+      await settingsService.updateGlobalSettings(padroes);
+      setAjustes(padroes);
       setSucesso('Padrões de fábrica restaurados.');
     } catch (e) {
       errorService.registrar('AJUSTES', e);

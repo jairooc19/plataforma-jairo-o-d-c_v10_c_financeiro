@@ -7,6 +7,59 @@ Leia-o integralmente antes de tocar em qualquer arquivo.
 
 ## ⚠️ Histórico de Mudanças
 
+**2026-09-11 — v10: correções de segurança, integridade e documentação (degrau 3)**
+
+A primeira mudança de COMPORTAMENTO da v10. Fecha os achados do estudo de
+engenharia reversa (`_estudos/degrau-01-engenharia-reversa.html`) e prepara o
+terreno para o módulo C FINANCEIRO. **Exige recriar o banco** (`00 → 01 → 02`) e
+**criar o usuário do Desenvolvedor à mão** — ver o fim do `plataforma_02_seed.sql`.
+
+| Frente | O que mudou |
+|---|---|
+| Banco | Schema reescrito: 5 tabelas (nova `audit_log`), 19 funções, 10 policies com `TO`, privilégios por coluna, `allowed_modules` virou `text[]`, datas com `now()`, `tenant_members` na publicação do Realtime |
+| Autenticação | A credencial fixa `admin@pjodc.ia`/`1qaz` **deixou de existir**; o Desenvolvedor é um usuário real com `is_superuser` |
+| Core | `supabaseAdmin` removido; `adminApiService` e `apiBaseUrl` apagados; novos `lib/dinheiro.ts`, `lib/datas.ts` e `constants/padroes.ts` |
+| admin-web | As 9 rotas `/api/*` e as 3 Server Actions administrativas **foram apagadas**; `middleware.ts` virou `proxy.ts` |
+| mobile-app | Sessão saiu do AsyncStorage para o SecureStore (em pedaços); telas de engenharia falam direto com o banco |
+| Testes | `npm test` (node:test, sem dependências) e `supabase/testes/teste_rls.sql` |
+| Git | Repositório iniciado; `main` = estado v10 renumerado, branch `degrau-03-correcoes` = estas mudanças |
+
+⚠️ **AS ROTAS `/api/*` NÃO FORAM "PROTEGIDAS" — FORAM REMOVIDAS.** Autenticar seis
+rotas que existiam só para carregar a chave mestra seria remendar: o desenho
+certo é o banco decidir. Toda operação administrativa virou função `admin_*` com
+`is_superuser()` conferido dentro do PostgreSQL. Se um dia uma rota HTTP voltar a
+ser necessária, ela nasce com verificação de sessão — a ausência dela era o risco
+nº 1 do repositório.
+
+⚠️ **A CHAVE MESTRA NÃO ESTÁ MAIS NO CÓDIGO.** `SUPABASE_SERVICE_ROLE_KEY` saiu
+dos `.env.example` e do Core. Ela ignora a RLS inteira; enquanto existir uma
+variável que a aplicação lê, existe um caminho para vazá-la. Rotina de manutenção
+que precise dela cria o cliente dentro do próprio script, no servidor.
+
+⚠️ **O `role` DO CADASTRO ERA ESCOLHIDO PELO NAVEGADOR.** O gatilho
+`handle_new_user` lia `raw_user_meta_data->>'role'`, que vai no corpo do
+`signUp` — bastava mandar `role: 'active'` para nascer aprovado e pular a
+triagem. Agora todo mundo nasce `pending`, e só o Desenvolvedor promove.
+
+⚠️ **AS DATAS ESTAVAM 3 HORAS ATRASADAS.** `timezone('utc', now() AT TIME ZONE
+'America/Sao_Paulo')` converte o fuso duas vezes. Virou `now()`. Para o módulo
+financeiro isso importa: `timestamptz` guarda o INSTANTE e a conversão acontece
+na exibição — ver `packages/core/src/lib/datas.ts`.
+
+⚠️ **DINHEIRO SÓ EM CENTAVOS INTEIROS.** `packages/core/src/lib/dinheiro.ts` é a
+base do C FINANCEIRO: `0.1 + 0.2` não dá `0.3` em ponto flutuante, e `10.10 * 3`
+dá `30.299999999999997`. No banco, `numeric(14,2)` ou `bigint` — nunca
+`real`/`double`.
+
+⚠️ **O QUE NÃO FOI TESTADO.** Nada foi executado contra um banco real: não há
+`.env` nem projeto Supabase acessível a partir daqui. Foram validados `npm test`
+(19 testes), `tsc --noEmit` nos dois apps, `eslint` e `npm run build` do
+admin-web. O `supabase/testes/teste_rls.sql` existe justamente para ser rodado
+por você, no banco, e provar o resto. **O aplicativo não foi aberto em aparelho
+nem em emulador.**
+
+---
+
 **2026-09-11 — v10: renumeração da versão (v9 → v10)**
 
 Marco de versão, **sem mudança de comportamento**. Nada foi acrescentado, removido ou
@@ -859,6 +912,8 @@ plataforma-jairo-o-d-c-v4/
 │   │   ├── plataforma_00_reset.sql    → Demolidor: derruba tudo do CORE
 │   │   ├── plataforma_01_schema.sql   → Construtor: schema consolidado v10
 │   │   └── plataforma_02_seed.sql     → Hidratador: dados iniciais obrigatórios
+│   ├── testes/             → 🆕 v10: teste_rls.sql prova as travas de acesso no banco
+│   ├── migrations/         → 🆕 v10: vazia; ler o README antes do primeiro dado real
 │   └── config.toml         → Configuração do Supabase CLI
 └── package.json            → Workspace root
 ```
@@ -987,8 +1042,7 @@ telemetry.capture(ANALYTICS_EVENTS.AUTH_ATTEMPT_SUBMIT, { ... });
 ### Serviços de Plataforma
 ```
 src/services/platform/
-├── adminApiService.ts    → as 4 operações que EXIGEM servidor (service role), por HTTP
-├── authService.ts        → login (senha), signOut, refreshSession, contexto, promoção de dono
+├── authService.ts        → login (senha), Google, signOut, refresh, triagem, ehDesenvolvedor
 ├── googleAuthService.ts  → Google OAuth 2.0 do PROPRIETÁRIO (popup e redirecionamento)
 ├── profileService.ts     → perfil: ler, completar, editar e apagar a conta
 ├── tenantService.ts      → empresas, membros, permissões, módulos por membro
@@ -1083,8 +1137,13 @@ Next.js 16.2.2 com App Router. Antes de mexer em rotas ou middleware, ler `AGENT
 
 ### Configurações
 - `next.config.ts` — `transpilePackages: ["@jairo/core"]`
-- `middleware.ts` — renova sessão SSR via `@supabase/ssr` em cada requisição
-- `src/lib/supabaseAdmin.ts` — **único lugar** com `SUPABASE_SERVICE_ROLE_KEY` no admin-web
+- `src/proxy.ts` — renova a sessão SSR a cada requisição e barra celular em `/dashboard`
+  - ⚠️ **v10: era `middleware.ts`.** No Next.js 16 a convenção `middleware` está
+    depreciada e foi renomeada para `proxy`; o `proxy` roda sempre no runtime
+    Node.js (o `middleware` rodava no Edge). O build confirma a troca: ele lista
+    `ƒ Proxy (Middleware)` no relatório de rotas.
+- ⚠️ **Não existe `src/lib/supabaseAdmin.ts`** — nunca existiu como arquivo, e
+  desde a v10 não existe cliente de chave mestra em lugar nenhum da aplicação
 - Path alias: `@/*` → `src/*`
 
 ### Variáveis de Ambiente
@@ -1129,7 +1188,30 @@ src/app/
 > pertenciam aos módulos removidos. As únicas actions restantes são as de plataforma,
 > em `src/app/auth/actions.ts` e `src/app/dashboard/tenants/actions.ts`.
 
-### API Routes
+### API Routes — ⚠️ TODAS REMOVIDAS NA v10
+
+> **Nenhuma das rotas listadas abaixo existe mais.** As nove `/api/*` rodavam com
+> a chave mestra e **não pediam identificação**: quem soubesse o endereço criava
+> empresas, promovia usuários e trocava as cores do sistema. Autenticá-las seria
+> remendo; o desenho certo é o banco decidir. Cada operação virou uma função
+> `admin_*` no PostgreSQL, que confere `is_superuser()` com a sessão de quem
+> chama — e a mesma chamada serve à web e ao aplicativo.
+>
+> | Rota antiga | O que faz hoje |
+> |---|---|
+> | `GET /api/admin/users` | `admin_list_users()` |
+> | `GET /api/admin/user-tenants` | `admin_list_user_tenants(uuid)` |
+> | `POST /api/admin/sync-tenants` | `admin_sync_user_tenants(uuid, jsonb, uuid[])` |
+> | `GET /api/users/pending` | `admin_list_users()` (a tela filtra) |
+> | `POST /api/users/promote` | `admin_promote_to_owner(uuid, text)` |
+> | `POST /api/settings` | `admin_update_global_settings(jsonb)` |
+> | `GET /api/settings` | `settingsService.getGlobalSettings()` (leitura pública) |
+> | `GET /api/tenants` | removida — estava quebrada (pedia a coluna `name`, que não existe) |
+> | `POST /api/notify-admin` | removida — só escrevia no log do servidor |
+>
+> A listagem original fica abaixo como registro do que existia.
+
+### API Routes (registro histórico — v9)
 ```
 src/app/api/
 ├── admin/                          → ⚠️ porta HTTP do Painel de Engenharia do MOBILE
@@ -1487,7 +1569,14 @@ A catraca anti-bot (Cloudflare Turnstile) foi removida. O fluxo hoje é:
 
 ### Acesso de Desenvolvedor (Painel de Engenharia)
 
-A credencial é **fixa no código**, em `packages/core/src/services/platform/authService.ts`:
+> 🔄 **REESCRITO NA v10.** O texto abaixo descreve o desenho ANTIGO e está
+> mantido como registro. **Hoje não existe credencial fixa:** o Desenvolvedor é
+> um usuário real do Supabase com `is_superuser = true` em `public.users`, criado
+> à mão pelo painel (ver `plataforma_02_seed.sql`). Quem confere o papel é o
+> banco, dentro das funções `admin_*` e da `is_superuser()`.
+
+**Como era até a v9** — a credencial era **fixa no código**, em
+`packages/core/src/services/platform/authService.ts`:
 
 ```typescript
 if (email === 'admin@pjodc.ia' && pass === '1qaz') { ... }
@@ -1564,10 +1653,17 @@ inclusive numa máquina limpa — foi por isso que a versão com bcrypt foi reve
 
 ## O Que NÃO Fazer (Proibições Absolutas)
 
-- ❌ Nunca usar `supabaseAdmin` no mobile-app
-- ❌ Nunca expor `SUPABASE_SERVICE_ROLE_KEY` no navegador
+- ❌ Nunca reintroduzir o cliente de chave mestra (`supabaseAdmin`) no Core — ele foi removido na v10; operação administrativa é função `admin_*` no banco, com `is_superuser()` conferido lá dentro
+- ❌ Nunca criar rota HTTP (`/api/*`) ou Server Action que escreva no banco sem verificar a sessão de quem chamou — a documentação do Next.js avisa que Server Action é alcançável por POST direto
+- ❌ Nunca declarar `SUPABASE_SERVICE_ROLE_KEY` em `.env` lido pela aplicação (web ou mobile); se uma rotina de manutenção precisar, o cliente nasce e morre dentro dela
+- ❌ Nunca conceder permissão de tabela ao `authenticated` sem pensar na coluna: `GRANT UPDATE (colunas)` é o que impede um usuário de gravar `is_superuser` no próprio perfil
+- ❌ Nunca escrever policy sem a cláusula `TO` — o padrão do PostgreSQL é PUBLIC, e foi assim que a lista de usuários ficou aberta até a v9
+- ❌ Nunca confiar em `sessionStorage`, `SecureStore` ou qualquer marca no cliente como autorização — o papel vem do banco (`is_superuser()`)
 - ❌ Nunca importar React Native no nível de módulo dentro de `packages/core`
-- ❌ Nunca salvar `allowed_modules` como string separada por vírgula (usar `text[]`)
+- ❌ Nunca salvar `allowed_modules` como string separada por vírgula — desde a v10 a coluna é `text[]` de verdade (até a v9 ela era `text` e os tipos do TypeScript mentiam)
+- ❌ Nunca guardar valor monetário em ponto flutuante — centavos inteiros no código (`lib/dinheiro.ts`), `numeric(14,2)` ou `bigint` no banco
+- ❌ Nunca gravar data de vencimento/competência como `timestamptz` — use `date`; `timestamptz` é para o INSTANTE de um registro
+- ❌ Nunca calcular fuso à mão (`-3 horas`) — use `lib/datas.ts`, que trata o horário de verão pelo `Intl`
 - ❌ Nunca quebrar uma operação transacional do banco em chamadas TypeScript separadas — usar uma função SQL única
 - ❌ Nunca criar arquivo com múltiplas responsabilidades distintas
 - ❌ Nunca misturar lógica de plataforma com módulo, nem módulo com módulo

@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import { View, Text, Modal, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import type { AdminUser } from '@jairo/core';
+import type { UsuarioAdmin } from '@jairo/core';
 
 import Icon from '@/components/icon/Icon';
 import Input from '@/components/input/Input';
@@ -13,7 +13,7 @@ import { BRAND } from '@/constants/Colors';
 import { ICONE } from '@/constants/Spacing';
 
 interface TenantManagerModalProps {
-  usuario: AdminUser;
+  usuario: UsuarioAdmin;
   onFechar: () => void;
   /** Gravou: a Central recarrega a lista, porque o papel do usuário pode ter mudado. */
   onSalvo: () => void;
@@ -23,28 +23,24 @@ interface TenantManagerModalProps {
  * 🏢 GERENCIADOR DE EMPRESAS DE UM USUÁRIO — MOBILE (PJODC v10)
  * Local: apps/mobile-app/src/screens/admin/TenantManagerModal.tsx
  *
- * Paridade com o modal de `apps/admin-web/src/app/dashboard/tenants/page.tsx`:
- * criar empresa, remover, reabilitar do histórico e gravar tudo de uma vez.
+ * Paridade com o modal da Central de Comandos da web: criar empresa, remover,
+ * reabilitar do histórico e gravar tudo de uma vez.
  *
  * 🧠 A LÓGICA ESTÁ NO `useTenantManager`, AS LISTAS NO `TenantLists` E OS
  * ESTILOS NO `.styles.ts`. Aqui ficou a moldura: cabeçalho, campo de nova
- * empresa e rodapé de ação. É a mesma divisão de `Button`/`Input`/`MenuCard`.
+ * empresa e rodapé de ação.
  *
- * 🪟 É UM `Modal` DE TELA CHEIA, e não uma folha ancorada. A lista pode ter
- * várias empresas mais o histórico, com um campo de texto no topo: quando o
- * teclado sobe, uma folha de meia altura deixaria três linhas visíveis. Tela
- * cheia é o que o iOS chama de apresentação modal de página e o que o Android
- * faz com um diálogo de tela inteira.
+ * ⚠️ v10 — A GRAVAÇÃO É UMA TRANSAÇÃO NO BANCO. Antes era uma sequência de
+ * chamadas HTTP para uma rota sem autenticação; hoje é a função
+ * `admin_sync_user_tenants`, que exige Desenvolvedor e roda tudo ou nada.
  *
- * ⚠️ MONTADO SÓ ENQUANTO ABERTO — quem decide é a Central de Comandos, com
- * `{selecionado && <TenantManagerModal/>}`. É a mesma decisão que a web tomou
- * para o modal de perfil: cada abertura nasce limpa e relê os vínculos do banco,
- * sem um efeito de reinicialização que geraria renderização em cascata e
- * reabriria com dados velhos.
+ * 🪟 É UM `Modal` DE TELA CHEIA, e não uma folha ancorada: a lista pode ter
+ * várias empresas mais o histórico, com um campo de texto no topo — quando o
+ * teclado sobe, uma folha de meia altura deixaria três linhas visíveis.
  *
- * ⌨️ O NOME VAI PARA MAIÚSCULAS ENQUANTO SE DIGITA, como na web. Não é estética:
- * é assim que os nomes de empresa já gravados estão no banco, e uma lista com
- * "ACME" ao lado de "Acme" parece dois registros diferentes.
+ * ⌨️ O NOME VAI PARA MAIÚSCULAS ENQUANTO SE DIGITA, como na web: é assim que os
+ * nomes já gravados estão no banco, e "ACME" ao lado de "Acme" parece dois
+ * registros diferentes.
  */
 export default function TenantManagerModal({ usuario, onFechar, onSalvo }: TenantManagerModalProps) {
   const {

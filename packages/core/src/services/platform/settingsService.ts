@@ -1,11 +1,25 @@
 /**
- * 🎨 SETTINGS SERVICE: O Cérebro da Identidade Visual (PJODC v4)
- * Novo Local: packages/core/src/services/platform/settingsService.ts
- * Responsabilidade: PLATAFORMA (CORE)
- * Garante que a Web e o App tenham a mesma estética.
+ * 🎨 SETTINGS SERVICE: O Cérebro da Identidade Visual (PJODC v10)
+ * Local: packages/core/src/services/platform/settingsService.ts
+ *
+ * Garante que a Web e o App mostrem o mesmo título e a mesma paleta.
+ *
+ * ===========================================================================
+ * ⚠️ O QUE MUDOU NA v10
+ * ===========================================================================
+ *  • A GRAVAÇÃO deixou de usar a chave mestra e de passar por uma rota HTTP
+ *    aberta (`POST /api/settings`, que qualquer pessoa podia chamar para trocar
+ *    o título e as cores do sistema). Agora é a função `admin_update_global_settings`,
+ *    que confere `is_superuser()` dentro do banco.
+ *  • A PALETA DE EMERGÊNCIA deixou de ser uma terceira lista de cores inventada
+ *    aqui: ela É o `PADROES_DE_FABRICA` do Core, o mesmo que o SQL usa.
+ *
+ * 📖 A LEITURA CONTINUA PÚBLICA, e é de propósito: título e cores são
+ * desenhados ANTES do login, na tela da guarita.
  */
 
-import { supabase, supabaseAdmin } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase';
+import { PADROES_DE_FABRICA } from '../../constants/padroes';
 
 export interface GlobalSettings {
   id: number;
@@ -21,27 +35,16 @@ export interface GlobalSettings {
 }
 
 /**
- * VALORES PADRÃO (FALLBACK)
- * Caso a conexão com o Supabase falhe ou o registro ID 1 não exista,
- * o sistema utiliza esta paleta base para manter a integridade visual.
+ * Paleta usada quando o banco não responde. É a MESMA de fábrica — se fosse
+ * outra, uma queda de rede mudaria a cara do sistema, e ninguém entenderia por
+ * quê (foi o que acontecia até a v9).
  */
-const DEFAULT_SETTINGS: GlobalSettings = {
-  id: 1,
-  system_title: "PLATAFORMA JAIRO O D C",
-  color_header_bg: "#ADB5BD",
-  color_footer_bg: "#ADB5BD",
-  color_header_text: "#000000",
-  color_footer_text: "#000000",
-  color_bg_general: "#F1F8E9",
-  color_button_border: "#000000",
-  color_border_header_footer: "#000000",
-  admin_emails: "jairooc19@gmail.com"
-};
+const AJUSTES_DE_EMERGENCIA: GlobalSettings = { id: 1, ...PADROES_DE_FABRICA };
 
 export const settingsService = {
   /**
-   * Busca as configurações globais (ID 1 fixo).
-   * Implementa um padrão de resiliência para evitar quebras no Mobile.
+   * Busca as configurações globais (linha fixa `id = 1`).
+   * Nunca lança: a interface precisa de uma cor para desenhar, mesmo offline.
    */
   async getGlobalSettings(): Promise<GlobalSettings> {
     try {
@@ -49,50 +52,43 @@ export const settingsService = {
         .from('global_settings')
         .select('*')
         .eq('id', 1)
-        .maybeSingle(); 
+        .maybeSingle();
 
       if (error) {
-        console.warn('[CORE-SETTINGS] Erro na API, usando valores padrão:', error.message);
-        return DEFAULT_SETTINGS;
+        console.warn('[CORE-SETTINGS] Erro na API, usando os padrões:', error.message);
+        return AJUSTES_DE_EMERGENCIA;
       }
 
       if (!data) {
-        console.warn('[CORE-SETTINGS] Registro ID 1 não encontrado, usando padrão.');
-        return DEFAULT_SETTINGS;
+        console.warn('[CORE-SETTINGS] Linha id = 1 não encontrada, usando os padrões.');
+        return AJUSTES_DE_EMERGENCIA;
       }
 
       return data as GlobalSettings;
     } catch (err) {
       console.error('[CORE-SETTINGS] Falha crítica na requisição:', err);
-      return DEFAULT_SETTINGS;
+      return AJUSTES_DE_EMERGENCIA;
     }
   },
 
   /**
-   * 🚀 ATUALIZAÇÃO CENTRALIZADA
-   * Grava as novas cores e títulos no banco usando o poder administrativo.
+   * 🚀 Grava título, cores e e-mails de alerta.
+   *
+   * ⚠️ SÓ O DESENVOLVEDOR CONSEGUE. Quem recusa é o banco, não a tela: a função
+   * `admin_update_global_settings` confere `is_superuser()`. Esconder o botão
+   * nunca foi controle de acesso.
    */
-  async updateGlobalSettings(body: Partial<GlobalSettings>) {
-    if (!supabaseAdmin) {
-      throw new Error("Acesso administrativo não configurado no Core.");
-    }
+  async updateGlobalSettings(ajustes: Partial<GlobalSettings>): Promise<{ success: true }> {
+    const { error } = await supabase.rpc('admin_update_global_settings', {
+      p_ajustes: ajustes,
+    });
 
-    const { error } = await supabaseAdmin
-      .from('global_settings')
-      .update({
-        system_title: body.system_title,
-        color_header_bg: body.color_header_bg,
-        color_footer_bg: body.color_footer_bg,
-        color_header_text: body.color_header_text,
-        color_footer_text: body.color_footer_text,
-        color_bg_general: body.color_bg_general,
-        color_button_border: body.color_button_border,
-        color_border_header_footer: body.color_border_header_footer,
-        admin_emails: body.admin_emails
-      })
-      .eq('id', 1);
-
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     return { success: true };
-  }
+  },
+
+  /** Os valores de fábrica, para o botão "Restaurar Padrões". */
+  padroesDeFabrica(): Omit<GlobalSettings, 'id'> {
+    return { ...PADROES_DE_FABRICA };
+  },
 };

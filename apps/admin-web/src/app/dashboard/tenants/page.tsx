@@ -2,154 +2,154 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { 
-  getAllUsersAction, 
-  getUserTenantManagementAction, 
-  syncUserTenantsAction 
-} from "./actions";
-import type { TenantSyncData } from "@jairo/core";
-import type { UsuarioAdministravel, VinculoAdministravel } from "@/types/plataforma";
+import {
+  authService,
+  tenantService,
+  telemetry,
+  ANALYTICS_EVENTS,
+  type EmpresaParaSincronizar,
+  type UsuarioAdmin,
+} from "@jairo/core";
 import { mensagemDeErro } from "@/lib/erro";
 
+/**
+ * 🛰️ CENTRAL DE COMANDOS — TRIAGEM E EMPRESAS (PJODC v10)
+ * Local: apps/admin-web/src/app/dashboard/tenants/page.tsx
+ *
+ * ===========================================================================
+ * ⚠️ O QUE MUDOU NA v10
+ * ===========================================================================
+ *  1. A PORTA DE ENTRADA DEIXOU DE SER UMA MARCA NO NAVEGADOR. A v9 liberava
+ *     esta tela com `sessionStorage.dev_vip_access === 'true'` — uma linha no
+ *     console do navegador bastava. Agora perguntamos ao banco
+ *     (`authService.ehDesenvolvedor()`), e o banco confere a coluna
+ *     `is_superuser`, que o cliente não pode escrever.
+ *  2. AS SERVER ACTIONS SUMIRAM. Elas rodavam com a CHAVE MESTRA e não
+ *     verificavam quem chamava — e Server Action, como a documentação do Next.js
+ *     avisa, é alcançável por POST direto. As três operações viraram funções no
+ *     banco (`admin_list_users`, `admin_list_user_tenants`,
+ *     `admin_sync_user_tenants`), que conferem o superusuário por dentro.
+ *  3. A GRAVAÇÃO É UMA TRANSAÇÃO SÓ. A v9 fazia até 2 + 2n chamadas separadas:
+ *     um erro no meio deixava empresa criada, papel desatualizado e a tela
+ *     dizendo que falhou.
+ *
+ * 🔐 ESCONDER A TELA NUNCA FOI SEGURANÇA — e continua não sendo. A checagem
+ * abaixo existe para não mostrar um painel inútil a quem não é Desenvolvedor; a
+ * tranca de verdade está dentro de cada função `admin_*`.
+ */
 export default function TenantsPage() {
-  const [users, setUsers] = useState<UsuarioAdministravel[]>([]);
+  const router = useRouter();
+
+  const [usuarios, setUsuarios] = useState<UsuarioAdmin[]>([]);
   const [loading, setLoading] = useState(true);
-  
+  const [erroGeral, setErroGeral] = useState<string | null>(null);
+
   // Estados do Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loadingModal, setLoadingModal] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<UsuarioAdministravel | null>(null);
+  const [selectedUser, setSelectedUser] = useState<UsuarioAdmin | null>(null);
 
   // Estados do Formulário
   const [tenantName, setTenantName] = useState("");
-  // `TenantSyncData` é o que `syncUserTenantsAction` exige — usar o mesmo tipo
-  // aqui faz o compilador cobrar a forma no momento em que a lista é montada,
-  // e não lá na frente, na chamada.
-  const [tempTenants, setTempTenants] = useState<TenantSyncData[]>([]);
-  const [inactiveTenants, setInactiveTenants] = useState<TenantSyncData[]>([]);
-  const [deletedTenants, setDeletedTenants] = useState<string[]>([]);
+  const [ativas, setAtivas] = useState<EmpresaParaSincronizar[]>([]);
+  const [inativas, setInativas] = useState<EmpresaParaSincronizar[]>([]);
+  const [desativadas, setDesativadas] = useState<string[]>([]);
 
-  const router = useRouter();
-
-  /**
-   * ⚠️ DECLARADA ANTES DO EFEITO QUE A CHAMA, e envolvida em `useCallback`.
-   * Antes ela vinha depois: o efeito capturava a versão daquele render por
-   * içamento (`function`/`const` em escopo de módulo de componente), e o ESLint
-   * acusava "accessed before it is declared". Com `useCallback([])` a função é
-   * a MESMA em todos os renders, então entrar na lista de dependências do
-   * efeito abaixo não cria laço de renderização.
-   */
-  const fetchData = useCallback(async () => {
+  const carregarUsuarios = useCallback(async () => {
     setLoading(true);
+    setErroGeral(null);
     try {
-      const u = await getAllUsersAction();
-      setUsers((u as UsuarioAdministravel[] | null) || []);
+      setUsuarios(await tenantService.listarUsuarios());
     } catch (err) {
       console.error("Erro ao carregar usuários:", err);
+      setErroGeral(mensagemDeErro(err, "Não foi possível carregar a lista de usuários."));
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // 🛡️ Proteção de Acesso VIP Dev
+  // 🛡️ Quem pode ver esta tela?
   useEffect(() => {
-    const checkAccess = () => {
-      const devAccess = sessionStorage.getItem("dev_vip_access") === "true";
-      if (!devAccess) {
-        router.push("/dashboard");
+    const verificarAcesso = async () => {
+      const ehDev = await authService.ehDesenvolvedor();
+      if (!ehDev) {
+        router.replace("/dashboard");
         return;
       }
-      fetchData();
+      carregarUsuarios();
     };
-    checkAccess();
-  }, [router, fetchData]);
+    verificarAcesso();
+  }, [router, carregarUsuarios]);
 
-  const handleOpenModal = async (user: UsuarioAdministravel) => {
-    setSelectedUser(user);
+  const handleOpenModal = async (usuario: UsuarioAdmin) => {
+    setSelectedUser(usuario);
     setIsModalOpen(true);
     setLoadingModal(true);
-    setDeletedTenants([]);
-    setTempTenants([]);
-    setInactiveTenants([]);
+    setDesativadas([]);
+    setAtivas([]);
+    setInativas([]);
     setTenantName("");
 
     try {
-      const members = await getUserTenantManagementAction(user.id);
+      const empresas = await tenantService.listarEmpresasDoUsuario(usuario.id);
 
-      if (members && members.length > 0) {
-        const active: TenantSyncData[] = [];
-        const inactive: TenantSyncData[] = [];
-
-        (members as unknown as VinculoAdministravel[]).forEach((m) => {
-          const item = {
-            member_id: m.id,
-            tenant_id: m.tenants.id,
-            name: m.tenants.tenant_name,
-            slug: m.tenants.slug,
-            is_active: m.tenants.is_active,
-            isNew: false
-          };
-
-          if (m.tenants.is_active) {
-            active.push(item);
-          } else {
-            inactive.push(item);
-          }
-        });
-
-        setTempTenants(active);
-        setInactiveTenants(inactive);
-      }
+      setAtivas(
+        empresas
+          .filter((e) => e.is_active)
+          .map((e) => ({ tenant_id: e.tenant_id, name: e.tenant_name, is_active: true }))
+      );
+      setInativas(
+        empresas
+          .filter((e) => !e.is_active)
+          .map((e) => ({ tenant_id: e.tenant_id, name: e.tenant_name, is_active: false }))
+      );
     } catch (err) {
       console.error("Erro ao carregar empresas do usuário:", err);
+      setErroGeral(mensagemDeErro(err));
     } finally {
       setLoadingModal(false);
     }
   };
 
-  const addTenantToList = () => {
-    if (!tenantName) return;
-    const slug = tenantName.toLowerCase().replace(/ /g, "-");
-    setTempTenants([...tempTenants, {
-      name: tenantName,
-      slug,
-      is_active: true,
-      isNew: true
-    }]);
+  const adicionarEmpresa = () => {
+    const nome = tenantName.trim();
+    if (!nome) return;
+    // Sem `slug` e sem `isNew`: o banco gera o slug (e sabe quais já existem), e
+    // "empresa nova" passou a ser simplesmente `tenant_id` ausente.
+    setAtivas([...ativas, { name: nome, is_active: true }]);
     setTenantName("");
   };
 
-  const handleRemoveTenant = (index: number) => {
-    const t = tempTenants[index];
-    if (!t.isNew) {
-      // `tenant_id` só existe em empresa já gravada — por isso é opcional em
-      // `TenantSyncData`. A guarda impede que um `undefined` entre na lista de
-      // exclusão, que é `string[]` e vai para a action de sincronização.
-      if (t.tenant_id) setDeletedTenants([...deletedTenants, t.tenant_id]);
-      setInactiveTenants([...inactiveTenants, { ...t, is_active: false }]);
+  /** "Remover" desativa: a empresa vai para o histórico e pode voltar. */
+  const removerEmpresa = (indice: number) => {
+    const alvo = ativas[indice];
+    if (alvo.tenant_id) {
+      setDesativadas([...desativadas, alvo.tenant_id]);
+      setInativas([...inativas, { ...alvo, is_active: false }]);
     }
-    setTempTenants(tempTenants.filter((_, i) => i !== index));
+    setAtivas(ativas.filter((_, i) => i !== indice));
   };
 
-  const handleRehabilitate = (index: number) => {
-    const t = inactiveTenants[index];
-    setDeletedTenants(deletedTenants.filter(id => id !== t.tenant_id));
-    setTempTenants([...tempTenants, { ...t, is_active: true }]);
-    setInactiveTenants(inactiveTenants.filter((_, i) => i !== index));
+  const reabilitarEmpresa = (indice: number) => {
+    const alvo = inativas[indice];
+    setDesativadas(desativadas.filter((id) => id !== alvo.tenant_id));
+    setAtivas([...ativas, { ...alvo, is_active: true }]);
+    setInativas(inativas.filter((_, i) => i !== indice));
   };
 
-  const handleFinalize = async () => {
+  const gravar = async () => {
     if (!selectedUser) return;
     setLoading(true);
 
     try {
-      await syncUserTenantsAction(selectedUser.id, tempTenants, deletedTenants);
+      await tenantService.sincronizarEmpresas(selectedUser.id, ativas, desativadas);
+      telemetry.capture(ANALYTICS_EVENTS.TENANTS_SYNCED, { alvo: selectedUser.id });
       setIsModalOpen(false);
-      fetchData();
+      await carregarUsuarios();
     } catch (error: unknown) {
       const mensagem = mensagemDeErro(error);
-      if (mensagem === 'NOME_EMPRESA_DUPLICADO') {
-        alert("O NOME DA EMPRESA JÁ ESTA SENDO UTILIZADO EM OUTRO REGISTRO.");
+      if (mensagem.includes("NOME_EMPRESA_DUPLICADO")) {
+        alert("ESTE USUÁRIO JÁ TEM UMA EMPRESA COM ESSE NOME.");
       } else {
         alert("Erro ao salvar: " + mensagem);
       }
@@ -158,14 +158,14 @@ export default function TenantsPage() {
     }
   };
 
-  const pendingUsersList = users.filter(u => {
-    const role = (u.role || '').toLowerCase();
-    return role === 'pending' || role === 'user';
+  const pendentes = usuarios.filter((u) => {
+    const papel = (u.role || "").toLowerCase();
+    return papel === "pending" || papel === "user";
   });
 
-  const activeUsersList = users.filter(u => (u.role || '').toLowerCase() === 'active');
+  const operacionais = usuarios.filter((u) => (u.role || "").toLowerCase() === "active");
 
-  if (loading && users.length === 0) {
+  if (loading && usuarios.length === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-50 min-h-screen">
         <div className="w-10 h-10 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin"></div>
@@ -176,7 +176,7 @@ export default function TenantsPage() {
   return (
     <div className="flex-1 bg-slate-50 p-4 sm:p-8 min-h-screen font-sans">
       <div className="max-w-6xl mx-auto space-y-10">
-        
+
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-tighter text-slate-800">Central de Comandos</h1>
           <button onClick={() => router.push("/dashboard")} className="px-6 py-3 bg-white border border-slate-200 rounded-xl font-bold text-sm shadow-sm hover:bg-slate-100 transition-all flex items-center gap-2">
@@ -185,24 +185,30 @@ export default function TenantsPage() {
           </button>
         </div>
 
+        {erroGeral && (
+          <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-2xl text-sm font-medium">
+            {erroGeral}
+          </div>
+        )}
+
         <section className="bg-white rounded-[2.5rem] p-6 sm:p-8 shadow-xl border border-amber-100 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-2 h-full bg-amber-400"></div>
           <div className="flex items-center gap-3 mb-6">
             <h2 className="text-xl font-black uppercase text-slate-800">Triagem de Usuários</h2>
-            <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-lg text-xs font-black">{pendingUsersList.length} PENDENTES</span>
+            <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-lg text-xs font-black">{pendentes.length} PENDENTES</span>
           </div>
-          
+
           <div className="space-y-4">
-            {pendingUsersList.length === 0 ? (
+            {pendentes.length === 0 ? (
               <div className="p-8 text-center text-slate-400 font-medium">Nenhum usuário aguardando triagem.</div>
             ) : (
-              pendingUsersList.map(user => (
-                <div key={user.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 bg-slate-50 rounded-2xl border border-slate-100 hover:border-amber-200 transition-all gap-4">
+              pendentes.map((usuario) => (
+                <div key={usuario.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 bg-slate-50 rounded-2xl border border-slate-100 hover:border-amber-200 transition-all gap-4">
                   <div>
-                    <div className="font-black text-lg text-slate-800">{user.full_name || 'Usuário sem Nome'}</div>
-                    <div className="text-sm text-blue-600 font-bold">{user.email}</div>
+                    <div className="font-black text-lg text-slate-800">{usuario.full_name || 'Usuário sem Nome'}</div>
+                    <div className="text-sm text-blue-600 font-bold">{usuario.email}</div>
                   </div>
-                  <button onClick={() => handleOpenModal(user)} className="w-full sm:w-auto bg-slate-800 text-white px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-amber-500 transition-all shadow-md">HABILITAR INFRAESTRUTURA</button>
+                  <button onClick={() => handleOpenModal(usuario)} className="w-full sm:w-auto bg-slate-800 text-white px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-amber-500 transition-all shadow-md">HABILITAR INFRAESTRUTURA</button>
                 </div>
               ))
             )}
@@ -213,23 +219,23 @@ export default function TenantsPage() {
           <div className="absolute top-0 left-0 w-2 h-full bg-blue-500"></div>
           <div className="flex items-center gap-3 mb-6">
             <h2 className="text-xl font-black uppercase text-slate-800">Clientes Operacionais</h2>
-            <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-lg text-xs font-black">{activeUsersList.length} ATIVOS</span>
+            <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-lg text-xs font-black">{operacionais.length} ATIVOS</span>
           </div>
-          
+
           <div className="space-y-4">
-            {activeUsersList.length === 0 ? (
+            {operacionais.length === 0 ? (
               <div className="p-8 text-center text-slate-400 font-medium">Nenhum cliente operacional.</div>
             ) : (
-              activeUsersList.map(user => (
-                <div key={user.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 bg-slate-50 rounded-2xl border border-slate-100 hover:border-blue-200 transition-all gap-4">
+              operacionais.map((usuario) => (
+                <div key={usuario.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 bg-slate-50 rounded-2xl border border-slate-100 hover:border-blue-200 transition-all gap-4">
                   <div>
                     <div className="font-black text-lg text-slate-800 flex items-center gap-2">
                       <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-                      {user.full_name || 'Usuário sem Nome'}
+                      {usuario.full_name || 'Usuário sem Nome'}
                     </div>
-                    <div className="text-sm text-slate-500">{user.email}</div>
+                    <div className="text-sm text-slate-500">{usuario.email}</div>
                   </div>
-                  <button onClick={() => handleOpenModal(user)} className="w-full sm:w-auto bg-white border-2 border-slate-200 text-slate-700 px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:border-blue-600 hover:text-blue-600 transition-all">GERENCIAR HABILITAÇÕES</button>
+                  <button onClick={() => handleOpenModal(usuario)} className="w-full sm:w-auto bg-white border-2 border-slate-200 text-slate-700 px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:border-blue-600 hover:text-blue-600 transition-all">GERENCIAR HABILITAÇÕES</button>
                 </div>
               ))
             )}
@@ -239,56 +245,56 @@ export default function TenantsPage() {
         {isModalOpen && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-2xl rounded-[3.5rem] shadow-2xl overflow-hidden border border-white flex flex-col max-h-[90vh]">
-              
+
               {loadingModal ? (
                 <div className="p-20 flex flex-col items-center justify-center">
                   <div className="w-10 h-10 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin mb-4"></div>
-                  <p className="text-slate-500 font-bold animate-pulse uppercase tracking-widest text-xs">Acessando o Cérebro Único...</p>
+                  <p className="text-slate-500 font-bold animate-pulse uppercase tracking-widest text-xs">Consultando o banco...</p>
                 </div>
               ) : (
                 <>
                   <div className="p-8 sm:p-10 pb-6 shrink-0 border-b border-slate-100 bg-white z-10">
                     <div className="text-center">
                       <h3 className="text-2xl font-black uppercase tracking-tight text-slate-800">
-                        {tempTenants.length > 0 || inactiveTenants.length > 0 ? 'Gerenciar Infraestrutura' : 'Habilitar Infraestrutura'}
+                        {ativas.length > 0 || inativas.length > 0 ? 'Gerenciar Infraestrutura' : 'Habilitar Infraestrutura'}
                       </h3>
                       <p className="text-slate-500 font-medium mt-1">Usuário: <span className="text-blue-600 font-bold">{selectedUser?.full_name || selectedUser?.email}</span></p>
                     </div>
 
                     <div className="flex gap-2 mt-8">
                       <input type="text" placeholder="NOME DA NOVA EMPRESA/CLIENTE" value={tenantName} onChange={(e) => setTenantName(e.target.value.toUpperCase())} className="flex-1 p-5 rounded-2xl bg-slate-50 font-bold text-sm outline-none border-2 border-transparent focus:border-blue-200 transition-all" />
-                      <button onClick={addTenantToList} className="bg-slate-900 text-white px-8 rounded-2xl font-black hover:bg-blue-600 transition-all text-xl">+</button>
+                      <button onClick={adicionarEmpresa} className="bg-slate-900 text-white px-8 rounded-2xl font-black hover:bg-blue-600 transition-all text-xl">+</button>
                     </div>
                   </div>
 
                   <div className="flex-1 overflow-y-auto p-8 sm:p-10 pt-4 space-y-8 bg-slate-50/50">
                     <div className="space-y-4">
                       <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Empresas Habilitadas</h4>
-                      {tempTenants.length === 0 ? (
+                      {ativas.length === 0 ? (
                         <div className="text-center p-8 border-2 border-dashed border-slate-200 rounded-3xl text-slate-400 font-bold text-xs italic">Nenhuma empresa ativa no momento.</div>
                       ) : (
-                        tempTenants.map((t, index) => (
-                          <div key={index} className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-all">
+                        ativas.map((empresa, index) => (
+                          <div key={`ativa-${empresa.tenant_id ?? 'nova'}-${index}`} className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-all">
                             <div className="flex items-center justify-between p-5 bg-slate-50/50">
-                              <span className="font-black text-slate-800 uppercase text-xs tracking-widest">{t.name}</span>
+                              <span className="font-black text-slate-800 uppercase text-xs tracking-widest">{empresa.name}</span>
                               <div className="flex gap-2">
-                                <button onClick={() => handleRemoveTenant(index)} className="text-red-500 font-black text-[10px] px-3 uppercase hover:bg-red-50 rounded-xl transition-all">Remover</button>
+                                <button onClick={() => removerEmpresa(index)} className="text-red-500 font-black text-[10px] px-3 uppercase hover:bg-red-50 rounded-xl transition-all">Remover</button>
                               </div>
                             </div>
                           </div>
                         ))
                       )}
                     </div>
-                    {inactiveTenants.length > 0 && (
+                    {inativas.length > 0 && (
                       <div className="space-y-4 pt-4 border-t border-slate-200">
                         <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Histórico de Empresas</h4>
-                        {inactiveTenants.map((t, index) => (
-                          <div key={`inactive-${index}`} className="bg-slate-100/50 rounded-3xl border border-slate-200 p-5 flex items-center justify-between opacity-70 grayscale hover:grayscale-0 hover:opacity-100 transition-all">
+                        {inativas.map((empresa, index) => (
+                          <div key={`inativa-${empresa.tenant_id ?? index}`} className="bg-slate-100/50 rounded-3xl border border-slate-200 p-5 flex items-center justify-between opacity-70 grayscale hover:grayscale-0 hover:opacity-100 transition-all">
                             <div className="flex flex-col">
-                              <span className="font-black text-slate-500 uppercase text-[10px] tracking-widest">{t.name}</span>
+                              <span className="font-black text-slate-500 uppercase text-[10px] tracking-widest">{empresa.name}</span>
                               <span className="text-[9px] font-bold text-slate-400">DADOS PRESERVADOS</span>
                             </div>
-                            <button onClick={() => handleRehabilitate(index)} className="bg-blue-100 text-blue-700 px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all shadow-sm">Reabilitar</button>
+                            <button onClick={() => reabilitarEmpresa(index)} className="bg-blue-100 text-blue-700 px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all shadow-sm">Reabilitar</button>
                           </div>
                         ))}
                       </div>
@@ -296,7 +302,7 @@ export default function TenantsPage() {
                   </div>
 
                   <div className="p-8 sm:p-10 pt-6 shrink-0 border-t border-slate-100 bg-white z-10 flex flex-col gap-3">
-                    <button onClick={handleFinalize} disabled={loading} className="w-full bg-blue-600 text-white font-black py-5 rounded-2xl shadow-lg hover:bg-blue-700 hover:shadow-xl transition-all uppercase tracking-widest disabled:opacity-50">
+                    <button onClick={gravar} disabled={loading} className="w-full bg-blue-600 text-white font-black py-5 rounded-2xl shadow-lg hover:bg-blue-700 hover:shadow-xl transition-all uppercase tracking-widest disabled:opacity-50">
                       {loading ? 'SINCRONIZANDO...' : 'SALVAR E CONCLUIR'}
                     </button>
                     <button onClick={() => setIsModalOpen(false)} className="text-slate-400 font-bold text-xs uppercase py-3 hover:text-slate-600 transition-colors">CANCELAR</button>

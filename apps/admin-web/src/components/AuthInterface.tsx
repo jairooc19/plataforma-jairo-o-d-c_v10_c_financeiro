@@ -15,31 +15,37 @@ import TenantSelectorView from "./auth/views/TenantSelectorView";
 import MiscViews from "./auth/views/MiscViews";
 
 /**
- * 🛰️ ORQUESTRADOR: AUTH INTERFACE (PJODC v4)
- * Responsabilidade: Renderização condicional baseada no estado do useAuthLogic.
+ * 🛰️ ORQUESTRADOR: AUTH INTERFACE (PJODC v10)
+ * Responsabilidade: renderização condicional baseada no estado do useAuthLogic.
+ *
+ * ⚠️ v10 — O DESFECHO DO BLOQUEIO PLANETÁRIO MUDOU DE DONO. Antes esta tela
+ * decidia sozinha para onde ir depois do "Voltar e Selecionar Terra", e mandava
+ * SEMPRE para o formulário de cadastro — inclusive quem tinha vindo do
+ * "Completar Cadastro", que é outra tela, com outros campos e um usuário já
+ * autenticado. Agora quem decide é o `handlePlanetAction` do hook, que lembra de
+ * onde o usuário veio.
  */
 export default function AuthInterface({ initialView = 'menu' }: { initialView?: ViewState }) {
-  
-  // Consome toda a inteligência do Hook modularizado
+
   const {
     view, setView, loading, showPassword, setShowPassword, pegadinha,
     showHelpOptions, setShowHelpOptions, message,
     userTenants, formData, countriesOptions, statesOptions, citiesOptions,
     currentUser,
-    handleInputChange, goHome, handleSignUp, handleSignIn, handleSelectTenant,
-    handleGoogleSignIn, handleGoogleError, handleGoogleRedirect,
+    handleInputChange, handlePlanetAction, goHome, handleSignUp, handleSignIn,
+    handleSelectTenant, handleGoogleSignIn, handleGoogleError, handleGoogleRedirect,
     handleCompleteProfile, handleLogout
   } = useAuthLogic(initialView);
 
   return (
     <div className="flex-1 flex flex-col items-center p-4 sm:p-8 font-sans relative overflow-x-hidden min-h-screen justify-center bg-transparent">
-      
+
       {/* Botão Superior (Sobre) — escondido no cadastro pela metade: sair daquela
           tela por um atalho devolveria o usuário à guarita ainda autenticado, e o
           portão do dashboard o traria de volta. A única saída de lá é SAIR. */}
       <div className={`mb-8 relative z-10 w-full text-center animate-fade-in shrink-0 ${view === 'complete-profile' ? 'hidden' : ''}`}>
-        <button 
-          onClick={() => setView('about')} 
+        <button
+          onClick={() => setView('about')}
           className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/70 backdrop-blur-md border border-slate-200 text-sm font-bold text-indigo-600 hover:bg-white hover:shadow-lg transition-all"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -50,11 +56,11 @@ export default function AuthInterface({ initialView = 'menu' }: { initialView?: 
       </div>
 
       <div className="w-full max-w-[440px] mx-auto flex flex-col relative z-10">
-        
+
         {/* Mensagens de Feedback Centralizadas */}
         {message && (
           <div className={`p-4 rounded-xl text-sm font-medium border mb-6 w-full shadow-sm animate-fade-in ${
-            message.type === "success" ? "bg-green-50 text-green-800 border-green-200" : 
+            message.type === "success" ? "bg-green-50 text-green-800 border-green-200" :
             message.type === "error" ? "bg-red-50 text-red-800 border-red-200" : "bg-blue-50 text-blue-800 border-blue-200"
           }`}>
             {message.text}
@@ -62,28 +68,28 @@ export default function AuthInterface({ initialView = 'menu' }: { initialView?: 
         )}
 
         {/* --- RENDERIZAÇÃO DAS VISTAS --- */}
-        
+
         {view === 'menu' && (
-          <MainMenuView 
-            onSelectAccess={() => setView('access-options')} 
-            onHelpToggle={() => setShowHelpOptions(!showHelpOptions)} 
+          <MainMenuView
+            onSelectAccess={() => setView('access-options')}
+            onHelpToggle={() => setShowHelpOptions(!showHelpOptions)}
             showHelpOptions={showHelpOptions}
             onNavigate={(v) => setView(v)}
           />
         )}
 
         {view === 'access-options' && (
-          <AccessOptionsView 
+          <AccessOptionsView
             onSelectRole={(role) => {
               if (role === 'OWNER') setView('login-owner');
               else if (role === 'DEPENDENT') setView('login-dependent');
               else setView('viewer-only');
-            }} 
-            onBack={goHome} 
+            }}
+            onBack={goHome}
           />
         )}
 
-        {/* 🔑 PROPRIETÁRIO: porta exclusiva do Google (v7). Sem e-mail nem senha. */}
+        {/* 🔑 PROPRIETÁRIO: porta exclusiva do Google. Sem e-mail nem senha. */}
         {view === 'login-owner' && (
           <LoginGoogleOwnerView
             loading={loading}
@@ -94,16 +100,18 @@ export default function AuthInterface({ initialView = 'menu' }: { initialView?: 
           />
         )}
 
-        {/* 🔑 DEPENDENTE e DESENVOLVEDOR: seguem inalterados em e-mail + senha. */}
+        {/* 🔑 DEPENDENTE e DESENVOLVEDOR: e-mail + senha.
+            ⚠️ v10 — o Desenvolvedor usa a MESMA autenticação de todo mundo; o que
+            o distingue é a coluna `is_superuser` no banco. */}
         {(view === 'login-dependent' || view === 'login-developer') && (
-          <LoginFormsView 
-            view={view} 
-            formData={formData} 
-            loading={loading} 
+          <LoginFormsView
+            view={view}
+            formData={formData}
+            loading={loading}
             showPassword={showPassword}
-            onInputChange={handleInputChange} 
+            onInputChange={handleInputChange}
             onTogglePassword={() => setShowPassword(!showPassword)}
-            onSubmit={handleSignIn} 
+            onSubmit={handleSignIn}
             onBack={goHome}
           />
         )}
@@ -124,50 +132,43 @@ export default function AuthInterface({ initialView = 'menu' }: { initialView?: 
         )}
 
         {view === 'signup' && (
-          <SignUpView 
-            formData={formData} 
-            loading={loading} 
+          <SignUpView
+            formData={formData}
+            loading={loading}
             showPassword={showPassword}
-            countriesOptions={countriesOptions} 
-            statesOptions={statesOptions} 
+            countriesOptions={countriesOptions}
+            statesOptions={statesOptions}
             citiesOptions={citiesOptions}
-            onInputChange={handleInputChange} 
+            onInputChange={handleInputChange}
             onTogglePassword={() => setShowPassword(!showPassword)}
-            onSubmit={handleSignUp} 
+            onSubmit={handleSignUp}
             onBack={goHome}
           />
         )}
 
         {view === 'select-tenant' && (
-          <TenantSelectorView 
-            userTenants={userTenants} 
-            onSelect={handleSelectTenant} 
-            onBack={goHome} 
+          <TenantSelectorView
+            userTenants={userTenants}
+            onSelect={handleSelectTenant}
+            onBack={goHome}
           />
         )}
 
         {(view === 'about' || view === 'contact' || view === 'viewer-only' || view === 'waiting-approval' || view === 'planet-blocked') && (
-          <MiscViews 
-            view={view} 
-            pegadinha={pegadinha} 
+          <MiscViews
+            view={view}
+            pegadinha={pegadinha}
             onBack={goHome}
-            onAction={(action) => {
-              if (action === 'fix-planet') {
-                handleInputChange('planet', 'TERRA');
-                setView('signup');
-              } else {
-                // Outras ações de MiscViews (como pegadinhas)
-              }
-            }}
+            onAction={handlePlanetAction}
           />
         )}
       </div>
 
-      {/* Painel de Engenharia (Acesso Rápido para Admin) — mesma razão do botão
-          "Sobre": não pode servir de fuga da tela de completar cadastro. */}
+      {/* Painel de Engenharia (porta de serviço) — mesma razão do botão "Sobre":
+          não pode servir de fuga da tela de completar cadastro. */}
       <div className={`mt-10 mb-4 text-center relative z-10 w-full animate-fade-in flex flex-col items-center gap-4 ${view === 'complete-profile' ? 'hidden' : ''}`}>
-        <button 
-          onClick={() => setView('login-developer')} 
+        <button
+          onClick={() => setView('login-developer')}
           className="text-[10px] font-bold text-slate-400 hover:text-slate-800 uppercase tracking-widest opacity-50 hover:opacity-100 transition-all"
         >
           Painel de Engenharia

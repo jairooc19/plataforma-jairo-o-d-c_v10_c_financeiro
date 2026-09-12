@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
-import type { AdminUser } from '@jairo/core';
+import type { UsuarioAdmin } from '@jairo/core';
 
 import UserListItem from './UserListItem';
 import TenantManagerModal from './TenantManagerModal';
@@ -12,29 +12,25 @@ import { BRAND } from '@/constants/Colors';
  * 🛰️ TELA: CENTRAL DE COMANDOS — MOBILE (PJODC v10)
  * Local: apps/mobile-app/src/screens/admin/CommandCenterScreen.tsx
  *
- * Paridade com `apps/admin-web/src/app/dashboard/tenants/page.tsx`: a triagem de
- * usuários pendentes, a lista de clientes operacionais e o gerenciador de
- * empresas de cada um.
+ * Paridade com a Central de Comandos da web: triagem de usuários pendentes,
+ * lista de clientes operacionais e o gerenciador de empresas de cada um.
  *
- * 🔐 OS DADOS VÊM POR HTTP, NÃO DO SUPABASE. Esta é a diferença estrutural entre
- * esta tela e todas as outras do app: `getAllUsers` exige a SERVICE ROLE, que é
- * proibida no aparelho, e o Desenvolvedor do mobile não tem sessão Supabase
- * nenhuma para a RLS reconhecer. Quem busca é o `adminApiService` do Core,
- * falando com as rotas `/api/admin/*` do admin-web. Ver o cabeçalho daquele
- * serviço — inclusive sobre `EXPO_PUBLIC_API_URL` não poder ser `localhost`.
+ * ⚠️ v10 — OS DADOS NÃO VÊM MAIS POR HTTP. Até a v9 esta era a única tela do
+ * aplicativo que falava com o site em vez de falar com o banco, porque as
+ * operações exigiam a chave mestra e o Desenvolvedor não tinha sessão. Hoje ele
+ * tem sessão de verdade, e as funções `admin_*` do banco conferem
+ * `is_superuser()` — a mesma chamada serve aos dois ambientes.
  *
  * 🔄 PUXAR PARA ATUALIZAR EXISTE PORQUE A LISTA ENVELHECE SOZINHA. Um cadastro
- * novo entra em `public.users` sem avisar o app, e a web resolve isso recarregando
- * a página — gesto que não existe aqui. O `RefreshControl` é o equivalente nativo.
+ * novo entra em `public.users` sem avisar o app, e a web resolve isso
+ * recarregando a página — gesto que não existe aqui.
  *
- * ✅ GRAVAR RECARREGA A LISTA, e não é otimismo perdido: sincronizar empresas
- * também muda o PAPEL do usuário (`active` quando sobra empresa ativa, `pending`
- * quando não sobra). Sem recarregar, quem acabou de ser habilitado continuaria
- * aparecendo na triagem — e o operador o habilitaria de novo.
+ * ✅ GRAVAR RECARREGA A LISTA: sincronizar empresas também muda o PAPEL do
+ * usuário (`active` quando sobra empresa ativa, `pending` quando não sobra).
  */
 export default function CommandCenterScreen() {
   const { pendentes, operacionais, carregando, erro, recarregar } = useCommandCenter();
-  const [selecionado, setSelecionado] = useState<AdminUser | null>(null);
+  const [selecionado, setSelecionado] = useState<UsuarioAdmin | null>(null);
 
   const aoSalvar = useCallback(() => {
     setSelecionado(null);

@@ -23,17 +23,17 @@ const SESSAO_VAZIA: SessionUser = { tenantId: null, role: null, userId: null, em
  * Decide QUEM está entrando e entrega a tela correspondente: Painel de
  * Engenharia para o Desenvolvedor, painel operacional para todos os demais.
  *
- * 🔧 O DESENVOLVEDOR NÃO TEM USUÁRIO NO SUPABASE. A credencial dele é fixa no
- * Core (`authService.developerSignIn`) e nunca passa pelo GoTrue — não existe
- * linha em `auth.users` nem sessão remota para o `getUser()` achar. Exigir
- * `user` de todo mundo expulsava o Painel de Engenharia de volta à guarita no
- * instante seguinte ao login, num laço.
+ * ===========================================================================
+ * ⚠️ O QUE MUDOU NA v10: O DESENVOLVEDOR TEM SESSÃO SUPABASE
+ * ===========================================================================
+ * Até a v9 ele NÃO tinha: a credencial era fixa no Core e nunca passava pelo
+ * serviço de autenticação, então `getUser()` voltava vazio e esta tela precisava
+ * de uma exceção ("se o papel no cofre for DEVELOPER, deixe passar sem usuário").
+ * Aquela exceção era também o buraco: bastava gravar `DEVELOPER` no cofre.
  *
- * 🏷️ `systemTitle` É REPASSADO AOS DOIS DASHBOARDS, e antes desta refatoração
- * não era: os dois componentes recebiam a prop mas nenhum a declarava, então o
- * TypeScript reclamava e o título buscado do banco era descartado em silêncio.
- * Os dois painéis mostravam um rótulo fixo enquanto o white-label do banco era
- * lido a cada abertura e jogado fora.
+ * Agora todo mundo tem sessão, e a pergunta "é o Desenvolvedor?" vai ao banco
+ * (`authService.ehDesenvolvedor()` → `is_superuser()`). Sem sessão, ninguém
+ * entra — nem ele.
  */
 export default function TabIndex() {
   const router = useRouter();
@@ -48,16 +48,24 @@ export default function TabIndex() {
       const settings = await settingsService.getGlobalSettings();
       if (settings?.system_title) setSystemTitle(settings.system_title);
 
-      // 2. Sessão e utilizador.
-      const { tenantId, role } = await storageService.getSession();
+      // 2. Sessão e utilizador. Agora vale para TODOS os papéis.
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
-      const papel = (role as UserRole | null) ?? null;
-      const ehDesenvolvedor = papel === 'DEVELOPER';
+      if (!user) {
+        router.replace('/(auth)');
+        return;
+      }
 
-      if (!ehDesenvolvedor && (!user || !tenantId)) {
+      const { tenantId } = await storageService.getSession();
+
+      // 3. O papel vem do banco, não do cofre do aparelho.
+      const ehDesenvolvedor = await authService.ehDesenvolvedor();
+      const papel: UserRole | null = ehDesenvolvedor ? 'DEVELOPER' : null;
+
+      if (!ehDesenvolvedor && !tenantId) {
+        // Usuário comum sem empresa escolhida: volta à guarita, que faz a triagem.
         router.replace('/(auth)');
         return;
       }
@@ -65,16 +73,14 @@ export default function TabIndex() {
       setSessionData({
         tenantId,
         role: papel,
-        userId: user?.id ?? null,
-        email: user?.email ?? null,
+        userId: user.id,
+        email: user.email ?? null,
       });
 
-      // 3. Contexto da empresa (módulos e permissões).
-      // `user` está no teste porque o guarda acima só garante a sessão para
-      // quem NÃO é desenvolvedor — o TypeScript não deduz isso sozinho.
-      if (!ehDesenvolvedor && tenantId && user) {
+      // 4. Contexto da empresa (módulos e permissões) — só para quem opera.
+      if (!ehDesenvolvedor && tenantId) {
         const memberContext = await authService.getTenantMemberContext(tenantId, user.id);
-        setContextData(memberContext as TenantMemberContext);
+        setContextData(memberContext as TenantMemberContext | null);
       }
     } catch (error) {
       console.error('[MAESTRO-DASHBOARD] Erro de sincronização:', error);
@@ -98,13 +104,9 @@ export default function TabIndex() {
   }
 
   /**
-   * 📜 O RODAPÉ INSTITUCIONAL ENTRA AQUI, e não mais no `_layout.tsx`. A barra
-   * de abas nativa é dona da borda inferior da tela e não empresta o espaço de
-   * baixo dela — então o rodapé passou a fechar o CONTEÚDO da aba, fixo logo
-   * acima da barra. Ver o cabeçalho de `components/InstitutionalFooter.tsx`.
-   *
-   * O painel fica em `flex: 1` e o rodapé toma só a altura de que precisa, de
-   * modo que ele permanece visível sem depender de o usuário rolar até o fim.
+   * 📜 O RODAPÉ INSTITUCIONAL ENTRA AQUI, e não no `_layout.tsx`. A barra de
+   * abas nativa é dona da borda inferior da tela e não empresta o espaço de
+   * baixo dela.
    */
   if (sessionData.role === 'DEVELOPER') {
     return (

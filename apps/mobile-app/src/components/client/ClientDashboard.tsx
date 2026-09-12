@@ -12,7 +12,7 @@ import { logoutService } from '@/services/logoutService';
 import { BRAND, PLATFORM } from '@/constants/Colors';
 import { TIPOGRAFIA } from '@/constants/Typography';
 import { ESPACO, ICONE } from '@/constants/Spacing';
-import type { SessionUser, TenantMemberContext } from '@/types';
+import type { SessionUser, TenantMemberContext, TenantSummary } from '@/types';
 
 export interface ClientDashboardProps {
   sessionData: SessionUser;
@@ -25,32 +25,23 @@ export interface ClientDashboardProps {
  * 🏢 PAINEL OPERACIONAL — MOBILE (PJODC v10)
  * Local: apps/mobile-app/src/components/client/ClientDashboard.tsx
  *
- * v9: [100% NATIVO — REFATORAÇÃO DE DESIGN]
- * - Cabeçalho com saudação e saída no canto
- * - Métricas em `StatCard`, opções em `MenuCard`
- * - Confirmação de saída pelo menu do sistema, não por `Alert` escrito à mão
- *
  * A tela de quem entrou por uma empresa: Proprietário ou Dependente.
  *
  * 📦 A GRADE DE MÓDULOS ESTÁ VAZIA POR DESIGN, não por falta. Os três módulos de
  * negócio foram removidos da plataforma em 2026-08-30 e só o CORE está ativo. O
  * estado vazio existe para dizer isso, em vez de mostrar uma área em branco que
- * parece defeito.
+ * parece defeito. É aqui que o C FINANCEIRO vai aparecer.
  *
- * 🚪 A SAÍDA MUDOU DE LUGAR E DE MECANISMO. Era um botão vermelho de largura
- * total no fim da rolagem, disparando um `Alert.alert` escrito aqui dentro.
- * Agora é o ícone do cabeçalho e a pergunta vem de `useNativeActionSheet` — que
- * é `UIAlertController` no iOS e `AlertDialog` no Android. O CLAUDE.md proíbe
- * action sheets escritos à mão exatamente para que as confirmações do app não
- * divirjam entre si.
+ * ⚠️ v10 — `allowed_modules` É UMA LISTA DE VERDADE. A coluna do banco era
+ * `text` e este componente já chamava `.length` e `.map()` sobre ela: o dia em
+ * que houvesse um módulo, o `.map` quebraria a tela (texto não tem `.map`) e o
+ * contador mostraria o número de LETRAS. A coluna virou `text[]`.
  *
  * ⚠️ O `SafeAreaView` VEM DE `react-native-safe-area-context` — o do
- * `react-native` está obsoleto e não faz nada no Android, onde este app roda com
- * `edgeToEdgeEnabled: true` e portanto desenha sob as barras do sistema.
+ * `react-native` está obsoleto e não faz nada no Android.
  *
  * 🔽 `edges={['top']}`, NÃO `['top','bottom']`: a base desta tela é a barra de
- * abas, que já respeita o inset inferior por conta própria. Reservar o espaço
- * duas vezes deixaria uma faixa vazia entre o conteúdo e as abas.
+ * abas, que já respeita o inset inferior por conta própria.
  */
 function ClientDashboard({ sessionData, tenantData, systemTitle }: ClientDashboardProps) {
   const router = useRouter();
@@ -64,9 +55,7 @@ function ClientDashboard({ sessionData, tenantData, systemTitle }: ClientDashboa
           destrutiva: true,
           aoTocar: async () => {
             // Uma chamada só: o logoutService encerra as duas metades da sessão
-            // (supabase-js em memória + cofre do aparelho). Chamar `signOut` sem
-            // limpar o disco deixaria a sessão gravada, e o boot seguinte a
-            // restauraria — o usuário reapareceria logado depois de sair.
+            // (supabase-js em memória + cofre do aparelho).
             await logoutService.logout();
             router.replace('/(auth)');
           },
@@ -77,8 +66,8 @@ function ClientDashboard({ sessionData, tenantData, systemTitle }: ClientDashboa
   }, [mostrar, router]);
 
   const ehProprietario = tenantData?.role === 'OWNER';
-  const empresa = tenantData?.tenants?.tenant_name || 'Meu painel';
-  const modulos = tenantData?.allowed_modules?.length ?? 0;
+  const empresa = nomeDaEmpresa(tenantData) || 'Meu painel';
+  const modulos = tenantData?.allowed_modules ?? [];
 
   return (
     <SafeAreaView style={estilos.container} edges={['top']}>
@@ -97,8 +86,7 @@ function ClientDashboard({ sessionData, tenantData, systemTitle }: ClientDashboa
         {/*
           🏢 O CONTEXTO ATIVO EM UM CARTÃO SÓ. Numa plataforma multi-empresa, a
           pergunta "em qual empresa eu estou agora?" precede qualquer outra —
-          uma ação disparada na empresa errada é um estrago silencioso. Por isso
-          o nome da empresa é o maior texto depois da saudação.
+          uma ação disparada na empresa errada é um estrago silencioso.
         */}
         <View style={estilos.cartaoContexto}>
           <View style={estilos.contextoTopo}>
@@ -127,12 +115,10 @@ function ClientDashboard({ sessionData, tenantData, systemTitle }: ClientDashboa
 
         {/*
           📊 DUAS MÉTRICAS, E NÃO QUATRO. Uma faixa de métricas só funciona
-          enquanto cada número responde a uma pergunta real; encher a linha com
-          contadores inventados ("100% online", "0 alertas") é o que faz um
-          painel parecer decoração de demonstração.
+          enquanto cada número responde a uma pergunta real.
         */}
         <View style={estilos.metricas}>
-          <StatCard value={String(modulos)} label="Módulos" icon="Modulos" />
+          <StatCard value={String(modulos.length)} label="Módulos" icon="Modulos" />
           <StatCard
             value={ehProprietario ? 'Total' : 'Parcial'}
             label="Acesso"
@@ -143,7 +129,7 @@ function ClientDashboard({ sessionData, tenantData, systemTitle }: ClientDashboa
 
         <Text style={estilos.tituloSecao}>Módulos operacionais</Text>
 
-        {modulos === 0 ? (
+        {modulos.length === 0 ? (
           <View style={estilos.vazio}>
             <View style={estilos.vazioIcone}>
               <Icon name="Modulos" size={ICONE.grande} color={BRAND.textFaint} strokeWidth={1.5} />
@@ -155,12 +141,11 @@ function ClientDashboard({ sessionData, tenantData, systemTitle }: ClientDashboa
           </View>
         ) : (
           <View style={estilos.lista}>
-            {tenantData?.allowed_modules?.map((modulo, i) => (
+            {modulos.map((modulo, i) => (
               /*
-                Os módulos vêm do banco mas ainda não têm tela no mobile — a
-                plataforma removeu os três de negócio em 2026-08-30. Listá-los
-                como `emBreve` é honesto: diz que o acesso existe e que a tela
-                ainda não.
+                Os módulos vêm do banco mas ainda não têm tela no mobile.
+                Listá-los como `emBreve` é honesto: diz que o acesso existe e que
+                a tela ainda não.
               */
               <MenuCard
                 key={modulo}
@@ -182,22 +167,33 @@ function ClientDashboard({ sessionData, tenantData, systemTitle }: ClientDashboa
 }
 
 /**
+ * 🏢 O NOME DA EMPRESA, VENHA O EMBED COMO VIER.
+ *
+ * ⚠️ O PostgREST devolve a relação "para um" ora como objeto, ora como array de
+ * um elemento, conforme a forma do `select`. Ler `.tenant_name` direto quebra no
+ * dia em que a inferência mudar — é o mesmo achatamento que a web faz em
+ * `lib/empresaDoContexto.ts`.
+ */
+function nomeDaEmpresa(contexto: TenantMemberContext | null): string | undefined {
+  const embed = contexto?.tenants;
+  if (!embed) return undefined;
+  const empresa: TenantSummary | undefined = Array.isArray(embed) ? embed[0] : embed;
+  return empresa?.tenant_name;
+}
+
+/**
  * 👤 UM NOME APRESENTÁVEL A PARTIR DO E-MAIL.
  *
- * ⚠️ ESTA TELA NÃO TEM O NOME DO USUÁRIO. A sessão que o `(tabs)/index.tsx`
- * monta carrega `email`, `userId`, `tenantId` e `role` — `full_name` mora em
- * `public.users` e custaria uma consulta a mais só para escrever a saudação.
- * Então derivamos: "jairo.cunha@exemplo.com" vira "Jairo".
+ * ⚠️ ESTA TELA NÃO TEM O NOME DO USUÁRIO: `full_name` mora em `public.users` e
+ * custaria uma consulta a mais só para escrever a saudação. Então derivamos:
+ * "jairo.cunha@exemplo.com" vira "Jairo".
  *
- * 🎯 É UMA APROXIMAÇÃO, E ASSUMIDAMENTE. Um e-mail como "contato@empresa.com"
- * produz "Contato", que não é o nome de ninguém — mas continua sendo uma
- * saudação legível, e melhor do que estampar o endereço inteiro no maior corpo
- * de texto da tela. Quem quiser o nome real busca o perfil; a aba "Perfil" já
- * o faz, e é lá que ele importa.
+ * 🎯 É UMA APROXIMAÇÃO, E ASSUMIDAMENTE. "contato@empresa.com" produz "Contato",
+ * que não é o nome de ninguém — mas continua sendo uma saudação legível, e
+ * melhor do que estampar o endereço inteiro no maior corpo de texto da tela.
  */
 function nomeDeTratamento(email?: string | null): string {
   const local = (email ?? '').split('@')[0] ?? '';
-  // Separadores comuns em e-mail corporativo viram fronteira de palavra.
   const primeiro = local.split(/[._-]/)[0] ?? '';
   if (!primeiro) return '';
   return primeiro.charAt(0).toUpperCase() + primeiro.slice(1).toLowerCase();
@@ -262,10 +258,9 @@ const estilos = StyleSheet.create({
   lista: { gap: ESPACO.md },
 
   /**
-   * ⚠️ SEM BORDA TRACEJADA. O estado vazio a usava, e borda tracejada é a
-   * convenção de "solte um arquivo aqui" — um convite a agir que este estado
-   * não pode cumprir, porque quem habilita módulos é o Desenvolvedor, não o
-   * usuário que está lendo.
+   * ⚠️ SEM BORDA TRACEJADA. Borda tracejada é a convenção de "solte um arquivo
+   * aqui" — um convite a agir que este estado não pode cumprir, porque quem
+   * habilita módulos é o Desenvolvedor, não o usuário que está lendo.
    */
   vazio: {
     backgroundColor: BRAND.surface,

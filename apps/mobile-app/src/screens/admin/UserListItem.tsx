@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import type { AdminUser } from '@jairo/core';
+import type { UsuarioAdmin } from '@jairo/core';
 
 import Icon from '@/components/icon/Icon';
 import { BRAND, PLATFORM } from '@/constants/Colors';
@@ -8,7 +8,7 @@ import { TIPOGRAFIA } from '@/constants/Typography';
 import { ESPACO, ICONE, RAIO, TOQUE } from '@/constants/Spacing';
 
 interface UserListItemProps {
-  usuario: AdminUser;
+  usuario: UsuarioAdmin;
   /** Pendente ganha destaque âmbar; operacional, o ponto verde de "ativo". */
   pendente: boolean;
   onPress: () => void;

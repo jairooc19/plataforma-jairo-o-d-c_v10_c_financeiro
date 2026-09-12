@@ -1,29 +1,32 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { adminApiService, type AdminUser } from '@jairo/core';
+import { tenantService, type UsuarioAdmin } from '@jairo/core';
 import { errorService } from '@/services/errorService';
 
 /**
  * 🛰️ CÉREBRO DA CENTRAL DE COMANDOS — MOBILE (PJODC v10)
  * Local: apps/mobile-app/src/screens/admin/useCommandCenter.ts
  *
- * Espelho de `apps/admin-web/src/app/dashboard/tenants/page.tsx` na parte da
- * LISTAGEM. A gestão de empresas de um usuário é outro assunto e vive no
- * `useTenantManager` — na web as duas coisas dividem o mesmo arquivo de 311
- * linhas, que é exatamente a concentração que a regra de ouro proíbe.
+ * ===========================================================================
+ * ⚠️ O QUE MUDOU NA v10: SUMIU A PONTE HTTP
+ * ===========================================================================
+ * Até a v9 esta tela chamava `adminApiService`, que fazia uma requisição HTTP
+ * para a rota `/api/admin/users` do site — uma rota que rodava com a CHAVE
+ * MESTRA e NÃO PEDIA IDENTIFICAÇÃO. O desvio existia porque o Desenvolvedor do
+ * aplicativo não tinha sessão nenhuma: a credencial dele era fixa no código.
+ *
+ * Agora ele tem sessão de verdade, e a lista vem da função `admin_list_users()`
+ * do banco, que confere `is_superuser()`. Consequências:
+ *   • a rota aberta deixou de existir;
+ *   • `EXPO_PUBLIC_API_URL` deixou de ser necessária;
+ *   • a mesma chamada serve para a web e para o aparelho.
  *
  * 🔀 A DIVISÃO EM DUAS LISTAS SEGUE A WEB, INCLUSIVE NO CRITÉRIO ESTRANHO:
  * pendente é quem tem `role` em `pending` OU `user`, e operacional é quem tem
  * exatamente `active`. O `user` é resíduo de cadastros antigos; tirá-lo do
- * filtro esconderia esses usuários das duas listas — sumiriam da tela sem
- * deixar rastro. A comparação é em minúsculas porque o banco guarda os dois
- * formatos.
- *
- * ⚠️ QUEM NÃO É `pending`, `user` NEM `active` NÃO APARECE EM LISTA NENHUMA — e
- * isso também é fiel à web. Um papel inesperado simplesmente não é listado.
- * Vale conhecer o comportamento antes de estranhar um usuário ausente.
+ * filtro esconderia esses usuários das duas listas.
  */
 export function useCommandCenter() {
-  const [usuarios, setUsuarios] = useState<AdminUser[]>([]);
+  const [usuarios, setUsuarios] = useState<UsuarioAdmin[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -32,7 +35,7 @@ export function useCommandCenter() {
     setErro(null);
 
     try {
-      const lista = await adminApiService.listarUsuarios();
+      const lista = await tenantService.listarUsuarios();
       setUsuarios(lista);
     } catch (e) {
       errorService.registrar('COMANDOS', e);

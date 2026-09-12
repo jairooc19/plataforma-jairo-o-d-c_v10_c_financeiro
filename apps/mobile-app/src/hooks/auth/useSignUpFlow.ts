@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { supabase, authService } from '@jairo/core';
+import { supabase } from '@jairo/core';
 import type { FluxoAuthCtx } from './types';
 
 /**
@@ -13,10 +13,18 @@ import type { FluxoAuthCtx } from './types';
  * aqui não substitui a do banco: ela existe para que o usuário receba "informe o
  * país" em vez de um erro de constraint em inglês vindo do PostgREST.
  *
- * 📋 O `notifyAdminNewUser` NÃO É AGUARDADO de propósito. Ele só grava no log do
- * servidor (a v4 removeu o envio de e-mail) e já falha em silêncio por dentro —
- * esperar por ele atrasaria a confirmação de uma coisa que ao usuário não
- * importa, e uma falha ali não deve manchar um cadastro que deu certo.
+ * ===========================================================================
+ * ⚠️ O QUE MUDOU NA v10
+ * ===========================================================================
+ *  1. O CADASTRO NÃO ENVIA MAIS `role`. Até a v9 ia `role: 'pending'` no
+ *     metadata — e o gatilho do banco LIA esse campo. Como o metadata é escrito
+ *     pelo próprio aplicativo, bastava trocar para `'active'` e a conta nascia
+ *     aprovada, pulando a triagem do Desenvolvedor. O gatilho da v10 ignora o
+ *     campo, e a tela parou de enviá-lo para não sugerir que ele vale algo.
+ *  2. SUMIU O `notifyAdminNewUser`. Ele chamava uma rota HTTP aberta na internet
+ *     que apenas escrevia uma linha no log do servidor — nada chegava a
+ *     ninguém. A fila de triagem da Central de Comandos já mostra quem se
+ *     cadastrou, em tempo real.
  */
 export function useSignUpFlow(ctx: FluxoAuthCtx, resetForm: () => void) {
   const router = useRouter();
@@ -49,14 +57,11 @@ export function useSignUpFlow(ctx: FluxoAuthCtx, resetForm: () => void) {
             country: formData.country.trim(),
             state: formData.state,
             city: formData.city,
-            role: 'pending',
           },
         },
       });
 
       if (error) throw error;
-
-      authService.notifyAdminNewUser(formData.full_name, formData.email);
 
       // v4: acesso imediato — o gatilho `on_auth_user_auto_confirm` carimba o
       // e-mail antes de a linha entrar em auth.users, então não há confirmação

@@ -328,11 +328,39 @@ lista de apps vinculados do usuário, o que parece phishing.
 
 ---
 
-## 🛠️ PAINEL DE ENGENHARIA E MEU PERFIL — a paridade com o admin-web (v9)
+## 🛠️ PAINEL DE ENGENHARIA E MEU PERFIL — a paridade com o admin-web
 
-### O que decide onde a operação roda
+> ⚠️ **ESTA SEÇÃO FOI REESCRITA NA v10.** O texto abaixo descrevia o desenho da
+> v9, em que o Desenvolvedor NÃO tinha sessão Supabase e o app falava com rotas
+> HTTP sem autenticação. **Nada disso existe mais** — leia o quadro "Como é hoje"
+> antes de qualquer coisa; o restante fica como registro do que mudou e por quê.
 
-A pergunta que resolve qualquer dúvida aqui é **"quem é o usuário, e ele tem sessão
+### Como é hoje (v10)
+
+| Tela | Quem usa | Tem sessão? | Como conversa com os dados |
+|---|---|---|---|
+| Meu Perfil | Proprietário / Dependente / Desenvolvedor | ✅ sim | `profileService`, cliente **anon**, RLS autoriza |
+| Painel de Engenharia | Desenvolvedor | ✅ **sim** | `tenantService` / `settingsService` → funções `admin_*` no banco |
+
+O Desenvolvedor virou um **usuário real do Supabase** com `is_superuser = true`
+em `public.users`. Quem confere o papel é o banco, dentro de cada função
+`admin_*` (`is_superuser()`), e não mais o aplicativo. Consequências diretas:
+
+- `adminApiService`, `apiBaseUrl` e as rotas `/api/admin/*` **foram apagados**;
+- `EXPO_PUBLIC_API_URL` **não existe mais** — some junto o engano do `localhost`
+  no aparelho, porque não há mais host para configurar;
+- a sincronização de empresas virou **uma transação só** no banco;
+- o app e a web fazem **a mesma chamada** para a mesma função.
+
+Para criar o Desenvolvedor: Supabase → Authentication → Users → Add user e, no
+SQL Editor, `update public.users set is_superuser = true where email = '…'`.
+O passo a passo completo está no fim do `supabase/criar-bd/plataforma_02_seed.sql`.
+
+---
+
+### Como era na v9 (registro histórico)
+
+A pergunta que resolvia qualquer dúvida aqui era **"quem é o usuário, e ele tem sessão
 Supabase?"**:
 
 | Tela | Quem usa | Tem sessão? | Como conversa com os dados |

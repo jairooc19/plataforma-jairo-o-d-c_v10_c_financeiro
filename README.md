@@ -2,12 +2,12 @@
 
 Monorepo npm workspaces com dashboard web, app mobile e um núcleo de lógica compartilhada.
 
-| Pacote | O que é | Stack |
+| Pacote | O que é | Stack (conferida nos `package.json`) |
 |---|---|---|
-| `apps/admin-web` | Dashboard administrativo | Next.js 16.2.2 · React 19.1.0 · Tailwind 4 |
-| `apps/mobile-app` | Aplicativo mobile | Expo ~54 · React Native 0.81.5 · Expo Router 6 |
-| `packages/core` | `@jairo/core` — cérebro único (serviços, tipos, telemetria) | TypeScript estrito |
-| `supabase/` | Criação do banco (PostgreSQL + RLS) | Supabase |
+| `apps/admin-web` | Dashboard administrativo | Next.js 16.2.2 · React 19.2.3 · Tailwind 4 |
+| `apps/mobile-app` | Aplicativo mobile | Expo ~57.0.20 · React Native 0.86.3 · Expo Router ~57.0.19 |
+| `packages/core` | `@jairo/core` — cérebro único (serviços, tipos, dinheiro, datas, telemetria) | TypeScript estrito |
+| `supabase/` | Criação do banco, testes de acesso e migrations futuras | PostgreSQL 17 + RLS |
 
 > `packages/core` é consumido como TypeScript cru — não tem build. O web usa
 > `transpilePackages: ["@jairo/core"]`; o mobile resolve via `metro.config.js`.
@@ -19,6 +19,8 @@ Monorepo npm workspaces com dashboard web, app mobile e um núcleo de lógica co
 ```bash
 npm install     # na raiz — instala todos os workspaces
 npm run web     # sobe o admin-web em http://localhost:3000
+npm test        # testes do núcleo (dinheiro e datas), sem instalar nada
+npm run verificar   # testes + lint + build do admin-web, em sequência
 ```
 
 Variáveis de ambiente: copie os modelos versionados.
@@ -31,26 +33,29 @@ cp apps/mobile-app/.env.example apps/mobile-app/.env
 | Variável | Onde | Observação |
 |---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | admin-web | |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | admin-web | |
-| `SUPABASE_SERVICE_ROLE_KEY` | admin-web | **nunca** exposta no navegador |
-| `EXPO_PUBLIC_API_URL` | ambos | URL base das API Routes |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | admin-web | Chave pública; a RLS é quem protege |
+| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | admin-web | Opcional: sem ela, o login usa redirecionamento |
 | `EXPO_PUBLIC_SUPABASE_URL` | mobile-app | |
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | mobile-app | |
 
+> ⚠️ **`SUPABASE_SERVICE_ROLE_KEY` e `EXPO_PUBLIC_API_URL` deixaram de existir na
+> v10.** A chave mestra alimentava seis rotas HTTP sem autenticação; as operações
+> administrativas viraram funções no banco que conferem `is_superuser()`. Ver o
+> histórico do [`CLAUDE.md`](./CLAUDE.md).
+
 ---
 
-## Banco de Dados — `supabase/criar-bd/`
-
-Esta plataforma faz **wipe + rebuild**: o banco é derrubado e recriado do zero, não
-evoluído por migrations incrementais. Por isso a pasta se chama `criar-bd/` e não
-`migrations/`.
+## Banco de Dados — `supabase/`
 
 ```
-supabase/criar-bd/
-├── plataforma_00_reset.sql    O Demolidor  — TRUNCATE auth.users/identities + DROP de todo o CORE
-├── plataforma_01_schema.sql   O Construtor — schema consolidado v10 (extensões, tabelas, RLS,
-│                                             funções, policies, triggers, constraints)
-└── plataforma_02_seed.sql     O Hidratador — dados iniciais obrigatórios (global_settings id=1)
+supabase/
+├── criar-bd/        Criação do zero (wipe + rebuild)
+│   ├── plataforma_00_reset.sql    O Demolidor  — ⚠️ apaga TODOS os usuários
+│   ├── plataforma_01_schema.sql   O Construtor — tabelas, RLS, funções, grants
+│   └── plataforma_02_seed.sql     O Hidratador — white-label + passo do Desenvolvedor
+├── migrations/      Vazia por enquanto. Ler o README de lá antes do primeiro dado real.
+└── testes/
+    └── teste_rls.sql   Prova, dentro do banco, que as travas de acesso funcionam
 ```
 
 ### Como criar o banco
@@ -63,38 +68,49 @@ Abra o **SQL Editor** do Supabase e cole cada arquivo inteiro, **nesta ordem**:
 3) plataforma_02_seed.sql
 ```
 
-Em um projeto Supabase novo e vazio você pode **pular o `00`**: o `plataforma_01_schema.sql` já cria
-tudo do zero. Rode o `00` apenas para demolir um banco que já tem estrutura.
+Em um projeto novo e vazio você pode **pular o `00`**.
 
 O que o `plataforma_01_schema.sql` cria:
 
 | Objeto | Qtde |
 |---|---|
 | Extensões (`uuid-ossp`, `unaccent`) | 2 |
-| Tabelas (`users`, `global_settings`, `tenants`, `tenant_members`) | 4 |
-| `ENABLE ROW LEVEL SECURITY` | 4 |
-| Funções PL/pgSQL | 6 |
-| Policies RLS | 12 |
-| Triggers em `auth.users` | 2 |
+| Tabelas (`users`, `global_settings`, `tenants`, `tenant_members`, `audit_log`) | 5 |
+| `ENABLE ROW LEVEL SECURITY` | 5 |
+| Funções PL/pgSQL e SQL | 19 |
+| Policies RLS (todas com `TO`) | 10 |
+| Triggers | 10 |
 
-A ordem interna das seções do `plataforma_01_schema.sql` **não pode ser reordenada**: as funções
-precisam existir antes das policies que as chamam, e o trigger `BEFORE INSERT`
-(auto-confirmação de e-mail) precisa vir antes do `AFTER INSERT` (criação do perfil).
+### 🔧 Passo obrigatório: criar o Desenvolvedor
+
+A v10 removeu a credencial fixa que vivia no código (`admin@pjodc.ia` / `1qaz`).
+O acesso técnico agora é um usuário real:
+
+1. Supabase → **Authentication → Users → Add user** (marque *Auto Confirm*);
+2. no SQL Editor:
+
+```sql
+update public.users
+   set is_superuser = true, is_active = true, profile_completed = true,
+       full_name = 'DESENVOLVEDOR', planet = 'TERRA', country = 'BRASIL',
+       state = 'SP', city = 'SAO PAULO'
+ where email = 'coloque-o-email-aqui';
+```
+
+Sem esse passo, o Painel de Engenharia não abre para ninguém.
+
+### Conferir as travas de segurança
+
+Cole `supabase/testes/teste_rls.sql` no SQL Editor. Ele cria três usuários de
+teste, verifica dez comportamentos (visitante anônimo não lê usuários, usuário
+comum não vira superusuário nem cria empresa, o Desenvolvedor cria pela função
+transacional, a data grava a hora certa…) e termina em `ROLLBACK` — não deixa
+rastro.
 
 ### ⚠️ O Supabase CLI não usa `criar-bd/`
 
-`supabase db reset` procura por `supabase/migrations/`, que não existe mais neste projeto.
-O comando roda **sem aplicar schema nenhum**. A criação do banco é manual, pelo SQL Editor,
-conforme acima.
-
-O `config.toml` aponta `db.seed.sql_paths` para `./criar-bd/plataforma_02_seed.sql`, então o seed é
-a única parte que o CLI consegue aplicar sozinho.
-
-### Migrations de verdade (v10+)
-
-Se um dia o banco precisar evoluir sem ser derrubado, crie `supabase/migrations/` **ao
-lado** de `criar-bd/`. A separação fica explícita: `criar-bd/` reconstrói do zero,
-`migrations/` evolui um banco em produção.
+`supabase db reset` procura por `supabase/migrations/`, que hoje só tem um README.
+A criação do banco é manual, pelo SQL Editor, conforme acima.
 
 ---
 
@@ -102,15 +118,12 @@ lado** de `criar-bd/`. A separação fica explícita: `criar-bd/` reconstrói do
 
 **Raiz:**
 ```bash
-npm install     # instala todos os workspaces
-npm run web     # atalho para o dev do admin-web
-```
-
-**`apps/admin-web`:**
-```bash
-npm run dev     # servidor de desenvolvimento
-npm run build   # build de produção
-npm run lint    # ESLint 9
+npm install       # instala todos os workspaces
+npm run web       # dev do admin-web
+npm test          # node --test sobre packages/core
+npm run lint:web
+npm run build:web
+npm run verificar # os três acima, em ordem
 ```
 
 **`apps/mobile-app`:**
@@ -120,10 +133,9 @@ npm run android
 npm run ios
 ```
 
-Não há scripts de teste em nenhum pacote.
-
-> O `package.json` da raiz declara `core:build`, que aponta para um alvo inexistente no
-> `@jairo/core`. Ele falha ao ser executado e não deve ser usado — o core não precisa de build.
+> O login Google do mobile **não funciona no Expo Go** (o Supabase rejeita o
+> esquema `exp://`). Use `eas build --profile development`. Detalhes em
+> `apps/mobile-app/AGENTS.md`.
 
 ---
 
@@ -133,8 +145,12 @@ Toda lógica de negócio nasce em `packages/core`, é exportada por `src/index.t
 pelos apps. Nunca escreva validação, chamada ao Supabase ou evento de telemetria direto no
 `admin-web` ou no `mobile-app`.
 
+Quem autoriza é **o banco**: RLS em todas as tabelas, privilégios por coluna e
+funções `admin_*` que conferem `is_superuser()`. Esconder um botão nunca foi
+controle de acesso.
+
 Regras completas, convenções obrigatórias e lições aprendidas: **[`CLAUDE.md`](./CLAUDE.md)**.
-Detalhes de rotas e middleware do Next.js 16: `apps/admin-web/AGENTS.md`.
+Detalhes de rotas e proxy do Next.js 16: `apps/admin-web/AGENTS.md`.
 
 ---
 

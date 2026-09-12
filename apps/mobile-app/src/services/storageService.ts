@@ -2,36 +2,35 @@
  * 🔐 STORAGE SERVICE — O COFRE DO TELEMÓVEL (PJODC v10)
  * Local: apps/mobile-app/src/services/storageService.ts
  *
- * Guarda DUAS coisas diferentes, em DOIS cofres diferentes, de propósito:
+ * ===========================================================================
+ * ⚠️ O QUE MUDOU NA v10: A SESSÃO SAIU DO ARMAZENAMENTO COMUM
+ * ===========================================================================
+ * Até a v9 a sessão completa do Supabase — que inclui o REFRESH TOKEN, a chave
+ * que gera novos acessos — era gravada no AsyncStorage. A documentação do React
+ * Native descreve o AsyncStorage como um armazenamento "não criptografado" e diz,
+ * na página de segurança, para NÃO usá-lo para tokens nem segredos.
  *
- * ┌─────────────────────┬──────────────────┬────────────────────────────────┐
- * │ O quê               │ Onde             │ Por quê                        │
- * ├─────────────────────┼──────────────────┼────────────────────────────────┤
- * │ contexto da sessão  │ SecureStore      │ 3 strings curtas. Criptografia │
- * │ (token/tenant/role) │                  │ nativa, cabe folgado.          │
- * │ sessão do Supabase  │ AsyncStorage     │ JSON com 2 JWTs + objeto user: │
- * │ (access + refresh)  │                  │ passa de 2 KB.                 │
- * └─────────────────────┴──────────────────┴────────────────────────────────┘
+ * O motivo de a v9 ter feito isso era real: o SecureStore rejeita valores
+ * grandes (a documentação do Expo cita ~2048 bytes), e uma sessão do Supabase
+ * passa disso com folga. A saída não é abrir mão da criptografia — é PARTIR o
+ * valor em pedaços que cabem.
  *
- * ⚠️ POR QUE A SESSÃO NÃO VAI NO SECURESTORE: no Android o SecureStore tem
- * limite de 2048 bytes por valor. Um `Session` do Supabase serializado passa
- * disso com folga (só o access_token costuma ter ~800–1200 caracteres, e ainda
- * vêm o refresh_token e o objeto `user` inteiro). A gravação falha — e falha
- * em silêncio, porque `setItemAsync` só avisa no log. O usuário descobriria na
- * próxima abertura do app, deslogado sem explicação.
+ * 🧩 COMO FUNCIONA AGORA:
+ *   1. a sessão vira JSON;
+ *   2. o JSON é cortado em pedaços de 1.500 caracteres;
+ *   3. cada pedaço vai para uma chave própria do SecureStore, que no iOS é o
+ *      Keychain e no Android é o Keystore;
+ *   4. uma chave extra guarda QUANTOS pedaços existem, para a leitura saber
+ *      quando parou.
  *
- * ⚠️ ESTE ARQUIVO EXISTE PORQUE O CORE NÃO TEM ADAPTADOR DE STORAGE.
- * `packages/core/src/lib/supabase.ts` declara `persistSession: true` mas não
- * passa `storage`. No navegador o supabase-js cai no localStorage sozinho; no
- * React Native não há localStorage, então ele cai em memória e a sessão morre
- * ao fechar o app. Enquanto o Core não receber um adaptador, a persistência é
- * responsabilidade daqui.
+ * ⚠️ A CONTAGEM É GRAVADA POR ÚLTIMO, E APAGADA PRIMEIRO. Se o app for morto no
+ * meio da escrita, é melhor não existir contagem (a sessão se perde e o usuário
+ * entra de novo) do que existir uma contagem apontando para pedaços que não
+ * chegaram (a leitura montaria um JSON truncado e quebraria o arranque).
  *
- * 🔁 CONSEQUÊNCIA QUE VOCÊ PRECISA CONHECER: como há duas cópias da sessão (a
- * do supabase-js, em memória, e a nossa, no disco), elas podem divergir quando
- * o `autoRefreshToken` troca o access token. Por isso `restoreSession` NÃO
- * confia cegamente no que leu: ela regrava o que o supabase-js devolveu depois
- * do `setSession`, que já vem renovado. Ver a nota no próprio método.
+ * ⚠️ NÃO SOBROU NADA NO AsyncStorage. Quem atualizar de uma versão antiga tem a
+ * sessão velha ignorada e faz login de novo — uma vez. O `limparResiduoAntigo`
+ * apaga a chave que ficou para trás.
  */
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -44,8 +43,22 @@ const KEYS = {
   USER_ROLE: 'user_role_context',
 };
 
-/** Chave da sessão completa do Supabase, no AsyncStorage. */
-const SESSION_KEY = 'pjodc_supabase_session';
+/** Prefixo dos pedaços da sessão e da contagem. */
+const SESSAO_PARTES = 'pjodc_sessao_partes';
+const SESSAO_PEDACO = 'pjodc_sessao_';
+
+/** Chave do AsyncStorage usada até a v9 — só para limpar o que ficou. */
+const CHAVE_ANTIGA_ASYNC = 'pjodc_supabase_session';
+
+/**
+ * Tamanho de cada pedaço. Bem abaixo do limite citado pela documentação do Expo
+ * (~2048 bytes), com folga para caracteres acentuados, que ocupam mais de um
+ * byte em UTF-8.
+ */
+const TAMANHO_PEDACO = 1500;
+
+/** Teto de pedaços, para uma contagem corrompida não virar laço infinito. */
+const MAX_PEDACOS = 40;
 
 export interface SessionData {
   token: string | null;
@@ -104,12 +117,10 @@ export const storageService = {
   },
 
   /**
-   * LIMPA TUDO (LOGOUT). Os dois cofres saem juntos.
+   * LIMPA TUDO (LOGOUT). Os dois conjuntos saem juntos.
    *
-   * ⚠️ Limpar só o SecureStore deixaria a sessão do Supabase no AsyncStorage:
-   * a próxima abertura do app restauraria o login que o usuário acabou de
-   * encerrar. Sair pela metade não é sair — a mesma lição que a web aprendeu
-   * com os cookies HTTP (ver `apps/admin-web/src/lib/logout.ts`).
+   * ⚠️ Limpar só o contexto deixaria a sessão do Supabase gravada: a próxima
+   * abertura do app restauraria o login que o usuário acabou de encerrar.
    */
   async clearSession(): Promise<void> {
     await Promise.all([
@@ -121,7 +132,7 @@ export const storageService = {
   },
 
   // ───────────────────────────────────────────────────────────────────────────
-  // SESSÃO DO SUPABASE (AsyncStorage)
+  // SESSÃO DO SUPABASE (SecureStore, em pedaços)
   // ───────────────────────────────────────────────────────────────────────────
 
   /** 💾 Persiste a sessão do Supabase para sobreviver ao fechamento do app. */
@@ -131,7 +142,26 @@ export const storageService = {
         await this.clearAuthSession();
         return;
       }
-      await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(session));
+
+      const texto = JSON.stringify(session);
+      const total = Math.ceil(texto.length / TAMANHO_PEDACO);
+
+      if (total > MAX_PEDACOS) {
+        console.error('[STORAGE] Sessão grande demais para o cofre; não foi gravada.');
+        return;
+      }
+
+      // Apaga o que havia antes: uma sessão nova menor deixaria pedaços velhos
+      // para trás, e a leitura montaria um JSON misturado.
+      await this.clearAuthSession();
+
+      for (let i = 0; i < total; i += 1) {
+        const pedaco = texto.slice(i * TAMANHO_PEDACO, (i + 1) * TAMANHO_PEDACO);
+        await SecureStore.setItemAsync(`${SESSAO_PEDACO}${i}`, pedaco);
+      }
+
+      // A contagem por ÚLTIMO: só depois dela a sessão conta como gravada.
+      await SecureStore.setItemAsync(SESSAO_PARTES, String(total));
     } catch (error) {
       console.error('[STORAGE] Erro ao gravar sessão do Supabase:', error);
     }
@@ -140,9 +170,28 @@ export const storageService = {
   /** 📖 Lê a sessão persistida. Devolve `null` quando não há ou está corrompida. */
   async loadAuthSession(): Promise<Session | null> {
     try {
-      const bruto = await AsyncStorage.getItem(SESSION_KEY);
+      const bruto = await SecureStore.getItemAsync(SESSAO_PARTES);
       if (!bruto) return null;
-      return JSON.parse(bruto) as Session;
+
+      const total = Number(bruto);
+      if (!Number.isInteger(total) || total <= 0 || total > MAX_PEDACOS) {
+        await this.clearAuthSession();
+        return null;
+      }
+
+      let texto = '';
+      for (let i = 0; i < total; i += 1) {
+        const pedaco = await SecureStore.getItemAsync(`${SESSAO_PEDACO}${i}`);
+        if (pedaco === null) {
+          // Falta um pedaço: a gravação anterior foi interrompida.
+          console.warn('[STORAGE] Sessão incompleta no cofre — descartando.');
+          await this.clearAuthSession();
+          return null;
+        }
+        texto += pedaco;
+      }
+
+      return JSON.parse(texto) as Session;
     } catch (error) {
       // JSON quebrado é lixo, não é sessão: descarta em vez de propagar o erro
       // para o boot do app, que ficaria preso numa tela de carregamento.
@@ -152,12 +201,31 @@ export const storageService = {
     }
   },
 
-  /** 🧹 Remove a sessão persistida. */
+  /** 🧹 Remove a sessão persistida (todos os pedaços). */
   async clearAuthSession(): Promise<void> {
     try {
-      await AsyncStorage.removeItem(SESSION_KEY);
+      // A contagem sai PRIMEIRO: a partir daqui, nenhuma leitura tenta montar.
+      await SecureStore.deleteItemAsync(SESSAO_PARTES);
+
+      for (let i = 0; i < MAX_PEDACOS; i += 1) {
+        await SecureStore.deleteItemAsync(`${SESSAO_PEDACO}${i}`);
+      }
+
+      await this.limparResiduoAntigo();
     } catch (error) {
       console.error('[STORAGE] Erro ao remover sessão do Supabase:', error);
+    }
+  },
+
+  /**
+   * 🧽 Apaga a sessão que a v9 deixou no AsyncStorage (sem criptografia).
+   * Roda junto com a limpeza normal; some sozinha depois da primeira execução.
+   */
+  async limparResiduoAntigo(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(CHAVE_ANTIGA_ASYNC);
+    } catch {
+      // Sem AsyncStorage disponível não há resíduo a limpar.
     }
   },
 
@@ -168,11 +236,7 @@ export const storageService = {
    * (o normal, depois de o app passar horas fechado), ele usa o refresh token
    * para emitir um par novo. Por isso REGRAVAMOS o resultado — a cópia em disco
    * envelheceria a cada renovação, e uma reabertura futura tentaria restaurar um
-   * token morto. É este passo que fecha o buraco das duas fontes de verdade.
-   *
-   * Devolve `null` quando não havia nada a restaurar ou quando o refresh falhou
-   * (refresh token revogado, conta apagada): nesses casos o cofre é esvaziado e
-   * o usuário volta à guarita, que é o comportamento correto.
+   * token morto.
    */
   async restoreSession(client: SupabaseClient): Promise<Session | null> {
     const gravada = await this.loadAuthSession();

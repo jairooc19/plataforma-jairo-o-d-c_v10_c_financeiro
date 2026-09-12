@@ -6,7 +6,7 @@ export const metadata: Metadata = {
     "Quais dados o aplicativo Plataforma Jairo O D C coleta, por que coleta, com quem compartilha e como apagá-los.",
 };
 
-const ATUALIZADO_EM = "7 de setembro de 2026";
+const ATUALIZADO_EM = "11 de setembro de 2026";
 const CONTATO = "jairooc19@gmail.com";
 
 /**
@@ -15,27 +15,26 @@ const CONTATO = "jairooc19@gmail.com";
  *
  * ⚠️ ESTA PÁGINA EXISTE POR EXIGÊNCIA DA GOOGLE PLAY CONSOLE. Todo app que
  * coleta dado pessoal precisa informar uma URL pública de política de
- * privacidade, e o `apps/mobile-app` coleta: o login do Proprietário é por
- * Google e grava e-mail e nome em `public.users`. Sem esta URL, o envio não
- * passa da etapa de conteúdo do app.
+ * privacidade, e o `apps/mobile-app` coleta.
  *
- * ⚠️ O CONTEÚDO FOI ESCRITO A PARTIR DO QUE O CÓDIGO REALMENTE FAZ, e não de um
- * modelo genérico — cada afirmação abaixo é verificável no repositório:
+ * ⚠️ O CONTEÚDO DESCREVE O QUE O CÓDIGO FAZ, e a v10 mudou três afirmações que
+ * antes NÃO ERAM VERDADE:
  *
- *   • as colunas listadas são as de `public.users` no `plataforma_01_schema.sql`;
- *   • "nenhum provedor externo de analytics" reflete a remoção do PostHog na v4
- *     e o `telemetry` local do Core, que só escreve em `console.debug`;
- *   • "biometria não sai do aparelho" é como o `expo-local-authentication`
- *     funciona: ele pergunta ao sistema operacional e recebe sim ou não;
- *   • a exclusão de conta descreve `delete_user_permanently`, incluindo a recusa
- *     para dono de empresa, que é comportamento real da função.
+ *   1. "só vê os dados das empresas às quais você tem vínculo" — até a v9 uma
+ *      policy `USING (true)` deixava qualquer pessoa ler a lista inteira de
+ *      usuários. A regra foi substituída por `can_view_user_profile()`.
+ *   2. "as credenciais ficam no armazenamento protegido do sistema" — até a v9 a
+ *      sessão do aplicativo era gravada no AsyncStorage, que a documentação do
+ *      React Native descreve como NÃO criptografado. Agora vai no SecureStore
+ *      (Keychain no iOS, Keystore no Android), em pedaços.
+ *   3. O registro de alterações (auditoria) passou a existir, e está declarado
+ *      abaixo — omitir seria tão errado quanto declarar coleta que não existe.
  *
- * Declarar coleta que não existe é tão problemático quanto omitir a que existe:
- * o formulário *Data safety* da Play Console precisa bater com esta página.
+ * ⚠️ O formulário *Data safety* da Play Console precisa continuar batendo com
+ * esta página.
  *
  * 📱 ELA PRECISA SER LEGÍVEL NO CELULAR. O revisor da Play Store abre este link
- * no telefone. Por isso `/privacidade` está em `ROTAS_SEM_BLOQUEIO` — sem isso,
- * o overlay "use em desktop" cobriria o documento. Ver `lib/mobileBlock.ts`.
+ * no telefone. Por isso `/privacidade` está em `ROTAS_SEM_BLOQUEIO`.
  */
 export default function PoliticaDePrivacidadePage() {
   return (
@@ -82,6 +81,11 @@ export default function PoliticaDePrivacidadePage() {
                 <strong>Senha</strong> — apenas para quem entra por e-mail e senha. Ela é guardada
                 de forma cifrada pelo nosso provedor de autenticação e não é legível por nós.
               </>,
+              <>
+                <strong>Registro de alterações</strong> — quando um dado do seu cadastro ou da sua
+                empresa muda, guardamos o que mudou, quando e quem alterou. É o que permite
+                investigar um erro e é exigência básica de um sistema que lida com dinheiro.
+              </>,
             ]}
           />
         </Secao>
@@ -109,12 +113,23 @@ export default function PoliticaDePrivacidadePage() {
           />
         </Secao>
 
+        <Secao titulo="Quem enxerga os seus dados">
+          <p>
+            O seu perfil é visível para você, para o proprietário da empresa em que você trabalha,
+            para os colaboradores que você mesmo vincula (quando você é o proprietário) e para o
+            administrador da plataforma. Essa regra é aplicada pelo banco de dados, e não apenas
+            pela tela: um pedido que não se encaixe nela é recusado antes de devolver qualquer
+            informação.
+          </p>
+        </Secao>
+
         <Secao titulo="Por que usamos esses dados">
           <Lista
             itens={[
               "Autenticar você e manter a sua sessão aberta.",
               "Mostrar apenas os dados das empresas às quais você tem vínculo.",
               "Permitir que o administrador da plataforma libere o seu acesso.",
+              "Registrar quem alterou o quê, para investigação de erros e segurança.",
               "Entrar em contacto sobre a sua conta, quando necessário.",
             ]}
           />
@@ -148,16 +163,18 @@ export default function PoliticaDePrivacidadePage() {
         <Secao titulo="Onde os dados ficam no seu aparelho">
           <p>
             O aplicativo guarda no próprio aparelho as credenciais da sua sessão e a empresa
-            selecionada, para que você não precise entrar de novo a cada abertura. Esses dados ficam
-            no armazenamento protegido do sistema operacional e são apagados quando você sai da
-            conta ou desinstala o aplicativo.
+            selecionada, para que você não precise entrar de novo a cada abertura. Esses dados
+            ficam no armazenamento seguro do sistema operacional — Keychain no iOS e Keystore no
+            Android —, protegidos por criptografia do próprio aparelho, e são apagados quando você
+            sai da conta ou desinstala o aplicativo.
           </p>
         </Secao>
 
         <Secao titulo="Por quanto tempo guardamos">
           <p>
             Enquanto a sua conta existir. Ao apagar a conta, os dados descritos nesta política são
-            removidos em definitivo, conforme a seção seguinte.
+            removidos em definitivo, conforme a seção seguinte. O registro de alterações guarda o
+            histórico das mudanças feitas antes da exclusão, sem os seus dados de contacto.
           </p>
         </Secao>
 
@@ -229,7 +246,7 @@ export default function PoliticaDePrivacidadePage() {
   );
 }
 
-/** Título e corpo de uma seção. Existe para não repetir as classes em onze blocos. */
+/** Título e corpo de uma seção. Existe para não repetir as classes em doze blocos. */
 function Secao({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
     <section>

@@ -2,16 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { 
-  supabase, 
-  authService, 
+import {
+  supabase,
+  authService,
   googleAuthService,
   profileService,
   telemetry,
   COUNTRIES,
   BRAZIL_STATES,
-  ANALYTICS_EVENTS, 
-  ANALYTICS_PROPERTIES 
+  ANALYTICS_EVENTS,
+  ANALYTICS_PROPERTIES,
+  type VinculoDeEmpresa,
 } from "@jairo/core";
 import type { CredentialResponse } from "@react-oauth/google";
 import { loginWithCatracaAction } from "../../../app/auth/actions";
@@ -20,22 +21,39 @@ import { encerrarSessao } from "../../../lib/logout";
 import { useBrazilCities } from "../../../hooks/useBrazilCities";
 import { mensagemDeErro } from "../../../lib/erro";
 
-// Tipagem de Estados de Visualização (Sincronizada com o Orquestrador)
-export type ViewState = 'menu' | 'access-options' | 'about' | 'contact' | 'login-owner' | 'login-dependent' | 'viewer-only' | 'signup' | 'planet-blocked' | 'login-developer' | 'select-tenant' | 'waiting-approval' | 'complete-profile';
+/**
+ * 🧠 CÉREBRO DA GUARITA — WEB (PJODC v10)
+ * Local: apps/admin-web/src/components/auth/hooks/useAuthLogic.ts
+ *
+ * ===========================================================================
+ * ⚠️ O QUE MUDOU NA v10
+ * ===========================================================================
+ *  1. O DESENVOLVEDOR ENTRA PELA PORTA NORMAL. Sumiu o `developerSignIn` (duas
+ *     strings comparadas dentro do navegador) e sumiu a marca
+ *     `sessionStorage.dev_vip_access`, que qualquer pessoa criava pelo console
+ *     do navegador. Agora ele faz login de verdade e o BANCO responde se é
+ *     superusuário (`is_superuser`).
+ *  2. O CADASTRO NÃO PEDE MAIS `role`. O valor ia no metadata do `signUp`, que é
+ *     escrito pelo navegador: dava para nascer `active` e pular a triagem. O
+ *     gatilho do banco agora ignora esse campo.
+ *  3. A NOTIFICAÇÃO DE NOVO CADASTRO SAIU. Ela chamava uma rota aberta que só
+ *     escrevia no log do servidor. A fila de triagem já mostra quem chegou.
+ *  4. O DESVIO DE PLANETA VOLTA PARA A TELA DE ONDE SAIU. Antes, escolher
+ *     "OUTRO" no "Completar Cadastro" e clicar em "Voltar e Selecionar Terra"
+ *     jogava o usuário no formulário de CADASTRO — outra tela, com outros
+ *     campos. E "Enviar solicitação" não fazia nada: a pegadinha nunca ligava.
+ *  5. TODO EVENTO DE TELEMETRIA VEM DE `ANALYTICS_EVENTS`. Não há mais string
+ *     solta.
+ */
 
-export interface TenantLink {
-  tenant_id: string;
-  role: string;
-  tenants: {
-    tenant_name: string;
-    slug: string;
-    users?: {
-      full_name: string;
-      email: string;
-      is_active: boolean;
-    };
-  };
-}
+export type ViewState =
+  | 'menu' | 'access-options' | 'about' | 'contact'
+  | 'login-owner' | 'login-dependent' | 'viewer-only'
+  | 'signup' | 'planet-blocked' | 'login-developer'
+  | 'select-tenant' | 'waiting-approval' | 'complete-profile';
+
+/** Vínculo como a tela de seleção o consome. */
+export type TenantLink = VinculoDeEmpresa;
 
 export function useAuthLogic(initialView: ViewState) {
   const router = useRouter();
@@ -48,13 +66,21 @@ export function useAuthLogic(initialView: ViewState) {
   const [showHelpOptions, setShowHelpOptions] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" | "info" } | null>(null);
   const [userTenants, setUserTenants] = useState<TenantLink[]>([]);
-  // Usuário autenticado aguardando o fim do cadastro (só o fluxo 'complete-profile' usa).
   const [currentUser, setCurrentUser] = useState<{ id: string; email: string } | null>(null);
+
+  /**
+   * De qual tela o usuário veio quando caiu no bloqueio planetário.
+   * Sem isto, "Voltar e Selecionar Terra" não tem como saber se devolve ao
+   * cadastro ou ao "Completar Cadastro" — e a v9 devolvia sempre ao cadastro.
+   */
+  const [origemDoBloqueio, setOrigemDoBloqueio] = useState<ViewState>('signup');
+
   const [formData, setFormData] = useState({
-    full_name: '', email: '', password: '', confirm_password: '', planet: 'TERRA', country: 'BRASIL', state: '', city: ''
+    full_name: '', email: '', password: '', confirm_password: '',
+    planet: 'TERRA', country: 'BRASIL', state: '', city: ''
   });
 
-  // --- ESTADOS DE LOCALIZAÇÃO ---
+  // --- LISTAS DE LOCALIZAÇÃO ---
   // Países e estados vêm prontos do Core (lista estática, sem rede).
   // Só as cidades dependem de API — o IBGE, num hook compartilhado com a edição
   // de perfil do dashboard, para não existirem duas cópias da mesma busca.
@@ -63,18 +89,11 @@ export function useAuthLogic(initialView: ViewState) {
   const citiesOptions = useBrazilCities(formData.country, formData.state);
 
   // --- QUEM CHEGA EM /auth/complete-profile PELA URL ---
-  // No fluxo do popup o usuário já vem com `currentUser` preenchido pelo login.
-  // Aqui cobrimos a outra porta: o dashboard mandou o usuário para a página de
-  // completar cadastro, e este hook nasce sem saber quem ele é. Buscamos a sessão
-  // e adiantamos no formulário o que o Google já entregou (nome), para ele não
-  // digitar de novo o que a plataforma já sabe.
   useEffect(() => {
     if (view !== 'complete-profile' || currentUser) return;
 
     const carregarUsuarioPendente = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-
-      // Sem sessão não há cadastro a completar: devolve à guarita.
       if (!user) { router.push('/'); return; }
 
       setCurrentUser({ id: user.id, email: user.email ?? '' });
@@ -90,7 +109,6 @@ export function useAuthLogic(initialView: ViewState) {
           city:      perfil.city      || '',
         }));
       } catch (erro) {
-        // Perfil ilegível não trava a tela: o usuário preenche do zero.
         console.error('[CompleteProfile] Perfil não pôde ser lido:', erro);
       }
     };
@@ -108,8 +126,25 @@ export function useAuthLogic(initialView: ViewState) {
 
     if (name === 'planet' && finalValue !== 'TERRA') {
       setPegadinha(false);
+      setOrigemDoBloqueio(view === 'complete-profile' ? 'complete-profile' : 'signup');
       setView('planet-blocked');
     }
+  };
+
+  /**
+   * 👽 Desfecho do bloqueio planetário.
+   * `show-joke` liga a pegadinha (na v9 ela nunca ligava, e o botão "Enviar
+   * solicitação" não fazia nada); `fix-planet` devolve TERRA e volta para a tela
+   * de onde o usuário veio.
+   */
+  const handlePlanetAction = (acao: 'fix-planet' | 'show-joke') => {
+    if (acao === 'show-joke') {
+      setPegadinha(true);
+      return;
+    }
+    setPegadinha(false);
+    setFormData(prev => ({ ...prev, planet: 'TERRA' }));
+    setView(origemDoBloqueio);
   };
 
   const goHome = () => {
@@ -119,7 +154,10 @@ export function useAuthLogic(initialView: ViewState) {
     setShowPassword(false);
     setShowHelpOptions(false);
     setUserTenants([]);
-    setFormData({ full_name: '', email: '', password: '', confirm_password: '', planet: 'TERRA', country: 'BRASIL', state: '', city: '' });
+    setFormData({
+      full_name: '', email: '', password: '', confirm_password: '',
+      planet: 'TERRA', country: 'BRASIL', state: '', city: ''
+    });
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -132,12 +170,17 @@ export function useAuthLogic(initialView: ViewState) {
       setLoading(false); return;
     }
 
-    // 🌍 PAÍS OBRIGATÓRIO (v4): bloqueia o envio antes de tocar no Supabase.
     if (!formData.country || !formData.country.trim()) {
       setMessage({ text: "❌ Informe o país. Este campo é obrigatório.", type: "error" });
       setLoading(false); return;
     }
 
+    /**
+     * ⚠️ SEM `role` NO METADATA (correção S9). O que vai aqui é escrito pelo
+     * navegador e chega ao gatilho do banco; mandar `role: 'active'` fazia a
+     * conta nascer aprovada. O gatilho da v10 ignora o campo, e a tela parou de
+     * enviá-lo para não sugerir que ele vale alguma coisa.
+     */
     const { error } = await supabase.auth.signUp({
       email: formData.email,
       password: formData.password,
@@ -148,16 +191,12 @@ export function useAuthLogic(initialView: ViewState) {
           country: formData.country.trim(),
           state: formData.state,
           city: formData.city,
-          role: 'pending'
         }
       }
     });
 
     if (error) setMessage({ text: "❌ Erro: " + error.message, type: "error" });
     else {
-      // Registro local da nova triagem — sem provedor de e-mail externo.
-      authService.notifyAdminNewUser(formData.full_name, formData.email);
-      // v4: acesso imediato — não há confirmação de e-mail bloqueando a entrada.
       setMessage({ text: "✅ Cadastro concluído! Você já pode entrar no sistema.", type: "success" });
       setTimeout(() => goHome(), 4000);
     }
@@ -168,25 +207,14 @@ export function useAuthLogic(initialView: ViewState) {
     e.preventDefault();
     setLoading(true);
     setMessage(null);
-    
+
     const emailLower = formData.email.toLowerCase();
+    const querPainelTecnico = view === 'login-developer';
 
     telemetry.capture(ANALYTICS_EVENTS.AUTH_ATTEMPT_SUBMIT, {
       [ANALYTICS_PROPERTIES.USER_EMAIL]: emailLower,
       [ANALYTICS_PROPERTIES.SELECTED_ROLE]: view
     });
-
-    if (view === 'login-developer') {
-      const devAuth = await authService.developerSignIn(emailLower, formData.password);
-      if (devAuth.success) {
-        sessionStorage.setItem('dev_vip_access', 'true');
-        router.push("/dashboard");
-        return;
-      } else {
-        setMessage({ text: "❌ Credenciais Inválidas.", type: "error" });
-        setLoading(false); return;
-      }
-    }
 
     try {
       const response = await loginWithCatracaAction(emailLower, formData.password);
@@ -196,26 +224,41 @@ export function useAuthLogic(initialView: ViewState) {
       const user = response.user!;
       telemetry.identify(user.id, { [ANALYTICS_PROPERTIES.USER_EMAIL]: user.email });
 
-      if (user.email === 'admin@pjodc.ia') {
-        sessionStorage.setItem('dev_vip_access', 'true');
-        router.push("/dashboard"); return;
+      /**
+       * 🔧 PAINEL DE ENGENHARIA: quem decide é o banco.
+       * `ehDesenvolvedor` vem da Server Action, que perguntou ao Postgres com a
+       * sessão recém-criada. A tela não tem como "se autorizar".
+       */
+      if (response.ehDesenvolvedor) {
+        telemetry.capture(ANALYTICS_EVENTS.AUTH_DEVELOPER_SUCCESS, {
+          [ANALYTICS_PROPERTIES.USER_EMAIL]: emailLower
+        });
+        router.push("/dashboard");
+        return;
       }
 
-      const roleToFind = view === 'login-owner' ? 'OWNER' : 'DEPENDENT';
-      const members = await authService.getUserTenants(user.id, roleToFind);
+      if (querPainelTecnico) {
+        // Entrou com uma credencial válida, mas esta conta não tem acesso
+        // técnico. Encerramos a sessão: quem pediu a porta de serviço não deve
+        // ficar logado como usuário comum sem perceber.
+        telemetry.capture(ANALYTICS_EVENTS.AUTH_DEVELOPER_DENIED, {
+          [ANALYTICS_PROPERTIES.USER_EMAIL]: emailLower
+        });
+        await encerrarSessao();
+        setMessage({ text: "❌ Esta conta não tem acesso ao Painel de Engenharia.", type: "error" });
+        setLoading(false);
+        return;
+      }
+
+      const members = await authService.getUserTenants(user.id, 'DEPENDENT');
 
       if (!members || members.length === 0) {
-        // Era um ternário usado como comando: lia-se como se devolvesse algo, e
-        // o ESLint reclamava disso. São dois desfechos distintos — o Proprietário
-        // ainda não promovido vai à sala de espera; o Dependente recebe erro.
-        if (view === 'login-owner') setView('waiting-approval');
-        else setMessage({ text: "❌ Sem vínculos encontrados.", type: "error" });
+        setMessage({ text: "❌ Sem vínculos encontrados.", type: "error" });
         setLoading(false); return;
       }
 
-      const vinculos = members as unknown as TenantLink[];
-      if (vinculos.length === 1) handleSelectTenant(vinculos[0]);
-      else { setUserTenants(vinculos); setView('select-tenant'); }
+      if (members.length === 1) handleSelectTenant(members[0]);
+      else { setUserTenants(members); setView('select-tenant'); }
     } catch (error: unknown) {
       setMessage({ text: "❌ Falha: " + mensagemDeErro(error), type: "error" });
     } finally { setLoading(false); }
@@ -223,10 +266,7 @@ export function useAuthLogic(initialView: ViewState) {
 
   /**
    * ✅ TRIAGEM PÓS-LOGIN DO PROPRIETÁRIO (Google)
-   * Mesma decisão que o login por senha já toma para o 'login-owner': nenhum
-   * vínculo -> sala de espera; um vínculo -> entra direto; vários -> seletor.
-   * Fica isolado aqui para não tocar no handleSignIn, que continua servindo
-   * Dependente e Desenvolvedor sem alteração alguma.
+   * Nenhum vínculo -> sala de espera; um -> entra; vários -> seletor.
    */
   const encaminharProprietario = async (userId: string) => {
     const members = await authService.getUserTenants(userId, 'OWNER');
@@ -236,15 +276,12 @@ export function useAuthLogic(initialView: ViewState) {
       return;
     }
 
-    // Sem `as any`: getUserTenants já devolve any[], o molde seria redundante.
     if (members.length === 1) handleSelectTenant(members[0]);
     else { setUserTenants(members); setView('select-tenant'); }
   };
 
   /**
    * 🔑 LOGIN GOOGLE DO PROPRIETÁRIO — CAMINHO PRINCIPAL (POPUP)
-   * Recebe a credencial que o botão do Google devolveu e a troca por sessão do
-   * Supabase no Core. Exclusivo do 'login-owner'.
    */
   const handleGoogleSignIn = async (credentialResponse: CredentialResponse) => {
     setLoading(true);
@@ -262,7 +299,7 @@ export function useAuthLogic(initialView: ViewState) {
       if (!response.success || !response.user) throw new Error(response.error);
 
       // 🍪 A sessão do popup nasce só no navegador. Espelhamos nos cookies HTTP
-      // para que o middleware e as Server Actions enxerguem o mesmo usuário.
+      // para que o proxy e as Server Actions enxerguem o mesmo usuário.
       if (response.session) {
         await syncGoogleSessionAction(
           response.session.access_token,
@@ -276,7 +313,6 @@ export function useAuthLogic(initialView: ViewState) {
       });
 
       // 🏁 PORTÃO DO CADASTRO: o Google entrega e-mail e nome, nada mais.
-      // Sem planeta, país, estado e cidade, o usuário não segue para a triagem.
       const cadastroCompleto = await profileService.isProfileCompleted(response.user.id);
 
       if (!cadastroCompleto) {
@@ -310,8 +346,6 @@ export function useAuthLogic(initialView: ViewState) {
   /**
    * 🔁 CAMINHO DE RESERVA: sem NEXT_PUBLIC_GOOGLE_CLIENT_ID não há popup
    * possível, então o OAuth é conduzido pelo Supabase por redirecionamento.
-   * A volta acontece em /auth/google/callback, que grava os cookies e manda
-   * para o dashboard. Não há triagem aqui: quem redireciona sai da página.
    */
   const handleGoogleRedirect = async () => {
     setLoading(true);
@@ -372,8 +406,7 @@ export function useAuthLogic(initialView: ViewState) {
 
   /**
    * 🚪 Única saída da tela de completar cadastro.
-   * Encerra as DUAS metades da sessão (navegador e cookies) e volta à guarita —
-   * um "voltar" comum deixaria o usuário logado e o portão o traria de volta.
+   * Encerra as DUAS metades da sessão (navegador e cookies) e volta à guarita.
    */
   const handleLogout = async () => {
     setLoading(true);
@@ -387,9 +420,14 @@ export function useAuthLogic(initialView: ViewState) {
 
   const handleSelectTenant = (tenant: TenantLink) => {
     if (tenant.tenants.users?.is_active === false) {
-      alert("⚠️ EMPRESA DESABILITADA."); return;
+      alert("⚠️ EMPRESA DESABILITADA.");
+      return;
     }
     telemetry.group('tenant', tenant.tenant_id, { name: tenant.tenants.tenant_name });
+    telemetry.capture(ANALYTICS_EVENTS.TENANT_SELECTED, {
+      [ANALYTICS_PROPERTIES.TENANT_ID]: tenant.tenant_id,
+      [ANALYTICS_PROPERTIES.USER_ROLE]: tenant.role,
+    });
     sessionStorage.setItem('active_tenant_id', tenant.tenant_id);
     sessionStorage.setItem('user_role_context', tenant.role);
     router.push("/dashboard");
@@ -400,8 +438,8 @@ export function useAuthLogic(initialView: ViewState) {
     showHelpOptions, setShowHelpOptions, message, setMessage,
     userTenants, formData, countriesOptions, statesOptions, citiesOptions,
     currentUser,
-    handleInputChange, goHome, handleSignUp, handleSignIn, handleSelectTenant,
-    handleGoogleSignIn, handleGoogleError, handleGoogleRedirect,
+    handleInputChange, handlePlanetAction, goHome, handleSignUp, handleSignIn,
+    handleSelectTenant, handleGoogleSignIn, handleGoogleError, handleGoogleRedirect,
     handleCompleteProfile, handleLogout
   };
 }

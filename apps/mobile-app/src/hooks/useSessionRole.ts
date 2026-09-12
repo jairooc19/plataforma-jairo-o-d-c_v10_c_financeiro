@@ -6,7 +6,7 @@ interface PapelDaSessao {
   papel: UserRole | null;
   /** `true` enquanto o cofre ainda não respondeu. */
   carregando: boolean;
-  /** Atalho: o Desenvolvedor não tem usuário no Supabase. */
+  /** Atalho para a composição da barra de abas. */
   ehDesenvolvedor: boolean;
 }
 
@@ -14,29 +14,25 @@ interface PapelDaSessao {
  * 🎭 QUAL É O PAPEL DE QUEM ESTÁ LOGADO (PJODC v10)
  * Local: apps/mobile-app/src/hooks/useSessionRole.ts
  *
- * v9: [100% NATIVO — HOOK]
- * - Alimenta a decisão de quais abas nativas aparecem
+ * 🎯 EXISTE PARA A BARRA DE ABAS PODER SE ADAPTAR AO PAPEL. O layout precisa
+ * decidir quais gatilhos desenhar ANTES de qualquer tela montar, e uma consulta
+ * de rede ali dentro atrasaria a primeira pintura do aplicativo.
  *
- * 🎯 EXISTE PARA A BARRA DE ABAS PODER SE ADAPTAR AO PAPEL. O `(tabs)/index.tsx`
- * já lia o papel para escolher entre o painel do cliente e o de engenharia, mas
- * lia dentro da tela — tarde demais para o layout, que decide quais gatilhos
- * desenhar ANTES de qualquer tela montar. Em vez de duplicar a leitura, ela
- * virou este hook.
+ * ⚠️ O VALOR VEM DO COFRE LOCAL — E, NA v10, ELE SÓ CHEGA LÁ DEPOIS DE O BANCO
+ * CONFIRMAR. Até a v9 o papel `DEVELOPER` era gravado no cofre por uma
+ * comparação de duas strings dentro do próprio aplicativo; agora ele é gravado
+ * pelo `usePasswordLogin` somente quando a função `is_superuser()` do banco
+ * responde que sim (ver aquele arquivo).
  *
- * ⚠️ O PAPEL VEM DO COFRE LOCAL, NÃO DO BANCO — e isso é proposital, não
- * preguiça. O Desenvolvedor **não tem linha em `auth.users`**: a credencial dele
- * é fixa no Core (`authService.developerSignIn`) e nunca passa pelo GoTrue.
- * Perguntar o papel ao Supabase devolveria vazio para ele, e a aba de
- * engenharia sumiria justamente para quem ela existe.
- *
- * 🔒 ISTO NÃO É CONTROLE DE ACESSO. Esconder uma aba é conveniência de
- * interface; quem de fato protege dado é a RLS do Postgres. O cofre do aparelho
- * é gravável por quem tem o aparelho — tratar `papel` como autorização seria o
- * mesmo erro do `sessionStorage.dev_vip_access` documentado no CLAUDE.md.
+ * 🔒 AINDA ASSIM, ISTO NÃO É CONTROLE DE ACESSO. O cofre do aparelho é gravável
+ * por quem tem o aparelho: alguém que altere o valor consegue VER a tela do
+ * Painel de Engenharia, e não consegue FAZER nada — todas as operações passam
+ * pelas funções `admin_*`, que conferem o superusuário no servidor. Interface é
+ * conveniência; quem protege dado é o banco.
  *
  * ⏳ `carregando` IMPORTA AQUI. Sem ele o layout desenharia a barra com o papel
  * `null` e a corrigiria um quadro depois: o usuário veria a aba de perfil
- * aparecer sozinha, do nada. Quem consome espera a leitura terminar.
+ * aparecer sozinha, do nada.
  */
 export function useSessionRole(): PapelDaSessao {
   const [papel, setPapel] = useState<UserRole | null>(null);

@@ -19,29 +19,29 @@ const EMAIL_SUPORTE = 'jairooc19@gmail.com';
  * 💬 TELA: SUPORTE (PJODC v10)
  * Local: apps/mobile-app/src/screens/SupportScreen.tsx
  *
- * v9: [100% NATIVO — TELA]
- *
- * Aberta pelo cartão "Suporte" do Painel de Engenharia. Abre o aplicativo de
- * e-mail do aparelho com o assunto e o diagnóstico já preenchidos.
+ * Abre o aplicativo de e-mail do aparelho com o assunto e o diagnóstico já
+ * preenchidos.
  *
  * ✉️ POR QUE `mailto:` E NÃO UM FORMULÁRIO. Um formulário dentro do app
  * precisaria de um endpoint que recebesse a mensagem, e esse endpoint não
- * existe: a `/api/notify-admin` do `admin-web` apenas grava no log do servidor
- * desde que o Resend saiu na v4 (ver o CLAUDE.md). Um formulário bonito que
- * engole a mensagem é pior do que nenhum formulário — o usuário acha que
- * relatou e ninguém recebeu. O `mailto:` entrega ao cliente de e-mail, que é um
- * canal que comprovadamente funciona, e o rascunho fica na caixa de saída do
- * usuário como prova de que foi enviado.
+ * existe. Um formulário bonito que engole a mensagem é pior do que nenhum
+ * formulário — o usuário acha que relatou e ninguém recebeu.
  *
- * 🩺 O DIAGNÓSTICO VAI JUNTO, JÁ ESCRITO. Versão, plataforma e estado dos gestos
- * são exatamente o que a primeira resposta de suporte pede — e o que ninguém
- * sabe responder de cabeça. Pré-preencher elimina a ida e volta inteira.
+ * ===========================================================================
+ * ⚠️ CORREÇÃO v10: O AVISO DE ERRO NUNCA APARECIA
+ * ===========================================================================
+ * Até a v9, quando não havia aplicativo de e-mail configurado, esta tela
+ * chamava:
  *
- * ⚠️ `canOpenURL` ANTES DE `openURL`, e o aviso quando falha. Um aparelho sem
- * cliente de e-mail configurado — comum em emulador e em telefone corporativo
- * restrito — faz o `openURL` rejeitar em silêncio, e o toque no cartão não
- * produziria efeito nenhum. Aí o app parece quebrado quando o problema é do
- * ambiente, então dizemos qual é.
+ *     mostrar([], { titulo: 'Nenhum aplicativo de e-mail', mensagem: '...' });
+ *
+ * ...com uma lista VAZIA de opções. E o `useNativeActionSheet` começa com
+ * `if (opcoes.length === 0) return;` — ou seja, o aviso era descartado na
+ * primeira linha. O toque no cartão ficava MUDO, que é exatamente o que o
+ * comentário do arquivo dizia querer evitar.
+ *
+ * Agora passamos uma ação real ("Entendi"). O menu do sistema precisa de pelo
+ * menos um botão para existir; um alerta sem botão nenhum não é alerta.
  */
 export default function SupportScreen() {
   const { mostrar } = useNativeActionSheet();
@@ -66,6 +66,14 @@ export default function SupportScreen() {
     []
   );
 
+  /** Avisa com um alerta do sistema que tem, de fato, um botão. */
+  const avisar = useCallback(
+    (titulo: string, mensagem: string) => {
+      mostrar([{ titulo: 'Entendi', aoTocar: () => undefined }], { titulo, mensagem });
+    },
+    [mostrar]
+  );
+
   const abrirEmail = useCallback(
     async (assunto: string, introducao: string) => {
       setEnviando(true);
@@ -77,25 +85,22 @@ export default function SupportScreen() {
 
         const podeAbrir = await Linking.canOpenURL(url);
         if (!podeAbrir) {
-          mostrar([], {
-            titulo: 'Nenhum aplicativo de e-mail',
-            mensagem: `Configure uma conta de e-mail no aparelho, ou escreva para ${EMAIL_SUPORTE}.`,
-          });
+          avisar(
+            'Nenhum aplicativo de e-mail',
+            `Configure uma conta de e-mail no aparelho, ou escreva para ${EMAIL_SUPORTE}.`
+          );
           return;
         }
 
         await Linking.openURL(url);
       } catch (e) {
         console.error('[SUPORTE] Falha ao abrir o cliente de e-mail:', e);
-        mostrar([], {
-          titulo: 'Não foi possível abrir o e-mail',
-          mensagem: `Escreva para ${EMAIL_SUPORTE}.`,
-        });
+        avisar('Não foi possível abrir o e-mail', `Escreva para ${EMAIL_SUPORTE}.`);
       } finally {
         setEnviando(false);
       }
     },
-    [diagnostico, mostrar]
+    [diagnostico, avisar]
   );
 
   const relatarErro = useCallback(
