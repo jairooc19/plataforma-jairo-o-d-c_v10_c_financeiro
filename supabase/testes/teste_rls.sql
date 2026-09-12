@@ -11,7 +11,7 @@
 --   1. Abra o SQL Editor do Supabase.
 --   2. Cole este arquivo INTEIRO e execute.
 --   3. Leia a tabela que aparece embaixo: a coluna `veredito` tem de dizer
---      "PASSOU" nas 10 linhas. O botão de exportar volta a funcionar, porque
+--      "PASSOU" nas 14 linhas. O botão de exportar volta a funcionar, porque
 --      agora há linhas de verdade.
 --
 -- ⚠️ A VERSÃO ANTERIOR DESTE ARQUIVO NÃO MOSTRAVA NADA NO SUPABASE, e a falha
@@ -49,6 +49,10 @@
 --   7. A data gravada é a hora real, sem as 3 horas a menos   (correção C1)
 --   8. `allowed_modules` é lista de verdade                   (correção C3)
 --   9. A trilha de auditoria registrou a empresa criada       (correção B4)
+--  10. Módulo não contratado NÃO pode ser liberado a um membro  (lacuna L4)
+--  11. Contratado pela empresa, o módulo passa a ser aceito     (lacuna L4)
+--  12. Descontratar limpa os membros na mesma transação         (lacuna L4)
+--  13. Usuário comum não contrata módulo para ninguém           (lacuna L4)
 -- ===========================================================================
 
 
@@ -391,6 +395,164 @@ END;
 $$;
 
 
+-- ===========================================================================
+-- O SOQUETE DOS MÓDULOS (v10 — degrau 5)
+--
+-- Os testes 10 a 13 usam um módulo de mentira, 'teste_lego', inserido agora no
+-- catálogo e apagado na limpeza final. É assim que um módulo de verdade também
+-- entra: pelo SEED DELE, não pela aplicação.
+-- ===========================================================================
+
+INSERT INTO public.platform_modules (id, nome, descricao)
+VALUES ('teste_lego', 'MODULO DE TESTE', 'Existe so durante este arquivo.')
+ON CONFLICT (id) DO NOTHING;
+
+
+-- ---------------------------------------------------------------------------
+-- TESTE 10 — o que a empresa não contratou não chega ao membro (L4)
+-- O Proprietário tenta liberar para si um módulo que a empresa não tem.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  v_tenant uuid;
+  v_erro   text := 'nenhum';
+  v_ficou  text[];
+BEGIN
+  SELECT id INTO v_tenant FROM public.tenants
+   WHERE owner_id = '11111111-1111-1111-1111-111111111111' LIMIT 1;
+
+  BEGIN
+    UPDATE public.tenant_members
+       SET allowed_modules = ARRAY['teste_lego']
+     WHERE tenant_id = v_tenant
+       AND user_id = '11111111-1111-1111-1111-111111111111';
+  EXCEPTION WHEN OTHERS THEN
+    v_erro := SQLSTATE;
+  END;
+
+  SELECT allowed_modules INTO v_ficou
+    FROM public.tenant_members
+   WHERE tenant_id = v_tenant AND user_id = '11111111-1111-1111-1111-111111111111';
+
+  INSERT INTO public.resultado_teste_rls VALUES (
+    10,
+    CASE WHEN COALESCE(array_length(v_ficou, 1), 0) = 0 THEN 'PASSOU' ELSE 'FALHOU' END,
+    'L4 — módulo não contratado não pode ser liberado ao membro',
+    format('SQLSTATE=%s; allowed_modules ficou em %s', v_erro, COALESCE(v_ficou::text, '<nulo>'))
+  );
+END;
+$$;
+
+
+-- ---------------------------------------------------------------------------
+-- TESTE 11 — contratado pela empresa, o mesmo módulo passa (L4)
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  v_tenant uuid;
+  v_erro   text := 'nenhum';
+  v_ficou  text[];
+BEGIN
+  SELECT id INTO v_tenant FROM public.tenants
+   WHERE owner_id = '11111111-1111-1111-1111-111111111111' LIMIT 1;
+
+  -- O Desenvolvedor contrata (a função confere is_superuser por dentro).
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims', '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', true);
+  PERFORM public.admin_set_tenant_module(v_tenant, 'teste_lego', true);
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims', '', true);
+
+  BEGIN
+    UPDATE public.tenant_members
+       SET allowed_modules = ARRAY['teste_lego']
+     WHERE tenant_id = v_tenant
+       AND user_id = '11111111-1111-1111-1111-111111111111';
+  EXCEPTION WHEN OTHERS THEN
+    v_erro := SQLSTATE || ' ' || SQLERRM;
+  END;
+
+  SELECT allowed_modules INTO v_ficou
+    FROM public.tenant_members
+   WHERE tenant_id = v_tenant AND user_id = '11111111-1111-1111-1111-111111111111';
+
+  INSERT INTO public.resultado_teste_rls VALUES (
+    11,
+    CASE WHEN v_ficou @> ARRAY['teste_lego'] THEN 'PASSOU' ELSE 'FALHOU' END,
+    'L4 — contratado pela empresa, o módulo é aceito no membro',
+    format('erro=%s; allowed_modules=%s', v_erro, COALESCE(v_ficou::text, '<nulo>'))
+  );
+END;
+$$;
+
+
+-- ---------------------------------------------------------------------------
+-- TESTE 12 — descontratar limpa os membros, na mesma transação (L4)
+-- Sem isso, o membro ficaria com um módulo que a empresa não tem mais — e o
+-- próximo UPDATE no vínculo seria recusado por causa desse resto.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  v_tenant uuid;
+  v_retorno json;
+  v_ficou   text[];
+BEGIN
+  SELECT id INTO v_tenant FROM public.tenants
+   WHERE owner_id = '11111111-1111-1111-1111-111111111111' LIMIT 1;
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims', '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', true);
+  v_retorno := public.admin_set_tenant_module(v_tenant, 'teste_lego', false);
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims', '', true);
+
+  SELECT allowed_modules INTO v_ficou
+    FROM public.tenant_members
+   WHERE tenant_id = v_tenant AND user_id = '11111111-1111-1111-1111-111111111111';
+
+  INSERT INTO public.resultado_teste_rls VALUES (
+    12,
+    CASE WHEN COALESCE(array_length(v_ficou, 1), 0) = 0 THEN 'PASSOU' ELSE 'FALHOU' END,
+    'L4 — descontratar limpa os membros junto',
+    format('retorno=%s; allowed_modules=%s', v_retorno::text, COALESCE(v_ficou::text, '<nulo>'))
+  );
+END;
+$$;
+
+
+-- ---------------------------------------------------------------------------
+-- TESTE 13 — usuário comum não contrata módulo para ninguém (L4 + S4)
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  v_tenant uuid;
+  v_erro   text := 'nenhum';
+BEGIN
+  SELECT id INTO v_tenant FROM public.tenants
+   WHERE owner_id = '11111111-1111-1111-1111-111111111111' LIMIT 1;
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims', '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
+
+  BEGIN
+    PERFORM public.admin_set_tenant_module(v_tenant, 'teste_lego', true);
+  EXCEPTION WHEN OTHERS THEN
+    v_erro := SQLSTATE;
+  END;
+
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims', '', true);
+
+  INSERT INTO public.resultado_teste_rls VALUES (
+    13,
+    CASE WHEN v_erro <> 'nenhum' THEN 'PASSOU' ELSE 'FALHOU' END,
+    'L4 — usuário comum não contrata módulo',
+    format('SQLSTATE=%s ("nenhum" significa que a contratação passou)', v_erro)
+  );
+END;
+$$;
+
+
 -- ---------------------------------------------------------------------------
 -- LIMPEZA FINAL — os três usuários, as empresas deles e o rastro na auditoria.
 -- Mesma ordem da limpeza prévia, pelo mesmo motivo (ON DELETE RESTRICT).
@@ -417,6 +579,11 @@ DELETE FROM auth.users
  WHERE id IN ('11111111-1111-1111-1111-111111111111',
               '22222222-2222-2222-2222-222222222222',
               '33333333-3333-3333-3333-333333333333');
+
+-- O módulo de mentira sai do catálogo; o ON DELETE CASCADE de `tenant_modules`
+-- leva junto os contratos que os testes 11 e 12 criaram.
+DELETE FROM public.audit_log WHERE registro_id = 'teste_lego';
+DELETE FROM public.platform_modules WHERE id = 'teste_lego';
 
 
 -- ---------------------------------------------------------------------------

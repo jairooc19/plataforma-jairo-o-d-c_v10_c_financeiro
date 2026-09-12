@@ -64,6 +64,27 @@ export default function DeveloperDashboardView({
               Cores White Label e Textos do Sistema.
             </p>
           </button>
+
+          {/* 🧩 MÓDULOS — contratação por empresa (v10, degrau 5).
+              Este cartão é da PLATAFORMA e não cita módulo nenhum: a tela de
+              destino lista o que houver no catálogo do banco. */}
+          <button
+            onClick={() => onNavigate("/dashboard/modulos")}
+            className="flex flex-col items-start p-8 bg-white rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-xl hover:border-emerald-300 transition-all group text-left relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+            <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mb-6 relative z-10">
+              <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h5v6H4V5zm10-1h5a1 1 0 011 1v5h-6V4zM4 12h6v7a1 1 0 01-1 1H5a1 1 0 01-1-1v-7zm10 0h6v7a1 1 0 01-1 1h-4a1 1 0 01-1-1v-7z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight relative z-10">
+              Módulos
+            </h3>
+            <p className="text-sm text-slate-500 font-medium mt-2 relative z-10">
+              Contratação de Módulos por Empresa.
+            </p>
+          </button>
         </div>
       </div>
 

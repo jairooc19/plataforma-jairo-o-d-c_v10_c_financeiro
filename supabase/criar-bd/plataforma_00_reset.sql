@@ -36,6 +36,9 @@ TRUNCATE auth.identities CASCADE;
 -- 2. 🧽 DROPS DA PLATAFORMA CORE: MULTI-TENANCY, PERFIS E AUDITORIA (public)
 -- Ordem reversa de dependência: filhas -> mestres
 -- ===========================================================================
+-- v10 degrau 5: o soquete dos modulos sai antes de tenants (FK) e do catalogo.
+DROP TABLE IF EXISTS public.tenant_modules   CASCADE;
+DROP TABLE IF EXISTS public.platform_modules CASCADE;
 DROP TABLE IF EXISTS public.audit_log      CASCADE;
 DROP TABLE IF EXISTS public.tenant_members CASCADE;
 DROP TABLE IF EXISTS public.tenants        CASCADE;
@@ -79,6 +82,14 @@ DROP FUNCTION IF EXISTS public.admin_sync_user_tenants(uuid, jsonb, uuid[]) CASC
 DROP FUNCTION IF EXISTS public.admin_promote_to_owner(uuid, text) CASCADE;
 DROP FUNCTION IF EXISTS public.admin_update_global_settings(jsonb) CASCADE;
 DROP FUNCTION IF EXISTS public.gerar_slug_empresa(text) CASCADE;
+
+-- Modulos (v10 - degrau 5)
+DROP FUNCTION IF EXISTS public.modulo_contratado(uuid, text) CASCADE;
+DROP FUNCTION IF EXISTS public.validar_modulos_do_membro() CASCADE;
+DROP FUNCTION IF EXISTS public.admin_set_tenant_module(uuid, text, boolean) CASCADE;
+DROP FUNCTION IF EXISTS public.admin_list_tenant_modules(uuid) CASCADE;
+DROP FUNCTION IF EXISTS public.modulos_do_membro(uuid) CASCADE;
+DROP FUNCTION IF EXISTS public.admin_list_all_tenants() CASCADE;
 
 -- Manutenção
 DROP FUNCTION IF EXISTS public.sync_auth_users() CASCADE;

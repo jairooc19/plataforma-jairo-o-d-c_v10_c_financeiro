@@ -31,10 +31,18 @@ export * from './services/platform/googleAuthService';
 export * from './services/platform/profileService';
 export * from './services/platform/settingsService';
 export * from './services/platform/tenantService';
+export * from './services/platform/moduleService';
 
-// 3. Módulos Funcionais (Gavetas de Funcionalidades)
-// Nenhum módulo instalado nesta versão. O C FINANCEIRO entra em
-// `src/services/modules/financeiro/` quando começar.
+// 3. MÓDULOS — O SOQUETE DO LEGO
+//
+// ⚠️ `modules/registro.ts` é O PONTO DE SOLDA Nº 1: o único arquivo da
+// plataforma que pode citar o nome de um módulo. A linha abaixo exporta o
+// registro e os tipos; o módulo em si entra em `modules/<nome>/` e ganha uma
+// linha de `export` aqui (ponto de solda nº 2). Ver `MODULOS.md` na raiz.
+//
+// Nenhum módulo instalado nesta versão — e a plataforma funciona inteira assim.
+export * from './modules/tipos';
+export * from './modules/registro';
 
 // 4. Constantes Globais e Versão
 export * from './constants/versions';

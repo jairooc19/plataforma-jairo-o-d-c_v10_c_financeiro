@@ -7,6 +7,7 @@ import {
   supabase,
   authService,
   profileService,
+  moduleService,
   telemetry,
   ANALYTICS_EVENTS,
   ANALYTICS_PROPERTIES,
@@ -55,6 +56,12 @@ export default function DashboardPage() {
   const [tenantData, setTenantData] = useState<ContextoMembro | null>(null);
   const [empresas, setEmpresas] = useState<EmpresaDoLobby[]>([]);
   const [activeTenantId, setActiveTenantId] = useState<string | null>(null);
+  /**
+   * Os módulos que este membro pode abrir nesta empresa.
+   * ⚠️ Quem cruza "liberado ao membro" com "contratado pela empresa" é o banco
+   * (`modulos_do_membro`) — cruzar aqui poria a regra no navegador.
+   */
+  const [modulosPermitidos, setModulosPermitidos] = useState<string[]>([]);
 
   // --- ESTADOS TÉCNICOS (INFRA) ---
   const [dbStatus, setDbStatus] = useState<string>("Verificando...");
@@ -188,6 +195,19 @@ export default function DashboardPage() {
             [ANALYTICS_PROPERTIES.USER_ROLE]: memberData.role
           });
 
+          /**
+           * 🧩 OS MÓDULOS DESTE MEMBRO NESTA EMPRESA.
+           * Falha aqui não derruba o painel: sem a lista, a tela mostra o
+           * estado "nenhum módulo disponível", que é verdade do ponto de vista
+           * do usuário — e o erro fica no console para quem for investigar.
+           */
+          try {
+            setModulosPermitidos(await moduleService.modulosPermitidos(tenantId));
+          } catch (erroModulos) {
+            console.error("[DASHBOARD] Não foi possível ler os módulos:", erroModulos);
+            setModulosPermitidos([]);
+          }
+
           setShowLobby(false);
         } else {
           // A empresa guardada não vale mais (vínculo revogado, empresa
@@ -250,7 +270,7 @@ export default function DashboardPage() {
             }}
           />
         ) : (
-          <OperationalDashboardView />
+          <OperationalDashboardView modulosPermitidos={modulosPermitidos} />
         )}
 
         {/* 👑 CENTRAL DE COMANDO DE TRIPULAÇÃO (só para o Proprietário) */}

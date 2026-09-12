@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Degrau 5 — Saneamentos: o soquete do LEGO implantado</title>
+<style>
+  /* ============================================================
+     CORES PRESERVADAS NA IMPRESSÃO (fora de @media print)
+     ============================================================ */
+  *, *::before, *::after {
+    box-sizing: border-box;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  :root {
+    --azul: #2c5282;
+    --azul-escuro: #1a365d;
+    --fundo-pagina: #fbfcfd;
+    --fundo-azul: #f0f4f8;
+    --fundo-verde: #f0f9f7;
+    --fundo-ambar: #fef5e7;
+    --fundo-vermelho: #fdf0f0;
+    --fundo-cinza: #f5f6f8;
+    --fundo-roxo: #f4f1f9;
+    --borda: #d9e2ec;
+    --borda-forte: #9fb3c8;
+    --texto: #000000;
+    --verde: #276749;
+    --ambar: #975a16;
+    --vermelho: #9b2c2c;
+    --roxo: #553c9a;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background-color: var(--fundo-pagina);
+    color: var(--texto);
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.62;
+  }
+
+  .page { max-width: 980px; margin: 0 auto; padding: 32px 28px 80px; }
+
+  h1, h2, h3, h4 { color: var(--texto); line-height: 1.25; }
+  h1 { font-size: 30px; margin: 0 0 6px; letter-spacing: -0.3px; }
+  h2 { font-size: 22px; margin: 0 0 14px; padding-bottom: 8px; border-bottom: 3px solid var(--azul); }
+  h3 { font-size: 17px; margin: 22px 0 8px; }
+  h4 { font-size: 15px; margin: 16px 0 6px; }
+  p { margin: 8px 0; }
+  ul, ol { margin: 8px 0; padding-left: 22px; }
+  li { margin: 3px 0; }
+  a { color: var(--azul); }
+  strong { font-weight: 700; }
+
+  code, .mono {
+    font-family: Consolas, "SFMono-Regular", Menlo, monospace;
+    font-size: 13px;
+    background-color: var(--fundo-cinza);
+    border: 1px solid var(--borda);
+    border-radius: 4px;
+    padding: 0 4px;
+    overflow-wrap: anywhere;
+  }
+  pre {
+    font-family: Consolas, "SFMono-Regular", Menlo, monospace;
+    font-size: 13px;
+    background-color: var(--fundo-cinza);
+    border: 1px solid var(--borda);
+    border-radius: 6px;
+    padding: 12px 14px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 10px 0;
+  }
+  pre code { border: 0; padding: 0; background-color: transparent; }
+
+  /* ---------- Cabeçalho ---------- */
+  .doc-header {
+    background-color: var(--fundo-azul);
+    border: 1px solid var(--borda);
+    border-left: 6px solid var(--azul);
+    border-radius: 10px;
+    padding: 22px 24px;
+    margin-bottom: 28px;
+  }
+  .doc-header .eyebrow {
+    font-size: 12px; font-weight: 700; letter-spacing: 1.2px;
+    text-transform: uppercase; color: var(--azul); margin: 0 0 6px;
+  }
+  .prompt-literal {
+    background-color: #ffffff;
+    border: 1px dashed var(--borda-forte);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 14px 0 8px;
+    font-size: 13.5px;
+    white-space: pre-wrap;
+    max-height: 460px;
+    overflow-y: auto;
+  }
+  .prompt-literal .rotulo {
+    display: block; font-size: 11px; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--azul); margin-bottom: 6px;
+  }
+  .meta { font-size: 13px; margin: 4px 0 0; }
+
+  /* ---------- Sumário ---------- */
+  .toc {
+    background-color: #ffffff; border: 1px solid var(--borda);
+    border-radius: 10px; padding: 18px 24px; margin-bottom: 32px;
+  }
+  .toc ol { columns: 2; column-gap: 32px; margin: 0; }
+  .toc li { break-inside: avoid; }
+  .toc a { color: var(--texto); text-decoration: none; border-bottom: 1px dotted var(--borda-forte); }
+  .toc a:hover { color: var(--azul); }
+
+  /* ---------- Seções ---------- */
+  section {
+    background-color: #ffffff; border: 1px solid var(--borda);
+    border-radius: 10px; padding: 22px 24px; margin-bottom: 26px;
+  }
+
+  /* ---------- Caixas ---------- */
+  .highlight-box, .example-box, .bonus-section, .callout {
+    border-radius: 8px; padding: 12px 16px; margin: 12px 0; border: 1px solid var(--borda);
+  }
+  .highlight-box { background-color: var(--fundo-azul); border-left: 5px solid var(--azul); }
+  .example-box { background-color: var(--fundo-verde); border-left: 5px solid var(--verde); }
+  .callout-ambar { background-color: var(--fundo-ambar); border-left: 5px solid var(--ambar); }
+  .callout-vermelho { background-color: var(--fundo-vermelho); border-left: 5px solid var(--vermelho); }
+  .callout-roxo { background-color: var(--fundo-roxo); border-left: 5px solid var(--roxo); }
+  .bonus-section { background-color: var(--fundo-ambar); border-left: 5px solid var(--ambar); }
+  .box-title {
+    display: block; font-weight: 700; font-size: 13px; letter-spacing: 0.6px;
+    text-transform: uppercase; margin-bottom: 4px;
+  }
+
+  /* ---------- Selos ---------- */
+  .tag {
+    display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.4px;
+    padding: 1px 8px; border-radius: 999px; border: 1px solid var(--borda-forte);
+    white-space: nowrap; vertical-align: 1px;
+  }
+  .tag-ok { background-color: var(--fundo-verde); }
+  .tag-par { background-color: var(--fundo-ambar); }
+  .tag-nao { background-color: var(--fundo-vermelho); }
+  .tag-dec { background-color: var(--fundo-azul); }
+  .tag-pro { background-color: var(--fundo-roxo); }
+
+  /* ---------- Tabelas ---------- */
+  .table-wrap { width: 100%; overflow-x: auto; margin: 12px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  thead th {
+    background-color: var(--azul); color: #ffffff; text-align: left;
+    font-weight: 700; padding: 8px 10px; border: 1px solid var(--azul);
+  }
+  tbody td { padding: 7px 10px; border: 1px solid var(--borda); vertical-align: top; overflow-wrap: anywhere; }
+  tbody tr:nth-child(even) td { background-color: var(--fundo-azul); }
+
+  .steps { counter-reset: passo; list-style: none; padding-left: 0; }
+  .steps > li {
+    counter-increment: passo; position: relative; padding: 6px 0 6px 40px;
+    border-bottom: 1px dotted var(--borda);
+  }
+  .steps > li::before {
+    content: counter(passo); position: absolute; left: 0; top: 6px;
+    width: 26px; height: 26px; border-radius: 50%;
+    background-color: var(--azul); color: #ffffff; font-weight: 700;
+    font-size: 13px; text-align: center; line-height: 26px;
+  }
+
+  .antes-depois { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0; }
+  .antes, .depois { border-radius: 8px; padding: 12px 14px; border: 1px solid var(--borda); font-size: 13.5px; }
+  .antes { background-color: var(--fundo-vermelho); }
+  .depois { background-color: var(--fundo-verde); }
+  .antes b, .depois b { display: block; margin-bottom: 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; }
+
+  .small { font-size: 13px; }
+
+  /* ---------- Diagrama do "sol e peças" ---------- */
+  .lego { margin: 16px 0; }
+  .lego-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; align-items: stretch;
+  }
+  .peca {
+    border: 2px dashed var(--borda-forte); border-radius: 10px;
+    background-color: var(--fundo-cinza); padding: 12px 14px; font-size: 13.5px;
+  }
+  .peca b { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 4px; }
+  .sol {
+    border: 3px solid var(--azul); border-radius: 12px;
+    background-color: var(--fundo-azul); padding: 16px 18px; text-align: center;
+  }
+  .sol b { display: block; font-size: 15px; letter-spacing: 0.4px; }
+  .conector { text-align: center; font-size: 20px; line-height: 1; margin: 6px 0; letter-spacing: 6px; }
+
+  /* ---------- Árvore de pastas ---------- */
+  .arvore {
+    font-family: Consolas, "SFMono-Regular", Menlo, monospace;
+    font-size: 13px; line-height: 1.5;
+    background-color: var(--fundo-cinza); border: 1px solid var(--borda);
+    border-radius: 8px; padding: 14px 16px; margin: 12px 0; white-space: pre;
+    overflow-x: auto;
+  }
+  .arvore .p { background-color: #e3ecf7; }  /* plataforma */
+  .arvore .m { background-color: #efe6d4; }  /* módulo */
+  .legenda { font-size: 12.5px; margin: 8px 0 0; }
+  .chip {
+    display: inline-block; padding: 1px 8px; border-radius: 4px;
+    border: 1px solid var(--borda-forte); font-size: 12px; margin-right: 6px;
+  }
+  .chip-p { background-color: #e3ecf7; }
+  .chip-m { background-color: #efe6d4; }
+
+  /* ============================================================
+     BOTÃO E MENU DE IMPRESSÃO
+     ============================================================ */
+  .print-container { position: fixed; top: 16px; right: 16px; z-index: 1000; }
+  .print-button {
+    background-color: var(--azul); color: #ffffff; border: 0; border-radius: 8px;
+    padding: 10px 16px; font: inherit; font-weight: 700; font-size: 14px;
+    cursor: pointer; box-shadow: 0 4px 14px rgba(26, 54, 93, 0.25);
+  }
+  .print-button:hover { background-color: var(--azul-escuro); }
+  .print-menu {
+    display: none; position: absolute; top: calc(100% + 6px); right: 0;
+    min-width: 220px; background-color: #ffffff; border: 1px solid var(--borda);
+    border-radius: 8px; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14); padding: 6px;
+  }
+  .print-menu.open { display: block; }
+  .print-option {
+    display: block; width: 100%; text-align: left; background-color: transparent;
+    color: var(--texto); border: 0; border-radius: 6px; padding: 10px 12px;
+    font: inherit; font-size: 14px; cursor: pointer;
+  }
+  .print-option:hover, .print-option:focus { background-color: var(--fundo-azul); outline: none; }
+  .print-option small { display: block; font-size: 12px; }
+
+  @media (max-width: 720px) {
+    .page { padding: 70px 14px 60px; }
+    .toc ol { columns: 1; }
+    .antes-depois { grid-template-columns: 1fr; }
+    .lego-grid { grid-template-columns: 1fr; }
+    section { padding: 16px; }
+  }
+
+  /* ============================================================
+     MODO PRETO & BRANCO — classe .print-bw no <body>
+     ============================================================ */
+  body.print-bw, body.print-bw * {
+    color: #000000 !important; background-color: #ffffff !important;
+    border-color: #000000 !important; fill: #000000 !important;
+    stroke: #000000 !important; text-shadow: none !important;
+  }
+  body.print-bw table thead, body.print-bw table thead th {
+    background-color: #333333 !important; color: #ffffff !important;
+  }
+  body.print-bw tbody tr:nth-child(even) td { background-color: #f4f4f4 !important; }
+  body.print-bw .highlight-box, body.print-bw .example-box, body.print-bw .bonus-section,
+  body.print-bw .callout, body.print-bw .doc-header, body.print-bw .antes,
+  body.print-bw .depois, body.print-bw pre, body.print-bw code,
+  body.print-bw .arvore, body.print-bw .peca, body.print-bw .sol { background-color: #f2f2f2 !important; }
+  body.print-bw .arvore .p { background-color: #e0e0e0 !important; }
+  body.print-bw .arvore .m { background-color: #ffffff !important; }
+  body.print-bw .tag, body.print-bw .chip { background-color: #e6e6e6 !important; }
+  body.print-bw .steps > li::before { background-color: #333333 !important; color: #ffffff !important; }
+
+  /* ============================================================
+     IMPRESSÃO A4 — só layout, quebras, margens e exibição
+     ============================================================ */
+  @page { size: A4; margin: 0.5cm; }
+
+  @media print {
+    .print-container { display: none !important; }
+    body { margin: 0; padding: 0; }
+    .page { max-width: none; margin: 0; padding: 0; }
+    section { page-break-inside: avoid; margin: 0 0 12px; }
+    section h2 { page-break-inside: avoid; page-break-after: avoid; }
+    h2, h3, h4 { page-break-after: avoid; }
+    .toc, .highlight-box, .bonus-section, .example-box, .callout, .antes-depois,
+    .lego, .arvore { page-break-inside: avoid; }
+    table { page-break-inside: avoid; }
+    tr { page-break-inside: avoid; }
+    .table-wrap, pre, .prompt-literal, .arvore { overflow: visible; }
+    .prompt-literal { max-height: none; }
+    a { border-style: none; }
+    * { box-shadow: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="print-container">
+  <button type="button" class="print-button" id="printButton" aria-haspopup="true" aria-expanded="false" aria-controls="printMenu">
+    🖨️ Imprimir ▾
+  </button>
+  <div class="print-menu" id="printMenu" role="menu">
+    <button type="button" class="print-option" id="printColor" role="menuitem">
+      Cores (A4)
+      <small>Mantém as cores exatamente como na tela</small>
+    </button>
+    <button type="button" class="print-option" id="printBW" role="menuitem">
+      Preto &amp; Branco (A4)
+      <small>Converte tudo para preto, cinzas e branco</small>
+    </button>
+  </div>
+</div>
+
+<div class="page">
+
+<header class="doc-header">
+  <p class="eyebrow">Projeto C FINANCEIRO · Degrau 5 de N · Relatório de execução</p>
+  <h1>Saneamentos gerais: o soquete do LEGO implantado na plataforma</h1>
+  <div class="prompt-literal">
+<span class="rotulo">Transcrição literal do seu pedido</span>DEGRAU 05 = SANEAMENTOS GERAIS DA PLATAFORMA
+
+ACEITO TUDO QUE VOCÊ RECOMENDOU
+
+SOBRE 5.3 Uma regra do CLAUDE.md que envelheceu, ACEITO SUA RECOMENDAÇÃO, PODE PROVIDENCIAR IMPLMENTAR.
+
+6. As 6 lacunas que impedem o LEGO hoje ACEITO SUA RECOMENDAÇÃO, PODE PROVIDENCIAR IMPLMENTAR.
+SOBRE 17. Bônus: sugestões de alta relevância, ACEITO TUDO PODE PROVIDENCIAR IMPLMENTAR.
+SBORE 18. O que eu NÃO fiz, e por quê ACEITO SUA RECOMENDAÇÃO, PODE PROVIDENCIAR IMPLMENTAR.
+
+SOBRE 19. Decisões = SIM PARA TODOS, E PARA O 7 VAMOS DEBATE ISTO EM OUTRO DEGRAU NO FUTURO.</div>
+  <p class="meta small">As instruções gerais do seu pedido (honestidade, público, estilo de ensino, bônus e formato de entrega em HTML com impressão) foram aplicadas neste documento, mas não foram transcritas aqui, como você pediu desde o primeiro degrau.</p>
+  <p class="meta"><strong>Data:</strong> 12/09/2026 · <strong>Branch:</strong> <code>master</code> · <strong>Arquivos tocados:</strong> 16 (8 alterados, 8 novos, 3 apagados/movidos)</p>
+</header>
+
+<nav class="toc" aria-label="Sumário">
+  <h2 style="border-bottom:0; padding-bottom:0; margin-bottom:10px;">Sumário</h2>
+  <ol>
+    <li><a href="#s1">Como ler este relatório</a></li>
+    <li><a href="#s2">O que foi feito, em números</a></li>
+    <li><a href="#s3">As suas decisões e o que fiz com cada uma</a></li>
+    <li><a href="#s4">O soquete: manifesto e registro</a></li>
+    <li><a href="#s5">O catálogo no banco (lacuna L1)</a></li>
+    <li><a href="#s6">As duas chaves: contratar × liberar (L4)</a></li>
+    <li><a href="#s7">A web passou a listar módulos (L3)</a></li>
+    <li><a href="#s8">O verificador de LEGO (L6) — e a prova</a></li>
+    <li><a href="#s9">O mapa <code>MODULOS.md</code> (L5)</a></li>
+    <li><a href="#s10">A regra que envelheceu, corrigida</a></li>
+    <li><a href="#s11">Os bônus, um por um</a></li>
+    <li><a href="#s12">O banco novo: referência completa</a></li>
+    <li><a href="#s13">⚠️ O que VOCÊ precisa fazer agora</a></li>
+    <li><a href="#s14">Como conferir tudo você mesmo</a></li>
+    <li><a href="#s15">Mapa dos arquivos</a></li>
+    <li><a href="#s16">O que eu NÃO fiz, e por quê</a></li>
+    <li><a href="#s17">Bônus novo: sugestões desta rodada</a></li>
+    <li><a href="#s18">Próximo degrau</a></li>
+  </ol>
+</nav>
+
+<section id="s1">
+  <h2>1. Como ler este relatório</h2>
+  <p>Cada item recebe um selo que diz <strong>até onde foi a verificação</strong>. É a informação mais importante deste documento — separar o que está provado do que está escrito e ainda depende de você rodar num banco de verdade.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Selo</th><th>Significa</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag tag-ok">FEITO E VALIDADO</span></td><td>Alterado e comprovado por ferramenta que eu executei aqui: <code>npm test</code>, <code>tsc</code>, <code>eslint</code>, <code>npm run build</code> ou o novo verificador.</td></tr>
+        <tr><td><span class="tag tag-par">FEITO, FALTA RODAR NO BANCO</span></td><td>O SQL está escrito e revisado, mas <strong>eu não tenho acesso ao seu Supabase</strong>. Depende de você colar no SQL Editor.</td></tr>
+        <tr><td><span class="tag tag-dec">DECISÃO</span></td><td>Escolha de projeto que tomei dentro do que você aprovou, e que você pode reverter.</td></tr>
+        <tr><td><span class="tag tag-nao">NÃO FEITO</span></td><td>Fica explícito, com a razão. Tudo reunido na seção 16.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout callout-vermelho">
+    <span class="box-title">A ressalva mais importante, logo no começo</span>
+    <p style="margin-top:6px"><strong>Nada do SQL novo foi executado contra um banco real.</strong> Não existe <code>.env</code> nem projeto Supabase alcançável a partir daqui — isso não mudou desde o degrau 3. O schema foi escrito seguindo exatamente os padrões dos objetos que já funcionam no seu banco, e os 4 testes novos do <code>teste_rls.sql</code> existem justamente para você provar (ou desmentir) cada trava em três minutos. <strong>O passo a passo está na seção 13.</strong></p>
+  </div>
+</section>
+
+<section id="s2">
+  <h2>2. O que foi feito, em números</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Frente</th><th>Resultado</th></tr></thead>
+      <tbody>
+        <tr><td>As 6 lacunas do degrau 4</td><td><strong>6 de 6 fechadas</strong></td></tr>
+        <tr><td>Os 8 bônus (B1 a B8)</td><td><strong>8 de 8 implementados</strong></td></tr>
+        <tr><td>As decisões da seção 19</td><td><strong>6 aplicadas</strong>; a 7ª adiada por sua escolha</td></tr>
+        <tr><td>Banco</td><td>5 → <strong>7 tabelas</strong> · 19 → <strong>25 funções</strong> · 10 → <strong>12 policies</strong> · 10 → <strong>15 triggers</strong></td></tr>
+        <tr><td>Testes SQL</td><td>10 → <strong>14</strong> (os 4 novos cobrem a contratação de módulo)</td></tr>
+        <tr><td>Testes automatizados</td><td>19, todos passando (não mudaram — o degrau não tocou em dinheiro nem datas)</td></tr>
+        <tr><td>Ferramenta nova</td><td><code>npm run modulos:verificar</code> — o verificador de LEGO</td></tr>
+        <tr><td>Arquivos</td><td>8 alterados · 8 novos · 2 apagados · 1 movido</td></tr>
+        <tr><td>Validações executadas</td><td><code>npm test</code> ✅ · <code>tsc</code> web ✅ · <code>tsc</code> app ✅ · <code>eslint</code> ✅ · <code>build</code> ✅ · verificador ✅</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="highlight-box">
+    <span class="box-title">A frase que resume o degrau</span>
+    <p style="margin-top:6px">Nenhum módulo foi criado. O que entrou foi <strong>o encaixe</strong>: a plataforma agora sabe receber e devolver peças, e sabe <em>provar</em> que continua solta delas. O estado de referência — Sol sem nenhuma peça — está de pé, compila, passa nos testes e passa no verificador.</p>
+  </div>
+</section>
+
+<section id="s3">
+  <h2>3. As suas decisões e o que fiz com cada uma</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Decisão (seção 19 do degrau 4)</th><th>O que fiz</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Identificador <code>financeiro</code>, prefixo <code>fin_</code></td><td>Gravado como convenção no <code>MODULOS.md</code>. Nada foi criado com esse nome — o módulo é o próximo degrau.</td></tr>
+        <tr><td>2</td><td>Banco: prefixo no <code>public</code> (opção A)</td><td>Documentado como a regra de todo módulo. O verificador confere o prefixo indiretamente, pela regra R5.</td></tr>
+        <tr><td>3</td><td>Catálogo <code>platform_modules</code></td><td><strong>Criado no schema</strong>, com validação de formato no próprio banco. Seção 5.</td></tr>
+        <tr><td>4</td><td>Nível "a empresa contrata" (<code>tenant_modules</code>)</td><td><strong>Criado</strong>, com gatilho que recusa liberar ao membro o que não foi contratado. Seção 6.</td></tr>
+        <tr><td>5</td><td>Auditoria do módulo só em <code>UPDATE</code> e <code>DELETE</code></td><td>Gravado como regra no <code>MODULOS.md</code>. Vale para o SQL do primeiro módulo — as tabelas da plataforma continuam auditando as três operações.</td></tr>
+        <tr><td>6</td><td>Verificador de LEGO</td><td><strong>Escrito e testado</strong> com um módulo de mentira. Seção 8.</td></tr>
+        <tr><td>7</td><td>Estudo de modelagem antes de implementar o módulo</td><td><span class="tag tag-dec">ADIADO POR VOCÊ</span> — debateremos num degrau futuro.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="s4">
+  <h2>4. O soquete: manifesto e registro</h2>
+  <p><span class="tag tag-ok">FEITO E VALIDADO</span> São dois arquivos pequenos no Core, e eles são a razão de tudo o mais funcionar.</p>
+
+  <h3>4.1 <code>packages/core/src/modules/tipos.ts</code> — o formato do pino</h3>
+  <p>Declara o <code>ManifestoDeModulo</code>: id, nome, descrição, rota, prefixo de banco, versão e a versão mínima de plataforma exigida. <strong>É a única coisa que a plataforma sabe sobre um módulo.</strong></p>
+  <div class="callout callout-ambar">
+    <span class="box-title">A regra escrita dentro do próprio arquivo</span>
+    <p style="margin-top:6px">"Nunca acrescente a este tipo um campo que só um módulo usa." No dia em que <code>ManifestoDeModulo</code> ganhar <code>taxaDeJuros?: number</code>, a plataforma terá passado a conhecer o negócio de uma das peças — e a peça seguinte carregará um campo sem sentido para ela.</p>
+  </div>
+
+  <h3>4.2 <code>packages/core/src/modules/registro.ts</code> — ⚡ o ponto de solda nº 1</h3>
+  <p>Hoje ele está assim, e isto <strong>não é um esboço</strong>: é o estado correto de uma plataforma sem módulos.</p>
+  <pre>export const MODULOS_INSTALADOS: ManifestoDeModulo[] = [
+  // (nenhum módulo conectado — ver `MODULOS.md`)
+];
+
+export function modulosDoMembro(permitidos) { ... }   // cruza ids com manifestos
+export function manifestoDoModulo(id) { ... }         // acha um manifesto pelo id</pre>
+
+  <div class="example-box">
+    <span class="box-title">Uma decisão de projeto que vale explicar: o id órfão é ignorado em silêncio</span>
+    <p style="margin-top:6px">Se um módulo for desplugado do código mas ainda houver membros com ele em <code>allowed_modules</code>, o menu simplesmente <strong>não desenha o cartão</strong> — em vez de quebrar a tela do cliente com um destino que não existe mais. A limpeza dessas sobras é responsabilidade do reset do módulo (regra B5 do degrau 4, agora escrita no mapa).</p>
+    <p>É o mesmo princípio do <code>settingsService</code>, que devolve a paleta de fábrica quando o banco não responde: <strong>a tela do cliente não é o lugar de denunciar inconsistência interna.</strong></p>
+  </div>
+</section>
+
+<section id="s5">
+  <h2>5. O catálogo no banco (lacuna L1)</h2>
+  <p><span class="tag tag-par">FEITO, FALTA RODAR NO BANCO</span> A tabela <code>platform_modules</code> resolve o "módulo fantasma".</p>
+
+  <div class="antes-depois">
+    <div class="antes">
+      <b>Antes</b>
+      <code>allowed_modules</code> aceitava qualquer texto. Digitar <code>'financiero'</code> gravava sem reclamar; o membro "tinha" um módulo que nunca abriria, e nada no sistema sabia dizer por quê.
+    </div>
+    <div class="depois">
+      <b>Agora</b>
+      Todo módulo existe como linha em <code>platform_modules</code>, com o id validado pelo próprio banco (<code>^[a-z][a-z0-9_]{2,29}$</code>). O que não está no catálogo é recusado na hora.
+    </div>
+  </div>
+
+  <h3>5.1 Quem escreve no catálogo — e por que não é a aplicação</h3>
+  <p><strong>Quem grava a linha é o <code>&lt;nome&gt;_02_seed.sql</code> do próprio módulo</strong>, colado no SQL Editor junto com o banco dele. Não existe — de propósito — nenhuma função que cadastre módulo pela tela.</p>
+  <div class="callout callout-roxo">
+    <span class="box-title">O motivo, em uma frase</span>
+    <p style="margin-top:6px">Se a aplicação pudesse cadastrar módulos, existiria um módulo no catálogo <strong>sem tabelas, sem telas e sem manifesto</strong> — um nome apontando para o vazio, contratável por empresas, liberável a membros, e que só falharia na hora de abrir. O catálogo é consequência da existência do módulo, nunca a causa.</p>
+  </div>
+</section>
+
+<section id="s6">
+  <h2>6. As duas chaves: contratar × liberar (lacuna L4)</h2>
+  <p><span class="tag tag-par">FEITO, FALTA RODAR NO BANCO</span> Esta é a mudança de comportamento mais relevante do degrau.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Chave</th><th>Onde mora</th><th>Quem concede</th><th>Por qual tela</th></tr></thead>
+      <tbody>
+        <tr><td><strong>A empresa contratou</strong></td><td><code>tenant_modules</code> <span class="tag tag-dec">NOVA</span></td><td>Desenvolvedor</td><td>Painel de Engenharia › <strong>Módulos</strong> (tela nova)</td></tr>
+        <tr><td><strong>O membro foi liberado</strong></td><td><code>tenant_members.allowed_modules</code></td><td>Proprietário</td><td>Central de Comando de Tripulação</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>6.1 O buraco concreto que isso fecha</h3>
+  <p>O Proprietário <strong>monta a própria equipe</strong> — o privilégio do banco dá a ele <code>INSERT</code> e <code>UPDATE</code> em <code>tenant_members</code>, limitados pela RLS à empresa dele. Consequência: ele podia escrever <code>allowed_modules = {'financeiro'}</code> para si mesmo, sem que a empresa jamais tivesse contratado o produto. Enquanto não há módulo, isso não tem efeito; no dia em que houver, é acesso a produto sem contratação.</p>
+
+  <h3>6.2 A trava é um gatilho, e isso foi escolha</h3>
+  <pre>-- 7.6 no plataforma_01_schema.sql
+CREATE TRIGGER validar_modulos_membro
+  BEFORE INSERT OR UPDATE OF allowed_modules ON public.tenant_members
+  FOR EACH ROW EXECUTE PROCEDURE public.validar_modulos_do_membro();</pre>
+  <div class="callout callout-ambar">
+    <span class="box-title">Por que gatilho e não policy</span>
+    <p style="margin-top:6px">Uma policy sabe dizer "pode" ou "não pode" para a <strong>linha inteira</strong>. Aqui é preciso olhar <strong>cada item de um array</strong> e dizer qual deles é o problema. O gatilho consegue nomear o módulo recusado na mensagem de erro — e uma mensagem que nomeia o culpado é a diferença entre um minuto e uma tarde de depuração.</p>
+  </div>
+
+  <h3>6.3 Descontratar limpa os membros — na mesma transação</h3>
+  <p>A função <code>admin_set_tenant_module(tenant, modulo, ativo)</code>, ao desligar um contrato, também remove aquele módulo do <code>allowed_modules</code> de todos os membros da empresa.</p>
+  <div class="example-box">
+    <span class="box-title">Por que isso não podia ficar para uma segunda chamada</span>
+    <p style="margin-top:6px">Se o contrato fosse desligado e a limpeza não acontecesse, os vínculos ficariam com um módulo que a empresa não tem mais — e aí o <strong>próximo</strong> <code>UPDATE</code> em <code>tenant_members</code> (mudar o papel de alguém, desativar um colaborador) seria <strong>recusado pelo gatilho</strong> por causa de um resto que ninguém pediu. O Proprietário veria um erro incompreensível ao mexer em outra coisa. É exatamente a proibição do <code>CLAUDE.md</code>: operação multi-passo é <em>uma</em> função no banco.</p>
+  </div>
+</section>
+
+<section id="s7">
+  <h2>7. A web passou a listar módulos (lacuna L3)</h2>
+  <p><span class="tag tag-ok">FEITO E VALIDADO</span> O <code>OperationalDashboardView</code> era um cartaz fixo: mostrava "Aguardando Liberação" para todo mundo, sempre, e ignorava o banco. O aplicativo já fazia certo desde a v10.</p>
+
+  <pre>const modulos = modulosDoMembro(modulosPermitidos);   // ← do registro do Core
+
+{modulos.length === 0
+  ? &lt;EstadoVazio /&gt;
+  : modulos.map((m) =&gt; &lt;ModuleCard key={m.id} modulo={m} /&gt;)}</pre>
+
+  <div class="highlight-box">
+    <span class="box-title">Repare no que este arquivo NÃO tem</span>
+    <p style="margin-top:6px">O nome de nenhum módulo. Ele recebe identificadores do banco, pede os manifestos ao registro e desenha um cartão para cada um. <strong>Plugar o décimo módulo não vai exigir tocar nesta tela</strong> — é isso que distingue um encaixe de uma lista de <code>if</code>.</p>
+  </div>
+
+  <h3>7.1 A conta é feita no banco, não na tela</h3>
+  <p>O painel chama <code>moduleService.modulosPermitidos(tenantId)</code>, que chama a função <code>modulos_do_membro()</code>. É ela que cruza as três condições: liberado ao membro, contratado pela empresa e ativo no catálogo.</p>
+  <p>A tela poderia cruzar isso sozinha — e seria mais rápido de escrever. Mas então a regra viveria no navegador, <strong>onde se edita com o console aberto</strong>. É a lição do degrau 3 aplicada de novo.</p>
+
+  <h3>7.2 A tela nova do Painel de Engenharia</h3>
+  <p><code>/dashboard/modulos</code>: lista as empresas à esquerda, o catálogo à direita, com um botão por módulo. Descontratar pede confirmação e avisa, no texto da confirmação, que os membros também perderão o acesso — porque é isso que vai acontecer.</p>
+  <p>Com zero módulos (hoje), ela mostra um aviso âmbar explicando que o registro do Core está vazio e o que fazer. <strong>Tela vazia sem explicação é defeito; tela vazia que ensina o próximo passo é documentação.</strong></p>
+</section>
+
+<section id="s8">
+  <h2>8. O verificador de LEGO (lacuna L6) — e a prova de que ele funciona</h2>
+  <p><span class="tag tag-ok">FEITO E VALIDADO</span> <code>npm run modulos:verificar</code>. Node puro, sem dependência nova, como os testes do Core.</p>
+
+  <pre>🔍 VERIFICADOR DE LEGO — Plataforma Jairo O D C
+──────────────────────────────────────────────────────────────────────
+Módulos instalados: nenhum (o Sol sem peças — estado de referência)
+Arquivos de código varridos: 200
+
+✅ Nenhuma violação. Plataforma e módulos continuam soltos.</pre>
+
+  <h3>8.1 As quatro perguntas que ele faz</h3>
+  <ol>
+    <li>O nome de algum módulo aparece <strong>fora</strong> das pastas dele e <strong>fora</strong> dos pontos de solda? (R1/R8)</li>
+    <li>Algum módulo importa outro módulo? (R3)</li>
+    <li>Algum SQL de módulo altera tabela da plataforma? (R5)</li>
+    <li>Existe módulo pela metade — código sem banco, ou banco sem código?</li>
+  </ol>
+
+  <h3>8.2 A prova: plantei um módulo de mentira com violações de propósito</h3>
+  <p>Um verificador que nunca acusou nada é indistinguível de um verificador quebrado. Então criei um módulo falso (<code>exemplo</code>) com dois erros plantados e rodei:</p>
+  <pre>❌ 2 violação(ões) das regras do MODULOS.md:
+   • R1/R8 · apps/admin-web/src/lib/tempTeste.ts:1 cita o módulo "exemplo" fora do
+     território dele e fora dos pontos de solda.
+        export const rotaDoModulo = "/dashboard/exemplo";
+   • R5 · supabase/criar-bd-exemplo/exemplo_01_schema.sql:1 altera a tabela da
+     plataforma "users". Módulo cria as próprias tabelas e aponta para a
+     plataforma por chave estrangeira.
+        ALTER TABLE public.users ADD COLUMN limite_credito numeric;
+
+A plataforma e os módulos estão grudados. Corrija antes de seguir.   (exit 1)</pre>
+  <p>Acusou os dois, com arquivo e linha, e saiu com código de erro — o que permite usá-lo em automação no futuro. Depois apaguei o módulo de mentira; o repositório voltou a passar limpo.</p>
+
+  <div class="callout callout-roxo">
+    <span class="box-title">Duas decisões que fazem a diferença entre uma ferramenta usada e uma ignorada</span>
+    <p style="margin-top:6px"><strong>1. Comentário não é solda.</strong> O <code>lib/dinheiro.ts</code> diz, num TSDoc, que foi escrito para o C FINANCEIRO. Isso não quebra nada quando o módulo sai — e reclamar disso treinaria você a ignorar o verificador.</p>
+    <p><strong>2. E-mail de exemplo não é módulo.</strong> Na primeira versão, o módulo de teste chamado <code>exemplo</code> casou dentro de <code>voce@exemplo.com</code>, em dois arquivos do mobile e três linhas do teste SQL: cinco falsos positivos. Agora ocorrências dentro de e-mail e de domínio são descartadas. <strong>Verificador que grita à toa é desligado na terceira vez — e verificador desligado não protege nada.</strong></p>
+  </div>
+</section>
+
+<section id="s9">
+  <h2>9. O mapa <code>MODULOS.md</code> (lacuna L5)</h2>
+  <p><span class="tag tag-ok">FEITO E VALIDADO</span> Na raiz, ao lado do <code>CLAUDE.md</code>, com dez blocos: o que é plataforma, os módulos conectados, os pontos de solda, as 10 regras, a anatomia de um módulo, os roteiros de conectar e desconectar, o histórico dos que já saíram, as duas chaves de acesso e o verificador.</p>
+
+  <div class="highlight-box">
+    <span class="box-title">O detalhe que faz o mapa não envelhecer</span>
+    <p style="margin-top:6px">A plataforma é definida <strong>por exclusão</strong> ("tudo o que não está no bloco 2") e os módulos <strong>por enumeração</strong>. Se fosse o contrário, bastaria uma pasta nova na plataforma para o mapa passar a mentir. Do jeito que está, ele se mantém verdadeiro sozinho — e a lista que precisa de manutenção é a curta, que muda uma vez por módulo.</p>
+  </div>
+
+  <p>O <code>CLAUDE.md</code> e o <code>README.md</code> apontam para ele. Isso importa por um motivo prático: o <code>CLAUDE.md</code> é o arquivo que eu leio no começo de toda sessão — com o ponteiro lá, as regras do LEGO passam a valer para mim em todo degrau futuro, sem você precisar repeti-las.</p>
+</section>
+
+<section id="s10">
+  <h2>10. A regra que envelheceu, corrigida</h2>
+  <p><span class="tag tag-ok">FEITO E VALIDADO</span> A regra 6 de "Adicionar novo módulo" mandava usar <code>supabaseAdmin</code> — removido do Core na v10 — enquanto a primeira proibição do mesmo arquivo mandava nunca reintroduzi-lo. Duas frases contraditórias no mesmo documento.</p>
+
+  <div class="antes-depois">
+    <div class="antes">
+      <b>Antes</b>
+      "6. Todos os serviços do módulo que são chamados de Server Actions devem usar <code>supabaseAdmin</code>"
+    </div>
+    <div class="depois">
+      <b>Agora</b>
+      "5. Serviços de módulo usam o cliente <code>anon</code>, protegidos por RLS; o que exigir privilégio vira função <code>SECURITY DEFINER</code> com a checagem dentro do banco — ⚠️ a regra anterior mandava usar <code>supabaseAdmin</code>, que não existe desde a v10"
+    </div>
+  </div>
+
+  <p>Aproveitei para reescrever a seção inteira com as 5 pastas, os 3 pontos de solda e a ordem obrigatória (banco primeiro, tela por último), apontando para o <code>MODULOS.md</code>.</p>
+</section>
+
+<section id="s11">
+  <h2>11. Os bônus, um por um</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Bônus</th><th>O que foi feito</th></tr></thead>
+      <tbody>
+        <tr><td>B1</td><td>Catálogo de módulos no banco</td><td><code>platform_modules</code> criada, com CHECK de formato no id. Seção 5.</td></tr>
+        <tr><td>B2</td><td>Verificador de LEGO</td><td><code>scripts/verificar-modulos.mjs</code> + <code>npm run modulos:verificar</code>, testado com módulo de mentira. Seção 8.</td></tr>
+        <tr><td>B3</td><td>Commit isolado para a solda</td><td>Escrito como passo 6 do roteiro de conexão no <code>MODULOS.md</code>: assim <code>git revert</code> vira o botão de desplugar.</td></tr>
+        <tr><td>B4</td><td>Módulo declara a versão de plataforma</td><td>Campo <code>exigePlataforma</code> no <code>ManifestoDeModulo</code>, com o motivo escrito no TSDoc.</td></tr>
+        <tr><td>B5</td><td>O módulo se autoexclui</td><td>O roteiro do <code>MODULOS.md</code> traz o SQL pronto do reset, inclusive o <code>array_remove</code> que tira as sobras de <code>allowed_modules</code>.</td></tr>
+        <tr><td>B6</td><td>Pasta <code>_estudos/</code> por módulo</td><td><code>_estudos/&lt;nome&gt;/</code> entrou na lista de territórios do módulo — inclusive no verificador.</td></tr>
+        <tr><td>B7</td><td>Limpar a raiz</td><td>Apagados <code>package.json.backup.sdk54</code> e <code>package-lock.json.backup.sdk54</code>; <code>CLAUDE_CODE_MOBILE_PROMPT_01.md</code> desceu para <code>_estudos/</code> (com a referência no <code>CLAUDE.md</code> corrigida).</td></tr>
+        <tr><td>B8</td><td>Fixar o vocabulário</td><td>Tabela de quatro palavras (plataforma, módulo, ponto de solda, manifesto) na Regra de Ouro do <code>CLAUDE.md</code>.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="example-box">
+    <span class="box-title">Sobre o B7: por que apagar backup não é perigoso aqui</span>
+    <p style="margin-top:6px">Aqueles dois arquivos eram cópias manuais de segurança feitas antes da migração do Expo SDK 54 — o hábito de quem não tinha git. <strong>Desde o degrau 3 o repositório é versionado</strong>, e o git guarda todo o histórico: se algum dia aquele conteúdo fizer falta, ele está a um <code>git log</code> de distância. Manter backups manuais ao lado de um repositório versionado é o pior dos dois mundos: ocupa a raiz e ninguém sabe qual está atual.</p>
+  </div>
+</section>
+
+<section id="s12">
+  <h2>12. O banco novo: referência completa</h2>
+  <p>Tudo o que entrou no <code>plataforma_01_schema.sql</code>, com a seção onde está.</p>
+
+  <h3>12.1 Tabelas</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Seção</th><th>Tabela</th><th>O que guarda</th></tr></thead>
+      <tbody>
+        <tr><td>2.6</td><td><code>platform_modules</code></td><td>O catálogo: id (validado por CHECK), nome, descrição, ativo. <strong>Nasce vazia.</strong></td></tr>
+        <tr><td>2.7</td><td><code>tenant_modules</code></td><td>O que cada empresa contratou. <code>ON DELETE CASCADE</code> nos dois lados: apagar a empresa ou o módulo do catálogo leva os contratos junto.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>12.2 Funções</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Seção</th><th>Função</th><th>Para que serve</th></tr></thead>
+      <tbody>
+        <tr><td>5.20</td><td><code>modulo_contratado(tenant, modulo)</code></td><td>A empresa contratou e o módulo está ativo no catálogo?</td></tr>
+        <tr><td>5.21</td><td><code>validar_modulos_do_membro()</code></td><td>Gatilho: recusa liberar ao membro o que a empresa não contratou, nomeando o módulo.</td></tr>
+        <tr><td>5.22</td><td><code>admin_set_tenant_module(...)</code></td><td>Contrata/descontrata, e limpa os membros na mesma transação.</td></tr>
+        <tr><td>5.23</td><td><code>admin_list_tenant_modules(tenant)</code></td><td>O catálogo com a marca do que a empresa já contratou (para a tela).</td></tr>
+        <tr><td>5.24</td><td><code>modulos_do_membro(tenant)</code></td><td>Os módulos que <strong>este</strong> usuário pode abrir: a interseção das três condições.</td></tr>
+        <tr><td>5.25</td><td><code>admin_list_all_tenants()</code></td><td>Todas as empresas, para a tela de contratação. As funções anteriores partiam sempre de um usuário.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>12.3 Policies, triggers e privilégios</h3>
+  <ul>
+    <li><strong>6.6</strong> — catálogo legível por quem está logado. <em>Saber que existe um módulo chamado "financeiro" não é segredo; segredo são os dados dele, que moram nas tabelas do próprio módulo.</em></li>
+    <li><strong>6.7</strong> — cada empresa vê os próprios contratos.</li>
+    <li><strong>7.5</strong> — carimbo de <code>updated_at</code> e auditoria nas duas tabelas novas.</li>
+    <li><strong>7.6</strong> — o gatilho da validação.</li>
+    <li><strong>8</strong> — <code>REVOKE ALL</code> seguido de <code>GRANT SELECT</code> nas duas tabelas; escrita só pelas funções. <strong>Nenhuma policy de INSERT, UPDATE ou DELETE em nenhuma das duas</strong> — é o mesmo desenho de <code>global_settings</code>.</li>
+  </ul>
+</section>
+
+<section id="s13">
+  <h2>13. ⚠️ O que VOCÊ precisa fazer agora</h2>
+  <div class="callout callout-vermelho">
+    <span class="box-title">O banco precisa ser recriado</span>
+    <p style="margin-top:6px">Há duas tabelas novas, seis funções novas, dois triggers novos e um gatilho novo. O banco que está no ar <strong>não os tem</strong> — e enquanto não os tiver, a tela <code>/dashboard/modulos</code> vai dar erro de função inexistente, e o painel do cliente vai listar zero módulos (o que, hoje, é o correto de qualquer forma).</p>
+  </div>
+
+  <ol class="steps">
+    <li><strong>Recriar o banco</strong> no SQL Editor, na ordem: <code>plataforma_00_reset.sql</code> → <code>plataforma_01_schema.sql</code> → <code>plataforma_02_seed.sql</code>. <em>(Como no degrau 3: o reset apaga todos os usuários.)</em></li>
+    <li><strong>Recriar o usuário do Desenvolvedor</strong>: Authentication › Users › Add user (com Auto Confirm) e depois o <code>UPDATE … SET is_superuser = true</code> que está no fim do seed.</li>
+    <li><strong>Conferir a contagem</strong>: 7 tabelas, 25 funções, 12 policies, 15 triggers.</li>
+    <li><strong>Rodar <code>supabase/testes/teste_rls.sql</code></strong> — agora são <strong>14 linhas</strong>, todas devem dizer PASSOU. Os testes 10 a 13 são novos e cobrem exatamente a contratação de módulo.</li>
+    <li><strong>Entrar pelo Google</strong> e pedir a promoção como de costume (o reset apaga os usuários; você nasce <code>pending</code> de novo).</li>
+    <li><strong>Abrir o Painel de Engenharia › Módulos</strong>: a tela deve listar as empresas e mostrar o aviso âmbar de "nenhum módulo instalado no código". <strong>Esse é o comportamento correto de hoje.</strong></li>
+    <li><strong>Enviar o commit</strong> (<code>git push</code>) para a Vercel construir a versão com a tela nova — e conferir no painel dela qual commit foi construído.</li>
+  </ol>
+
+  <div class="example-box">
+    <span class="box-title">Se algum dos 14 testes falhar</span>
+    <p style="margin-top:6px">Me mande a tabela inteira (ou só as linhas <code>FALHOU</code>, com a coluna <code>detalhe</code>). Cada falha aponta para um objeto específico do schema, e a correção é pontual — foi assim que o degrau 3 chegou aos 10 de 10.</p>
+  </div>
+</section>
+
+<section id="s14">
+  <h2>14. Como conferir tudo você mesmo</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>O que verificar</th><th>Comando</th><th>O que deve acontecer</th></tr></thead>
+      <tbody>
+        <tr><td>A plataforma continua solta dos módulos</td><td><code>npm run modulos:verificar</code></td><td>"Nenhuma violação", sem módulos instalados</td></tr>
+        <tr><td>Tudo de uma vez</td><td><code>npm run verificar</code></td><td>testes → verificador → lint → build, nessa ordem</td></tr>
+        <tr><td>O Core não quebrou</td><td><code>npm test</code></td><td>19 passam</td></tr>
+        <tr><td>A tela nova existe</td><td><code>npm run build:web</code></td><td><code>/dashboard/modulos</code> aparece na lista de rotas</td></tr>
+        <tr><td>O aplicativo ainda compila</td><td><code>npx tsc --noEmit</code> em <code>apps/mobile-app</code></td><td>sem erro (o Core mudou; o app importa dele)</td></tr>
+        <tr><td>As travas do banco</td><td><code>teste_rls.sql</code> no SQL Editor</td><td>14 linhas, todas PASSOU</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="s15">
+  <h2>15. Mapa dos arquivos</h2>
+
+  <h3>15.1 Criados</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Arquivo</th><th>Papel</th></tr></thead>
+      <tbody>
+        <tr><td><code>MODULOS.md</code></td><td>O mapa (plataforma × módulos, regras, soldas, roteiros)</td></tr>
+        <tr><td><code>packages/core/src/modules/tipos.ts</code></td><td>O formato do manifesto</td></tr>
+        <tr><td><code>packages/core/src/modules/registro.ts</code></td><td>⚡ O soquete — ponto de solda nº 1</td></tr>
+        <tr><td><code>packages/core/src/services/platform/moduleService.ts</code></td><td>Catálogo, contratos e módulos permitidos</td></tr>
+        <tr><td><code>apps/admin-web/src/app/dashboard/modulos/page.tsx</code></td><td>Tela de contratação (Painel de Engenharia)</td></tr>
+        <tr><td><code>apps/admin-web/src/components/dashboard/modules/ModuleCard.tsx</code></td><td>O cartão de um módulo no painel do cliente</td></tr>
+        <tr><td><code>scripts/verificar-modulos.mjs</code></td><td>O verificador de LEGO</td></tr>
+        <tr><td><code>_estudos/degrau-05-saneamentos.html</code></td><td>Este documento</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>15.2 Alterados</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Arquivo</th><th>O que mudou</th></tr></thead>
+      <tbody>
+        <tr><td><code>supabase/criar-bd/plataforma_01_schema.sql</code></td><td>2 tabelas, 6 funções, 2 policies, 5 triggers, grants e contagem do rodapé</td></tr>
+        <tr><td><code>supabase/criar-bd/plataforma_00_reset.sql</code></td><td>Derruba as tabelas e funções novas, na ordem certa</td></tr>
+        <tr><td><code>supabase/testes/teste_rls.sql</code></td><td>4 testes novos (10 a 13) + limpeza do módulo de mentira</td></tr>
+        <tr><td><code>packages/core/src/index.ts</code></td><td>Exporta o registro, os tipos e o <code>moduleService</code></td></tr>
+        <tr><td><code>apps/admin-web/src/app/dashboard/page.tsx</code></td><td>Carrega os módulos permitidos e os passa ao painel</td></tr>
+        <tr><td><code>apps/admin-web/.../OperationalDashboardView.tsx</code></td><td>Deixou de ser cartaz fixo; lista os módulos pelo registro</td></tr>
+        <tr><td><code>apps/admin-web/.../DeveloperDashboardView.tsx</code></td><td>Terceiro cartão: "Módulos"</td></tr>
+        <tr><td><code>CLAUDE.md</code> · <code>README.md</code> · <code>package.json</code></td><td>Vocabulário, regras, histórico, ponteiros e o script do verificador</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>15.3 Apagados e movidos</h3>
+  <ul>
+    <li><code>package.json.backup.sdk54</code> e <code>package-lock.json.backup.sdk54</code> — apagados (B7)</li>
+    <li><code>CLAUDE_CODE_MOBILE_PROMPT_01.md</code> → <code>_estudos/</code> (B7)</li>
+  </ul>
+</section>
+
+<section id="s16">
+  <h2>16. O que eu NÃO fiz, e por quê</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>O que</th><th>Por quê</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag tag-nao">NÃO FEITO</span> Rodar o SQL novo num banco</td><td>Não tenho acesso ao seu Supabase. É a seção 13.</td></tr>
+        <tr><td><span class="tag tag-nao">NÃO FEITO</span> Criar o módulo Controle Financeiro</td><td>Depende do projeto que você tem escrito e da decisão 7, que você adiou.</td></tr>
+        <tr><td><span class="tag tag-nao">NÃO FEITO</span> Mexer no <code>apps/mobile-app</code></td><td>Decisão sua de 12/09: o foco é o <code>admin-web</code>. O app <strong>compila</strong> com o Core novo (conferi), e continua listando <code>allowed_modules</code> como fazia. Quando o mobile voltar, ele passa a usar o mesmo registro — e aí os cartões dele ganham nome e ícone de verdade.</td></tr>
+        <tr><td><span class="tag tag-nao">NÃO FEITO</span> Interface para o Proprietário escolher módulos da equipe</td><td>O <code>TeamManagementModal</code> hoje grava <code>allowed_modules: []</code>. Com o catálogo pronto, ele pode virar caixas de seleção — mas sem nenhum módulo no catálogo a tela ficaria vazia. Faz sentido junto com o primeiro módulo.</td></tr>
+        <tr><td><span class="tag tag-dec">DECISÃO</span> Não criei função para cadastrar módulo pela tela</td><td>Seção 5.1: o catálogo é consequência da existência do módulo, nunca a causa.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="s17">
+  <h2>17. Bônus novo: sugestões desta rodada</h2>
+  <p>Coisas que surgiram enquanto eu implementava, não estavam no degrau 4, e que eu recomendo.</p>
+
+  <h3>N1 — Rodar o verificador automaticamente antes de cada commit</h3>
+  <p>Hoje ele é manual. Um <em>hook</em> de pre-commit do git (ou uma linha no <code>npm run verificar</code>, que já existe) faria a checagem acontecer sem ninguém lembrar. <strong>A regra que depende de memória humana é a regra que falha.</strong> Custa cinco minutos.</p>
+
+  <h3>N2 — Um segundo módulo de mentira, permanente, só para teste</h3>
+  <p>Hoje a única prova de que o encaixe funciona fim a fim é o raciocínio. Um módulo mínimo (<code>exemplo</code>, com uma tabela e uma tela de "olá") plugado e desplugado <strong>uma vez</strong>, antes do financeiro, exercitaria o caminho inteiro — e qualquer surpresa apareceria num módulo descartável, não no que guarda dinheiro.</p>
+
+  <h3>N3 — O <code>TeamManagementModal</code> precisa tratar o erro do gatilho</h3>
+  <p>Quando o Proprietário tentar liberar um módulo não contratado, o banco devolverá a mensagem <em>"Módulo(s) não contratado(s) por esta empresa: X"</em>. Hoje aquela tela mostraria isso como erro genérico. Vale exibir a mensagem do banco tal como ela vem — ela já foi escrita para ser lida por gente.</p>
+
+  <h3>N4 — Guardar o número de versão da plataforma no banco</h3>
+  <p>O manifesto declara <code>exigePlataforma: 'v10'</code>, mas hoje nada compara isso com a plataforma real em execução. Uma linha em <code>global_settings</code> com a versão do schema permitiria ao registro avisar: <em>"este módulo exige v11, esta plataforma é v10"</em>. Só vale a pena quando existir o segundo módulo — anoto para não se perder.</p>
+
+  <h3>N5 — Documentar o que acontece com dados do módulo ao desplugar</h3>
+  <p>O roteiro atual apaga as tabelas do módulo. <strong>Isso apaga os dados dos clientes daquele módulo.</strong> Para o financeiro, é uma decisão séria: talvez o reset deva ter dois modos — "desplugar guardando os dados" (só tira o código e o catálogo) e "desplugar apagando tudo". Vale decidir antes de existir o primeiro registro financeiro, não depois.</p>
+</section>
+
+<section id="s18">
+  <h2>18. Próximo degrau</h2>
+  <p>O encaixe está pronto. O caminho natural a partir daqui:</p>
+  <ol class="steps">
+    <li><strong>Você recria o banco e roda o <code>teste_rls.sql</code></strong> (seção 13). Sem isso, nada do que foi escrito neste degrau está provado.</li>
+    <li><strong>Você me passa o projeto do Controle Financeiro.</strong> Antes de modelar tabelas, precisamos fechar as <strong>permissões do papel Dependente</strong> — pendente desde o degrau 3, e que muda o desenho do banco do módulo.</li>
+    <li><strong>Decidimos a decisão 7</strong> (estudo de modelagem antes, ou implementação direta) — você adiou, e ela volta aqui.</li>
+    <li>Opcionalmente, o <strong>N2</strong>: plugar e desplugar um módulo de mentira antes do real, para exercitar o caminho inteiro com algo descartável.</li>
+  </ol>
+
+  <div class="highlight-box">
+    <span class="box-title">Onde a plataforma está agora</span>
+    <p style="margin-top:6px">Um Sol completo, sem nenhuma peça: 7 tabelas, 25 funções, 12 policies, 15 triggers, 19 testes automatizados, 14 travas SQL e um verificador que prova que ninguém grudou nada. A primeira peça pode ser encaixada — e, mais importante, <strong>pode ser retirada</strong>.</p>
+  </div>
+</section>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var container = document.querySelector('.print-container');
+  var printButton = document.getElementById('printButton');
+  var printMenu = document.getElementById('printMenu');
+  var optionColor = document.getElementById('printColor');
+  var optionBW = document.getElementById('printBW');
+  var body = document.body;
+  var printing = false;
+
+  if (!container || !printButton || !printMenu || !optionColor || !optionBW) {
+    console.error('[Impressão] Elementos do menu não encontrados.');
+    return;
+  }
+
+  function openMenu() {
+    printMenu.classList.add('open');
+    printButton.setAttribute('aria-expanded', 'true');
+  }
+
+  function closeMenu() {
+    printMenu.classList.remove('open');
+    printButton.setAttribute('aria-expanded', 'false');
+  }
+
+  function toggleMenu() {
+    if (printMenu.classList.contains('open')) {
+      closeMenu();
+    } else {
+      openMenu();
+    }
+  }
+
+  // Marca o intervalo em que a janela de impressão está aberta.
+  window.addEventListener('beforeprint', function () {
+    printing = true;
+  });
+
+  window.addEventListener('afterprint', function () {
+    printing = false;
+    body.classList.remove('print-bw');
+  });
+
+  // OPÇÃO "CORES (A4)": remove .print-bw, espera 100ms e imprime.
+  function printInColor() {
+    body.classList.remove('print-bw');
+    setTimeout(function () {
+      window.print();
+    }, 100);
+  }
+
+  // OPÇÃO "PRETO & BRANCO (A4)": adiciona .print-bw, espera 100ms, imprime
+  // e remove a classe 100ms depois (se a janela de impressão já tiver fechado).
+  function printInBlackAndWhite() {
+    body.classList.add('print-bw');
+    setTimeout(function () {
+      window.print();
+      setTimeout(function () {
+        if (!printing) {
+          body.classList.remove('print-bw');
+        }
+      }, 100);
+    }, 100);
+  }
+
+  printButton.addEventListener('click', function (event) {
+    event.stopPropagation();
+    toggleMenu();
+  });
+
+  // Cliques e toques dentro do menu não sobem até o document.
+  printMenu.addEventListener('click', function (event) {
+    event.stopPropagation();
+  });
+
+  printMenu.addEventListener('mousedown', function (event) {
+    event.stopPropagation();
+  });
+
+  printMenu.addEventListener('touchstart', function (event) {
+    event.stopPropagation();
+  }, { passive: true });
+
+  optionColor.addEventListener('click', function (event) {
+    event.stopPropagation();
+    closeMenu();
+    printInColor();
+  });
+
+  optionBW.addEventListener('click', function (event) {
+    event.stopPropagation();
+    closeMenu();
+    printInBlackAndWhite();
+  });
+
+  // Fecha só quando o clique acontece FORA do container.
+  document.addEventListener('click', function (event) {
+    if (!container.contains(event.target)) {
+      closeMenu();
+    }
+  });
+
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') {
+      closeMenu();
+    }
+  });
+
+  console.log('[Impressão] Menu de impressão carregado com sucesso (Cores A4 e Preto & Branco A4).');
+})();
+</script>
+
+</body>
+</html>

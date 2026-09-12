@@ -121,9 +121,10 @@ A criação do banco é manual, pelo SQL Editor, conforme acima.
 npm install       # instala todos os workspaces
 npm run web       # dev do admin-web
 npm test          # node --test sobre packages/core
+npm run modulos:verificar   # o verificador de LEGO (plataforma x modulos)
 npm run lint:web
 npm run build:web
-npm run verificar # os três acima, em ordem
+npm run verificar # os quatro acima, em ordem
 ```
 
 **`apps/mobile-app`:**
@@ -148,6 +149,11 @@ pelos apps. Nunca escreva validação, chamada ao Supabase ou evento de telemetr
 Quem autoriza é **o banco**: RLS em todas as tabelas, privilégios por coluna e
 funções `admin_*` que conferem `is_superuser()`. Esconder um botão nunca foi
 controle de acesso.
+
+A plataforma é o **Sol**; cada módulo é uma **peça de LEGO** que se pluga e se
+despluga. O mapa dessa montagem — o que é plataforma, o que é módulo, os pontos
+de solda e os roteiros de conectar/desconectar — é **[`MODULOS.md`](./MODULOS.md)**,
+e `npm run modulos:verificar` confere as regras dele em segundos.
 
 Regras completas, convenções obrigatórias e lições aprendidas: **[`CLAUDE.md`](./CLAUDE.md)**.
 Detalhes de rotas e proxy do Next.js 16: `apps/admin-web/AGENTS.md`.

@@ -7,6 +7,61 @@ Leia-o integralmente antes de tocar em qualquer arquivo.
 
 ## ⚠️ Histórico de Mudanças
 
+**2026-09-12 — v10: degrau 5, o soquete dos módulos (a plataforma vira LEGO de verdade)**
+
+O pedido do degrau 4 virou código: a Plataforma Jairo O D C é o **Sol**, cada módulo é
+uma **peça** que se pluga e se despluga. Nenhum módulo foi criado — o que entrou foi o
+**encaixe**. **Exige recriar o banco** (`00 → 01 → 02`), porque há duas tabelas novas.
+
+| Frente | O que entrou |
+|---|---|
+| Mapa | ✨ **`MODULOS.md`** na raiz — o que é plataforma, o que é módulo, as 10 regras, os pontos de solda, como conectar e desconectar |
+| Banco | 2 tabelas novas (`platform_modules`, `tenant_modules`), 6 funções, 2 policies, 5 triggers — passou a **7 tabelas, 25 funções, 12 policies, 15 triggers** |
+| Core | ✨ `modules/tipos.ts` (o formato do manifesto), ✨ `modules/registro.ts` (⚡ o soquete) e ✨ `services/platform/moduleService.ts` |
+| admin-web | `OperationalDashboardView` passou a **listar os módulos de verdade**; ✨ `dashboard/modulos/` (contratação por empresa); ✨ `components/dashboard/modules/ModuleCard.tsx` |
+| Ferramenta | ✨ `scripts/verificar-modulos.mjs` + `npm run modulos:verificar` — falha se plataforma e módulo se grudarem |
+| Testes | `teste_rls.sql` foi de 10 para **14 testes** (os 4 novos cobrem a contratação) |
+| Limpeza | os 2 `*.backup.sdk54` da raiz foram apagados; `CLAUDE_CODE_MOBILE_PROMPT_01.md` desceu para `_estudos/` |
+
+⚠️ **A REGRA 6 DE "ADICIONAR NOVO MÓDULO" ESTAVA OBSOLETA E CONTRADIZIA A PROIBIÇÃO Nº 1.**
+Ela mandava usar `supabaseAdmin` nos serviços de módulo chamados por Server Actions — e o
+`supabaseAdmin` foi **removido do Core na v10**. Agora serviço de módulo usa o cliente
+`anon` protegido por RLS; o que exigir privilégio vira função `SECURITY DEFINER` com a
+checagem dentro do banco.
+
+⚠️ **`allowed_modules` DEIXOU DE ACEITAR TEXTO LIVRE.** Um erro de digitação
+(`'financiero'`) criava um módulo fantasma que nunca abriria, e ninguém descobriria por
+quê. Agora todo módulo existe como linha em `platform_modules`, escrita pelo **seed do
+próprio módulo** — nunca pela aplicação: um módulo no catálogo sem tabelas, sem telas e
+sem manifesto é um nome apontando para o vazio.
+
+⚠️ **AGORA SÃO DUAS CHAVES PARA ABRIR UM MÓDULO: A EMPRESA CONTRATOU (`tenant_modules`) E
+O MEMBRO FOI LIBERADO (`tenant_members.allowed_modules`).** Faltava a primeira, e a falta
+tinha consequência concreta: o Proprietário **monta a própria equipe**, então podia
+escrever `allowed_modules = {financeiro}` para si mesmo sem que a empresa tivesse
+contratado nada. O gatilho `validar_modulos_membro` recusa isso e **nomeia o módulo** na
+mensagem de erro.
+
+⚠️ **DESCONTRATAR LIMPA OS MEMBROS NA MESMA TRANSAÇÃO.** Se `admin_set_tenant_module`
+apenas desligasse o contrato, os vínculos ficariam com um módulo que a empresa não tem
+mais — e o próximo UPDATE em `tenant_members` (mudar o papel de alguém) seria recusado
+pelo gatilho por causa de um resto que ninguém pediu.
+
+⚠️ **A WEB IGNORAVA `allowed_modules`; O APLICATIVO, NÃO.** O `OperationalDashboardView`
+era um cartaz fixo de "Aguardando Liberação" — liberar um módulo não mudava nada na tela.
+O mobile já lia a coluna desde a v10. Agora os dois leem, e a web usa o registro do Core:
+**nenhum arquivo da plataforma cita o nome de um módulo**, então plugar o décimo não vai
+exigir tocar nessa tela.
+
+⚠️ **O VERIFICADOR IGNORA COMENTÁRIOS E E-MAILS DE EXEMPLO, DE PROPÓSITO.** Um TSDoc que
+menciona o módulo (o `lib/dinheiro.ts` diz ter sido escrito para o C FINANCEIRO) não
+quebra nada ao desplugar; e um módulo chamado `exemplo` casaria dentro de
+`voce@exemplo.com`. Verificador que grita à toa é desligado na terceira vez — e
+verificador desligado não protege nada. **Ele foi testado com um módulo de mentira,
+plantado com violações de propósito: acusou as duas e saiu com código 1.**
+
+---
+
 **2026-09-11 — v10: correções de segurança, integridade e documentação (degrau 3)**
 
 A primeira mudança de COMPORTAMENTO da v10. Fecha os achados do estudo de
@@ -148,7 +203,8 @@ em que versão o repositório está:
   "NA v9" / "Até a v9" — 54 menções em 46 arquivos do `mobile-app`;
 - as entradas de histórico abaixo e as seções "Otimização v9", "Menus do sistema — v9",
   "Abas nativas — v9" e "Painel de Engenharia (v9)" deste arquivo;
-- o `CLAUDE_CODE_MOBILE_PROMPT_01.md` inteiro (68 menções): ele descreve a entrega da v9;
+- o `_estudos/CLAUDE_CODE_MOBILE_PROMPT_01.md` inteiro (68 menções): ele descreve a entrega da v9
+  (desceu da raiz para `_estudos/` no degrau 5);
 - `apps/mobile-app/AGENTS.md`: o título "(v9)" da seção do Painel de Engenharia.
 
 ⚠️ **`https://plataforma-jairo-o-d-c-v9-admin-web.vercel.app` NÃO É CARIMBO, É ENDEREÇO.** Está
@@ -956,6 +1012,19 @@ A base multi-tenant (usuários, empresas, autenticação, configurações) é a 
 As funcionalidades de negócio são **Módulos** independentes entre si.
 Nunca misture código de plataforma com código de módulo, nem código de um módulo com outro.
 
+### O vocabulário (use sempre estas quatro palavras com este sentido)
+
+| Palavra | Significa |
+|---|---|
+| **Plataforma** | A base: login, usuários, empresas, permissões, cores, perfil, auditoria. É o **Sol**. Funciona sozinha, sem nenhum módulo |
+| **Módulo** | Um pacote de funcionalidade de negócio que se acopla à base. É a **peça de LEGO**. Pluga e despluga |
+| **Ponto de solda** | Um dos (no máximo 3) lugares da plataforma onde o nome de um módulo pode aparecer. Listados em `MODULOS.md` |
+| **Manifesto** | O cartão de visita que o módulo entrega à plataforma (id, nome, descrição, rota, prefixo de banco, versão) |
+
+> 📖 **`MODULOS.md` na raiz é o mapa**: o que é plataforma, o que é módulo, as 10 regras do
+> LEGO, os pontos de solda, e os roteiros de conectar e desconectar. **Leia-o antes de criar
+> qualquer arquivo de módulo.** O `npm run modulos:verificar` confere as regras em segundos.
+
 ---
 
 ## Estrutura do Monorepo
@@ -974,11 +1043,20 @@ plataforma-jairo-o-d-c-v4/
 │   │   ├── plataforma_00_reset.sql    → Demolidor: derruba tudo do CORE
 │   │   ├── plataforma_01_schema.sql   → Construtor: schema consolidado v10
 │   │   └── plataforma_02_seed.sql     → Hidratador: dados iniciais obrigatórios
-│   ├── testes/             → 🆕 v10: teste_rls.sql prova as travas de acesso no banco
-│   ├── migrations/         → 🆕 v10: vazia; ler o README antes do primeiro dado real
+│   ├── testes/             → teste_rls.sql prova as travas de acesso no banco (14 testes)
+│   ├── migrations/         → vazia; ler o README antes do primeiro dado real
 │   └── config.toml         → Configuração do Supabase CLI
+├── scripts/
+│   └── verificar-modulos.mjs  → 🆕 degrau 5: o verificador de LEGO
+├── _estudos/               → os HTMLs de cada degrau do projeto
+├── MODULOS.md              → 🆕 degrau 5: O MAPA — plataforma × módulos
 └── package.json            → Workspace root
 ```
+
+> 🧩 **Quando houver um módulo**, ele acrescenta 5 pastas com o nome dele:
+> `packages/core/src/modules/<nome>/`, `apps/admin-web/src/app/dashboard/<nome>/`,
+> `apps/admin-web/src/components/<nome>/`, `supabase/criar-bd-<nome>/` e
+> `supabase/testes/teste_<nome>.sql`. Tudo o que **não** tem nome de módulo é plataforma.
 
 ---
 
@@ -988,6 +1066,9 @@ Na **raiz do repositório**:
 ```bash
 npm install          # Instala as dependências de todos os workspaces
 npm run web          # Inicia o admin-web em desenvolvimento (porta 3000)
+npm test             # 19 testes do Core (node:test, sem dependências)
+npm run modulos:verificar   # 🆕 o verificador de LEGO (plataforma × módulos)
+npm run verificar    # testes + verificador + lint + build, em sequência
 ```
 
 > `packages/core` **não tem script de build** e não precisa de um: é consumido como
@@ -1130,11 +1211,11 @@ não evolução incremental — o nome da pasta diz isso explicitamente.
 
 ```
 supabase/criar-bd/
-├── plataforma_00_reset.sql    → O Demolidor  — TRUNCATE auth.users/identities + DROP das 4 tabelas,
-│                                               6 funções e 2 triggers do CORE
-├── plataforma_01_schema.sql   → O Construtor — schema consolidado v10: 2 extensões, 4 tabelas,
-│                                               4 RLS ENABLE, 1 seed, 6 funções, 12 policies,
-│                                               2 triggers, 4 ALTER COLUMN
+├── plataforma_00_reset.sql    → O Demolidor  — TRUNCATE auth.users/identities + DROP das 7 tabelas,
+│                                               das funções e dos triggers do CORE
+├── plataforma_01_schema.sql   → O Construtor — schema consolidado v10: 2 extensões, 7 tabelas,
+│                                               7 RLS ENABLE, 1 seed, 25 funções, 12 policies,
+│                                               15 triggers
 └── plataforma_02_seed.sql     → O Hidratador — dados iniciais obrigatórios (linha `id = 1` de
                                                 `global_settings`), idempotente via DO UPDATE SET
 ```
@@ -1182,10 +1263,19 @@ funções **antes** das policies que as chamam (`check_is_tenant_member`,
 - `tenants` — empresas (id, tenant_name, slug, owner_id, is_active)
 - `tenant_members` — vínculos (tenant_id, user_id, role: OWNER|DEPENDENT|VIEWER, allowed_modules text[], module_configs jsonb)
 - `global_settings` — singleton (id=1), white-label (cores, título) e admin_emails
+- `audit_log` — trilha de auditoria (tabela, registro_id, operação, ator, antes/depois)
+- 🆕 `platform_modules` — **catálogo de módulos** (id, nome, descrição, is_active). Nasce
+  **vazia**: quem escreve a linha é o *seed do próprio módulo*, nunca a aplicação
+- 🆕 `tenant_modules` — **o que cada empresa contratou** (tenant_id, module_id, is_active).
+  Acesso a um módulo = contratado pela empresa **E** liberado ao membro em `allowed_modules`
 
 ### Regras Críticas do Banco
 
 - `allowed_modules` em `tenant_members` é `text[]` — nunca string separada por vírgula
+- Todo id em `allowed_modules` tem de existir em `platform_modules` **e** estar contratado
+  pela empresa em `tenant_modules`: o gatilho `validar_modulos_membro` recusa o resto
+- Quem cruza "liberado ao membro" com "contratado pela empresa" é a função
+  `modulos_do_membro(tenant_id)` — nunca a tela
 - Toda lógica multi-passo no banco deve ser uma única função SQL `SECURITY DEFINER` transacional — nunca uma sequência de chamadas TypeScript separadas
 - RLS ativo em todas as tabelas. Escudo: toda query começa com `tenant_id = p_tenant_id`
 - Views e funções de módulo usam `SECURITY INVOKER` para respeitar RLS do usuário logado
@@ -1675,14 +1765,27 @@ inclusive numa máquina limpa — foi por isso que a versão com bcrypt foi reve
 3. Consumir via `import { nomeService } from '@jairo/core'`
 
 ### Adicionar novo módulo
-1. Criar `packages/core/src/services/modules/<nome>/`
-2. SQL do módulo: `supabase/criar-bd-<nome>/`, arquivos `<nome>_00_reset` / `<nome>_01_schema` /
-   `<nome>_02_seed` — o prefixo é o dono do schema, como `plataforma_*` é o do CORE
-3. Nunca acrescentar DROPs nem CREATEs de módulo aos arquivos de `supabase/criar-bd/` —
+
+> 📖 **O procedimento completo está em `MODULOS.md`, na raiz** — com as 10 regras, os
+> pontos de solda e os roteiros de conectar e desconectar. O resumo:
+
+1. **As 5 pastas**, todas com o nome do módulo:
+   `packages/core/src/modules/<nome>/` (regras + `manifesto.ts`),
+   `apps/admin-web/src/app/dashboard/<nome>/` (telas),
+   `apps/admin-web/src/components/<nome>/`,
+   `supabase/criar-bd-<nome>/` (`<nome>_00_reset` / `_01_schema` / `_02_seed`),
+   `supabase/testes/teste_<nome>.sql`
+2. Nunca acrescentar DROPs nem CREATEs de módulo aos arquivos de `supabase/criar-bd/` —
    essa pasta é exclusiva do CORE
-4. Admin-web: `src/app/dashboard/<nome>/` + `src/components/<nome>/`
-5. Nunca compartilhar tabelas entre módulos
-6. Todos os serviços do módulo que são chamados de Server Actions devem usar `supabaseAdmin`
+3. Nunca compartilhar tabelas entre módulos, e nunca importar um módulo de dentro de outro
+4. **Os 3 pontos de solda** (e só eles): `modules/registro.ts` (2 linhas), `core/src/index.ts`
+   (1 linha) e a linha que o **seed do módulo** grava em `platform_modules`
+5. Serviços de módulo usam o cliente **`anon`**, protegidos por RLS; o que exigir privilégio
+   vira função `SECURITY DEFINER` com a checagem dentro do banco
+   — ⚠️ **a regra anterior mandava usar `supabaseAdmin`, que não existe desde a v10**
+6. Banco primeiro, tela por último: o `teste_<nome>.sql` prova o isolamento entre empresas
+   **antes** de existir interface
+7. Ao terminar: `npm run modulos:verificar` e atualizar o `MODULOS.md` no mesmo commit
 
 ### Uso do cliente Supabase
 - Componentes React no browser: `import { supabase } from '@jairo/core'`
@@ -1728,6 +1831,11 @@ inclusive numa máquina limpa — foi por isso que a versão com bcrypt foi reve
 - ❌ Nunca calcular fuso à mão (`-3 horas`) — use `lib/datas.ts`, que trata o horário de verão pelo `Intl`
 - ❌ Nunca quebrar uma operação transacional do banco em chamadas TypeScript separadas — usar uma função SQL única
 - ❌ Nunca reportar resultado de teste SQL por `RAISE NOTICE` — o SQL Editor do Supabase descarta mensagens do servidor e mostra `Success. No rows returned`; grave os vereditos numa tabela e termine o arquivo com um `SELECT`
+- ❌ Nunca citar o nome de um módulo em arquivo da plataforma fora dos 3 pontos de solda declarados no `MODULOS.md` — rode `npm run modulos:verificar` antes de entregar
+- ❌ Nunca fazer um módulo importar outro módulo — o que os dois precisam sobe para a plataforma
+- ❌ Nunca alterar tabela, função ou policy da plataforma a pedido de um módulo — o módulo cria as próprias tabelas com o prefixo dele e aponta para a plataforma por chave estrangeira
+- ❌ Nunca cadastrar um módulo no catálogo (`platform_modules`) pela aplicação — quem grava é o seed do módulo, e o reset dele apaga
+- ❌ Nunca liberar módulo a um membro sem a empresa ter contratado — são duas chaves, e o gatilho recusa
 - ❌ Nunca criar arquivo com múltiplas responsabilidades distintas
 - ❌ Nunca misturar lógica de plataforma com módulo, nem módulo com módulo
 - ❌ Nunca usar `toISOString()` para datas que precisam respeitar UTC-3

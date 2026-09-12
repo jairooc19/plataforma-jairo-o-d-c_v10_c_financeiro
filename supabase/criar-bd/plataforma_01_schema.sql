@@ -200,6 +200,58 @@ CREATE INDEX IF NOT EXISTS idx_tenant_members_tenant ON public.tenant_members (t
 CREATE INDEX IF NOT EXISTS idx_tenants_owner ON public.tenants (owner_id);
 
 
+-- 2.6 CATÁLOGO DE MÓDULOS (v10 — degrau 5)
+--
+-- 🧩 O SOQUETE DO LEGO, DO LADO DO BANCO. Até o degrau 4 a coluna
+-- `allowed_modules` aceitava QUALQUER texto: escrever 'financiero' criava um
+-- módulo fantasma que nunca abriria, e ninguém descobriria por quê. Agora todo
+-- módulo que existe tem uma linha aqui, e quem a escreve é o SEED DO PRÓPRIO
+-- MÓDULO — a plataforma nasce com esta tabela VAZIA, e isso está certo.
+--
+-- ⚠️ ESTA TABELA É DA PLATAFORMA E NÃO CONHECE MÓDULO NENHUM. Ela guarda o
+-- formato, não o conteúdo: nenhum identificador de módulo aparece no schema do
+-- CORE. Desconectar um módulo é o reset dele apagar a própria linha — e o
+-- ON DELETE CASCADE da 2.7 leva junto todos os contratos.
+CREATE TABLE IF NOT EXISTS public.platform_modules (
+    -- O identificador que vai em `allowed_modules`, nas pastas e na rota do
+    -- módulo. Minúsculas, sem acento e sem espaço, porque ele vira nome de
+    -- pasta e pedaço de URL. O CHECK é a primeira barreira contra o erro de
+    -- digitação que criava módulo fantasma.
+    id text PRIMARY KEY CHECK (id ~ '^[a-z][a-z0-9_]{2,29}$'),
+    nome text NOT NULL,
+    descricao text,
+    is_active boolean NOT NULL DEFAULT true,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- 2.7 CONTRATAÇÃO DE MÓDULO POR EMPRESA (v10 — degrau 5)
+--
+-- 🏢 O NÍVEL QUE FALTAVA. Até aqui só existia "este MEMBRO pode abrir o
+-- módulo" (`tenant_members.allowed_modules`). Não existia "esta EMPRESA
+-- contratou o módulo" — e como o Proprietário monta a própria equipe (ele tem
+-- INSERT e UPDATE em `tenant_members`, limitados pela RLS à empresa dele), ele
+-- podia escrever `allowed_modules = {financeiro}` para si mesmo sem que a
+-- empresa jamais tivesse contratado o produto.
+--
+-- REGRA: acesso efetivo = contratado pela empresa (aqui) E liberado ao membro
+-- (lá). Quem contrata é o Desenvolvedor, por `admin_set_tenant_module`; quem
+-- distribui entre a equipe é o Proprietário, dentro do que foi contratado.
+-- A 5.21 faz cumprir isso no INSERT e no UPDATE de `tenant_members`.
+CREATE TABLE IF NOT EXISTS public.tenant_modules (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id uuid NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+    module_id text NOT NULL REFERENCES public.platform_modules(id) ON DELETE CASCADE,
+    is_active boolean NOT NULL DEFAULT true,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE(tenant_id, module_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_tenant_modules_tenant ON public.tenant_modules (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_tenant_modules_module ON public.tenant_modules (module_id);
+
+
 -- ===========================================================================
 -- 3. HABILITAÇÃO DE ROW LEVEL SECURITY
 -- ===========================================================================
@@ -209,6 +261,9 @@ ALTER TABLE public.global_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tenants         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tenant_members  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_log       ENABLE ROW LEVEL SECURITY;
+-- v10 degrau 5 — o soquete dos módulos nasce com o escudo ligado.
+ALTER TABLE public.platform_modules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tenant_modules   ENABLE ROW LEVEL SECURITY;
 
 
 -- ===========================================================================
@@ -941,6 +996,225 @@ END;
 $$;
 
 
+-- ---------------------------------------------------------------------------
+-- 5.20 a 5.24 — O SOQUETE DOS MÓDULOS (v10 — degrau 5)
+-- Nenhuma destas funções conhece o nome de um módulo. Todas tratam de
+-- identificadores genéricos, vindos do catálogo da 2.6.
+-- ---------------------------------------------------------------------------
+
+-- 5.20 A empresa contratou este módulo, e ele está ativo no catálogo?
+--
+-- ⚠️ É `SECURITY DEFINER` DE PROPÓSITO. Ela é chamada de dentro do gatilho de
+-- validação (5.21), que roda em nome do Proprietário — e a leitura precisa
+-- enxergar o catálogo inteiro para não recusar um contrato legítimo.
+CREATE OR REPLACE FUNCTION public.modulo_contratado(p_tenant_id uuid, p_module_id text)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+      FROM public.tenant_modules tm
+      JOIN public.platform_modules pm ON pm.id = tm.module_id
+     WHERE tm.tenant_id = p_tenant_id
+       AND tm.module_id = p_module_id
+       AND tm.is_active = true
+       AND pm.is_active = true
+  );
+$$;
+
+-- 5.21 GATILHO: ninguém libera a um membro o que a empresa não contratou.
+--
+-- Esta é a trava que fecha a lacuna L4 do degrau 4. Roda no INSERT e no UPDATE
+-- de `tenant_members` e recusa a gravação inteira se qualquer item de
+-- `allowed_modules` não existir no catálogo ou não estiver contratado.
+--
+-- ⚠️ LISTA VAZIA É VÁLIDA, e é o caso mais comum (membro sem módulo nenhum).
+CREATE OR REPLACE FUNCTION public.validar_modulos_do_membro()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_invalidos text;
+BEGIN
+  IF NEW.allowed_modules IS NULL OR array_length(NEW.allowed_modules, 1) IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT string_agg(m, ', ')
+    INTO v_invalidos
+    FROM unnest(NEW.allowed_modules) AS m
+   WHERE NOT public.modulo_contratado(NEW.tenant_id, m);
+
+  IF v_invalidos IS NOT NULL THEN
+    RAISE EXCEPTION
+      'Modulo(s) nao contratado(s) por esta empresa: %. Contrate no Painel de Engenharia antes de liberar ao membro.',
+      v_invalidos
+      USING ERRCODE = '23514';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+-- 5.22 CONTRATAR OU DESCONTRATAR UM MÓDULO PARA UMA EMPRESA (Desenvolvedor).
+--
+-- ⚠️ DESCONTRATAR TAMBÉM LIMPA OS MEMBROS, na mesma transação. Sem isso os
+-- vínculos ficariam com um módulo que a empresa não tem mais — e o próximo
+-- UPDATE em `tenant_members` (mudar o papel de alguém, por exemplo) seria
+-- recusado pela 5.21 por causa de um resto que ninguém pediu. É a regra do
+-- CLAUDE.md: operação multi-passo é UMA função, nunca uma sequência de
+-- chamadas do TypeScript.
+CREATE OR REPLACE FUNCTION public.admin_set_tenant_module(
+  p_tenant_id uuid,
+  p_module_id text,
+  p_ativo boolean
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_membros_limpos integer := 0;
+BEGIN
+  IF NOT public.is_superuser() THEN
+    RAISE EXCEPTION 'Acesso restrito ao Desenvolvedor.' USING ERRCODE = '42501';
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM public.tenants WHERE id = p_tenant_id) THEN
+    RAISE EXCEPTION 'Empresa inexistente.' USING ERRCODE = '23503';
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM public.platform_modules WHERE id = p_module_id) THEN
+    RAISE EXCEPTION 'Modulo % nao esta no catalogo. Rode o seed do modulo antes.', p_module_id
+      USING ERRCODE = '23503';
+  END IF;
+
+  INSERT INTO public.tenant_modules (tenant_id, module_id, is_active)
+  VALUES (p_tenant_id, p_module_id, p_ativo)
+  ON CONFLICT (tenant_id, module_id)
+  DO UPDATE SET is_active = EXCLUDED.is_active, updated_at = now();
+
+  IF p_ativo = false THEN
+    UPDATE public.tenant_members
+       SET allowed_modules = array_remove(allowed_modules, p_module_id)
+     WHERE tenant_id = p_tenant_id
+       AND p_module_id = ANY(allowed_modules);
+    GET DIAGNOSTICS v_membros_limpos = ROW_COUNT;
+  END IF;
+
+  RETURN json_build_object(
+    'success', true,
+    'tenant_id', p_tenant_id,
+    'module_id', p_module_id,
+    'contratado', p_ativo,
+    'membros_limpos', v_membros_limpos
+  );
+END;
+$$;
+
+-- 5.23 O CATÁLOGO INTEIRO, COM A MARCA DO QUE ESTA EMPRESA JÁ CONTRATOU.
+-- Uma consulta só para a tela do Painel de Engenharia: ela precisa mostrar
+-- também o que NÃO está contratado, senão não há o que ligar.
+CREATE OR REPLACE FUNCTION public.admin_list_tenant_modules(p_tenant_id uuid)
+RETURNS TABLE (
+  module_id   text,
+  nome        text,
+  descricao   text,
+  no_catalogo boolean,
+  contratado  boolean
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT public.is_superuser() THEN
+    RAISE EXCEPTION 'Acesso restrito ao Desenvolvedor.' USING ERRCODE = '42501';
+  END IF;
+
+  RETURN QUERY
+    SELECT pm.id,
+           pm.nome,
+           pm.descricao,
+           pm.is_active,
+           COALESCE(tm.is_active, false)
+      FROM public.platform_modules pm
+      LEFT JOIN public.tenant_modules tm
+             ON tm.module_id = pm.id AND tm.tenant_id = p_tenant_id
+     ORDER BY pm.nome;
+END;
+$$;
+
+-- 5.24 OS MÓDULOS QUE **ESTE** USUÁRIO PODE ABRIR NESTA EMPRESA.
+--
+-- É a interseção das três condições: liberado ao membro, contratado pela
+-- empresa e ativo no catálogo. A tela poderia cruzar isso sozinha, mas então a
+-- regra viveria no navegador — e regra que vive no navegador se edita com o
+-- console aberto. Aqui ela vive no banco, como o degrau 3 estabeleceu.
+CREATE OR REPLACE FUNCTION public.modulos_do_membro(p_tenant_id uuid)
+RETURNS text[]
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT COALESCE(array_agg(m ORDER BY m), '{}'::text[])
+    FROM public.tenant_members tmem
+    CROSS JOIN LATERAL unnest(tmem.allowed_modules) AS m
+   WHERE tmem.tenant_id = p_tenant_id
+     AND tmem.user_id = auth.uid()
+     AND tmem.is_active = true
+     AND public.modulo_contratado(p_tenant_id, m);
+$$;
+
+
+-- 5.25 TODAS AS EMPRESAS DA PLATAFORMA (Desenvolvedor).
+--
+-- A tela de contratação de módulos precisa de uma lista de empresas, e as
+-- funções que existiam partiam sempre de um usuário (`admin_list_user_tenants`).
+-- Aqui a pergunta é outra: "quais empresas existem?".
+CREATE OR REPLACE FUNCTION public.admin_list_all_tenants()
+RETURNS TABLE (
+  id            uuid,
+  tenant_name   text,
+  slug          text,
+  is_active     boolean,
+  owner_email   text,
+  qtd_modulos   integer
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT public.is_superuser() THEN
+    RAISE EXCEPTION 'Acesso restrito ao Desenvolvedor.' USING ERRCODE = '42501';
+  END IF;
+
+  RETURN QUERY
+    SELECT t.id,
+           t.tenant_name,
+           t.slug,
+           t.is_active,
+           u.email,
+           (SELECT COUNT(*)::integer
+              FROM public.tenant_modules tm
+             WHERE tm.tenant_id = t.id AND tm.is_active = true)
+      FROM public.tenants t
+      JOIN public.users u ON u.id = t.owner_id
+     ORDER BY t.is_active DESC, t.tenant_name;
+END;
+$$;
+
+
 -- ===========================================================================
 -- 6. POLÍTICAS DE SEGURANÇA (RLS)
 --
@@ -1040,6 +1314,30 @@ FOR SELECT TO authenticated
 USING (public.is_superuser());
 
 
+-- 6.6 PLATFORM MODULES — o catálogo é legível por quem está logado.
+--
+-- Não há segredo em saber que existe um módulo chamado "financeiro": segredo
+-- são os DADOS dele, que moram nas tabelas do próprio módulo, com a RLS de lá.
+-- A escrita não tem policy nenhuma: quem escreve é o seed do módulo (pelo SQL
+-- Editor, como dono do banco) e a função `admin_set_tenant_module`.
+DROP POLICY IF EXISTS "Catálogo de módulos legível" ON public.platform_modules;
+
+CREATE POLICY "Catálogo de módulos legível" ON public.platform_modules
+FOR SELECT TO authenticated
+USING (true);
+
+-- 6.7 TENANT MODULES — cada empresa vê os próprios contratos.
+DROP POLICY IF EXISTS "Contratos visíveis para a empresa" ON public.tenant_modules;
+
+CREATE POLICY "Contratos visíveis para a empresa" ON public.tenant_modules
+FOR SELECT TO authenticated
+USING (
+  public.check_is_tenant_member(tenant_id)
+  OR public.check_is_tenant_owner(tenant_id)
+  OR public.is_superuser()
+);
+
+
 -- ===========================================================================
 -- 7. TRIGGERS
 -- Ordem obrigatória: BEFORE INSERT antes de AFTER INSERT. O carimbo de
@@ -1093,6 +1391,35 @@ DROP TRIGGER IF EXISTS audit_global_settings ON public.global_settings;
 CREATE TRIGGER audit_global_settings AFTER INSERT OR UPDATE OR DELETE ON public.global_settings
   FOR EACH ROW EXECUTE PROCEDURE public.registrar_auditoria();
 
+-- 7.5 O SOQUETE DOS MÓDULOS (v10 — degrau 5): carimbo e auditoria.
+DROP TRIGGER IF EXISTS set_updated_at_platform_modules ON public.platform_modules;
+CREATE TRIGGER set_updated_at_platform_modules BEFORE UPDATE ON public.platform_modules
+  FOR EACH ROW EXECUTE PROCEDURE public.marcar_atualizacao();
+
+DROP TRIGGER IF EXISTS set_updated_at_tenant_modules ON public.tenant_modules;
+CREATE TRIGGER set_updated_at_tenant_modules BEFORE UPDATE ON public.tenant_modules
+  FOR EACH ROW EXECUTE PROCEDURE public.marcar_atualizacao();
+
+DROP TRIGGER IF EXISTS audit_platform_modules ON public.platform_modules;
+CREATE TRIGGER audit_platform_modules AFTER INSERT OR UPDATE OR DELETE ON public.platform_modules
+  FOR EACH ROW EXECUTE PROCEDURE public.registrar_auditoria();
+
+DROP TRIGGER IF EXISTS audit_tenant_modules ON public.tenant_modules;
+CREATE TRIGGER audit_tenant_modules AFTER INSERT OR UPDATE OR DELETE ON public.tenant_modules
+  FOR EACH ROW EXECUTE PROCEDURE public.registrar_auditoria();
+
+-- 7.6 A TRAVA DO CONTRATO (v10 — degrau 5).
+--
+-- ⚠️ É GATILHO, NÃO POLICY, E A DIFERENÇA IMPORTA. Uma policy só sabe dizer
+-- "pode" ou "não pode" para a linha inteira; aqui é preciso olhar CADA item de
+-- um array e dizer qual deles é o problema. O gatilho consegue nomear o módulo
+-- recusado na mensagem de erro — e uma mensagem que nomeia o culpado é a
+-- diferença entre um minuto e uma tarde de depuração.
+DROP TRIGGER IF EXISTS validar_modulos_membro ON public.tenant_members;
+CREATE TRIGGER validar_modulos_membro
+  BEFORE INSERT OR UPDATE OF allowed_modules ON public.tenant_members
+  FOR EACH ROW EXECUTE PROCEDURE public.validar_modulos_do_membro();
+
 
 -- ===========================================================================
 -- 8. PRIVILÉGIOS — A SEGUNDA TRANCA
@@ -1135,6 +1462,13 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.tenant_members TO authenticated;
 -- Auditoria: leitura para o Desenvolvedor (a RLS confere); ninguém escreve.
 GRANT SELECT ON public.audit_log TO authenticated;
 
+-- Módulos (v10 — degrau 5): leitura do catálogo e dos contratos; gravação só
+-- por função administrativa. O REVOKE acima de tudo vale também para elas.
+REVOKE ALL ON public.platform_modules FROM anon, authenticated;
+REVOKE ALL ON public.tenant_modules   FROM anon, authenticated;
+GRANT SELECT ON public.platform_modules TO authenticated;
+GRANT SELECT ON public.tenant_modules   TO authenticated;
+
 -- 8.3 Funções: no PostgreSQL o EXECUTE é concedido a PUBLIC por padrão. Tiramos
 -- tudo e devolvemos nome a nome.
 REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC, anon, authenticated;
@@ -1152,11 +1486,18 @@ GRANT EXECUTE ON FUNCTION public.admin_list_user_tenants(uuid)                TO
 GRANT EXECUTE ON FUNCTION public.admin_sync_user_tenants(uuid, jsonb, uuid[]) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_promote_to_owner(uuid, text)           TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_update_global_settings(jsonb)          TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_set_tenant_module(uuid, text, boolean) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_list_tenant_modules(uuid)              TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_list_all_tenants()                     TO authenticated;
 
 -- As funções de apoio da RLS precisam ser executáveis por quem a RLS avalia.
 GRANT EXECUTE ON FUNCTION public.check_is_tenant_member(uuid)                 TO authenticated;
 GRANT EXECUTE ON FUNCTION public.check_is_tenant_owner(uuid)                  TO authenticated;
 GRANT EXECUTE ON FUNCTION public.can_view_user_profile(uuid)                  TO authenticated;
+
+-- Módulos: o app pergunta ao banco o que este membro pode abrir.
+GRANT EXECUTE ON FUNCTION public.modulos_do_membro(uuid)                      TO authenticated;
+GRANT EXECUTE ON FUNCTION public.modulo_contratado(uuid, text)                TO authenticated;
 
 -- `sync_auth_users` e `gerar_slug_empresa` ficam só para o servidor/manutenção:
 -- nenhum GRANT para anon ou authenticated.
@@ -1200,6 +1541,6 @@ $$;
 --              where email = 'coloque-o-email-aqui';
 --      ⚠️ Não existe mais credencial fixa no código. Sem este passo, o Painel de
 --      Engenharia não abre para ninguém.
---   3. Conferir: 5 tabelas, 19 funções, 10 policies, 10 triggers.
+--   3. Conferir: 7 tabelas, 25 funções, 12 policies, 15 triggers.
 --   4. Rodar `supabase/testes/teste_rls.sql` para verificar as travas de acesso.
 -- ===========================================================================
