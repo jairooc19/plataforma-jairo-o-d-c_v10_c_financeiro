@@ -16,18 +16,22 @@
 -- função está sobrando, faltando ou duplicada. Os blocos 2 a 8 são o detalhe.
 -- O BLOCO 9 é o retrato compacto do banco inteiro (uma linha por objeto, ~15 KB
 -- — é este que vale colar numa conversa); o BLOCO 10 é o retrato completo em
--- JSON (mais de 300 KB, para arquivar).
+-- JSON (~50 KB, para arquivar ou para uma leitura minuciosa).
 --
 -- ---------------------------------------------------------------------------
 -- ⚠️ AS TRÊS ARMADILHAS QUE ESTE ARQUIVO EVITA (e que uma contagem ingênua não)
 -- ---------------------------------------------------------------------------
 --
--- 1. AS EXTENSÕES TRAZEM FUNÇÕES PARA O `public`. O schema faz
---    `CREATE EXTENSION uuid-ossp` e `unaccent` sem dizer em qual schema; elas
---    entram no `public` e levam consigo mais de dez funções
---    (`uuid_generate_v4`, `unaccent`, `unaccent_lexize`…). Contar tudo que há
---    em `pg_proc` daria ~38, não 25. O filtro `pg_depend.deptype = 'e'` remove
---    o que pertence a extensão e deixa só o que É NOSSO.
+-- 1. UMA EXTENSÃO PÕE FUNÇÕES NO `public`. O schema faz
+--    `CREATE EXTENSION IF NOT EXISTS` de `uuid-ossp` e de `unaccent` sem dizer
+--    em qual schema. No banco publicado (retrato de 2026-09-12) o resultado é
+--    misto e vale saber: o `uuid-ossp` **já estava instalado** no schema
+--    `extensions` pelo Supabase, então o `IF NOT EXISTS` não fez nada — e as
+--    funções dele NÃO estão no `public`. Já o `unaccent` foi criado por este
+--    schema e ficou **no `public`**, com as funções dele (`unaccent`,
+--    `unaccent_init`, `unaccent_lexize`). O filtro `pg_depend.deptype = 'e'`
+--    remove tudo que pertence a extensão e deixa só o que É NOSSO — é o que
+--    faz a contagem fechar em 25 em vez de 28.
 --
 -- 2. O TESTE DEIXA UMA TABELA NO BANCO. O `teste_rls.sql` cria
 --    `public.resultado_teste_rls` para poder mostrar o relatório, e ela fica lá
@@ -320,24 +324,43 @@ SELECT z.situacao   AS "situacao",
 -- Se aparecer `role` ou `is_superuser` nessa lista, qualquer usuário logado se
 -- promove a Desenvolvedor pela API — e a RLS não impede, porque ela decide
 -- QUAIS LINHAS, não QUAIS COLUNAS.
+--
+-- ⚠️ A PRIMEIRA VERSÃO DESTE BLOCO TINHA UM PONTO CEGO EXATAMENTE AQUI, e o
+-- retrato do banco publicado o revelou (2026-09-12): ela partia de
+-- `information_schema.table_privileges`, que **só lista privilégio concedido na
+-- TABELA INTEIRA**. Como o `GRANT UPDATE (colunas) ON users` é por coluna, ele
+-- não aparecia ali — e o inventário mostrava `users` com apenas SELECT, dando a
+-- impressão de que a trava mais importante do schema não existia. A fonte certa
+-- é `column_privileges`, agrupada; `table_privileges` fica só para DELETE,
+-- TRUNCATE e TRIGGER, que não existem por coluna.
 -- ===========================================================================
--- SELECT t.table_name                                AS "tabela",
---        t.privilege_type                            AS "privilegio",
---        t.grantee                                   AS "papel",
---        COALESCE(
---          (SELECT string_agg(c.column_name, ', ' ORDER BY c.column_name)
---             FROM information_schema.column_privileges c
---            WHERE c.table_schema = 'public'
---              AND c.table_name = t.table_name
---              AND c.grantee = t.grantee
---              AND c.privilege_type = t.privilege_type),
---          '(tabela inteira)'
---        )                                           AS "colunas"
---   FROM information_schema.table_privileges t
---  WHERE t.table_schema = 'public'
---    AND t.grantee IN ('anon', 'authenticated')
---    AND t.table_name <> 'resultado_teste_rls'
---  ORDER BY t.table_name, t.grantee, t.privilege_type;
+-- SELECT z.linha AS "privilegios"
+--   FROM (
+--     SELECT cp.table_name || '/' || cp.grantee || '/' || cp.privilege_type AS chave,
+--            format('GRANT %s ON %s TO %s :: %s',
+--                   cp.privilege_type, cp.table_name, cp.grantee,
+--                   CASE WHEN count(*) = (SELECT count(*)
+--                                           FROM information_schema.columns c
+--                                          WHERE c.table_schema = 'public'
+--                                            AND c.table_name = cp.table_name)
+--                        THEN 'tabela inteira (' || count(*) || ' colunas)'
+--                        ELSE 'SO ' || count(*) || ' coluna(s): '
+--                             || string_agg(cp.column_name, ', ' ORDER BY cp.column_name)
+--                   END) AS linha
+--       FROM information_schema.column_privileges cp
+--      WHERE cp.table_schema = 'public'
+--        AND cp.grantee IN ('anon', 'authenticated')
+--      GROUP BY cp.table_name, cp.grantee, cp.privilege_type
+--     UNION ALL
+--     SELECT tp.table_name || '/' || tp.grantee || '/' || tp.privilege_type,
+--            format('GRANT %s ON %s TO %s :: (privilegio de tabela)',
+--                   tp.privilege_type, tp.table_name, tp.grantee)
+--       FROM information_schema.table_privileges tp
+--      WHERE tp.table_schema = 'public'
+--        AND tp.grantee IN ('anon', 'authenticated')
+--        AND tp.privilege_type IN ('DELETE', 'TRUNCATE', 'TRIGGER')
+--   ) z
+--  ORDER BY z.chave;
 
 
 -- ===========================================================================
@@ -366,8 +389,9 @@ SELECT z.situacao   AS "situacao",
 -- `anon`/`authenticated`, extensões, event triggers do ambiente e o soquete dos
 -- módulos. No banco de hoje dá ~153 linhas (uns 15 KB) — cabe numa conversa.
 --
--- ⚠️ PREFIRA ESTE AO BLOCO 10. O retrato em JSON do bloco 10 passa de 300 KB:
--- serve para arquivar (botão de baixar do SQL Editor), não para colar num chat.
+-- ⚠️ PREFIRA ESTE AO BLOCO 10 no dia a dia: um terço do tamanho e legível de
+-- corrido. O bloco 10 dá o detalhe completo (tipos exatos, índices, condições
+-- de policy) quando a pergunta exige.
 --
 -- ✅ VALIDADO em PostgreSQL 18 (12/09/2026), contra um banco criado com o
 -- `plataforma_01_schema.sql` de verdade — ver `ambiente-local/`.
@@ -450,19 +474,37 @@ SELECT z.linha AS "retrato_compacto"
     UNION ALL
 
     -- 6. PRIVILÉGIOS DE anon E authenticated (a segunda tranca)
-    SELECT 6, tp.table_name || '/' || tp.grantee || '/' || tp.privilege_type,
+    --
+    -- ⚠️ A FONTE É `column_privileges`, NÃO `table_privileges`. O
+    -- `table_privileges` só mostra privilégio dado na TABELA INTEIRA: um
+    -- `GRANT UPDATE (colunas)` — que é justamente a trava que impede gravar
+    -- `is_superuser` no próprio perfil — não aparece lá.
+    SELECT 6, cp.table_name || '/' || cp.grantee || '/' || cp.privilege_type,
            format('GRANT %s ON %s TO %s :: %s',
-                  tp.privilege_type, tp.table_name, tp.grantee,
-                  COALESCE((SELECT string_agg(cp.column_name, ', ' ORDER BY cp.column_name)
-                              FROM information_schema.column_privileges cp
-                             WHERE cp.table_schema = 'public'
-                               AND cp.table_name = tp.table_name
-                               AND cp.grantee = tp.grantee
-                               AND cp.privilege_type = tp.privilege_type),
-                           'tabela inteira'))
+                  cp.privilege_type, cp.table_name, cp.grantee,
+                  CASE WHEN count(*) = (SELECT count(*)
+                                          FROM information_schema.columns c
+                                         WHERE c.table_schema = 'public'
+                                           AND c.table_name = cp.table_name)
+                       THEN 'tabela inteira (' || count(*) || ' colunas)'
+                       ELSE 'SO ' || count(*) || ' coluna(s): '
+                            || string_agg(cp.column_name, ', ' ORDER BY cp.column_name)
+                  END)
+      FROM information_schema.column_privileges cp
+     WHERE cp.table_schema = 'public'
+       AND cp.grantee IN ('anon', 'authenticated')
+     GROUP BY cp.table_name, cp.grantee, cp.privilege_type
+
+    UNION ALL
+
+    -- DELETE, TRUNCATE e TRIGGER só existem no nível da tabela.
+    SELECT 6, tp.table_name || '/' || tp.grantee || '/' || tp.privilege_type,
+           format('GRANT %s ON %s TO %s :: (privilegio de tabela)',
+                  tp.privilege_type, tp.table_name, tp.grantee)
       FROM information_schema.table_privileges tp
      WHERE tp.table_schema = 'public'
        AND tp.grantee IN ('anon', 'authenticated')
+       AND tp.privilege_type IN ('DELETE', 'TRUNCATE', 'TRIGGER')
 
     UNION ALL
 
@@ -502,9 +544,14 @@ SELECT z.linha AS "retrato_compacto"
 -- cada constraint por extenso, retorno e volatilidade de cada função, as
 -- condições completas de cada policy.
 --
--- ⚠️ SÃO MAIS DE 300 KB. Não cole a saída num chat: use o botão de baixar do
--- SQL Editor e guarde o arquivo (por exemplo em `_estudos/`), ou rode o bloco 9,
--- que diz o essencial em 15 KB.
+-- ⚠️ SÃO ~50 KB (medido no banco publicado e no local, 2026-09-12). Cabe numa
+-- conversa, mas o bloco 9 diz o essencial em 15 KB — use este quando precisar
+-- do detalhe: tipos exatos, cada índice, cada constraint e as condições
+-- completas das policies.
+--
+-- (Uma medição anterior falou em "300 KB": era o `psql` alinhando a coluna com
+-- espaços no terminal, não o tamanho do JSON. Número corrigido depois de medir
+-- o arquivo de verdade.)
 --
 -- ✅ VALIDADO em PostgreSQL 18 (12/09/2026).
 -- ===========================================================================
@@ -619,23 +666,43 @@ SELECT jsonb_pretty(jsonb_build_object(
        AND n.nspname IN ('public', 'auth')
   ),
 
+  -- ⚠️ `column_privileges` É A FONTE, e não `table_privileges`: o segundo só
+  -- lista privilégio dado na tabela inteira, e por isso escondia o
+  -- `GRANT UPDATE (colunas) ON users`, que é a trava do `is_superuser`.
   'privilegios', (
-    SELECT jsonb_agg(jsonb_build_object(
-             'tabela', tp.table_name,
-             'papel', tp.grantee,
-             'privilegio', tp.privilege_type,
-             'colunas', COALESCE(
-               (SELECT string_agg(cp.column_name, ', ' ORDER BY cp.column_name)
-                  FROM information_schema.column_privileges cp
-                 WHERE cp.table_schema = 'public'
-                   AND cp.table_name = tp.table_name
-                   AND cp.grantee = tp.grantee
-                   AND cp.privilege_type = tp.privilege_type),
-               '(tabela inteira)')
-           ) ORDER BY tp.table_name, tp.grantee, tp.privilege_type)
-      FROM information_schema.table_privileges tp
-     WHERE tp.table_schema = 'public'
-       AND tp.grantee IN ('anon', 'authenticated')
+    SELECT jsonb_agg(x.p ORDER BY x.chave)
+      FROM (
+        SELECT cp.table_name || '/' || cp.grantee || '/' || cp.privilege_type AS chave,
+               jsonb_build_object(
+                 'tabela', cp.table_name,
+                 'papel', cp.grantee,
+                 'privilegio', cp.privilege_type,
+                 'colunas_concedidas', count(*),
+                 'colunas_da_tabela', (SELECT count(*)
+                                         FROM information_schema.columns c
+                                        WHERE c.table_schema = 'public'
+                                          AND c.table_name = cp.table_name),
+                 'colunas', string_agg(cp.column_name, ', ' ORDER BY cp.column_name)
+               ) AS p
+          FROM information_schema.column_privileges cp
+         WHERE cp.table_schema = 'public'
+           AND cp.grantee IN ('anon', 'authenticated')
+         GROUP BY cp.table_name, cp.grantee, cp.privilege_type
+
+        UNION ALL
+
+        SELECT tp.table_name || '/' || tp.grantee || '/' || tp.privilege_type,
+               jsonb_build_object(
+                 'tabela', tp.table_name,
+                 'papel', tp.grantee,
+                 'privilegio', tp.privilege_type,
+                 'colunas', '(privilegio de tabela, nao existe por coluna)'
+               )
+          FROM information_schema.table_privileges tp
+         WHERE tp.table_schema = 'public'
+           AND tp.grantee IN ('anon', 'authenticated')
+           AND tp.privilege_type IN ('DELETE', 'TRUNCATE', 'TRIGGER')
+      ) x
   ),
 
   'event_triggers', (
