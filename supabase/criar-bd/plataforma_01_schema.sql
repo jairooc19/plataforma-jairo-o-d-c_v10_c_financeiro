@@ -265,6 +265,15 @@ ALTER TABLE public.audit_log       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.platform_modules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tenant_modules   ENABLE ROW LEVEL SECURITY;
 
+-- ⚠️ ESTES `ENABLE` CONTINUAM OBRIGATÓRIOS, MESMO COM A REDE DE SEGURANÇA DO
+-- AMBIENTE. O projeto publicado tem um event trigger próprio do provedor —
+-- `ensure_rls`, que chama `public.rls_auto_enable()` — ligando RLS em toda
+-- tabela criada no `public` (confirmado no banco em 2026-09-12; dono
+-- `postgres`). É uma boa rede, e **não deve ser apagada**; mas ela é do
+-- AMBIENTE, não deste arquivo: num Postgres puro, noutro provedor ou num
+-- projeto Supabase antigo ela pode não existir, e então a tabela nasceria
+-- aberta. Este schema tem de bastar por si.
+
 
 -- ===========================================================================
 -- 4. SEED INICIAL DE CONFIGURAÇÃO

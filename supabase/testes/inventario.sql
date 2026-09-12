@@ -32,6 +32,18 @@
 --    de propósito (para você reler o resultado depois). Contar tabelas sem
 --    excluí-la dá 8, não 7.
 --
+-- 4. O AMBIENTE TEM UMA FUNÇÃO PRÓPRIA NO `public`, E ELA NÃO É NOSSA.
+--    `rls_auto_enable()` é a função do event trigger `ensure_rls`
+--    (`ddl_command_end`), dona `postgres`: a cada `CREATE TABLE` no `public`
+--    ela executa `alter table … enable row level security`. É uma rede de
+--    segurança do provedor — **não apague**. Ela não está no
+--    `plataforma_01_schema.sql` e por isso fica FORA da contagem, em vez de o
+--    esperado virar 26: assim, se um dia aparecer OUTRA função estranha, o
+--    placar acusa de novo em vez de engolir a diferença.
+--    ⚠️ Confirmado no banco em 12/09/2026 (dono `postgres`, event trigger
+--    `ensure_rls`). Não invente outras exceções: cada nome nesta lista precisa
+--    ser investigado como este foi.
+--
 -- 3. DOIS DOS QUINZE GATILHOS NÃO ESTÃO NO `public`. `on_auth_user_created` e
 --    `on_auth_user_auto_confirm` vivem em `auth.users` — são eles que espelham
 --    o perfil e confirmam o e-mail. Contar só `public` dá 13. E contar `auth`
@@ -71,7 +83,8 @@ SELECT x.objeto      AS "objeto",
               JOIN pg_namespace n ON n.oid = p.pronamespace
              WHERE n.nspname = 'public'
                AND NOT EXISTS (SELECT 1 FROM pg_depend d
-                                WHERE d.objid = p.oid AND d.deptype = 'e')),
+                                WHERE d.objid = p.oid AND d.deptype = 'e')
+               AND p.proname <> 'rls_auto_enable'),
            25
     UNION ALL
     SELECT '3. policies',
@@ -124,6 +137,7 @@ SELECT z.situacao   AS "situacao",
       JOIN pg_namespace n ON n.oid = p.pronamespace
      WHERE n.nspname = 'public'
        AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid = p.oid AND d.deptype = 'e')
+       AND p.proname <> 'rls_auto_enable'   -- do ambiente, não do schema (nota 4)
        AND p.proname NOT IN (
          'admin_list_all_tenants', 'admin_list_tenant_modules', 'admin_list_user_tenants',
          'admin_list_users', 'admin_promote_to_owner', 'admin_set_tenant_module',

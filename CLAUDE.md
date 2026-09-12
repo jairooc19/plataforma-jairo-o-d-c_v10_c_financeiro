@@ -53,6 +53,31 @@ O mobile já lia a coluna desde a v10. Agora os dois leem, e a web usa o registr
 **nenhum arquivo da plataforma cita o nome de um módulo**, então plugar o décimo não vai
 exigir tocar nessa tela.
 
+⚠️ **O BANCO PUBLICADO TEM UMA FUNÇÃO QUE NÃO É NOSSA, E ELA NÃO DEVE SER APAGADA.**
+O inventário de 2026-09-12 encontrou **26 funções no `public` onde o schema cria 25**. A
+extra é `public.rls_auto_enable()`, dona `postgres`, chamada pelo event trigger
+`ensure_rls` (`ddl_command_end`): a cada `CREATE TABLE` no `public` ela executa
+`alter table … enable row level security`. É uma rede de segurança do ambiente — ótima de
+ter, e **de fora deste repositório**. Duas consequências:
+
+- O `supabase/testes/inventario.sql` a exclui **por nome** da contagem, em vez de subir o
+  esperado para 26: assim, se um dia aparecer OUTRA função estranha, o placar acusa de novo
+  em vez de engolir a diferença.
+- Os `ALTER TABLE … ENABLE ROW LEVEL SECURITY` do schema **continuam obrigatórios**. Num
+  Postgres puro, noutro provedor ou num projeto antigo, esse gatilho pode não existir — e
+  aí a tabela nasceria aberta. O arquivo de schema tem de bastar por si.
+
+⚠️ **NUNCA "LIMPE" O `public` COM UM LAÇO DE `DROP FUNCTION`.** Levaria junto essa rede de
+segurança e as funções das extensões (`uuid-ossp`, `unaccent`), que moram no `public` neste
+banco. O `plataforma_00_reset.sql` derruba por NOME, um a um, de propósito.
+
+⚠️ **O SQL EDITOR DO SUPABASE EXECUTA TODO O TEXTO DO PAINEL, NÃO O QUE VOCÊ ACABOU DE
+COLAR.** Resto da execução anterior entra junto, e o erro aponta para uma linha que parece
+ser do comando novo. Foi assim que um placar de contagem quebrou com
+`syntax error at or near "WHERE"` numa linha que estava correta. Antes de colar: `Ctrl+A` e
+apague — ou selecione com o mouse só o trecho a executar, que o editor roda apenas a
+seleção.
+
 ⚠️ **O VERIFICADOR IGNORA COMENTÁRIOS E E-MAILS DE EXEMPLO, DE PROPÓSITO.** Um TSDoc que
 menciona o módulo (o `lib/dinheiro.ts` diz ter sido escrito para o C FINANCEIRO) não
 quebra nada ao desplugar; e um módulo chamado `exemplo` casaria dentro de

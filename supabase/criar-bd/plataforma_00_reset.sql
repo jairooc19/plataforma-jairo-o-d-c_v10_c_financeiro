@@ -93,3 +93,16 @@ DROP FUNCTION IF EXISTS public.admin_list_all_tenants() CASCADE;
 
 -- Manutenção
 DROP FUNCTION IF EXISTS public.sync_auth_users() CASCADE;
+
+-- ===========================================================================
+-- 4. ⚠️ O QUE ESTE SCRIPT **NÃO** DERRUBA, E NÃO DEVE DERRUBAR
+-- ===========================================================================
+-- `public.rls_auto_enable()` e o event trigger `ensure_rls` que a usa NÃO são
+-- deste projeto: são do ambiente (dono `postgres`) e ligam RLS em toda tabela
+-- nova do `public`. Foi por isso que o inventário de 2026-09-12 encontrou 26
+-- funções onde o schema cria 25.
+--
+-- ⚠️ NUNCA "LIMPE" O SCHEMA COM UM LAÇO DO TIPO `DROP FUNCTION` EM TUDO O QUE
+-- HÁ EM `pg_proc`. Além de derrubar essa rede de segurança, levaria junto as
+-- funções das extensões (`uuid-ossp`, `unaccent`), que moram no `public` neste
+-- banco. Este script derruba por NOME, um a um, de propósito.
