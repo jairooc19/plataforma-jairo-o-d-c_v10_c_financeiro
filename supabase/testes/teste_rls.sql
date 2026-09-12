@@ -4,24 +4,42 @@
 -- ===========================================================================
 --
 -- PARA QUE SERVE: provar, dentro do banco de verdade, que as correções de
--- segurança do degrau 3 funcionam. Cada bloco imprime PASSOU ou FALHOU.
+-- segurança do degrau 3 funcionam. No fim, o script DEVOLVE UMA TABELA com uma
+-- linha por teste, dizendo PASSOU ou FALHOU.
 --
 -- COMO RODAR:
---   1. Abra o SQL Editor do Supabase (ou o `psql` do projeto local).
+--   1. Abra o SQL Editor do Supabase.
 --   2. Cole este arquivo INTEIRO e execute.
---   3. Leia as mensagens: todas devem dizer "PASSOU".
+--   3. Leia a tabela que aparece embaixo: a coluna `veredito` tem de dizer
+--      "PASSOU" nas 10 linhas. O botão de exportar volta a funcionar, porque
+--      agora há linhas de verdade.
 --
--- ⚠️ ELE NÃO DEIXA RASTRO. Tudo roda dentro de uma transação que termina em
--- ROLLBACK: os três usuários de teste somem no fim. Ainda assim, rode em
--- ambiente de desenvolvimento — a decisão do dono do projeto (2026-09-11) é que
--- não há dados reais nesta fase.
+-- ⚠️ A VERSÃO ANTERIOR DESTE ARQUIVO NÃO MOSTRAVA NADA NO SUPABASE, e a falha
+-- era invisível: ela reportava por `RAISE NOTICE`, e o SQL Editor do Supabase
+-- **descarta as mensagens do servidor** — só exibe conjuntos de linhas. O
+-- resultado era um "Success. No rows returned" que parecia aprovação e não era:
+-- os dez vereditos tinham sido jogados fora. `NOTICE` só aparece no `psql`.
+-- Lição geral: no SQL Editor, teste que não faz SELECT não comunica nada.
+--
+-- ⚠️ POR QUE NÃO HÁ MAIS `BEGIN … ROLLBACK`. O desfazer era elegante e tornava
+-- o relatório impossível: o `ROLLBACK` apagaria junto as linhas de resultado —
+-- tabela temporária e `SET` de sessão também voltam atrás, então não há onde
+-- guardar o veredito dentro de uma transação que será desfeita. Em troca, a
+-- limpeza virou explícita: roda no INÍCIO e no FIM, é idempotente, e remove os
+-- três usuários de teste, as empresas que eles criaram e o rastro disso em
+-- `audit_log`. Reexecutar o arquivo é seguro.
 --
 -- ⚠️ POR QUE SIMULAR O LOGIN COM `set local role` E `request.jwt.claims`:
 -- é assim que o PostgREST (a API do Supabase) apresenta o usuário ao banco.
 -- `auth.uid()` lê exatamente esse parâmetro. Sem isso, tudo rodaria como o dono
 -- do banco, que ignora a RLS — e o teste não provaria nada.
 --
+-- ⚠️ RODE EM AMBIENTE DE DESENVOLVIMENTO. O script escreve de verdade (cria
+-- três contas e uma empresa) antes de apagar. A decisão do dono do projeto
+-- (2026-09-11) é que ainda não há dados reais nesta fase.
+--
 -- O QUE CADA TESTE VERIFICA:
+--   0. O cadastro não escolhe o próprio papel                 (correção S9)
 --   1. Visitante anônimo NÃO lê a tabela de usuários          (correção S1)
 --   2. Usuário comum vê só o próprio perfil                   (correção S1)
 --   3. Usuário comum NÃO consegue virar Desenvolvedor         (correção S2)
@@ -30,9 +48,57 @@
 --   6. Desenvolvedor cria empresa pela função transacional    (correção C2)
 --   7. A data gravada é a hora real, sem as 3 horas a menos   (correção C1)
 --   8. `allowed_modules` é lista de verdade                   (correção C3)
+--   9. A trilha de auditoria registrou a empresa criada       (correção B4)
 -- ===========================================================================
 
-BEGIN;
+
+-- ---------------------------------------------------------------------------
+-- LIMPEZA PRÉVIA — restos de uma execução interrompida.
+-- A ordem importa: `tenants.owner_id` é ON DELETE RESTRICT, então as empresas
+-- saem ANTES dos usuários. `tenant_members` cai por cascata.
+-- ---------------------------------------------------------------------------
+DELETE FROM public.audit_log
+ WHERE registro_id IN (
+   SELECT id::text FROM public.tenants
+    WHERE owner_id IN ('11111111-1111-1111-1111-111111111111',
+                       '22222222-2222-2222-2222-222222222222',
+                       '33333333-3333-3333-3333-333333333333')
+ )
+    OR registro_id IN ('11111111-1111-1111-1111-111111111111',
+                       '22222222-2222-2222-2222-222222222222',
+                       '33333333-3333-3333-3333-333333333333');
+
+DELETE FROM public.tenants
+ WHERE owner_id IN ('11111111-1111-1111-1111-111111111111',
+                    '22222222-2222-2222-2222-222222222222',
+                    '33333333-3333-3333-3333-333333333333');
+
+DELETE FROM auth.users
+ WHERE id IN ('11111111-1111-1111-1111-111111111111',
+              '22222222-2222-2222-2222-222222222222',
+              '33333333-3333-3333-3333-333333333333');
+
+
+-- ---------------------------------------------------------------------------
+-- O CADERNO DE RESULTADOS.
+-- É uma tabela de verdade (não temporária) porque o SELECT final precisa
+-- encontrá-la, e porque assim o resultado continua legível depois, se a janela
+-- do editor for fechada. Nasce com RLS ligada e SEM nenhuma policy: a API não
+-- entrega uma linha sequer — só o SQL Editor, que roda como dono do banco, lê.
+-- A próxima execução a recria do zero.
+-- ---------------------------------------------------------------------------
+DROP TABLE IF EXISTS public.resultado_teste_rls;
+
+CREATE TABLE public.resultado_teste_rls (
+  n         integer PRIMARY KEY,
+  veredito  text NOT NULL,
+  teste     text NOT NULL,
+  detalhe   text
+);
+
+ALTER TABLE public.resultado_teste_rls ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.resultado_teste_rls FROM anon, authenticated;
+
 
 -- ---------------------------------------------------------------------------
 -- PREPARAÇÃO: três contas de teste.
@@ -53,21 +119,25 @@ $$;
 -- O Desenvolvedor de teste. (No banco de verdade, este passo é o do seed.)
 UPDATE public.users SET is_superuser = true WHERE id = '22222222-2222-2222-2222-222222222222';
 
+
 -- ---------------------------------------------------------------------------
--- TESTE 0 — o gatilho ignora o `role` enviado no cadastro (correção S9)
+-- TESTE 0 — o gatilho ignora o `role` enviado no cadastro (S9)
 -- O usuário comum pediu `"role":"active"` no metadata; tem de nascer 'pending'.
 -- ---------------------------------------------------------------------------
 DO $$
 DECLARE v_role text;
 BEGIN
   SELECT role INTO v_role FROM public.users WHERE id = '11111111-1111-1111-1111-111111111111';
-  IF v_role = 'pending' THEN
-    RAISE NOTICE 'PASSOU  0 — cadastro não escolhe o próprio papel (nasceu %)', v_role;
-  ELSE
-    RAISE WARNING 'FALHOU  0 — nasceu com role=% (esperado pending)', v_role;
-  END IF;
+
+  INSERT INTO public.resultado_teste_rls VALUES (
+    0,
+    CASE WHEN v_role = 'pending' THEN 'PASSOU' ELSE 'FALHOU' END,
+    'S9 — o cadastro não escolhe o próprio papel',
+    format('nasceu com role=%s (esperado pending)', coalesce(v_role, '<sem perfil>'))
+  );
 END;
 $$;
+
 
 -- ---------------------------------------------------------------------------
 -- TESTE 1 — visitante anônimo NÃO lê a lista de usuários (S1)
@@ -83,13 +153,15 @@ BEGIN
   END;
   RESET ROLE;
 
-  IF v_qtd <= 0 THEN
-    RAISE NOTICE 'PASSOU  1 — anônimo não enxerga usuários (retorno %)', v_qtd;
-  ELSE
-    RAISE WARNING 'FALHOU  1 — anônimo leu % linhas de public.users', v_qtd;
-  END IF;
+  INSERT INTO public.resultado_teste_rls VALUES (
+    1,
+    CASE WHEN v_qtd <= 0 THEN 'PASSOU' ELSE 'FALHOU' END,
+    'S1 — anônimo não enxerga public.users',
+    format('leu %s linha(s) — "-1" significa permissão negada na tabela', v_qtd)
+  );
 END;
 $$;
+
 
 -- ---------------------------------------------------------------------------
 -- TESTE 2 — usuário comum vê só o próprio perfil (S1)
@@ -105,19 +177,23 @@ BEGIN
   RESET ROLE;
   PERFORM set_config('request.jwt.claims', '', true);
 
-  IF v_qtd = 1 THEN
-    RAISE NOTICE 'PASSOU  2 — usuário comum vê 1 perfil (o próprio)';
-  ELSE
-    RAISE WARNING 'FALHOU  2 — usuário comum viu % perfis (esperado 1)', v_qtd;
-  END IF;
+  INSERT INTO public.resultado_teste_rls VALUES (
+    2,
+    CASE WHEN v_qtd = 1 THEN 'PASSOU' ELSE 'FALHOU' END,
+    'S1 — usuário comum vê só o próprio perfil',
+    format('viu %s perfil(is) (esperado 1)', v_qtd)
+  );
 END;
 $$;
+
 
 -- ---------------------------------------------------------------------------
 -- TESTE 3 — usuário comum NÃO consegue se tornar Desenvolvedor (S2)
 -- ---------------------------------------------------------------------------
 DO $$
-DECLARE v_erro text := 'nenhum';
+DECLARE
+  v_erro  text := 'nenhum';
+  v_final boolean;
 BEGIN
   SET LOCAL ROLE authenticated;
   PERFORM set_config('request.jwt.claims', '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
@@ -131,20 +207,28 @@ BEGIN
   RESET ROLE;
   PERFORM set_config('request.jwt.claims', '', true);
 
-  IF v_erro <> 'nenhum' THEN
-    RAISE NOTICE 'PASSOU  3 — escrita em is_superuser recusada (SQLSTATE %)', v_erro;
-  ELSE
-    RAISE WARNING 'FALHOU  3 — o usuário conseguiu gravar is_superuser';
-  END IF;
+  -- A recusa pode vir como erro (sem privilégio na coluna) OU em silêncio, com
+  -- a RLS descartando a linha. As duas contam, desde que o valor não mude.
+  SELECT is_superuser INTO v_final FROM public.users WHERE id = '11111111-1111-1111-1111-111111111111';
+
+  INSERT INTO public.resultado_teste_rls VALUES (
+    3,
+    CASE WHEN v_final = false THEN 'PASSOU' ELSE 'FALHOU' END,
+    'S2 — usuário comum não escreve is_superuser',
+    format('SQLSTATE=%s; is_superuser ficou em %s', v_erro, v_final)
+  );
 END;
 $$;
+
 
 -- ---------------------------------------------------------------------------
 -- TESTE 4 — usuário comum NÃO consegue criar a própria empresa (S3)
 -- Esta é a validação que faltava: na v9, o INSERT abaixo PASSAVA.
 -- ---------------------------------------------------------------------------
 DO $$
-DECLARE v_erro text := 'nenhum';
+DECLARE
+  v_erro   text := 'nenhum';
+  v_nasceu integer;
 BEGIN
   SET LOCAL ROLE authenticated;
   PERFORM set_config('request.jwt.claims', '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
@@ -159,13 +243,17 @@ BEGIN
   RESET ROLE;
   PERFORM set_config('request.jwt.claims', '', true);
 
-  IF v_erro <> 'nenhum' THEN
-    RAISE NOTICE 'PASSOU  4 — criação de empresa pelo cliente recusada (SQLSTATE %)', v_erro;
-  ELSE
-    RAISE WARNING 'FALHOU  4 — o usuário criou a própria empresa e pularia a triagem';
-  END IF;
+  SELECT count(*) INTO v_nasceu FROM public.tenants WHERE slug = 'empresa-pirata';
+
+  INSERT INTO public.resultado_teste_rls VALUES (
+    4,
+    CASE WHEN v_nasceu = 0 THEN 'PASSOU' ELSE 'FALHOU' END,
+    'S3 — usuário comum não cria a própria empresa',
+    format('SQLSTATE=%s; empresas piratas no banco: %s', v_erro, v_nasceu)
+  );
 END;
 $$;
+
 
 -- ---------------------------------------------------------------------------
 -- TESTE 5 — usuário comum NÃO executa função administrativa (S4)
@@ -185,31 +273,38 @@ BEGIN
   RESET ROLE;
   PERFORM set_config('request.jwt.claims', '', true);
 
-  IF v_erro <> 'nenhum' THEN
-    RAISE NOTICE 'PASSOU  5 — admin_list_users recusada para usuário comum (SQLSTATE %)', v_erro;
-  ELSE
-    RAISE WARNING 'FALHOU  5 — usuário comum listou todos os usuários';
-  END IF;
+  INSERT INTO public.resultado_teste_rls VALUES (
+    5,
+    CASE WHEN v_erro <> 'nenhum' THEN 'PASSOU' ELSE 'FALHOU' END,
+    'S4 — admin_list_users recusada a usuário comum',
+    format('SQLSTATE=%s ("nenhum" significa que a função executou)', v_erro)
+  );
 END;
 $$;
+
 
 -- ---------------------------------------------------------------------------
 -- TESTE 6 — o Desenvolvedor cria empresa pela função transacional (C2)
 -- ---------------------------------------------------------------------------
 DO $$
 DECLARE
-  v_resultado json;
-  v_role text;
-  v_empresas integer;
+  v_resultado json := null;
+  v_erro       text := 'nenhum';
+  v_role       text;
+  v_empresas   integer;
 BEGIN
   SET LOCAL ROLE authenticated;
   PERFORM set_config('request.jwt.claims', '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', true);
 
-  v_resultado := public.admin_sync_user_tenants(
-    '11111111-1111-1111-1111-111111111111',
-    '[{"tenant_id": null, "name": "EMPRESA DE TESTE", "is_active": true}]'::jsonb,
-    '{}'::uuid[]
-  );
+  BEGIN
+    v_resultado := public.admin_sync_user_tenants(
+      '11111111-1111-1111-1111-111111111111',
+      '[{"tenant_id": null, "name": "EMPRESA DE TESTE", "is_active": true}]'::jsonb,
+      '{}'::uuid[]
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_erro := SQLSTATE || ' ' || SQLERRM;
+  END;
 
   RESET ROLE;
   PERFORM set_config('request.jwt.claims', '', true);
@@ -217,13 +312,16 @@ BEGIN
   SELECT role INTO v_role FROM public.users WHERE id = '11111111-1111-1111-1111-111111111111';
   SELECT count(*) INTO v_empresas FROM public.tenants WHERE owner_id = '11111111-1111-1111-1111-111111111111';
 
-  IF (v_resultado->>'success')::boolean AND v_role = 'active' AND v_empresas = 1 THEN
-    RAISE NOTICE 'PASSOU  6 — Desenvolvedor criou a empresa e o papel virou active';
-  ELSE
-    RAISE WARNING 'FALHOU  6 — retorno=%, role=%, empresas=%', v_resultado, v_role, v_empresas;
-  END IF;
+  INSERT INTO public.resultado_teste_rls VALUES (
+    6,
+    CASE WHEN coalesce((v_resultado->>'success')::boolean, false) AND v_role = 'active' AND v_empresas = 1
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'C2 — Desenvolvedor cria empresa pela função transacional',
+    format('erro=%s; retorno=%s; role=%s; empresas=%s', v_erro, coalesce(v_resultado::text, '<nulo>'), v_role, v_empresas)
+  );
 END;
 $$;
+
 
 -- ---------------------------------------------------------------------------
 -- TESTE 7 — a data gravada é a hora real (C1)
@@ -237,13 +335,15 @@ BEGIN
    WHERE owner_id = '11111111-1111-1111-1111-111111111111'
    LIMIT 1;
 
-  IF v_diferenca < interval '1 minute' THEN
-    RAISE NOTICE 'PASSOU  7 — created_at bate com o relógio (diferença %)', v_diferenca;
-  ELSE
-    RAISE WARNING 'FALHOU  7 — created_at está % atrás do horário real', v_diferenca;
-  END IF;
+  INSERT INTO public.resultado_teste_rls VALUES (
+    7,
+    CASE WHEN v_diferenca IS NOT NULL AND v_diferenca < interval '1 minute' THEN 'PASSOU' ELSE 'FALHOU' END,
+    'C1 — created_at bate com o relógio (sem as 3 horas a menos)',
+    coalesce('diferença de ' || v_diferenca::text, 'não há empresa para medir — ver o teste 6')
+  );
 END;
 $$;
+
 
 -- ---------------------------------------------------------------------------
 -- TESTE 8 — `allowed_modules` é lista de verdade (C3)
@@ -255,30 +355,77 @@ BEGIN
     FROM information_schema.columns
    WHERE table_schema = 'public' AND table_name = 'tenant_members' AND column_name = 'allowed_modules';
 
-  IF v_tipo = 'ARRAY' THEN
-    RAISE NOTICE 'PASSOU  8 — allowed_modules é ARRAY (text[])';
-  ELSE
-    RAISE WARNING 'FALHOU  8 — allowed_modules é % (esperado ARRAY)', v_tipo;
-  END IF;
+  INSERT INTO public.resultado_teste_rls VALUES (
+    8,
+    CASE WHEN v_tipo = 'ARRAY' THEN 'PASSOU' ELSE 'FALHOU' END,
+    'C3 — allowed_modules é text[] de verdade',
+    format('information_schema diz: %s (esperado ARRAY)', coalesce(v_tipo, '<coluna não existe>'))
+  );
 END;
 $$;
 
+
 -- ---------------------------------------------------------------------------
--- TESTE 9 — a trilha de auditoria registrou as mudanças (B4)
+-- TESTE 9 — a trilha de auditoria registrou a empresa criada (B4)
+-- Conta só os eventos DESTE teste (a empresa de owner 111…), não o histórico
+-- inteiro da tabela — senão o teste passaria de graça por causa do uso normal.
 -- ---------------------------------------------------------------------------
 DO $$
 DECLARE v_linhas integer;
 BEGIN
-  SELECT count(*) INTO v_linhas FROM public.audit_log WHERE tabela = 'tenants';
-  IF v_linhas > 0 THEN
-    RAISE NOTICE 'PASSOU  9 — auditoria gravou % evento(s) de empresa', v_linhas;
-  ELSE
-    RAISE WARNING 'FALHOU  9 — nenhum evento de auditoria para tenants';
-  END IF;
+  SELECT count(*) INTO v_linhas
+    FROM public.audit_log a
+   WHERE a.tabela = 'tenants'
+     AND a.registro_id IN (
+       SELECT t.id::text FROM public.tenants t
+        WHERE t.owner_id = '11111111-1111-1111-1111-111111111111'
+     );
+
+  INSERT INTO public.resultado_teste_rls VALUES (
+    9,
+    CASE WHEN v_linhas > 0 THEN 'PASSOU' ELSE 'FALHOU' END,
+    'B4 — a auditoria gravou a empresa criada no teste',
+    format('%s evento(s) em audit_log para a empresa de teste', v_linhas)
+  );
 END;
 $$;
 
+
 -- ---------------------------------------------------------------------------
--- FIM: desfaz tudo. Nenhum usuário ou empresa de teste sobrevive.
+-- LIMPEZA FINAL — os três usuários, as empresas deles e o rastro na auditoria.
+-- Mesma ordem da limpeza prévia, pelo mesmo motivo (ON DELETE RESTRICT).
+-- A tabela `resultado_teste_rls` NÃO é apagada aqui: é ela que o SELECT abaixo
+-- mostra. A próxima execução do arquivo a recria.
 -- ---------------------------------------------------------------------------
-ROLLBACK;
+DELETE FROM public.audit_log
+ WHERE registro_id IN (
+   SELECT id::text FROM public.tenants
+    WHERE owner_id IN ('11111111-1111-1111-1111-111111111111',
+                       '22222222-2222-2222-2222-222222222222',
+                       '33333333-3333-3333-3333-333333333333')
+ )
+    OR registro_id IN ('11111111-1111-1111-1111-111111111111',
+                       '22222222-2222-2222-2222-222222222222',
+                       '33333333-3333-3333-3333-333333333333');
+
+DELETE FROM public.tenants
+ WHERE owner_id IN ('11111111-1111-1111-1111-111111111111',
+                    '22222222-2222-2222-2222-222222222222',
+                    '33333333-3333-3333-3333-333333333333');
+
+DELETE FROM auth.users
+ WHERE id IN ('11111111-1111-1111-1111-111111111111',
+              '22222222-2222-2222-2222-222222222222',
+              '33333333-3333-3333-3333-333333333333');
+
+
+-- ---------------------------------------------------------------------------
+-- O RELATÓRIO. Este SELECT é o último comando de propósito: o SQL Editor do
+-- Supabase exibe o resultado do último comando que devolve linhas.
+-- ---------------------------------------------------------------------------
+SELECT n        AS "#",
+       veredito AS "veredito",
+       teste    AS "o que foi verificado",
+       detalhe  AS "detalhe"
+  FROM public.resultado_teste_rls
+ ORDER BY n;
