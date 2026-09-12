@@ -43,61 +43,51 @@
 -- BLOCO 1 — O PLACAR. É este que responde ao passo 3 do roteiro.
 -- Quatro linhas; todas têm de dizer OK.
 -- ===========================================================================
-WITH esperado(objeto, quantidade) AS (
-  VALUES ('1. tabelas',  7),
-         ('2. funcoes',  25),
-         ('3. policies', 12),
-         ('4. triggers', 15)
-),
-encontrado(objeto, quantidade) AS (
-  -- Tabelas do CORE (sem a tabela de resultado que o teste_rls deixa).
-  SELECT '1. tabelas', count(*)::int
-    FROM information_schema.tables
-   WHERE table_schema = 'public'
-     AND table_type = 'BASE TABLE'
-     AND table_name <> 'resultado_teste_rls'
-
-  UNION ALL
-
-  -- Funções NOSSAS: as que vieram de extensão ficam de fora.
-  SELECT '2. funcoes', count(*)::int
-    FROM pg_proc p
-    JOIN pg_namespace n ON n.oid = p.pronamespace
-   WHERE n.nspname = 'public'
-     AND NOT EXISTS (
-       SELECT 1 FROM pg_depend d
-        WHERE d.objid = p.oid AND d.deptype = 'e'
-     )
-
-  UNION ALL
-
-  SELECT '3. policies', count(*)::int
-    FROM pg_policies
-   WHERE schemaname = 'public'
-
-  UNION ALL
-
-  -- Gatilhos nossos: os do `public` mais os dois de `auth.users`, nomeados.
-  SELECT '4. triggers', count(*)::int
-    FROM pg_trigger t
-    JOIN pg_class c     ON c.oid = t.tgrelid
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-   WHERE NOT t.tgisinternal
-     AND (
-       n.nspname = 'public'
-       OR t.tgname IN ('on_auth_user_created', 'on_auth_user_auto_confirm')
-     )
-)
-SELECT e.objeto                                  AS "objeto",
-       f.quantidade                              AS "encontrado",
-       e.quantidade                              AS "esperado",
-       CASE WHEN f.quantidade = e.quantidade
-            THEN 'OK'
-            ELSE 'DIVERGE'
-       END                                       AS "veredito"
-  FROM esperado e
-  JOIN encontrado f USING (objeto)
- ORDER BY e.objeto;
+-- ⚠️ ANTES DE COLAR, LIMPE O EDITOR (Ctrl+A e apague). O SQL Editor do Supabase
+-- executa TODO o texto do painel: um resto da execução anterior colado junto
+-- vira "syntax error" numa linha que parece ser deste comando e não é.
+-- (Foi o que aconteceu em 12/09/2026: um trecho repetido do próprio comando
+-- ficou grudado no fim e o erro apontou para o `WHERE` da linha 32.)
+--
+-- Esta versão é curta de propósito: sem `WITH` e sem `JOIN`, só subconsultas
+-- que contam. Quanto menos linhas, menor a chance de sobrar pedaço.
+SELECT x.objeto      AS "objeto",
+       x.encontrado  AS "encontrado",
+       x.esperado    AS "esperado",
+       CASE WHEN x.encontrado = x.esperado THEN 'OK' ELSE 'DIVERGE' END AS "veredito"
+  FROM (
+    SELECT '1. tabelas'::text AS objeto,
+           (SELECT count(*)::int
+              FROM information_schema.tables
+             WHERE table_schema = 'public'
+               AND table_type = 'BASE TABLE'
+               AND table_name <> 'resultado_teste_rls') AS encontrado,
+           7 AS esperado
+    UNION ALL
+    SELECT '2. funcoes',
+           (SELECT count(*)::int
+              FROM pg_proc p
+              JOIN pg_namespace n ON n.oid = p.pronamespace
+             WHERE n.nspname = 'public'
+               AND NOT EXISTS (SELECT 1 FROM pg_depend d
+                                WHERE d.objid = p.oid AND d.deptype = 'e')),
+           25
+    UNION ALL
+    SELECT '3. policies',
+           (SELECT count(*)::int FROM pg_policies WHERE schemaname = 'public'),
+           12
+    UNION ALL
+    SELECT '4. triggers',
+           (SELECT count(*)::int
+              FROM pg_trigger t
+              JOIN pg_class c     ON c.oid = t.tgrelid
+              JOIN pg_namespace n ON n.oid = c.relnamespace
+             WHERE NOT t.tgisinternal
+               AND (n.nspname = 'public'
+                    OR t.tgname IN ('on_auth_user_created', 'on_auth_user_auto_confirm'))),
+           15
+  ) x
+ ORDER BY x.objeto;
 
 
 -- ===========================================================================
