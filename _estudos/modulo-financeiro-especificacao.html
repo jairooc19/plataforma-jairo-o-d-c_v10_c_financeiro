@@ -1,0 +1,1633 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Especificação — Módulo Controle Financeiro</title>
+<style>
+  /* ============================================================
+     CORES PRESERVADAS NA IMPRESSÃO (fora de @media print)
+     ============================================================ */
+  *, *::before, *::after {
+    box-sizing: border-box;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  :root {
+    --azul: #2c5282;
+    --azul-escuro: #1a365d;
+    --fundo-pagina: #fbfcfd;
+    --fundo-azul: #f0f4f8;
+    --fundo-verde: #f0f9f7;
+    --fundo-ambar: #fef5e7;
+    --fundo-vermelho: #fdf0f0;
+    --fundo-cinza: #f5f6f8;
+    --fundo-roxo: #f4f1f9;
+    --borda: #d9e2ec;
+    --borda-forte: #9fb3c8;
+    --texto: #000000;
+    --verde: #276749;
+    --ambar: #975a16;
+    --vermelho: #9b2c2c;
+    --roxo: #553c9a;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background-color: var(--fundo-pagina);
+    color: var(--texto);
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.62;
+  }
+
+  .page { max-width: 980px; margin: 0 auto; padding: 32px 28px 80px; }
+
+  h1, h2, h3, h4 { color: var(--texto); line-height: 1.25; }
+  h1 { font-size: 30px; margin: 0 0 6px; letter-spacing: -0.3px; }
+  h2 { font-size: 22px; margin: 0 0 14px; padding-bottom: 8px; border-bottom: 3px solid var(--azul); }
+  h3 { font-size: 17px; margin: 22px 0 8px; }
+  h4 { font-size: 15px; margin: 16px 0 6px; }
+  p { margin: 8px 0; }
+  ul, ol { margin: 8px 0; padding-left: 22px; }
+  li { margin: 3px 0; }
+  a { color: var(--azul); }
+  strong { font-weight: 700; }
+
+  code, .mono {
+    font-family: Consolas, "SFMono-Regular", Menlo, monospace;
+    font-size: 13px;
+    background-color: var(--fundo-cinza);
+    border: 1px solid var(--borda);
+    border-radius: 4px;
+    padding: 0 4px;
+    overflow-wrap: anywhere;
+  }
+  pre {
+    font-family: Consolas, "SFMono-Regular", Menlo, monospace;
+    font-size: 13px;
+    background-color: var(--fundo-cinza);
+    border: 1px solid var(--borda);
+    border-radius: 6px;
+    padding: 12px 14px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 10px 0;
+  }
+  pre code { border: 0; padding: 0; background-color: transparent; }
+
+  /* ---------- Cabeçalho ---------- */
+  .doc-header {
+    background-color: var(--fundo-azul);
+    border: 1px solid var(--borda);
+    border-left: 6px solid var(--azul);
+    border-radius: 10px;
+    padding: 22px 24px;
+    margin-bottom: 28px;
+  }
+  .doc-header .eyebrow {
+    font-size: 12px; font-weight: 700; letter-spacing: 1.2px;
+    text-transform: uppercase; color: var(--azul); margin: 0 0 6px;
+  }
+  .prompt-literal {
+    background-color: #ffffff;
+    border: 1px dashed var(--borda-forte);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 14px 0 8px;
+    font-size: 13.5px;
+    white-space: pre-wrap;
+    max-height: 460px;
+    overflow-y: auto;
+  }
+  .prompt-literal .rotulo {
+    display: block; font-size: 11px; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--azul); margin-bottom: 6px;
+  }
+  .meta { font-size: 13px; margin: 4px 0 0; }
+
+  /* ---------- Sumário ---------- */
+  .toc {
+    background-color: #ffffff; border: 1px solid var(--borda);
+    border-radius: 10px; padding: 18px 24px; margin-bottom: 32px;
+  }
+  .toc ol { columns: 2; column-gap: 32px; margin: 0; }
+  .toc li { break-inside: avoid; }
+  .toc a { color: var(--texto); text-decoration: none; border-bottom: 1px dotted var(--borda-forte); }
+  .toc a:hover { color: var(--azul); }
+
+  /* ---------- Seções ---------- */
+  section {
+    background-color: #ffffff; border: 1px solid var(--borda);
+    border-radius: 10px; padding: 22px 24px; margin-bottom: 26px;
+  }
+
+  /* ---------- Caixas ---------- */
+  .highlight-box, .example-box, .bonus-section, .callout {
+    border-radius: 8px; padding: 12px 16px; margin: 12px 0; border: 1px solid var(--borda);
+  }
+  .highlight-box { background-color: var(--fundo-azul); border-left: 5px solid var(--azul); }
+  .example-box { background-color: var(--fundo-verde); border-left: 5px solid var(--verde); }
+  .callout-ambar { background-color: var(--fundo-ambar); border-left: 5px solid var(--ambar); }
+  .callout-vermelho { background-color: var(--fundo-vermelho); border-left: 5px solid var(--vermelho); }
+  .callout-roxo { background-color: var(--fundo-roxo); border-left: 5px solid var(--roxo); }
+  .bonus-section { background-color: var(--fundo-ambar); border-left: 5px solid var(--ambar); }
+  .box-title {
+    display: block; font-weight: 700; font-size: 13px; letter-spacing: 0.6px;
+    text-transform: uppercase; margin-bottom: 4px;
+  }
+
+  /* ---------- Selos ---------- */
+  .tag {
+    display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.4px;
+    padding: 1px 8px; border-radius: 999px; border: 1px solid var(--borda-forte);
+    white-space: nowrap; vertical-align: 1px;
+  }
+  .tag-ok { background-color: var(--fundo-verde); }
+  .tag-par { background-color: var(--fundo-ambar); }
+  .tag-nao { background-color: var(--fundo-vermelho); }
+  .tag-dec { background-color: var(--fundo-azul); }
+  .tag-pro { background-color: var(--fundo-roxo); }
+
+  /* ---------- Tabelas ---------- */
+  .table-wrap { width: 100%; overflow-x: auto; margin: 12px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  thead th {
+    background-color: var(--azul); color: #ffffff; text-align: left;
+    font-weight: 700; padding: 8px 10px; border: 1px solid var(--azul);
+  }
+  tbody td { padding: 7px 10px; border: 1px solid var(--borda); vertical-align: top; overflow-wrap: anywhere; }
+  tbody tr:nth-child(even) td { background-color: var(--fundo-azul); }
+
+  .steps { counter-reset: passo; list-style: none; padding-left: 0; }
+  .steps > li {
+    counter-increment: passo; position: relative; padding: 6px 0 6px 40px;
+    border-bottom: 1px dotted var(--borda);
+  }
+  .steps > li::before {
+    content: counter(passo); position: absolute; left: 0; top: 6px;
+    width: 26px; height: 26px; border-radius: 50%;
+    background-color: var(--azul); color: #ffffff; font-weight: 700;
+    font-size: 13px; text-align: center; line-height: 26px;
+  }
+
+  .antes-depois { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0; }
+  .antes, .depois { border-radius: 8px; padding: 12px 14px; border: 1px solid var(--borda); font-size: 13.5px; }
+  .antes { background-color: var(--fundo-vermelho); }
+  .depois { background-color: var(--fundo-verde); }
+  .antes b, .depois b { display: block; margin-bottom: 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; }
+
+  .small { font-size: 13px; }
+  kbd { font-family: Consolas, monospace; font-size: 12px; background-color: var(--fundo-cinza);
+        border: 1px solid var(--borda-forte); border-bottom-width: 2px; border-radius: 4px; padding: 1px 5px; }
+
+  /* ---------- Diagrama do "sol e peças" ---------- */
+  .lego { margin: 16px 0; }
+  .lego-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; align-items: stretch;
+  }
+  .peca {
+    border: 2px dashed var(--borda-forte); border-radius: 10px;
+    background-color: var(--fundo-cinza); padding: 12px 14px; font-size: 13.5px;
+  }
+  .peca b { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 4px; }
+  .sol {
+    border: 3px solid var(--azul); border-radius: 12px;
+    background-color: var(--fundo-azul); padding: 16px 18px; text-align: center;
+  }
+  .sol b { display: block; font-size: 15px; letter-spacing: 0.4px; }
+  .conector { text-align: center; font-size: 20px; line-height: 1; margin: 6px 0; letter-spacing: 6px; }
+
+  /* ---------- Árvore de pastas ---------- */
+  .arvore {
+    font-family: Consolas, "SFMono-Regular", Menlo, monospace;
+    font-size: 13px; line-height: 1.5;
+    background-color: var(--fundo-cinza); border: 1px solid var(--borda);
+    border-radius: 8px; padding: 14px 16px; margin: 12px 0; white-space: pre;
+    overflow-x: auto;
+  }
+  .arvore .p { background-color: #e3ecf7; }  /* plataforma */
+  .arvore .m { background-color: #efe6d4; }  /* módulo */
+  .legenda { font-size: 12.5px; margin: 8px 0 0; }
+  .chip {
+    display: inline-block; padding: 1px 8px; border-radius: 4px;
+    border: 1px solid var(--borda-forte); font-size: 12px; margin-right: 6px;
+  }
+  .chip-p { background-color: #e3ecf7; }
+  .chip-m { background-color: #efe6d4; }
+
+  /* ============================================================
+     BOTÃO E MENU DE IMPRESSÃO
+     ============================================================ */
+  .print-container { position: fixed; top: 16px; right: 16px; z-index: 1000; }
+  .print-button {
+    background-color: var(--azul); color: #ffffff; border: 0; border-radius: 8px;
+    padding: 10px 16px; font: inherit; font-weight: 700; font-size: 14px;
+    cursor: pointer; box-shadow: 0 4px 14px rgba(26, 54, 93, 0.25);
+  }
+  .print-button:hover { background-color: var(--azul-escuro); }
+  .print-menu {
+    display: none; position: absolute; top: calc(100% + 6px); right: 0;
+    min-width: 220px; background-color: #ffffff; border: 1px solid var(--borda);
+    border-radius: 8px; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14); padding: 6px;
+  }
+  .print-menu.open { display: block; }
+  .print-option {
+    display: block; width: 100%; text-align: left; background-color: transparent;
+    color: var(--texto); border: 0; border-radius: 6px; padding: 10px 12px;
+    font: inherit; font-size: 14px; cursor: pointer;
+  }
+  .print-option:hover, .print-option:focus { background-color: var(--fundo-azul); outline: none; }
+  .print-option small { display: block; font-size: 12px; }
+
+  @media (max-width: 720px) {
+    .page { padding: 70px 14px 60px; }
+    .toc ol { columns: 1; }
+    .antes-depois { grid-template-columns: 1fr; }
+    .lego-grid { grid-template-columns: 1fr; }
+    section { padding: 16px; }
+  }
+
+  /* ============================================================
+     MODO PRETO & BRANCO — classe .print-bw no <body>
+     ============================================================ */
+  body.print-bw, body.print-bw * {
+    color: #000000 !important; background-color: #ffffff !important;
+    border-color: #000000 !important; fill: #000000 !important;
+    stroke: #000000 !important; text-shadow: none !important;
+  }
+  body.print-bw table thead, body.print-bw table thead th {
+    background-color: #333333 !important; color: #ffffff !important;
+  }
+  body.print-bw tbody tr:nth-child(even) td { background-color: #f4f4f4 !important; }
+  body.print-bw .highlight-box, body.print-bw .example-box, body.print-bw .bonus-section,
+  body.print-bw .callout, body.print-bw .doc-header, body.print-bw .antes,
+  body.print-bw .depois, body.print-bw pre, body.print-bw code,
+  body.print-bw .arvore, body.print-bw .peca, body.print-bw .sol { background-color: #f2f2f2 !important; }
+  body.print-bw .arvore .p { background-color: #e0e0e0 !important; }
+  body.print-bw .arvore .m { background-color: #ffffff !important; }
+  body.print-bw .tag, body.print-bw .chip { background-color: #e6e6e6 !important; }
+  body.print-bw .steps > li::before { background-color: #333333 !important; color: #ffffff !important; }
+
+  /* ============================================================
+     IMPRESSÃO A4 — só layout, quebras, margens e exibição
+     ============================================================ */
+  @page { size: A4; margin: 0.5cm; }
+
+  @media print {
+    .print-container { display: none !important; }
+    body { margin: 0; padding: 0; }
+    .page { max-width: none; margin: 0; padding: 0; }
+    section { page-break-inside: avoid; margin: 0 0 12px; }
+    section h2 { page-break-inside: avoid; page-break-after: avoid; }
+    h2, h3, h4 { page-break-after: avoid; }
+    .toc, .highlight-box, .bonus-section, .example-box, .callout, .antes-depois,
+    .lego, .arvore { page-break-inside: avoid; }
+    table { page-break-inside: avoid; }
+    tr { page-break-inside: avoid; }
+    .table-wrap, pre, .prompt-literal, .arvore { overflow: visible; }
+    .prompt-literal { max-height: none; }
+    a { border-style: none; }
+    * { box-shadow: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="print-container">
+  <button type="button" class="print-button" id="printButton" aria-haspopup="true" aria-expanded="false" aria-controls="printMenu">
+    🖨️ Imprimir ▾
+  </button>
+  <div class="print-menu" id="printMenu" role="menu">
+    <button type="button" class="print-option" id="printColor" role="menuitem">
+      Cores (A4)
+      <small>Mantém as cores exatamente como na tela</small>
+    </button>
+    <button type="button" class="print-option" id="printBW" role="menuitem">
+      Preto &amp; Branco (A4)
+      <small>Converte tudo para preto, cinzas e branco</small>
+    </button>
+  </div>
+</div>
+
+<div class="page">
+
+<header class="doc-header">
+  <p class="eyebrow">Plataforma Jairo O D C · Módulo Controle Financeiro · Especificação v1 (rodada 2 do debate)</p>
+  <h1>Módulo Controle Financeiro — Especificação Completa</h1>
+  <p class="meta"><strong>Situação:</strong> documento de projeto em debate. <strong>Nenhum arquivo de código foi criado ou alterado.</strong></p>
+  <p class="meta"><strong>Data:</strong> 12/09/2026 · <strong>Substitui</strong> a minuta original · <strong>Base:</strong> as 21 respostas do dono do projeto + as decisões do degrau 6</p>
+  <div class="callout callout-vermelho" style="margin-top:14px">
+    <span class="box-title">⚠️ Um ponto ainda BLOQUEIA a modelagem final</span>
+    <p style="margin-top:6px">A resposta ao item 12 pede <strong>tabelas específicas por usuário</strong> (o sufixo <code>_usuario</code> no nome da tabela). Isso muda tudo o que está nas seções 18 e 19 — e tem consequências que eu preciso que você conheça antes de decidir. <strong>A seção 6 é dedicada a isso.</strong> O resto do documento está escrito no modelo que a plataforma já usa e prova (uma tabela, isolamento por empresa), e a seção 6 diz exatamente o que mudaria se a sua exigência for mantida.</p>
+  </div>
+</header>
+
+<nav class="toc" aria-label="Sumário">
+  <h2 style="border-bottom:0; padding-bottom:0; margin-bottom:10px;">Sumário</h2>
+  <ol>
+    <li><a href="#s1">Como ler este documento</a></li>
+    <li><a href="#s2">Visão geral: o que o módulo é (e o que não é)</a></li>
+    <li><a href="#s3">Glossário — o vocabulário fixo</a></li>
+    <li><a href="#s4">Papéis e permissões</a></li>
+    <li><a href="#s5">Decisões registradas (as 21 respostas)</a></li>
+    <li><a href="#s6">⚠️ O ponto pendente: uma tabela por usuário</a></li>
+    <li><a href="#s7">Arquitetura e encaixe na plataforma</a></li>
+    <li><a href="#s8">Mapa de telas e navegação</a></li>
+    <li><a href="#s9">Tela 1 — Principal</a></li>
+    <li><a href="#s10">Tela 2 — Cadastro de Contas Movimento</a></li>
+    <li><a href="#s11">Tela 3 — Cadastro de Contas Identificadoras</a></li>
+    <li><a href="#s12">Tela 4 — Novo Lançamento</a></li>
+    <li><a href="#s13">Tela 5 — Conferência da Conta (extrato)</a></li>
+    <li><a href="#s14">Tela 6 — Transferência entre contas</a></li>
+    <li><a href="#s15">Tela 7 — Pesquisar Lançamentos</a></li>
+    <li><a href="#s16">Editar, excluir e fechamento de período</a></li>
+    <li><a href="#s17">Regras de negócio consolidadas (RN)</a></li>
+    <li><a href="#s18">Modelo de dados</a></li>
+    <li><a href="#s19">Funções do banco e segurança (RLS)</a></li>
+    <li><a href="#s20">Impressão e exportação</a></li>
+    <li><a href="#s21">Catálogo de mensagens ao usuário</a></li>
+    <li><a href="#s22">Fases de entrega</a></li>
+    <li><a href="#s23">Bônus: sugestões desta rodada</a></li>
+    <li><a href="#s24">Perguntas da rodada 2</a></li>
+  </ol>
+</nav>
+
+<section id="s1">
+  <h2>1. Como ler este documento</h2>
+  <p>Este documento tem <strong>dois leitores</strong> ao mesmo tempo, e foi escrito para os dois:</p>
+  <ul>
+    <li><strong>Quem vai programar</strong> — precisa de campos, tipos, validações, regras numeradas e nomes exatos. Está nas seções 9 a 19.</li>
+    <li><strong>Quem quer entender o módulo</strong> — precisa de exemplos, do porquê de cada decisão e do fluxo do começo ao fim. Está nas seções 2 a 8 e nos exemplos dentro de cada tela.</li>
+  </ul>
+
+  <h3>1.1 As convenções deste documento</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Marca</th><th>Significado</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag tag-ok">DECIDIDO</span></td><td>Você já decidiu. Está registrado na seção 5 com a resposta original.</td></tr>
+        <tr><td><span class="tag tag-pro">PROPOSTA</span></td><td>Detalhe que a sua decisão implica mas não citava — eu preenchi e marquei. Se discordar, é só dizer.</td></tr>
+        <tr><td><span class="tag tag-par">PENDENTE</span></td><td>Ainda precisa da sua resposta. Reunidos na seção 24.</td></tr>
+        <tr><td><code>RN-00</code></td><td>Regra de negócio numerada — a lista completa está na seção 17, e as telas apontam para ela.</td></tr>
+        <tr><td><code>CM</code> / <code>CI</code> / <code>LC</code></td><td>Abreviações: Conta Movimento, Conta Identificadora, Lançamento.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout callout-ambar">
+    <span class="box-title">O que este documento NÃO faz</span>
+    <p style="margin-top:6px">Ele não inventa requisito. Onde você não decidiu, aparece <span class="tag tag-par">PENDENTE</span> em vez de uma solução disfarçada de decisão sua. E ele não descreve DASHBOARDS, ORÇAMENTO nem CONFIGURAÇÕES além de "item de menu que abre EM DESENVOLVIMENTO", porque foi isso que você definiu.</p>
+  </div>
+</section>
+
+<section id="s2">
+  <h2>2. Visão geral: o que o módulo é (e o que não é)</h2>
+
+  <h3>2.1 Em uma frase</h3>
+  <p>O Controle Financeiro registra <strong>entradas e saídas de dinheiro</strong> de uma empresa, organizadas por <strong>onde o dinheiro está</strong> e <strong>por que ele se moveu</strong>, e permite <strong>conferir o saldo contra o extrato do banco</strong>.</p>
+
+  <h3>2.2 O que ele faz (primeira entrega)</h3>
+  <ul>
+    <li>Cadastrar <strong>Contas Movimento</strong> — caixa, banco, outras.</li>
+    <li>Cadastrar <strong>Contas Identificadoras</strong> — despesa, receita, outras.</li>
+    <li>Registrar <strong>lançamentos</strong> com data, valor, tipo, propriedade, regime e histórico.</li>
+    <li>Registrar <strong>transferências entre contas</strong> (duas pernas, uma operação).</li>
+    <li>Ver o <strong>extrato com saldo linha a linha</strong>, ao lado do formulário de lançamento.</li>
+    <li><strong>Pesquisar</strong> lançamentos com filtros cruzados.</li>
+    <li><strong>Imprimir</strong> (cores ou P&amp;B) e <strong>exportar</strong> em TSV.</li>
+    <li><strong>Fechar períodos</strong>, impedindo lançamento em mês já conferido.</li>
+  </ul>
+
+  <h3>2.3 O que ele NÃO faz (por decisão, não por esquecimento)</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Não faz</th><th>Por quê</th></tr></thead>
+      <tbody>
+        <tr><td>Dashboards e gráficos</td><td>Fase 2. Hoje o item de menu abre "EM DESENVOLVIMENTO" <span class="tag tag-ok">DECIDIDO</span></td></tr>
+        <tr><td>Orçamento (previsto × realizado)</td><td>Fase 3, mesmo tratamento <span class="tag tag-ok">DECIDIDO</span></td></tr>
+        <tr><td>Configurações do módulo</td><td>Idem <span class="tag tag-ok">DECIDIDO</span></td></tr>
+        <tr><td>Importar extrato do banco (OFX/CSV)</td><td>Decisão sua no degrau 3: não haverá importação</td></tr>
+        <tr><td>Contas a pagar e a receber</td><td>Não está na minuta. O campo REGIME guarda a informação para uso futuro</td></tr>
+        <tr><td>Anexar comprovante</td><td>Exigiria o Storage do Supabase, ainda não usado no projeto. Previsto no modelo, construído depois</td></tr>
+        <tr><td>Funcionar em celular</td><td>O <code>admin-web</code> bloqueia telas &lt; 768px, e você escolheu manter (Caminho A). Celular fica para o aplicativo</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>2.4 O fluxo completo, do zero ao extrato</h3>
+  <ol class="steps">
+    <li>O <strong>Desenvolvedor</strong> contrata o módulo para a empresa (Painel de Engenharia › Módulos).</li>
+    <li>O <strong>Proprietário</strong> entra e vê o cartão "CONTROLE FINANCEIRO" no painel.</li>
+    <li>Cadastra as contas onde o dinheiro está (ex.: "BANCO ITAÚ", "CARTEIRA").</li>
+    <li>Cadastra as categorias (ex.: "SALÁRIO", "ALUGUEL", "MERCADO").</li>
+    <li>Informa o <strong>saldo de abertura</strong> de cada conta (pode ser negativo).</li>
+    <li>Lança os movimentos, conferindo o extrato ao lado.</li>
+    <li>Ao fim do mês, confere contra o extrato do banco, marca as linhas conferidas e <strong>fecha o período</strong>.</li>
+    <li>Imprime ou exporta o que precisar.</li>
+  </ol>
+</section>
+
+<section id="s3">
+  <h2>3. Glossário — o vocabulário fixo</h2>
+  <p>Estas palavras têm <strong>um</strong> significado neste módulo, e é este. Telas, código, tabelas e conversas usam os mesmos termos.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Termo</th><th>Significa</th><th>Exemplo</th></tr></thead>
+      <tbody>
+        <tr><td><strong>CONTA MOVIMENTO</strong> (CM)</td><td><em>Onde</em> o dinheiro está</td><td>BANCO ITAÚ, CARTEIRA, COFRE</td></tr>
+        <tr><td><strong>TIPO DA CONTA MOVIMENTO</strong></td><td>Natureza do lugar: <code>CAIXA</code>, <code>BANCO</code> ou <code>OUTRAS</code> <span class="tag tag-ok">3 valores</span></td><td>CARTEIRA → CAIXA</td></tr>
+        <tr><td><strong>CONTA IDENTIFICADORA</strong> (CI)</td><td><em>Por que</em> o dinheiro se moveu</td><td>SALÁRIO, ALUGUEL, MERCADO</td></tr>
+        <tr><td><strong>TIPO DA CONTA IDENTIFICADORA</strong></td><td><code>DESPESA</code>, <code>RECEITA</code> ou <code>OUTRAS</code></td><td>ALUGUEL → DESPESA</td></tr>
+        <tr><td><strong>LANÇAMENTO</strong> (LC)</td><td>Um movimento de dinheiro registrado</td><td>05/09, BANCO ITAÚ, SALÁRIO, ENTRADA, 3.000,00</td></tr>
+        <tr><td><strong>TIPO DO MOVIMENTO</strong></td><td><code>ENTRADA</code> ou <code>SAÍDA</code> — é ele que dá o sinal</td><td>SAÍDA de 1.500,00</td></tr>
+        <tr><td><strong>PROPRIEDADE</strong></td><td><code>PRÓPRIO</code> ou <code>TERCEIROS</code> — de quem é o dinheiro</td><td>Valor recebido para repassar → TERCEIROS</td></tr>
+        <tr><td><strong>REGIME</strong></td><td><code>CAIXA</code> ou <code>COMPETÊNCIA</code> — classificação gravada para uso futuro em filtros</td><td>Ver RN-19</td></tr>
+        <tr><td><strong>ORDEM NO EXTRATO</strong></td><td>Número que desempata lançamentos do mesmo dia</td><td>1, 2, 3 dentro de 05/09</td></tr>
+        <tr><td><strong>SALDO DE ABERTURA</strong></td><td>Quanto a conta tinha antes do primeiro lançamento no sistema</td><td>1.200,00 — ou −350,00 se estava no negativo</td></tr>
+        <tr><td><strong>SALDO INICIAL</strong></td><td>Primeira linha do extrato: abertura + tudo anterior ao período</td><td>Com data de um dia antes do período</td></tr>
+        <tr><td><strong>EXTRATO</strong></td><td>Lista de lançamentos de UMA conta, em ordem, com saldo a cada linha</td><td>Tela de Conferência</td></tr>
+        <tr><td><strong>TRANSFERÊNCIA</strong></td><td>Um fato, duas pernas: saída numa conta, entrada em outra</td><td>500,00 do BANCO para a CARTEIRA</td></tr>
+        <tr><td><strong>CONFERIDO</strong></td><td>Marca de que a linha foi conferida contra o extrato do banco</td><td>Caixinha no extrato</td></tr>
+        <tr><td><strong>FECHAMENTO DE PERÍODO</strong></td><td>Data a partir da qual não se lança nem se altera</td><td>"FECHADO ATÉ 31/08"</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="s4">
+  <h2>4. Papéis e permissões</h2>
+
+  <h3>4.1 Os três papéis</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Papel</th><th>Quem é</th><th>No módulo financeiro</th></tr></thead>
+      <tbody>
+        <tr><td><strong>DESENVOLVEDOR</strong></td><td>Você, pelo Painel de Engenharia</td><td><strong>Não usa o módulo.</strong> Só contrata ou descontrata o módulo para cada empresa. Não vê lançamento de ninguém</td></tr>
+        <tr><td><strong>PROPRIETÁRIO</strong></td><td>Dono da empresa</td><td><strong>Acesso total</strong> ao módulo dentro da empresa dele. É quem habilita Dependentes e define o que cada um pode</td></tr>
+        <tr><td><strong>DEPENDENTE</strong></td><td>Quem o Proprietário habilitar</td><td><strong>Exatamente o que o Proprietário marcar</strong>, funcionalidade por funcionalidade <span class="tag tag-ok">DECIDIDO</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout callout-ambar">
+    <span class="box-title">Por que o Desenvolvedor não vê os lançamentos</span>
+    <p style="margin-top:6px">Pode parecer estranho que o administrador da plataforma não veja os dados. É deliberado e está no desenho desde o degrau 3: o Desenvolvedor administra <em>a plataforma</em> (quem entra, quais empresas existem, quais módulos foram contratados), não <em>os negócios dos clientes</em>. Dado financeiro é o mais sensível que o sistema guardará — e a RLS o protege inclusive de quem administra.</p>
+  </div>
+
+  <h3>4.2 Como o Dependente é habilitado <span class="tag tag-ok">DECIDIDO</span></h3>
+  <ol class="steps">
+    <li>O Proprietário abre a habilitação de Dependentes e digita <strong>o e-mail</strong> da pessoa. O campo começa vazio e <strong>não sugere nada</strong> — nada é mostrado antes de ele digitar e mandar buscar.</li>
+    <li>O sistema procura esse e-mail entre os usuários da plataforma.
+      <br><span class="tag tag-pro">PROPOSTA</span> Isto já existe no banco: a função <code>get_user_by_email_for_invite(email, empresa)</code>, que só o dono da empresa pode executar. Não é preciso criar nada.</li>
+    <li><strong>Se não existir:</strong> mensagem "USUÁRIO NÃO ENCONTRADO. ELE PRECISA CRIAR UMA CONTA NA PLATAFORMA ANTES DE SER HABILITADO." (a pessoa precisa ter entrado na plataforma ao menos uma vez).</li>
+    <li><strong>Se existir:</strong> abre a tela de permissões, com a lista de funcionalidades do módulo e uma chave liga/desliga em cada.</li>
+    <li>O Proprietário pode <strong>alterar as permissões quando quiser</strong>, e <strong>desativar</strong> ou <strong>reativar</strong> o Dependente.</li>
+  </ol>
+
+  <h3>4.3 A lista de permissões do módulo <span class="tag tag-pro">PROPOSTA</span></h3>
+  <p>Você pediu "todas as funções do módulo disponíveis para habilitar ou desabilitar". Para isso existir, é preciso uma <strong>lista fechada</strong> de funções. Esta é a minha proposta — <strong>pergunta 22</strong> na seção 24 pede sua confirmação:</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Chave</th><th>O que libera</th><th>Sugestão de padrão</th></tr></thead>
+      <tbody>
+        <tr><td><code>cm_ver</code></td><td>Ver o cadastro de Contas Movimento</td><td>Ligado</td></tr>
+        <tr><td><code>cm_gravar</code></td><td>Criar e editar Contas Movimento</td><td>Desligado</td></tr>
+        <tr><td><code>cm_excluir</code></td><td>Excluir/desativar Contas Movimento</td><td>Desligado</td></tr>
+        <tr><td><code>ci_ver</code></td><td>Ver o cadastro de Contas Identificadoras</td><td>Ligado</td></tr>
+        <tr><td><code>ci_gravar</code></td><td>Criar e editar Contas Identificadoras</td><td>Desligado</td></tr>
+        <tr><td><code>ci_excluir</code></td><td>Excluir/desativar Contas Identificadoras</td><td>Desligado</td></tr>
+        <tr><td><code>lc_ver_todos</code></td><td>Ver os lançamentos de <strong>toda</strong> a empresa</td><td>Ligado</td></tr>
+        <tr><td><code>lc_criar</code></td><td>Criar lançamento</td><td>Ligado</td></tr>
+        <tr><td><code>lc_editar_proprios</code></td><td>Editar os lançamentos que ele mesmo criou</td><td>Ligado</td></tr>
+        <tr><td><code>lc_editar_todos</code></td><td>Editar lançamentos de qualquer pessoa</td><td>Desligado</td></tr>
+        <tr><td><code>lc_excluir_proprios</code></td><td>Excluir os que criou</td><td>Desligado</td></tr>
+        <tr><td><code>lc_excluir_todos</code></td><td>Excluir os de qualquer pessoa</td><td>Desligado</td></tr>
+        <tr><td><code>transferencia</code></td><td>Registrar transferência entre contas</td><td>Desligado</td></tr>
+        <tr><td><code>extrato_ver</code></td><td>Ver a Conferência da Conta (saldos)</td><td>Ligado</td></tr>
+        <tr><td><code>conciliar</code></td><td>Marcar linhas como CONFERIDO</td><td>Desligado</td></tr>
+        <tr><td><code>imprimir</code></td><td>Imprimir e exportar TSV</td><td>Ligado</td></tr>
+        <tr><td><code>fechar_periodo</code></td><td>Fechar e reabrir período</td><td><strong>Desligado</strong> — ver RN-24</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout callout-vermelho">
+    <span class="box-title">A regra que sustenta todas as outras</span>
+    <p style="margin-top:6px"><strong>Essas permissões não podem viver só na tela.</strong> Esconder um botão não impede ninguém de chamar a operação por fora — foi a lição que custou o degrau 3 inteiro. Toda função do banco que grava vai <strong>conferir a permissão do membro</strong> antes de agir, e a tela apenas reflete o que o banco permitiria. Ver RN-25 e a seção 19.</p>
+  </div>
+
+  <h3>4.4 Onde as permissões ficam guardadas <span class="tag tag-pro">PROPOSTA</span></h3>
+  <p>A plataforma já tem o lugar exato para isto: a coluna <code>module_configs</code> (tipo <code>jsonb</code>) da tabela <code>tenant_members</code> — ela existe desde a v10 justamente para "configurações por módulo, por membro", e hoje está vazia (<code>{}</code>).</p>
+  <pre>module_configs = {
+  "financeiro": {
+    "ativo": true,
+    "permissoes": ["cm_ver", "ci_ver", "lc_ver_todos", "lc_criar",
+                   "lc_editar_proprios", "extrato_ver", "imprimir"]
+  }
+}</pre>
+  <p><strong>Vantagem:</strong> não cria tabela nenhuma, não altera a estrutura da plataforma (respeita a regra R5 do LEGO) e some junto com o módulo quando ele for desplugado — basta o reset limpar a chave <code>financeiro</code>.</p>
+</section>
+
+<section id="s5">
+  <h2>5. Decisões registradas (as 21 respostas)</h2>
+  <p>Registro fiel do que você decidiu, para este documento não depender da conversa.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Assunto</th><th>Sua decisão</th></tr></thead>
+      <tbody>
+        <tr><td>—</td><td>Tecnologia</td><td>TypeScript + PostgreSQL (sem Python), conforme a análise da rodada 1</td></tr>
+        <tr><td>—</td><td>Responsividade × bloqueio móvel</td><td><strong>Caminho A</strong>: mantém o bloqueio; o módulo é responsivo de 768px para cima</td></tr>
+        <tr><td>—</td><td>Ícones</td><td><strong>lucide-react</strong>, que já está no projeto</td></tr>
+        <tr><td>1</td><td>Barra do topo</td><td>O módulo <strong>só troca o título</strong> da barra existente</td></tr>
+        <tr><td>2</td><td>DINHEIRO DO PERÍODO</td><td>Cartão grande, no lugar definitivo, escrito "EM DESENVOLVIMENTO"</td></tr>
+        <tr><td>3</td><td>Barra inferior</td><td>O rodapé institucional que já existe</td></tr>
+        <tr><td>4</td><td>Menu</td><td><strong>5 opções</strong> (CADASTROS, CONFIGURAÇÕES, DASHBOARDS, LANÇAMENTOS, ORÇAMENTO)</td></tr>
+        <tr><td>5</td><td>Ícone do menu</td><td>Na barra de cima, à direita</td></tr>
+        <tr><td>6</td><td>Tipo da Conta Movimento</td><td><strong>3 valores</strong>: CAIXA, BANCO, OUTRAS</td></tr>
+        <tr><td>7</td><td>Nome repetido</td><td>Único <strong>por empresa</strong>, ignorando acento</td></tr>
+        <tr><td>8</td><td>Desativar conta</td><td><strong>Sim</strong>, além de excluir</td></tr>
+        <tr><td>9</td><td>Exclusão da identificadora</td><td>Checa lançamentos <strong>da identificadora</strong> (era descuido na minuta)</td></tr>
+        <tr><td>10</td><td>Entrada em conta de despesa</td><td><strong>Avisar e deixar seguir</strong></td></tr>
+        <tr><td>11</td><td>Histórico</td><td><strong>Opcional</strong></td></tr>
+        <tr><td>12</td><td>Tipo gravado no lançamento</td><td><strong>Sim</strong> — e, como consequência, <strong>o tipo do cadastro não pode ser alterado se já houver lançamento</strong> (decisão sua, nova)</td></tr>
+        <tr><td>13</td><td>Extrato e regime</td><td><strong>Só CAIXA</strong> entra no extrato</td></tr>
+        <tr><td>14</td><td>Propriedade</td><td>TERCEIROS <strong>entra</strong> no saldo; os dashboards futuros filtrarão por esse campo</td></tr>
+        <tr><td>15</td><td>Período em branco</td><td><strong>Só mostra registros com datas válidas</strong> informadas</td></tr>
+        <tr><td>16</td><td>Dependente</td><td>Habilitado por e-mail pelo Proprietário, com <strong>permissões analíticas</strong>, desativar e reativar</td></tr>
+        <tr><td>17</td><td>Transferência entre contas</td><td><strong>Sim</strong></td></tr>
+        <tr><td>18</td><td>Saldo de abertura</td><td><strong>Sim</strong>, e <strong>pode ser negativo</strong></td></tr>
+        <tr><td>19</td><td>Data de competência</td><td><strong>Não criar.</strong> O campo REGIME é só classificação para filtros futuros</td></tr>
+        <tr><td>20</td><td>Período antigo</td><td><strong>Criar fechamento de período</strong></td></tr>
+        <tr><td>21</td><td>Excluir lançamento</td><td><strong>Apaga de verdade</strong>, com confirmação; rastro na auditoria</td></tr>
+        <tr><td>Bônus</td><td>N1 a N10</td><td><strong>Todos aceitos</strong>, com o N6 mudando de CSV para <strong>TSV</strong></td></tr>
+        <tr><td>9.1</td><td>"+ ADICIONAR NOVA"</td><td><strong>Modal</strong></td></tr>
+        <tr><td>9.3</td><td>Ordem no extrato</td><td>Sugestão automática; <strong>se a ordem já existir no dia, alerta e, se prosseguir, reordena o dia</strong></td></tr>
+        <tr><td>11</td><td>Editar lançamento</td><td><strong>Todos os campos, exceto USUÁRIO</strong></td></tr>
+        <tr><td>11</td><td>Pesquisar lançamentos</td><td>12 filtros cruzados + "ÚLTIMOS ADICIONADOS" (detalhados na seção 15)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="highlight-box">
+    <span class="box-title">Uma decisão sua que merece destaque, porque resolve um problema real</span>
+    <p style="margin-top:6px">Na resposta 12 você não só confirmou gravar o tipo dentro do lançamento — você <strong>fechou o buraco que isso abria</strong>: se já existir lançamento, o tipo do cadastro não pode mais ser alterado.</p>
+    <p>Isso elimina de vez a situação incoerente que eu havia levantado (o mesmo nome aparecendo com dois tipos diferentes conforme a época). A "fotografia" gravada no lançamento passa a ser sempre igual ao cadastro, porque o cadastro não muda depois que tem movimento. <strong>É uma solução melhor que as duas que eu tinha proposto.</strong></p>
+    <p>A consequência a conhecer: se o tipo foi cadastrado errado e já há lançamentos, a correção é <strong>desativar a conta e criar outra</strong> com o tipo certo. Está na RN-07.</p>
+  </div>
+</section>
+
+<section id="s6">
+  <h2>6. ⚠️ O ponto pendente: uma tabela por usuário</h2>
+  <p>Sua resposta ao item 12 pede: <em>"todas com o prefixo <code>fin_</code>, e com fim <code>_(algo que define o usuário)</code>, porque quero que cada usuário, mesmo estando dentro do mesmo banco de dados, tenha suas tabelas específicas"</em>, com o Painel de Engenharia tendo uma função para especificar quais tabelas são de qual usuário.</p>
+  <p>Eu entendi o <strong>objetivo</strong> — e ele é legítimo: <strong>garantia de que ninguém veja o dinheiro de outro</strong>. Mas o caminho tem consequências que eu preciso pôr na mesa antes de você decidir, porque depois de criado é caríssimo desfazer.</p>
+
+  <h3>6.1 Primeiro, um ajuste de conceito: o dado é da EMPRESA, não do usuário</h3>
+  <p>Repare numa contradição que aparece quando cruzamos duas respostas suas:</p>
+  <div class="antes-depois">
+    <div class="antes">
+      <b>Resposta ao item 12</b>
+      "Cada usuário tem suas tabelas específicas."
+    </div>
+    <div class="depois">
+      <b>Resposta 16 (o Dependente)</b>
+      O Proprietário habilita um Dependente para <strong>ver e lançar</strong> — inclusive <code>lc_ver_todos</code>, ver os lançamentos de toda a empresa.
+    </div>
+  </div>
+  <p>Se cada <strong>usuário</strong> tivesse a própria tabela, o Dependente lançaria na tabela <em>dele</em> — e o Proprietário não veria esses lançamentos no extrato, porque estariam em outra tabela. O saldo da conta ficaria partido entre duas tabelas. Para o extrato funcionar, seria preciso juntá-las a cada consulta — e aí a separação deixou de existir na prática.</p>
+  <p><strong>A conclusão:</strong> o eixo de separação do dado financeiro é a <strong>EMPRESA</strong> (o <em>tenant</em>), não o usuário. É por isso que a plataforma inteira já é organizada assim. Um Proprietário com duas empresas tem dois conjuntos de dados; os Dependentes dele participam de uma ou de outra.</p>
+
+  <h3>6.2 O que você quer já está garantido — e provado</h3>
+  <p>A garantia de "ninguém vê o dinheiro de outro" <strong>não depende</strong> de tabelas separadas. Ela vem da RLS, e no seu banco isso não é promessa:</p>
+  <div class="example-box">
+    <span class="box-title">O que os testes de 12/09 provaram no seu Supabase</span>
+    <ul>
+      <li>Visitante anônimo: <strong>permissão negada</strong> (nem a tabela ele enxerga).</li>
+      <li>Usuário comum: <strong>vê 1 perfil — o próprio</strong>, mesmo com a tabela contendo todos.</li>
+      <li>Usuário comum tentando ler dados administrativos: <strong>recusado com erro 42501</strong>.</li>
+      <li>Usuário comum tentando criar empresa: <strong>recusado</strong>.</li>
+    </ul>
+    <p>Ou seja: <strong>o banco já separa por dono, dentro da mesma tabela</strong>. As 14 travas foram executadas contra o banco publicado e todas passaram.</p>
+  </div>
+
+  <h3>6.3 O que custaria fazer uma tabela por usuário (ou por empresa)</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Consequência</th><th>Por quê, em termos práticos</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Multiplicação de objetos</strong></td>
+          <td>3 tabelas × 20 clientes = <strong>60 tabelas</strong>, cada uma precisando de RLS, policies, índices, gatilhos e privilégios próprios. São 60 chances de esquecer um <code>ENABLE ROW LEVEL SECURITY</code> — e o esquecimento não dá erro: a tabela simplesmente fica aberta</td>
+        </tr>
+        <tr>
+          <td><strong>Toda consulta vira texto montado</strong></td>
+          <td>O código não pode mais dizer <code>FROM fin_lancamentos</code>: precisa montar <code>'FROM fin_lancamentos_' || nome</code> e executar. Isso se chama SQL dinâmico, é a porta clássica de injeção de comando, e obriga a validar cada nome com rigor</td>
+        </tr>
+        <tr>
+          <td><strong>O supabase-js deixa de funcionar como hoje</strong></td>
+          <td>Hoje a tela faz <code>.from('fin_lancamentos')</code>. Com nome variável, cada tela precisa descobrir o nome antes — e a lista de tabelas passa a ser informação que trafega para o navegador</td>
+        </tr>
+        <tr>
+          <td><strong>Mudar uma coluna vira 60 mudanças</strong></td>
+          <td>Acrescentar um campo (digamos, "CONFERIDO") deixa de ser um comando e passa a ser um laço por todas as tabelas. Se falhar na 37ª, o banco fica com dois formatos convivendo</td>
+        </tr>
+        <tr>
+          <td><strong>Relatório entre empresas fica inviável</strong></td>
+          <td>Um Proprietário com 3 empresas que queira ver o total consolidado precisaria de uma consulta que une 3 tabelas — montada em texto, de novo</td>
+        </tr>
+        <tr>
+          <td><strong>O inventário e os testes perdem o alvo</strong></td>
+          <td>O placar do <code>inventario.sql</code> conta "7 tabelas". Com tabelas criadas a cada cliente, o número muda sozinho e o placar perde o sentido. O mesmo vale para o <code>teste_financeiro.sql</code></td>
+        </tr>
+        <tr>
+          <td><strong>Ninguém faz assim</strong></td>
+          <td>Não é argumento de autoridade, é de manutenção: sistemas multiempresa usam a coluna de dono + RLS justamente porque a alternativa não escala. O Supabase inteiro — PostgREST, Realtime, o painel — é construído em cima desse modelo</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>6.4 O meio-termo honesto, se você quiser separação FÍSICA de verdade</h3>
+  <p><span class="tag tag-pro">PROPOSTA</span> Existe um recurso do PostgreSQL que entrega quase exatamente o que você descreveu, <strong>sem</strong> nenhum dos custos acima: o <strong>particionamento por lista</strong>.</p>
+  <div class="example-box">
+    <span class="box-title">Como funciona, em linguagem simples</span>
+    <p style="margin-top:6px">Você declara <strong>uma</strong> tabela <code>fin_lancamentos</code> "particionada por empresa". O PostgreSQL então guarda os dados de cada empresa <strong>num arquivo separado</strong> — fisicamente separados no disco, com nomes como <code>fin_lancamentos_empresa_x</code>. Mas o código continua escrevendo <code>FROM fin_lancamentos</code>, e o banco escolhe sozinho o arquivo certo.</p>
+    <p><strong>Você ganha:</strong> separação física real, e a possibilidade de fazer backup ou apagar os dados de um cliente isoladamente.<br>
+    <strong>Você não perde:</strong> uma estrutura só para manter, uma RLS só, um <code>ALTER TABLE</code> só, e o <code>supabase-js</code> funcionando normalmente.<br>
+    <strong>O custo real:</strong> cada empresa nova precisa que o sistema crie a partição dela — uma linha dentro da função que já cria a empresa.</p>
+  </div>
+
+  <h3>6.5 As três opções, lado a lado</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>&nbsp;</th><th>A) Uma tabela, isolamento por RLS<br><span class="small">o que a plataforma já faz</span></th><th>B) Particionada por empresa<br><span class="small">separação física, código igual</span></th><th>C) Uma tabela por usuário/empresa<br><span class="small">o que a sua resposta pediu</span></th></tr></thead>
+      <tbody>
+        <tr><td><strong>Isolamento dos dados</strong></td><td>Garantido pela RLS (provado nos 14 testes)</td><td>Garantido pela RLS + separação física</td><td>Garantido pela estrutura</td></tr>
+        <tr><td><strong>Complexidade do código</strong></td><td>Mínima</td><td>Mínima (igual à A)</td><td><strong>Alta</strong> — SQL dinâmico em toda parte</td></tr>
+        <tr><td><strong>Mudar uma coluna</strong></td><td>1 comando</td><td>1 comando</td><td><strong>N comandos</strong>, um por cliente</td></tr>
+        <tr><td><strong>Apagar os dados de um cliente</strong></td><td><code>DELETE</code> com filtro</td><td><strong>Soltar a partição</strong> — instantâneo</td><td>Apagar as tabelas dele</td></tr>
+        <tr><td><strong>Funciona com supabase-js direto</strong></td><td>Sim</td><td>Sim</td><td><strong>Não</strong></td></tr>
+        <tr><td><strong>Esforço para construir</strong></td><td>Baixo</td><td>Baixo + a criação da partição</td><td><strong>Muito alto</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout callout-vermelho">
+    <span class="box-title">Minha recomendação, com a honestidade que você pediu</span>
+    <p style="margin-top:6px"><strong>Opção A</strong>, que é o que a plataforma já faz e já provou. Se a separação física for importante para você (por sensação de segurança, por exigência futura de apagar um cliente inteiro, ou por qualquer outro motivo legítimo), <strong>opção B</strong> — ela entrega isso sem contaminar o código.</p>
+    <p><strong>Não recomendo a opção C</strong>, e não vou implementá-la sem você confirmar depois de ler esta seção. Não é teimosia: é que ela transformaria cada mudança futura do módulo — e vão existir muitas — numa operação de risco, e tiraria do projeto as ferramentas que construímos nos degraus 3 e 5 (o inventário com placar, os testes de RLS, o verificador).</p>
+    <p><strong>Pergunta 23</strong> na seção 24.</p>
+  </div>
+
+  <h3>6.6 O que muda neste documento conforme a sua escolha</h3>
+  <ul>
+    <li><strong>Opção A:</strong> nada. As seções 18 e 19 estão escritas assim.</li>
+    <li><strong>Opção B:</strong> muda uma linha em cada <code>CREATE TABLE</code> (a cláusula de partição) e acrescenta a criação da partição quando uma empresa é criada. Tudo o mais permanece.</li>
+    <li><strong>Opção C:</strong> as seções 18 e 19 são reescritas por inteiro, o Painel de Engenharia ganha a tela de "quais tabelas são de quem" que você descreveu, e as telas do módulo passam a resolver o nome da tabela antes de cada operação.</li>
+  </ul>
+</section>
+
+<section id="s7">
+  <h2>7. Arquitetura e encaixe na plataforma</h2>
+  <h3>7.1 As cinco pastas do módulo</h3>
+  <div class="arvore"><span class="p">apps/admin-web/src/app/dashboard/</span><span class="m">financeiro/</span><span class="p">       </span><span class="m">← as telas (a pasta É a rota)</span><span class="p">
+apps/admin-web/src/components/</span><span class="m">financeiro/</span><span class="p">          </span><span class="m">← os componentes de tela</span><span class="p">
+packages/core/src/modules/</span><span class="m">financeiro/</span><span class="p">              </span><span class="m">← regras de negócio + manifesto.ts</span><span class="p">
+supabase/</span><span class="m">criar-bd-financeiro/</span><span class="p">                       </span><span class="m">← financeiro_00_reset / _01_schema / _02_seed</span><span class="p">
+supabase/testes/</span><span class="m">teste_financeiro.sql</span><span class="p">               </span><span class="m">← as travas do módulo</span></div>
+  <p class="legenda"><span class="chip chip-p">azul = plataforma</span><span class="chip chip-m">bege = módulo</span> Tudo que tem <code>financeiro</code> no nome é do módulo. Desplugar = apagar estas cinco e remover três linhas.</p>
+
+  <h3>7.2 As três soldas</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Onde</th><th>O quê</th></tr></thead>
+      <tbody>
+        <tr><td>S1</td><td><code>packages/core/src/modules/registro.ts</code></td><td><code>import</code> do manifesto + entrada na lista (2 linhas)</td></tr>
+        <tr><td>S2</td><td><code>packages/core/src/index.ts</code></td><td><code>export * from './modules/financeiro';</code> (1 linha)</td></tr>
+        <tr><td>S3</td><td>banco</td><td>A linha <code>financeiro</code> em <code>platform_modules</code>, gravada pelo seed do módulo</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>7.3 O manifesto</h3>
+  <pre>export const MANIFESTO_FINANCEIRO: ManifestoDeModulo = {
+  id: 'financeiro',
+  nome: 'Controle Financeiro',
+  descricao: 'Contas, lançamentos, extrato e conferência.',
+  rotaWeb: '/dashboard/financeiro',
+  prefixoBanco: 'fin_',
+  versao: '1.0.0',
+  exigePlataforma: 'v10',
+};</pre>
+
+  <h3>7.4 As duas chaves para o módulo aparecer</h3>
+  <ol class="steps">
+    <li><strong>A empresa contrata</strong> — o Desenvolvedor liga o módulo para a empresa em <code>/dashboard/modulos</code>. Sem isso, ninguém daquela empresa vê o módulo.</li>
+    <li><strong>O membro é liberado</strong> — o Proprietário já tem o módulo por ser dono; os Dependentes recebem o acesso e as permissões da seção 4.</li>
+  </ol>
+  <p>Isto não é novidade do módulo: é o mecanismo que o degrau 5 construiu e que os testes 10 a 13 provaram no banco.</p>
+</section>
+
+<section id="s8">
+  <h2>8. Mapa de telas e navegação</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Tela</th><th>Endereço</th><th>Chega-se por</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>PRINCIPAL</td><td><code>/dashboard/financeiro</code></td><td>Cartão "CONTROLE FINANCEIRO" no painel da plataforma</td></tr>
+        <tr><td>2</td><td>CADASTROS › CONTA MOVIMENTO</td><td><code>/dashboard/financeiro/contas-movimento</code></td><td>Menu › CADASTROS</td></tr>
+        <tr><td>3</td><td>CADASTROS › CONTA IDENTIFICADORA</td><td><code>/dashboard/financeiro/contas-identificadoras</code></td><td>Menu › CADASTROS</td></tr>
+        <tr><td>4</td><td>LANÇAMENTOS (escolha)</td><td><code>/dashboard/financeiro/lancamentos</code></td><td>Menu › LANÇAMENTOS</td></tr>
+        <tr><td>5</td><td>NOVO LANÇAMENTO + CONFERÊNCIA</td><td><code>/dashboard/financeiro/lancamentos/novo</code></td><td>Botão "NOVO LANÇAMENTO"</td></tr>
+        <tr><td>6</td><td>PESQUISAR LANÇAMENTOS</td><td><code>/dashboard/financeiro/lancamentos/pesquisar</code></td><td>Botão "PESQUISAR"</td></tr>
+        <tr><td>7</td><td>TRANSFERÊNCIA ENTRE CONTAS</td><td><code>/dashboard/financeiro/transferencia</code></td><td>Botão na tela 4 <span class="tag tag-pro">PROPOSTA</span></td></tr>
+        <tr><td>8</td><td>DEPENDENTES DO MÓDULO</td><td><code>/dashboard/financeiro/dependentes</code></td><td>Menu › CONFIGURAÇÕES <span class="tag tag-par">ver pergunta 24</span></td></tr>
+        <tr><td>9</td><td>IMPRESSÃO</td><td><code>/dashboard/financeiro/imprimir/...</code></td><td>Botão IMPRIMIR — <strong>abre em nova guia</strong></td></tr>
+        <tr><td>—</td><td>CONFIGURAÇÕES / DASHBOARDS / ORÇAMENTO</td><td>—</td><td>Menu → abre aviso "EM DESENVOLVIMENTO"</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout callout-ambar">
+    <span class="box-title">Uma observação sobre a tela 8</span>
+    <p style="margin-top:6px">A habilitação de Dependentes é <strong>meio plataforma, meio módulo</strong>: quem é membro da empresa é assunto da plataforma (já existe a "Central de Comando de Tripulação"), mas <em>o que ele pode fazer dentro do financeiro</em> é assunto do módulo. <strong>Pergunta 24:</strong> a tela de permissões fica dentro do módulo (recomendo) ou acoplada à tela de equipe da plataforma?</p>
+  </div>
+</section>
+
+<section id="s9">
+  <h2>9. Tela 1 — Principal</h2>
+  <h3>9.1 Estrutura</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Ordem</th><th>Elemento</th><th>Especificação</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Barra do topo</td><td>É a <strong>barra da plataforma</strong>, que já existe; o módulo apenas <strong>troca o título</strong> para "CONTROLE FINANCEIRO" (maiúsculas). Nenhuma segunda barra <span class="tag tag-ok">DECIDIDO</span></td></tr>
+        <tr><td>2</td><td>Ícone de menu</td><td>Na barra do topo, <strong>à direita</strong>. Abre as 5 opções <span class="tag tag-ok">DECIDIDO</span></td></tr>
+        <tr><td>3</td><td>DINHEIRO DO PERÍODO</td><td><strong>Cartão grande, centralizado</strong>, no lugar definitivo, com o texto "EM DESENVOLVIMENTO". <strong>Sem números de exemplo.</strong> Ao clicar, abre modal "ESTA FUNÇÃO ESTÁ EM DESENVOLVIMENTO." <span class="tag tag-ok">DECIDIDO</span></td></tr>
+        <tr><td>4</td><td>Rodapé</td><td>O rodapé institucional da plataforma (© e versão) <span class="tag tag-ok">DECIDIDO</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Todos os elementos centralizados, um abaixo do outro, como a minuta pede.</p>
+
+  <h3>9.2 O menu (5 opções)</h3>
+  <pre>CADASTROS  ─┬─ CONTA MOVIMENTO          → tela 2
+             └─ CONTA IDENTIFICADORA     → tela 3
+CONFIGURAÇÕES                            → "EM DESENVOLVIMENTO"
+DASHBOARDS                               → "EM DESENVOLVIMENTO"
+LANÇAMENTOS                              → tela 4
+ORÇAMENTO                                → "EM DESENVOLVIMENTO"</pre>
+  <p><span class="tag tag-pro">PROPOSTA</span> As opções que o membro não tiver permissão para usar <strong>aparecem desabilitadas com o motivo</strong> ("SEM PERMISSÃO"), em vez de sumirem. Motivo: um menu que muda de tamanho conforme a pessoa confunde quem dá suporte por telefone — "clique na terceira opção" deixa de funcionar.</p>
+</section>
+
+<section id="s10">
+  <h2>10. Tela 2 — Cadastro de Contas Movimento</h2>
+
+  <h3>10.1 Campos do formulário</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Campo</th><th>Tipo</th><th>Obrigatório</th><th>Comportamento</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>NOME DA CONTA MOVIMENTO</strong></td>
+          <td>Texto, até 60 caracteres <span class="tag tag-pro">limite proposto</span></td>
+          <td><strong>Sim</strong></td>
+          <td>Converte para MAIÚSCULAS ao digitar. A partir do <strong>1º caractere</strong>, busca no banco e mostra <strong>até 4 sugestões</strong> de contas que contenham o texto <strong>em qualquer posição</strong>, ignorando acento. Clicar numa sugestão carrega aquele registro para edição. Não grava em branco (RN-01) nem repetido (RN-02)</td>
+        </tr>
+        <tr>
+          <td><strong>TIPO DA CONTA MOVIMENTO</strong></td>
+          <td>Lista fixa: <code>CAIXA</code>, <code>BANCO</code>, <code>OUTRAS</code></td>
+          <td><strong>Sim</strong></td>
+          <td>Sem digitação. <strong>Bloqueado para alteração se a conta já tiver lançamento</strong> (RN-07)</td>
+        </tr>
+        <tr>
+          <td><strong>SALDO DE ABERTURA</strong> <span class="tag tag-ok">DECIDIDO</span></td>
+          <td>Financeiro, <strong>aceita negativo</strong></td>
+          <td>Não (padrão 0,00)</td>
+          <td>Quanto a conta tinha antes do primeiro lançamento. Negativo é válido — conta corrente no vermelho (RN-08)</td>
+        </tr>
+        <tr>
+          <td><strong>SITUAÇÃO</strong> <span class="tag tag-ok">DECIDIDO</span></td>
+          <td>ATIVA / INATIVA</td>
+          <td>—</td>
+          <td>Conta inativa não aparece nas listas de lançamento novo, mas continua no histórico e nos extratos (RN-06)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="example-box">
+    <span class="box-title">Como a busca funciona, na prática</span>
+    <p style="margin-top:6px">O usuário digita <strong>I</strong>. O sistema já procura contas que contenham "I" e mostra até 4: "BANCO ITAÚ", "CAIXA INTERNA", "INVESTIMENTOS", "SICREDI". Ele digita <strong>IT</strong> e a lista encolhe para "BANCO ITAÚ". Ele clica e o registro abre para edição.</p>
+    <p><strong>Por que "em qualquer posição" importa:</strong> o usuário lembra "Itaú", não "Banco Itaú". Buscar só pelo começo obrigaria a lembrar da primeira palavra.</p>
+    <p><strong>Por que ignorar acento:</strong> digitar "ITAU" tem de achar "BANCO ITAÚ". A extensão <code>unaccent</code> já está instalada no banco.</p>
+  </div>
+
+  <h3>10.2 Pesquisa</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Filtro</th><th>Como funciona</th></tr></thead>
+      <tbody>
+        <tr><td><strong>TODOS</strong></td><td>Lista todas as contas da empresa</td></tr>
+        <tr><td><strong>NOME</strong></td><td>Mesma busca de 4 sugestões descrita acima</td></tr>
+        <tr><td><strong>TIPO</strong></td><td>CAIXA / BANCO / OUTRAS</td></tr>
+        <tr><td><strong>ÚLTIMOS ADICIONADOS</strong></td><td>Todos os registros do mais recente para o mais antigo, pela data de criação</td></tr>
+        <tr><td colspan="2"><strong>Os filtros se cruzam</strong>: nome + tipo ao mesmo tempo (RN-03)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>10.3 Ações em cada registro da lista</h3>
+  <p>Botão <strong>OPÇÕES</strong> com:</p>
+  <ul>
+    <li><strong>EDITAR</strong> — carrega no formulário. O TIPO vem bloqueado se houver lançamento (RN-07).</li>
+    <li><strong>EXCLUIR</strong> — <strong>recusado</strong> se existir qualquer lançamento usando a conta (RN-04). A recusa é do banco, não da tela.</li>
+    <li><strong>DESATIVAR / REATIVAR</strong> — alterna a situação (RN-06).</li>
+  </ul>
+
+  <h3>10.4 Impressão</h3>
+  <p>Botão <strong>IMPRIMIR</strong>, habilitado <strong>somente se a pesquisa trouxe registros</strong> (RN-05). Abre <strong>nova guia</strong> com o layout de impressão e o menu de duas opções (CORES A4 / PRETO &amp; BRANCO A4) descrito na seção 20.</p>
+</section>
+
+<section id="s11">
+  <h2>11. Tela 3 — Cadastro de Contas Identificadoras</h2>
+  <p><strong>Idêntica à tela 2</strong> em estrutura, busca, filtros, ações e impressão. As diferenças:</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Campo</th><th>Diferença</th></tr></thead>
+      <tbody>
+        <tr><td><strong>NOME DA CONTA IDENTIFICADORA DO MOVIMENTO</strong></td><td>Mesmo comportamento do nome da conta movimento</td></tr>
+        <tr><td><strong>TIPO</strong></td><td>Lista fixa: <code>DESPESA</code>, <code>RECEITA</code>, <code>OUTRAS</code></td></tr>
+        <tr><td><strong>SALDO DE ABERTURA</strong></td><td><strong>Não existe</strong> — categoria não tem saldo, só conta tem</td></tr>
+        <tr><td><strong>EXCLUIR</strong></td><td>Recusado se houver lançamento usando <strong>esta identificadora</strong> (RN-04) <span class="tag tag-ok">correção confirmada</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout callout-ambar">
+    <span class="box-title">Por que as duas telas são gêmeas de propósito</span>
+    <p style="margin-top:6px">Mesma disposição, mesmos botões nos mesmos lugares, mesmas mensagens. Quem aprendeu uma, sabe a outra. No código, isso significa <strong>um componente compartilhado</strong> parametrizado pelo tipo de cadastro — metade do código e metade dos defeitos.</p>
+  </div>
+</section>
+
+<section id="s12">
+  <h2>12. Tela 4 — Novo Lançamento</h2>
+  <p>Tela dividida em duas colunas: à esquerda <strong>LANÇAMENTO</strong>, à direita <strong>CONFERÊNCIA DA CONTA</strong> (seção 13). Em telas entre 768px e ~1100px as colunas empilham, com o formulário em cima.</p>
+
+  <h3>12.1 Os campos, em ordem</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Campo</th><th>Tipo</th><th>Obrig.</th><th>Regras</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><strong>CONTA MOVIMENTO</strong></td><td>Lista alfabética das contas <strong>ativas</strong> da empresa</td><td>Sim</td><td>Só aceita conta existente. Tem <strong>"+ ADICIONAR NOVA"</strong> → abre <strong>modal</strong> (RN-09)</td></tr>
+        <tr><td>2</td><td><strong>TIPO DA CONTA MOVIMENTO</strong></td><td>Somente leitura</td><td>Sim</td><td>Preenchido automaticamente pela conta escolhida. <strong>É gravado no lançamento</strong> (RN-10)</td></tr>
+        <tr><td>3</td><td><strong>DATA DO MOVIMENTO</strong></td><td>Data</td><td>Sim</td><td>Começa <strong>em branco</strong>. Digitar ou escolher no calendário. Avisa se for mais de 90 dias no futuro (RN-13). Recusada se o período estiver fechado (RN-24)</td></tr>
+        <tr><td>4</td><td><strong>ORDEM NO EXTRATO</strong></td><td>Inteiro</td><td>Não</td><td><strong>Sugerida automaticamente</strong> (RN-11). Se repetir uma ordem já usada no dia, <strong>alerta e reordena</strong> (RN-12)</td></tr>
+        <tr><td>5</td><td><strong>TIPO DO MOVIMENTO</strong></td><td><code>ENTRADA</code> / <code>SAÍDA</code></td><td>Sim</td><td>É ele que dá o sinal ao valor</td></tr>
+        <tr><td>6</td><td><strong>PROPRIEDADE</strong></td><td><code>PRÓPRIO</code> / <code>TERCEIROS</code></td><td>Sim</td><td>Classificação para os filtros e dashboards futuros (RN-18)</td></tr>
+        <tr><td>7</td><td><strong>REGIME</strong></td><td><code>CAIXA</code> / <code>COMPETÊNCIA</code></td><td>Sim</td><td>Classificação gravada. <strong>O extrato mostra apenas CAIXA</strong> (RN-19)</td></tr>
+        <tr><td>8</td><td><strong>CONTA IDENTIFICADORA</strong></td><td>Lista alfabética das ativas</td><td>Sim</td><td>Só aceita existente. Tem <strong>"+ ADICIONAR NOVA"</strong> → modal (RN-09)</td></tr>
+        <tr><td>9</td><td><strong>TIPO DA CONTA IDENTIFICADORA</strong></td><td>Somente leitura</td><td>Sim</td><td>Automático. <strong>Gravado no lançamento</strong> (RN-10). Dispara o aviso da RN-14 quando houver incoerência</td></tr>
+        <tr><td>10</td><td><strong>VALOR DO LANÇAMENTO</strong></td><td>Financeiro</td><td>Sim</td><td><strong>Maior que zero</strong>, sempre (RN-15). Avisa se for fora do padrão da conta (RN-16)</td></tr>
+        <tr><td>11</td><td><strong>HISTÓRICO DO MOVIMENTO</strong></td><td>Texto até 200 caracteres</td><td><strong>Não</strong></td><td>Converte para MAIÚSCULAS <span class="tag tag-ok">DECIDIDO opcional</span></td></tr>
+        <tr><td>—</td><td><em>USUÁRIO</em></td><td>Automático</td><td>—</td><td>Quem criou. <strong>Não editável</strong>, nem na edição (RN-22)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>12.2 O "+ ADICIONAR NOVA" (RN-09) <span class="tag tag-ok">DECIDIDO: MODAL</span></h3>
+  <ol class="steps">
+    <li>O usuário está preenchendo o lançamento e percebe que falta a conta.</li>
+    <li>Clica em "+ ADICIONAR NOVA" ao lado do campo.</li>
+    <li>Abre um <strong>modal</strong> com apenas <strong>NOME</strong> e <strong>TIPO</strong> (e SALDO DE ABERTURA, no caso da conta movimento). Sem pesquisa, sem impressão.</li>
+    <li>Ao gravar, o modal fecha e <strong>a conta nova já vem selecionada</strong> no campo.</li>
+    <li><strong>Nada do que já estava digitado se perde</strong> — é esta a razão de ser modal e não outra tela.</li>
+  </ol>
+
+  <h3>12.3 A ordem no extrato (RN-11 e RN-12) <span class="tag tag-ok">DECIDIDO</span></h3>
+  <p><strong>Sugestão automática:</strong> assim que a CONTA MOVIMENTO e a DATA estiverem preenchidas, o sistema propõe a próxima ordem livre daquele dia naquela conta. Se já existem 2 lançamentos em 05/09, sugere <strong>3</strong>. O usuário pode apagar (fica em branco) ou digitar outro número.</p>
+  <div class="example-box">
+    <span class="box-title">O que acontece se ele digitar uma ordem já usada</span>
+    <p style="margin-top:6px">Suponha que em 05/09 já existam:</p>
+    <pre>ordem 1 — SALÁRIO      (entrada)
+ordem 2 — ALUGUEL      (saída)
+ordem 3 — MERCADO      (saída)</pre>
+    <p>O usuário lança um novo e digita <strong>ordem 2</strong> (porque no extrato do banco ele aparece em segundo). O sistema avisa:</p>
+    <pre>A ORDEM 2 JÁ EXISTE EM 05/09 NESTA CONTA.
+SE CONTINUAR, O NOVO LANÇAMENTO ASSUME A ORDEM 2
+E OS SEGUINTES SERÃO REORDENADOS.
+[CANCELAR]  [CONTINUAR]</pre>
+    <p>Se continuar, o resultado é:</p>
+    <pre>ordem 1 — SALÁRIO
+ordem 2 — O NOVO LANÇAMENTO      ← entrou aqui
+ordem 3 — ALUGUEL                ← era 2
+ordem 4 — MERCADO                ← era 3</pre>
+    <p><strong>O reordenamento acontece dentro de uma única operação no banco</strong> — ou todos mudam, ou nenhum muda. Se fosse feito em chamadas separadas e uma falhasse, o dia ficaria com duas ordens 2, que é exatamente o problema que se quis evitar.</p>
+  </div>
+
+  <h3>12.4 Avisos que não bloqueiam</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Situação</th><th>Aviso</th><th>Regra</th></tr></thead>
+      <tbody>
+        <tr><td>ENTRADA numa conta identificadora de DESPESA (ou SAÍDA numa de RECEITA)</td><td>"ESTA É UMA CONTA DE DESPESA E VOCÊ ESTÁ LANÇANDO UMA ENTRADA. CONFIRMA?"</td><td>RN-14</td></tr>
+        <tr><td>Data mais de 90 dias no futuro</td><td>"A DATA INFORMADA ESTÁ MAIS DE 90 DIAS À FRENTE. CONFIRMA?"</td><td>RN-13</td></tr>
+        <tr><td>Valor muito fora do padrão da conta</td><td>"ESTE VALOR É MUITO SUPERIOR À MÉDIA DESTA CONTA. CONFIRMA?"</td><td>RN-16</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p><strong>Por que avisar em vez de bloquear:</strong> os três casos têm situações legítimas (estorno, pagamento agendado, uma compra grande de verdade). Bloquear empurraria o usuário a registrar errado para contornar o sistema — e o dado errado é pior que o aviso ignorado.</p>
+
+  <h3>12.5 Depois de gravar <span class="tag tag-ok">bônus N2 aceito</span></h3>
+  <ul>
+    <li>O formulário <strong>mantém</strong> CONTA MOVIMENTO e DATA (que repetem em série) e <strong>limpa</strong> os demais.</li>
+    <li>A ORDEM é recalculada (a próxima livre).</li>
+    <li>A <strong>coluna da direita se atualiza na hora</strong>, mostrando o lançamento recém-criado no extrato.</li>
+    <li>Botão <strong>"REPETIR ÚLTIMO"</strong> copia todos os campos do último lançamento para edição.</li>
+  </ul>
+</section>
+
+<section id="s13">
+  <h2>13. Tela 5 — Conferência da Conta (o extrato)</h2>
+  <p>É a coluna direita da tela 4, e também pode ser aberta sozinha.</p>
+
+  <h3>13.1 Filtros</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Campo</th><th>Especificação</th></tr></thead>
+      <tbody>
+        <tr><td><strong>CONTA MOVIMENTO</strong></td><td>Lista alfabética de <strong>todas</strong> as contas (inclusive inativas, porque elas têm histórico). Uma por vez</td></tr>
+        <tr><td><strong>DATA INICIAL</strong> e <strong>DATA FINAL</strong></td><td>Ambas começam em branco. <strong>O extrato só é exibido quando as duas forem válidas</strong> (RN-17) <span class="tag tag-ok">DECIDIDO</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Enquanto as datas não forem válidas, a área mostra: "INFORME A DATA INICIAL E A DATA FINAL PARA VER O EXTRATO."</p>
+
+  <h3>13.2 As colunas do extrato</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Coluna</th><th>Conteúdo</th></tr></thead>
+      <tbody>
+        <tr><td>DATA</td><td>Data do lançamento</td></tr>
+        <tr><td>ORDEM NO EXTRATO</td><td>Ordena junto com a data</td></tr>
+        <tr><td>CONTA IDENTIFICADORA DO MOVIMENTO</td><td>Nome da categoria</td></tr>
+        <tr><td>ENTRADA</td><td>O valor, <strong>se</strong> o tipo do movimento for ENTRADA</td></tr>
+        <tr><td>SAÍDA</td><td>O valor, <strong>se</strong> for SAÍDA</td></tr>
+        <tr><td>SALDO</td><td><strong>Recalculado a cada linha</strong></td></tr>
+        <tr><td>HISTÓRICO DO MOVIMENTO</td><td>O texto</td></tr>
+        <tr><td>CONFERIDO <span class="tag tag-ok">bônus N1 aceito</span></td><td>Caixa de marcação; grava na hora (RN-20)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>13.3 A primeira linha: SALDO INICIAL</h3>
+  <pre>DATA:    um dia ANTES da data inicial informada
+TEXTO:   SALDO INICIAL
+SALDO:   saldo de abertura da conta
+       + todas as ENTRADAS anteriores à data inicial
+       − todas as SAÍDAS anteriores à data inicial
+       (considerando apenas lançamentos de regime CAIXA — RN-19)</pre>
+
+  <h3>13.4 A última linha: TOTAIS</h3>
+  <p>Soma das ENTRADAS e das SAÍDAS <strong>do período exibido</strong> (o saldo inicial não entra nessas somas), e o saldo final.</p>
+
+  <h3>13.5 A ordenação, com o desempate (RN-21)</h3>
+  <pre>1º  DATA DO MOVIMENTO           (crescente)
+2º  ORDEM NO EXTRATO            (crescente; os vazios por último)
+3º  INSTANTE DE CRIAÇÃO         (crescente)   ← o desempate final</pre>
+  <p><strong>Por que o terceiro critério existe:</strong> sem ele, dois lançamentos no mesmo dia e sem ordem poderiam aparecer em sequências diferentes a cada abertura da tela — e o saldo linha a linha mudaria junto, assustando quem está conferindo. Com o instante de criação, a ordem é sempre a mesma.</p>
+
+  <div class="example-box">
+    <span class="box-title">Como o saldo é calculado — e por que no banco</span>
+    <p style="margin-top:6px">O saldo de cada linha é "tudo que veio antes, mais esta linha". O PostgreSQL faz isso com uma <strong>função de janela</strong>:</p>
+    <pre>SUM(valor_com_sinal) OVER (ORDER BY data, ordem, criado_em)</pre>
+    <p>Uma passagem, ordenado, sem trazer nada para a memória do servidor de aplicação. E como o número sai do banco, <strong>a tela, o relatório impresso e o TSV exportado mostram exatamente o mesmo saldo</strong> — porque os três chamam a mesma função. Se a conta morasse na tela, cada consumidor teria a sua cópia da lógica, e o dia em que uma fosse corrigida e a outra não, você veria dois saldos para o mesmo mês.</p>
+  </div>
+</section>
+
+<section id="s14">
+  <h2>14. Tela 6 — Transferência entre contas <span class="tag tag-ok">DECIDIDO: SIM</span></h2>
+
+  <h3>14.1 O problema que ela resolve</h3>
+  <p>Você tira R$ 500 do BANCO ITAÚ e põe na CARTEIRA. Sem esta tela, o usuário faria dois lançamentos soltos, e:</p>
+  <ul>
+    <li>precisaria de uma categoria "TRANSFERÊNCIA" que não é despesa nem receita;</li>
+    <li><strong>o total de despesas e o de receitas do mês ficariam inflados</strong> — o dinheiro só mudou de bolso, não entrou nem saiu;</li>
+    <li>se apagasse uma perna e esquecesse a outra, <strong>o saldo de uma conta ficaria errado para sempre</strong>.</li>
+  </ul>
+
+  <h3>14.2 Campos</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Campo</th><th>Regra</th></tr></thead>
+      <tbody>
+        <tr><td><strong>CONTA DE ORIGEM</strong></td><td>Obrigatória; conta ativa</td></tr>
+        <tr><td><strong>CONTA DE DESTINO</strong></td><td>Obrigatória; <strong>diferente da origem</strong> (RN-23)</td></tr>
+        <tr><td><strong>DATA</strong></td><td>Obrigatória; mesmas regras de data do lançamento</td></tr>
+        <tr><td><strong>VALOR</strong></td><td>Obrigatório, maior que zero</td></tr>
+        <tr><td><strong>HISTÓRICO</strong></td><td>Opcional, maiúsculas</td></tr>
+        <tr><td><strong>PROPRIEDADE</strong> e <strong>REGIME</strong></td><td><span class="tag tag-par">PENDENTE</span> — pergunta 25</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>14.3 O que o sistema grava</h3>
+  <pre>PERNA 1: conta ORIGEM  · SAÍDA  · valor · mesmo identificador de par
+PERNA 2: conta DESTINO · ENTRADA · valor · mesmo identificador de par
+
+As duas gravadas numa ÚNICA operação no banco: ou as duas existem, ou nenhuma.</pre>
+  <p>As duas pernas aparecem normalmente no extrato de cada conta (para bater com o banco), e o filtro "TRANSFERÊNCIA ENTRE CONTAS" da tela de pesquisa (seção 15) permite isolá-las. No futuro, os dashboards excluem transferências das somas de receita e despesa — que é o correto.</p>
+  <p><span class="tag tag-par">PENDENTE</span> <strong>Pergunta 26:</strong> a transferência usa uma CONTA IDENTIFICADORA? Três caminhos: (a) o sistema cria automaticamente uma categoria "TRANSFERÊNCIA ENTRE CONTAS" do tipo OUTRAS; (b) o usuário escolhe a categoria; (c) as pernas ficam sem identificadora, e o extrato mostra "TRANSFERÊNCIA" naquela coluna. <strong>Recomendo (a)</strong> — mantém a regra de "todo lançamento tem identificadora" sem dar trabalho ao usuário.</p>
+
+  <h3>14.4 Excluir uma transferência</h3>
+  <p><span class="tag tag-pro">PROPOSTA</span> Excluir <strong>qualquer</strong> uma das pernas apaga as duas, com aviso: "ESTE LANÇAMENTO FAZ PARTE DE UMA TRANSFERÊNCIA. EXCLUIR VAI APAGAR AS DUAS PERNAS." Deixar apagar só uma perna produziria exatamente o descontrole que a tela existe para evitar.</p>
+</section>
+
+<section id="s15">
+  <h2>15. Tela 7 — Pesquisar Lançamentos</h2>
+  <p>Você especificou 12 filtros mais o "ÚLTIMOS ADICIONADOS", todos cruzáveis. Esta é a tela de consulta do módulo.</p>
+
+  <h3>15.1 Os filtros <span class="tag tag-ok">DECIDIDO</span></h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Filtro</th><th>Como funciona</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><strong>CONTAS MOVIMENTOS</strong></td><td><strong>Múltipla escolha</strong> — pode adicionar várias contas ao filtro</td></tr>
+        <tr><td>2</td><td><strong>CONTAS IDENTIFICADORAS</strong></td><td><strong>Múltipla escolha</strong> — várias categorias</td></tr>
+        <tr><td>3</td><td><strong>PERÍODO</strong></td><td>Data inicial e final</td></tr>
+        <tr><td>4</td><td><strong>VALOR</strong></td><td><span class="tag tag-par">PENDENTE</span> valor exato, ou faixa "de … até"? <strong>Pergunta 27</strong> — recomendo faixa</td></tr>
+        <tr><td>5</td><td><strong>TIPO DA CONTA MOVIMENTO</strong></td><td>CAIXA / BANCO / OUTRAS</td></tr>
+        <tr><td>6</td><td><strong>TIPO DA CONTA IDENTIFICADORA</strong></td><td>DESPESA / RECEITA / OUTRAS</td></tr>
+        <tr><td>7</td><td><strong>USUÁRIO</strong></td><td>Quem criou o lançamento (lista de membros da empresa)</td></tr>
+        <tr><td>8</td><td><strong>TEXTO NO HISTÓRICO</strong></td><td>Contém, em qualquer posição, ignorando acento</td></tr>
+        <tr><td>9</td><td><strong>TIPO DO MOVIMENTO</strong></td><td>ENTRADA / SAÍDA</td></tr>
+        <tr><td>10</td><td><strong>PROPRIEDADE</strong></td><td>PRÓPRIO / TERCEIROS</td></tr>
+        <tr><td>11</td><td><strong>REGIME</strong></td><td>CAIXA / COMPETÊNCIA</td></tr>
+        <tr><td>12</td><td><strong>TRANSFERÊNCIA ENTRE CONTAS</strong></td><td><span class="tag tag-par">PENDENTE</span> <strong>Pergunta 28</strong>: entendi como "mostrar somente transferências" — ou deveria ter três estados (todos / só transferências / esconder transferências)? <strong>Recomendo três estados</strong>: esconder transferências é o que dá o total real de despesas do mês</td></tr>
+        <tr><td>13</td><td><strong>ÚLTIMOS ADICIONADOS</strong></td><td>Todos os lançamentos do mais recente para o mais antigo, pela data de criação — <strong>independente dos demais filtros</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p><strong>Todos se cruzam</strong> (RN-03): por exemplo "BANCO ITAÚ + CARTEIRA, categorias MERCADO e FARMÁCIA, setembro, só SAÍDAS, do usuário MARIA".</p>
+
+  <h3>15.2 O resultado</h3>
+  <p>Lista com: DATA · CONTA MOVIMENTO · CONTA IDENTIFICADORA · TIPO · VALOR · HISTÓRICO · USUÁRIO · OPÇÕES (EDITAR / EXCLUIR).</p>
+  <p><span class="tag tag-pro">PROPOSTA</span> Acima da lista, uma <strong>faixa de totais</strong> do que está filtrado: total de ENTRADAS, total de SAÍDAS, diferença e quantidade de lançamentos. Numa tela de pesquisa financeira, essa linha costuma ser a informação mais consultada — e ela sai de graça, junto da mesma consulta.</p>
+  <p><span class="tag tag-pro">PROPOSTA</span> <strong>Paginação:</strong> 50 lançamentos por página, com os totais sempre referentes ao filtro inteiro (não só à página visível). Sem paginação, um filtro amplo travaria a tela quando houver milhares de registros.</p>
+
+  <h3>15.3 Ações</h3>
+  <ul>
+    <li><strong>IMPRIMIR</strong> — habilitado só com resultados (RN-05); nova guia; cores ou P&amp;B.</li>
+    <li><strong>EXPORTAR TSV</strong> <span class="tag tag-ok">DECIDIDO: TSV, não CSV</span> — seção 20.2.</li>
+  </ul>
+</section>
+
+<section id="s16">
+  <h2>16. Editar, excluir e fechamento de período</h2>
+
+  <h3>16.1 Editar lançamento <span class="tag tag-ok">DECIDIDO</span></h3>
+  <p><strong>Todos os campos podem ser alterados, exceto USUÁRIO</strong> (RN-22). Ao editar:</p>
+  <ul>
+    <li>Os mesmos avisos da criação valem (RN-13, RN-14, RN-16).</li>
+    <li>Mudar a CONTA MOVIMENTO, a DATA ou a ORDEM <strong>reordena o dia de destino</strong> se houver conflito (RN-12).</li>
+    <li>Mudar a conta ou a identificadora <strong>regrava os tipos</strong> (RN-10) — a "fotografia" acompanha.</li>
+    <li>Se a data (antiga ou nova) cair em período fechado, a edição é <strong>recusada</strong> (RN-24).</li>
+    <li>A alteração fica registrada na trilha de auditoria (o módulo audita <code>UPDATE</code> e <code>DELETE</code>).</li>
+  </ul>
+
+  <h3>16.2 Excluir lançamento <span class="tag tag-ok">DECIDIDO</span></h3>
+  <p><strong>Apaga de verdade</strong> (RN-26), com uma confirmação que <strong>mostra os dados do lançamento</strong>:</p>
+  <pre>EXCLUIR ESTE LANÇAMENTO?
+
+DATA:          05/09/2026
+CONTA:         BANCO ITAÚ
+IDENTIFICADORA: ALUGUEL
+TIPO:          SAÍDA
+VALOR:         1.500,00
+HISTÓRICO:     ALUGUEL SETEMBRO
+
+ESTA AÇÃO NÃO PODE SER DESFEITA.
+[CANCELAR]  [EXCLUIR]</pre>
+  <p>Se for perna de transferência, o aviso adicional da seção 14.4 aparece. O rastro fica na auditoria da plataforma.</p>
+
+  <h3>16.3 Fechamento de período <span class="tag tag-ok">DECIDIDO</span></h3>
+  <p>Você pediu o fechamento para <strong>evitar lançamento em período errado</strong> — que é o problema real: digitar 08 em vez de 09 no mês e jogar o lançamento para um mês já conferido.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Aspecto</th><th>Especificação</th></tr></thead>
+      <tbody>
+        <tr><td>O que é</td><td>Uma <strong>data de corte</strong>: "FECHADO ATÉ 31/08/2026"</td></tr>
+        <tr><td>Efeito</td><td>Nenhum lançamento pode ser <strong>criado, editado ou excluído</strong> com data igual ou anterior ao corte (RN-24)</td></tr>
+        <tr><td>Abrangência</td><td><span class="tag tag-par">PENDENTE</span> <strong>Pergunta 29</strong>: o fechamento é <strong>da empresa inteira</strong> (uma data só) ou <strong>por conta movimento</strong> (cada conta com a sua)? <strong>Recomendo por empresa</strong> — mais simples de entender e de explicar</td></tr>
+        <tr><td>Quem fecha</td><td>Proprietário, ou Dependente com a permissão <code>fechar_periodo</code> (desligada por padrão)</td></tr>
+        <tr><td>Reabrir</td><td><span class="tag tag-pro">PROPOSTA</span> Sim, com confirmação — e o evento fica na auditoria. Um fechamento irreversível transformaria um erro de digitação na data de corte num problema sem saída</td></tr>
+        <tr><td>Onde fica</td><td>Uma tabela própria do módulo: <code>fin_fechamentos</code> (seção 18.4)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout callout-ambar">
+    <span class="box-title">Por que o fechamento precisa estar no banco, e não na tela</span>
+    <p style="margin-top:6px">Se a checagem ficasse só na tela, bastaria chamar a operação por outro caminho para gravar em período fechado — e o mês fechado deixaria de ser confiável, que é justamente o valor dele. A verificação vai dentro da função que grava, no PostgreSQL: <strong>a resposta é a mesma venha o pedido de onde vier.</strong></p>
+  </div>
+</section>
+
+<section id="s17">
+  <h2>17. Regras de negócio consolidadas (RN)</h2>
+  <p>A lista fechada. Cada tela acima aponta para estes números; quem programar implementa esta lista; quem testar testa esta lista.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Regra</th><th>Onde é garantida</th></tr></thead>
+      <tbody>
+        <tr><td>RN-01</td><td>Nome de conta (movimento ou identificadora) não pode ser vazio</td><td>Tela + <code>NOT NULL</code> e <code>CHECK</code> no banco</td></tr>
+        <tr><td>RN-02</td><td>Nome único <strong>por empresa</strong>, ignorando acentos e maiúsculas</td><td>Índice único no banco</td></tr>
+        <tr><td>RN-03</td><td>Filtros de pesquisa se cruzam (todos combinam entre si)</td><td>Consulta</td></tr>
+        <tr><td>RN-04</td><td>Excluir cadastro é recusado se houver lançamento que o use</td><td><code>ON DELETE RESTRICT</code> no banco</td></tr>
+        <tr><td>RN-05</td><td>IMPRIMIR só habilita quando a pesquisa trouxe registros</td><td>Tela</td></tr>
+        <tr><td>RN-06</td><td>Conta desativada some das listas de lançamento novo, mas continua no histórico e no extrato</td><td>Consulta + tela</td></tr>
+        <tr><td>RN-07</td><td><strong>O TIPO de um cadastro não pode ser alterado se já houver lançamento</strong>. Para corrigir: desativar e criar outro</td><td>Função do banco</td></tr>
+        <tr><td>RN-08</td><td>Saldo de abertura pode ser <strong>negativo</strong></td><td>Sem <code>CHECK</code> de sinal nessa coluna</td></tr>
+        <tr><td>RN-09</td><td>"+ ADICIONAR NOVA" abre <strong>modal</strong> e devolve a conta já selecionada, sem perder o formulário</td><td>Tela</td></tr>
+        <tr><td>RN-10</td><td>Os tipos das duas contas são <strong>gravados no lançamento</strong> (fotografia), e regravados se a conta for trocada na edição</td><td>Função do banco</td></tr>
+        <tr><td>RN-11</td><td>A ORDEM NO EXTRATO é sugerida automaticamente (próxima livre do dia na conta)</td><td>Função do banco + tela</td></tr>
+        <tr><td>RN-12</td><td>Se a ordem informada já existir no dia: <strong>alerta</strong>; se continuar, o novo assume a ordem e os seguintes são <strong>reordenados numa única operação</strong></td><td>Função do banco</td></tr>
+        <tr><td>RN-13</td><td>Data mais de 90 dias no futuro: <strong>avisa</strong>, não bloqueia</td><td>Tela</td></tr>
+        <tr><td>RN-14</td><td>Movimento incoerente com o tipo da identificadora (ex.: ENTRADA em DESPESA): <strong>avisa</strong>, não bloqueia</td><td>Tela</td></tr>
+        <tr><td>RN-15</td><td>Valor do lançamento <strong>sempre maior que zero</strong>; o sinal vem do TIPO DO MOVIMENTO</td><td><code>CHECK (valor_centavos &gt; 0)</code></td></tr>
+        <tr><td>RN-16</td><td>Valor muito fora do padrão da conta: <strong>avisa</strong>, não bloqueia</td><td>Tela</td></tr>
+        <tr><td>RN-17</td><td>O extrato só é exibido com data inicial e final válidas</td><td>Tela</td></tr>
+        <tr><td>RN-18</td><td>PROPRIEDADE é classificação (PRÓPRIO/TERCEIROS); <strong>TERCEIROS entra no saldo</strong> do extrato</td><td>Consulta</td></tr>
+        <tr><td>RN-19</td><td>REGIME é classificação gravada; <strong>o extrato considera apenas lançamentos de regime CAIXA</strong></td><td>Função do banco</td></tr>
+        <tr><td>RN-20</td><td>Cada linha do extrato pode ser marcada como CONFERIDO</td><td>Coluna + tela</td></tr>
+        <tr><td>RN-21</td><td>Ordenação do extrato: data → ordem (vazios por último) → instante de criação</td><td>Função do banco</td></tr>
+        <tr><td>RN-22</td><td>O campo USUÁRIO (quem criou) <strong>nunca</strong> é editável</td><td>Função do banco</td></tr>
+        <tr><td>RN-23</td><td>Transferência: origem e destino <strong>diferentes</strong>; as duas pernas gravadas numa única operação</td><td>Função do banco</td></tr>
+        <tr><td>RN-24</td><td><strong>Período fechado:</strong> não se cria, edita nem exclui lançamento com data até o corte</td><td>Função do banco</td></tr>
+        <tr><td>RN-25</td><td>Toda operação confere a <strong>permissão do membro</strong> antes de agir — esconder botão não é controle de acesso</td><td>Função do banco</td></tr>
+        <tr><td>RN-26</td><td>Excluir lançamento apaga de verdade, com confirmação mostrando os dados; rastro na auditoria</td><td>Tela + auditoria</td></tr>
+        <tr><td>RN-27</td><td><strong>Todo dado do módulo pertence a uma empresa</strong>; ninguém lê dado de outra empresa</td><td>RLS em todas as tabelas</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="s18">
+  <h2>18. Modelo de dados</h2>
+  <p>Quatro tabelas, todas com o prefixo <code>fin_</code>. <strong>Escrito no modelo "opção A" da seção 6</strong> — se você escolher a opção B ou C, esta seção muda conforme o item 6.6.</p>
+
+  <h3>18.1 <code>fin_contas_movimento</code></h3>
+  <pre>id                      uuid PRIMARY KEY DEFAULT gen_random_uuid()
+tenant_id               uuid NOT NULL → tenants(id) ON DELETE CASCADE
+nome                    text NOT NULL          -- MAIÚSCULAS, até 60
+tipo                    text NOT NULL          -- CHECK: CAIXA | BANCO | OUTRAS
+saldo_abertura_centavos bigint NOT NULL DEFAULT 0   -- pode ser NEGATIVO (RN-08)
+is_active               boolean NOT NULL DEFAULT true
+criado_por              uuid → users(id)
+created_at / updated_at timestamptz NOT NULL DEFAULT now()
+
+UNIQUE (tenant_id, nome_normalizado)     -- RN-02, sem acento/caixa
+ÍNDICE (tenant_id, is_active, nome)</pre>
+
+  <h3>18.2 <code>fin_contas_identificadoras</code></h3>
+  <pre>id            uuid PRIMARY KEY
+tenant_id     uuid NOT NULL → tenants(id) ON DELETE CASCADE
+nome          text NOT NULL              -- MAIÚSCULAS
+tipo          text NOT NULL              -- CHECK: DESPESA | RECEITA | OUTRAS
+is_active     boolean NOT NULL DEFAULT true
+criado_por    uuid → users(id)
+created_at / updated_at
+
+UNIQUE (tenant_id, nome_normalizado)
+ÍNDICE (tenant_id, is_active, nome)</pre>
+
+  <h3>18.3 <code>fin_lancamentos</code></h3>
+  <pre>id                        uuid PRIMARY KEY
+tenant_id                 uuid NOT NULL → tenants(id) ON DELETE CASCADE
+conta_movimento_id        uuid NOT NULL → fin_contas_movimento(id)      ON DELETE RESTRICT
+conta_identificadora_id   uuid NOT NULL → fin_contas_identificadoras(id) ON DELETE RESTRICT
+tipo_conta_movimento      text NOT NULL   -- fotografia (RN-10)
+tipo_conta_identificadora text NOT NULL   -- fotografia (RN-10)
+data_movimento            date NOT NULL   -- date, nunca timestamptz
+ordem_extrato             integer NULL
+tipo_movimento            text NOT NULL   -- CHECK: ENTRADA | SAIDA
+propriedade               text NOT NULL   -- CHECK: PROPRIO | TERCEIROS
+regime                    text NOT NULL   -- CHECK: CAIXA | COMPETENCIA
+valor_centavos            bigint NOT NULL CHECK (valor_centavos &gt; 0)   -- RN-15
+historico                 text NULL       -- MAIÚSCULAS, até 200
+conferido                 boolean NOT NULL DEFAULT false               -- RN-20
+transferencia_id          uuid NULL       -- une as duas pernas (RN-23)
+criado_por                uuid NOT NULL → users(id)                    -- RN-22
+created_at / updated_at
+
+ÍNDICE (tenant_id, conta_movimento_id, data_movimento, ordem_extrato)  -- o extrato
+ÍNDICE (tenant_id, data_movimento)                                     -- pesquisa por período
+ÍNDICE (tenant_id, conta_identificadora_id)                            -- por categoria
+ÍNDICE (tenant_id, criado_por)                                         -- filtro por usuário
+ÍNDICE (transferencia_id) WHERE transferencia_id IS NOT NULL           -- achar o par</pre>
+
+  <h3>18.4 <code>fin_fechamentos</code> <span class="tag tag-ok">DECIDIDO</span></h3>
+  <pre>id              uuid PRIMARY KEY
+tenant_id       uuid NOT NULL → tenants(id) ON DELETE CASCADE
+fechado_ate     date NOT NULL      -- não se mexe em nada até esta data
+fechado_por     uuid NOT NULL → users(id)
+observacao      text NULL
+created_at      timestamptz NOT NULL DEFAULT now()
+
+UNIQUE (tenant_id)   -- um fechamento vigente por empresa (ver pergunta 29)</pre>
+
+  <h3>18.5 As decisões de tipo, explicadas</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Decisão</th><th>Por quê</th></tr></thead>
+      <tbody>
+        <tr><td><code>valor_centavos bigint</code> (e não <code>numeric</code> nem <code>float</code>)</td><td>Proibição do <code>CLAUDE.md</code>: dinheiro em centavos inteiros. <code>0.1 + 0.2</code> não dá <code>0.3</code> em ponto flutuante, e num extrato de 300 linhas o erro aparece no saldo. O Core já tem <code>lib/dinheiro.ts</code> com 19 testes para converter</td></tr>
+        <tr><td><code>data_movimento date</code> (e não <code>timestamptz</code>)</td><td>Também do <code>CLAUDE.md</code>: <code>timestamptz</code> é para o instante de um registro; data de calendário é <code>date</code>. Com <code>timestamptz</code>, um lançamento de 01/09 pode virar 31/08 conforme o fuso de quem lê</td></tr>
+        <tr><td><code>ON DELETE RESTRICT</code> nas duas contas</td><td>É o que faz a RN-04 valer no banco, não só na tela</td></tr>
+        <tr><td><code>ON DELETE CASCADE</code> no <code>tenant_id</code></td><td>Se a empresa for apagada, os dados financeiros dela vão junto — não ficam órfãos</td></tr>
+        <tr><td><code>nome_normalizado</code></td><td>Coluna gerada com o nome sem acento e em maiúsculas, para o índice único da RN-02. <strong>É preciso assim</strong> porque um índice sobre <code>unaccent(nome)</code> não é aceito diretamente pelo PostgreSQL: aquela função não é declarada como imutável</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="s19">
+  <h2>19. Funções do banco e segurança (RLS)</h2>
+
+  <h3>19.1 As funções</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Função</th><th>O que faz</th><th>Regras que garante</th></tr></thead>
+      <tbody>
+        <tr><td><code>fin_pode(tenant, permissao)</code></td><td>Responde se o usuário atual tem a permissão no módulo, naquela empresa</td><td>RN-25 — chamada por todas as outras</td></tr>
+        <tr><td><code>fin_extrato(conta, ini, fim)</code></td><td>Saldo inicial + linhas com saldo acumulado + totais</td><td>RN-17, 19, 21</td></tr>
+        <tr><td><code>fin_saldo_atual(conta)</code></td><td>Saldo de hoje de uma conta</td><td>Reúso para "DINHEIRO DO PERÍODO" e dashboards</td></tr>
+        <tr><td><code>fin_buscar_contas_movimento(texto)</code></td><td>Até 4 sugestões, em qualquer posição, sem acento</td><td>Busca das telas 2 e 4</td></tr>
+        <tr><td><code>fin_buscar_identificadoras(texto)</code></td><td>Idem</td><td>Telas 3 e 4</td></tr>
+        <tr><td><code>fin_proxima_ordem(conta, data)</code></td><td>A próxima ordem livre do dia</td><td>RN-11</td></tr>
+        <tr><td><code>fin_gravar_lancamento(...)</code></td><td>Cria ou edita: valida, grava as fotografias, reordena o dia se preciso</td><td>RN-10, 12, 15, 22, 24, 25</td></tr>
+        <tr><td><code>fin_excluir_lancamento(id)</code></td><td>Apaga; se for perna de transferência, apaga o par</td><td>RN-23, 24, 25, 26</td></tr>
+        <tr><td><code>fin_transferir(...)</code></td><td>Cria as duas pernas numa transação</td><td>RN-23, 24, 25</td></tr>
+        <tr><td><code>fin_gravar_conta_movimento(...)</code></td><td>Cria ou edita; <strong>recusa mudar o tipo se houver lançamento</strong></td><td>RN-01, 02, 07, 25</td></tr>
+        <tr><td><code>fin_gravar_identificadora(...)</code></td><td>Idem</td><td>RN-01, 02, 07, 25</td></tr>
+        <tr><td><code>fin_marcar_conferido(id, valor)</code></td><td>Marca/desmarca a linha</td><td>RN-20, 25</td></tr>
+        <tr><td><code>fin_fechar_periodo(data)</code> / <code>fin_reabrir_periodo()</code></td><td>Define ou remove o corte</td><td>RN-24, 25</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>19.2 A RLS das quatro tabelas</h3>
+  <p>Todas com RLS ligada, seguindo o padrão que o degrau 5 provou:</p>
+  <pre>-- LEITURA: membro ativo da empresa (ou o dono)
+USING ( check_is_tenant_member(tenant_id) OR check_is_tenant_owner(tenant_id) )
+
+-- ESCRITA: nenhuma policy de INSERT/UPDATE/DELETE.
+-- Toda gravação passa pelas funções `fin_*`, que conferem a permissão do
+-- membro (RN-25) antes de agir. É o mesmo desenho de `global_settings`.</pre>
+
+  <div class="callout callout-vermelho">
+    <span class="box-title">Por que a escrita não tem policy, e isso é deliberado</span>
+    <p style="margin-top:6px">Se houvesse policy de <code>INSERT</code>, qualquer membro poderia gravar um lançamento <strong>montando o registro como quisesse</strong> — inclusive com um <code>tipo_conta_movimento</code> que não corresponde à conta, ou com <code>criado_por</code> de outra pessoa, ou em período fechado. A policy sabe dizer "pode escrever nesta linha", mas não sabe validar a coerência entre campos.</p>
+    <p>Fazendo toda gravação por função, o banco valida <strong>o conjunto</strong> antes de aceitar. É exatamente o que a plataforma já faz com as funções <code>admin_*</code>.</p>
+  </div>
+
+  <h3>19.3 Os testes do módulo (<code>teste_financeiro.sql</code>)</h3>
+  <p>No mesmo formato do <code>teste_rls.sql</code>: cada teste devolve uma linha PASSOU/FALHOU numa tabela de resultado. <strong>Rodam antes de existir tela</strong> (é a ordem que o <code>MODULOS.md</code> exige). Mínimo:</p>
+  <ol>
+    <li>Empresa A não lê lançamento da empresa B.</li>
+    <li>Valor zero ou negativo é recusado pelo banco.</li>
+    <li>Excluir conta com lançamento é recusado.</li>
+    <li>Alterar o tipo de conta com lançamento é recusado (RN-07).</li>
+    <li>O saldo do extrato confere com a soma manual.</li>
+    <li>O extrato ignora lançamentos de regime COMPETÊNCIA (RN-19).</li>
+    <li>Lançamento em período fechado é recusado (RN-24).</li>
+    <li>Transferência grava as duas pernas; falhar numa não deixa a outra.</li>
+    <li>Reordenação: inserir ordem repetida desloca as seguintes, sem duplicar.</li>
+    <li>Dependente sem permissão tem a operação recusada (RN-25).</li>
+  </ol>
+</section>
+
+<section id="s20">
+  <h2>20. Impressão e exportação</h2>
+
+  <h3>20.1 Impressão <span class="tag tag-ok">DECIDIDO</span></h3>
+  <p>O botão IMPRIMIR (habilitado só com resultados — RN-05) <strong>abre nova guia</strong> com uma versão da lista preparada para papel, e nela um botão fixo no canto superior direito com duas opções:</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Opção</th><th>O que faz</th></tr></thead>
+      <tbody>
+        <tr><td><strong>CORES (A4)</strong></td><td>Imprime exatamente como se vê na tela — cores preservadas</td></tr>
+        <tr><td><strong>PRETO &amp; BRANCO (A4)</strong></td><td>Converte tudo para preto, cinzas e branco antes de imprimir, e volta ao normal depois</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p><strong>É o mesmo mecanismo deste documento que você está lendo</strong> — o botão no canto superior direito desta página faz exatamente isso. Não será inventado nada: o padrão está escrito, testado e você já sabe usá-lo.</p>
+  <p>O que vai em cada impressão: cabeçalho com o <strong>nome da empresa</strong>, o <strong>título do relatório</strong>, os <strong>filtros aplicados</strong> (para quem pegar o papel depois saber o que está vendo) e a <strong>data/hora de emissão</strong>; e o rodapé com a numeração de páginas.</p>
+
+  <h3>20.2 Exportação TSV <span class="tag tag-ok">DECIDIDO: TSV, não CSV</span></h3>
+  <p>Arquivo de texto com colunas separadas por <strong>tabulação</strong>, que abre direto no Excel e em qualquer planilha.</p>
+  <div class="example-box">
+    <span class="box-title">Por que o TSV é, de fato, a escolha melhor aqui</span>
+    <p style="margin-top:6px">Não é preferência estética — resolve dois problemas concretos do CSV no Brasil:</p>
+    <ul>
+      <li><strong>A vírgula do valor.</strong> Escrevemos "1.234,56" — e no CSV a vírgula também separa colunas. Isso obriga a pôr aspas em tudo e ainda dá errado em alguma configuração. Com tabulação, a vírgula do valor é só um caractere qualquer.</li>
+      <li><strong>O separador do Excel muda com o idioma do Windows.</strong> Em português, o Excel espera ponto-e-vírgula; em inglês, vírgula. O mesmo CSV abre certo numa máquina e embaralhado na outra. <strong>A tabulação é a mesma em todo lugar.</strong></li>
+    </ul>
+    <p><strong>Duas precauções que o gerador precisa ter:</strong> (1) se algum histórico contiver uma tabulação ou quebra de linha digitada, ela deve ser trocada por espaço, senão a linha se parte ao meio; (2) texto que comece com <code>=</code>, <code>+</code>, <code>-</code> ou <code>@</code> deve ser neutralizado — do contrário o Excel o interpreta como fórmula.</p>
+  </div>
+  <p><span class="tag tag-pro">PROPOSTA</span> Colunas do TSV de lançamentos: DATA · CONTA MOVIMENTO · TIPO CM · CONTA IDENTIFICADORA · TIPO CI · TIPO MOVIMENTO · PROPRIEDADE · REGIME · VALOR · HISTÓRICO · USUÁRIO · CONFERIDO. Codificação <strong>UTF-8 com BOM</strong> (é o que faz o Excel mostrar acentos corretamente). <strong>Pergunta 30</strong> confirma as colunas.</p>
+</section>
+
+<section id="s21">
+  <h2>21. Catálogo de mensagens ao usuário</h2>
+  <p>Todas em MAIÚSCULAS, como a característica geral pede. Ter a lista num lugar só evita que a mesma situação apareça com três textos diferentes.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Situação</th><th>Mensagem</th></tr></thead>
+      <tbody>
+        <tr><td>Nome em branco</td><td>INFORME O NOME.</td></tr>
+        <tr><td>Nome repetido</td><td>JÁ EXISTE UM CADASTRO COM ESTE NOME.</td></tr>
+        <tr><td>Excluir cadastro com lançamento</td><td>NÃO É POSSÍVEL EXCLUIR: EXISTEM LANÇAMENTOS USANDO ESTE CADASTRO. VOCÊ PODE DESATIVÁ-LO.</td></tr>
+        <tr><td>Alterar tipo com lançamento (RN-07)</td><td>NÃO É POSSÍVEL ALTERAR O TIPO: JÁ EXISTEM LANÇAMENTOS COM ESTE CADASTRO. DESATIVE ESTE E CRIE OUTRO COM O TIPO CORRETO.</td></tr>
+        <tr><td>Valor ≤ zero</td><td>O VALOR DEVE SER MAIOR QUE ZERO.</td></tr>
+        <tr><td>Campo obrigatório vazio</td><td>PREENCHA O CAMPO [NOME DO CAMPO].</td></tr>
+        <tr><td>Ordem repetida (RN-12)</td><td>A ORDEM [N] JÁ EXISTE EM [DATA] NESTA CONTA. SE CONTINUAR, OS SEGUINTES SERÃO REORDENADOS.</td></tr>
+        <tr><td>Data futura (RN-13)</td><td>A DATA INFORMADA ESTÁ MAIS DE 90 DIAS À FRENTE. CONFIRMA?</td></tr>
+        <tr><td>Incoerência de tipo (RN-14)</td><td>ESTA É UMA CONTA DE [DESPESA/RECEITA] E VOCÊ ESTÁ LANÇANDO UMA [ENTRADA/SAÍDA]. CONFIRMA?</td></tr>
+        <tr><td>Valor fora do padrão (RN-16)</td><td>ESTE VALOR É MUITO SUPERIOR À MÉDIA DESTA CONTA. CONFIRMA?</td></tr>
+        <tr><td>Extrato sem datas (RN-17)</td><td>INFORME A DATA INICIAL E A DATA FINAL PARA VER O EXTRATO.</td></tr>
+        <tr><td>Período fechado (RN-24)</td><td>O PERÍODO ATÉ [DATA] ESTÁ FECHADO. NÃO É POSSÍVEL LANÇAR, ALTERAR OU EXCLUIR NESSAS DATAS.</td></tr>
+        <tr><td>Sem permissão (RN-25)</td><td>VOCÊ NÃO TEM PERMISSÃO PARA ESTA OPERAÇÃO. FALE COM O PROPRIETÁRIO DA EMPRESA.</td></tr>
+        <tr><td>Transferência com contas iguais</td><td>A CONTA DE DESTINO DEVE SER DIFERENTE DA CONTA DE ORIGEM.</td></tr>
+        <tr><td>Excluir perna de transferência</td><td>ESTE LANÇAMENTO FAZ PARTE DE UMA TRANSFERÊNCIA. EXCLUIR VAI APAGAR AS DUAS PERNAS.</td></tr>
+        <tr><td>Dependente: e-mail não encontrado</td><td>USUÁRIO NÃO ENCONTRADO. ELE PRECISA CRIAR UMA CONTA NA PLATAFORMA ANTES DE SER HABILITADO.</td></tr>
+        <tr><td>Função em construção</td><td>ESTA FUNÇÃO ESTÁ EM DESENVOLVIMENTO.</td></tr>
+        <tr><td>Sem contas cadastradas (primeiro uso)</td><td>PARA COMEÇAR, CADASTRE UMA CONTA MOVIMENTO E UMA CONTA IDENTIFICADORA.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="s22">
+  <h2>22. Fases de entrega</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Fase</th><th>Conteúdo</th><th>Ao final, o usuário consegue…</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>0 — Encaixe e banco</strong></td>
+          <td>As 5 pastas, o manifesto, as 4 tabelas, a RLS, as 13 funções, o seed do catálogo, as 3 soldas e o <code>teste_financeiro.sql</code> rodando</td>
+          <td>Nada ainda — mas o módulo aparece na plataforma e <strong>as travas estão provadas antes de existir tela</strong></td>
+        </tr>
+        <tr>
+          <td><strong>1 — Cadastros</strong></td>
+          <td>Telas 2 e 3 completas: formulário, busca, filtros cruzados, opções, impressão</td>
+          <td>Cadastrar contas e categorias</td>
+        </tr>
+        <tr>
+          <td><strong>2 — Lançar e conferir</strong></td>
+          <td>Telas 4 e 5: novo lançamento com modal, ordem automática, avisos, e a conferência com saldo</td>
+          <td><strong>Registrar e conferir a vida financeira</strong> — aqui o módulo já vale o que promete</td>
+        </tr>
+        <tr>
+          <td><strong>3 — Consultar</strong></td>
+          <td>Tela 7 (pesquisa com os 13 filtros), editar, excluir, TSV</td>
+          <td>Achar qualquer lançamento e levar para fora</td>
+        </tr>
+        <tr>
+          <td><strong>4 — Controlar</strong></td>
+          <td>Tela 6 (transferência), conciliação (CONFERIDO), fechamento de período, permissões de Dependente</td>
+          <td>Trabalhar com mais de uma pessoa e fechar o mês</td>
+        </tr>
+        <tr>
+          <td><strong>5 — Ver e planejar</strong></td>
+          <td>DINHEIRO DO PERÍODO, DASHBOARDS, ORÇAMENTO, CONFIGURAÇÕES</td>
+          <td>Analisar. Só faz sentido com dado dentro</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p><span class="tag tag-par">PENDENTE</span> <strong>Pergunta 31:</strong> concorda com este corte, ou prefere entregas maiores (por exemplo, tudo de 1 a 4 de uma vez)?</p>
+</section>
+
+<section id="s23">
+  <h2>23. Bônus: sugestões desta rodada</h2>
+  <p>Novas — não estavam na rodada 1 nem na sua minuta.</p>
+
+  <h3>B-1 — Um "resumo do dia" ao lançar em série</h3>
+  <p>Quem lança 40 linhas de um extrato precisa saber onde parou. Um contador discreto — "12 LANÇAMENTOS REGISTRADOS NESTA SESSÃO · TOTAL: 4.320,00" — evita lançar duas vezes o mesmo item, que é o erro mais comum da conciliação manual.</p>
+
+  <h3>B-2 — Mostrar o saldo da conta escolhida já no formulário</h3>
+  <p>No momento em que a CONTA MOVIMENTO é escolhida, exibir ao lado o saldo atual dela. Custa nada (a função <code>fin_saldo_atual</code> já existirá) e responde a pergunta que a pessoa tem na cabeça enquanto lança: "sobrou quanto?".</p>
+
+  <h3>B-3 — Proteção contra gravar duas vezes o mesmo lançamento</h3>
+  <p>Um clique duplo no botão GRAVAR, ou uma conexão lenta, produzem dois lançamentos idênticos — e em dinheiro isso é um saldo errado. Duas defesas: desabilitar o botão no instante do clique (na tela) e <strong>avisar quando chegar um lançamento idêntico ao último em menos de alguns segundos</strong> (no banco). A segunda é a que realmente protege.</p>
+
+  <h3>B-4 — Histórico com sugestões do que já foi digitado</h3>
+  <p>Ao digitar no HISTÓRICO, sugerir os textos já usados naquela conta identificadora ("ALUGUEL SETEMBRO", "ALUGUEL OUTUBRO"). Poupa digitação e, principalmente, <strong>padroniza o texto</strong> — o que faz o filtro "TEXTO NO HISTÓRICO" funcionar de verdade depois.</p>
+
+  <h3>B-5 — Um campo de observação no fechamento de período</h3>
+  <p>Já está no modelo (<code>fin_fechamentos.observacao</code>): permite registrar "CONFERIDO CONTRA O EXTRATO DO ITAÚ EM 02/10". Daqui a um ano, é isso que explica por que aquele mês foi fechado.</p>
+
+  <h3>B-6 — Atalhos de teclado no lançamento</h3>
+  <p><kbd>Ctrl</kbd>+<kbd>Enter</kbd> grava e começa o próximo; <kbd>Esc</kbd> limpa. Para quem lança em série, tirar a mão do teclado para clicar é o que torna a tarefa cansativa.</p>
+
+  <h3>B-7 — Uma tela de "conferência do mês" separada</h3>
+  <p>A conferência ao lado do lançamento serve para conferir <em>enquanto</em> se lança. Uma tela dedicada — extrato em largura total, com a caixinha CONFERIDO bem visível e um contador "18 DE 42 CONFERIDOS" — serve para o ritual de fechar o mês. É a mesma função do banco, outra disposição.</p>
+</section>
+
+<section id="s24">
+  <h2>24. Perguntas da rodada 2</h2>
+  <p>Dez perguntas. A <strong>23</strong> é a única que trava a modelagem — as outras mexem em tela ou em detalhe, e podem ser respondidas depois.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Pergunta</th><th>Minha recomendação</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>22</strong></td>
+          <td>A lista de 17 permissões do Dependente (seção 4.3) está completa e com os nomes certos?</td>
+          <td>Usar como está; ajustar quando o uso mostrar falta</td>
+        </tr>
+        <tr>
+          <td><strong>23</strong><br><span class="tag tag-nao">TRAVA</span></td>
+          <td><strong>Tabelas por usuário</strong> (seção 6): opção A (uma tabela, RLS), B (particionada por empresa) ou C (uma tabela por usuário)?</td>
+          <td><strong>A</strong>; ou <strong>B</strong> se quiser separação física de verdade</td>
+        </tr>
+        <tr>
+          <td><strong>24</strong></td>
+          <td>A tela de permissões do Dependente fica <strong>dentro do módulo</strong> ou junto da tela de equipe da plataforma?</td>
+          <td><strong>Dentro do módulo</strong> — assim ela some junto quando o módulo for desplugado</td>
+        </tr>
+        <tr>
+          <td><strong>25</strong></td>
+          <td>Transferência: quais PROPRIEDADE e REGIME as duas pernas recebem?</td>
+          <td><code>PRÓPRIO</code> e <code>CAIXA</code> automaticamente, sem perguntar</td>
+        </tr>
+        <tr>
+          <td><strong>26</strong></td>
+          <td>Transferência usa CONTA IDENTIFICADORA? Qual?</td>
+          <td>O sistema cria e usa "TRANSFERÊNCIA ENTRE CONTAS" (tipo OUTRAS) automaticamente</td>
+        </tr>
+        <tr>
+          <td><strong>27</strong></td>
+          <td>O filtro VALOR é exato ou faixa "de … até"?</td>
+          <td><strong>Faixa</strong>, com os dois campos opcionais (só "de" = a partir de; só "até" = até)</td>
+        </tr>
+        <tr>
+          <td><strong>28</strong></td>
+          <td>O filtro TRANSFERÊNCIA ENTRE CONTAS tem 2 ou 3 estados?</td>
+          <td><strong>Três</strong>: TODOS / SOMENTE TRANSFERÊNCIAS / SEM TRANSFERÊNCIAS</td>
+        </tr>
+        <tr>
+          <td><strong>29</strong></td>
+          <td>O fechamento de período é da empresa inteira ou por conta movimento?</td>
+          <td><strong>Da empresa inteira</strong> — mais simples de entender e de explicar</td>
+        </tr>
+        <tr>
+          <td><strong>30</strong></td>
+          <td>As 12 colunas do TSV (seção 20.2) estão certas?</td>
+          <td>Usar como está</td>
+        </tr>
+        <tr>
+          <td><strong>31</strong></td>
+          <td>Concorda com o corte das 6 fases (seção 22)?</td>
+          <td>Sim — cada fase entrega algo utilizável</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="highlight-box">
+    <span class="box-title">O que acontece depois que você responder</span>
+    <ol>
+      <li>Eu aplico as respostas <strong>neste mesmo documento</strong> e devolvo a versão 2 — que passa a ser a especificação oficial do módulo.</li>
+      <li>Se ainda houver pontos em aberto, eles continuam marcados <span class="tag tag-par">PENDENTE</span>, sem serem preenchidos por minha conta.</li>
+      <li>Quando você disser "está aprovado", <strong>aí sim</strong> começa a execução, em outro degrau: banco primeiro, telas por último.</li>
+    </ol>
+  </div>
+
+  <div class="callout callout-ambar">
+    <span class="box-title">Um lembrete honesto sobre a decisão 19</span>
+    <p style="margin-top:6px">Você decidiu <strong>não</strong> criar a data de competência, dizendo que já sabe como o campo REGIME será usado no futuro. Registrei e respeitei — a especificação está escrita assim, e o campo fica gravado para os filtros.</p>
+    <p>O único ponto que eu peço que fique guardado: <strong>se um dia o relatório por competência precisar de uma data diferente da data do movimento</strong>, essa coluna terá de ser acrescentada com dados já dentro da tabela. Não é impossível nem caro no começo — só é mais caro do que agora. Você conhece o uso futuro melhor que eu; fica só o registro, não a insistência.</p>
+  </div>
+</section>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var container = document.querySelector('.print-container');
+  var printButton = document.getElementById('printButton');
+  var printMenu = document.getElementById('printMenu');
+  var optionColor = document.getElementById('printColor');
+  var optionBW = document.getElementById('printBW');
+  var body = document.body;
+  var printing = false;
+
+  if (!container || !printButton || !printMenu || !optionColor || !optionBW) {
+    console.error('[Impressão] Elementos do menu não encontrados.');
+    return;
+  }
+
+  function openMenu() {
+    printMenu.classList.add('open');
+    printButton.setAttribute('aria-expanded', 'true');
+  }
+
+  function closeMenu() {
+    printMenu.classList.remove('open');
+    printButton.setAttribute('aria-expanded', 'false');
+  }
+
+  function toggleMenu() {
+    if (printMenu.classList.contains('open')) {
+      closeMenu();
+    } else {
+      openMenu();
+    }
+  }
+
+  // Marca o intervalo em que a janela de impressão está aberta.
+  window.addEventListener('beforeprint', function () {
+    printing = true;
+  });
+
+  window.addEventListener('afterprint', function () {
+    printing = false;
+    body.classList.remove('print-bw');
+  });
+
+  // OPÇÃO "CORES (A4)": remove .print-bw, espera 100ms e imprime.
+  function printInColor() {
+    body.classList.remove('print-bw');
+    setTimeout(function () {
+      window.print();
+    }, 100);
+  }
+
+  // OPÇÃO "PRETO & BRANCO (A4)": adiciona .print-bw, espera 100ms, imprime
+  // e remove a classe 100ms depois (se a janela de impressão já tiver fechado).
+  function printInBlackAndWhite() {
+    body.classList.add('print-bw');
+    setTimeout(function () {
+      window.print();
+      setTimeout(function () {
+        if (!printing) {
+          body.classList.remove('print-bw');
+        }
+      }, 100);
+    }, 100);
+  }
+
+  printButton.addEventListener('click', function (event) {
+    event.stopPropagation();
+    toggleMenu();
+  });
+
+  // Cliques e toques dentro do menu não sobem até o document.
+  printMenu.addEventListener('click', function (event) {
+    event.stopPropagation();
+  });
+
+  printMenu.addEventListener('mousedown', function (event) {
+    event.stopPropagation();
+  });
+
+  printMenu.addEventListener('touchstart', function (event) {
+    event.stopPropagation();
+  }, { passive: true });
+
+  optionColor.addEventListener('click', function (event) {
+    event.stopPropagation();
+    closeMenu();
+    printInColor();
+  });
+
+  optionBW.addEventListener('click', function (event) {
+    event.stopPropagation();
+    closeMenu();
+    printInBlackAndWhite();
+  });
+
+  // Fecha só quando o clique acontece FORA do container.
+  document.addEventListener('click', function (event) {
+    if (!container.contains(event.target)) {
+      closeMenu();
+    }
+  });
+
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') {
+      closeMenu();
+    }
+  });
+
+  console.log('[Impressão] Menu de impressão carregado com sucesso (Cores A4 e Preto & Branco A4).');
+})();
+</script>
+
+</body>
+</html>
