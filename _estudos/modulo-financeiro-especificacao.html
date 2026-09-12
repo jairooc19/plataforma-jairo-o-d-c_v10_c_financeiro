@@ -354,7 +354,7 @@
     <li><a href="#s21">Catálogo de mensagens ao usuário</a></li>
     <li><a href="#s22">Fases de entrega</a></li>
     <li><a href="#s23">Bônus: sugestões desta rodada</a></li>
-    <li><a href="#s24">Perguntas da rodada 2</a></li>
+    <li><a href="#s24">Perguntas — situação (12 respondidas, 1 aberta)</a></li>
   </ol>
 </nav>
 
@@ -567,6 +567,16 @@
         <tr><td>21</td><td>Excluir lançamento</td><td><strong>Apaga de verdade</strong>, com confirmação; rastro na auditoria</td></tr>
         <tr><td>Bônus</td><td>N1 a N10</td><td><strong>Todos aceitos</strong>, com o N6 mudando de CSV para <strong>TSV</strong></td></tr>
         <tr><td><strong>23</strong></td><td><strong>Separação dos dados</strong></td><td><strong>Tabela única + RLS, com botão de exclusão por empresa</strong> — decidido após a prova medida (seção 6)</td></tr>
+        <tr><td>22</td><td>Lista de permissões do Dependente</td><td>As 17 da seção 4.3, como estão</td></tr>
+        <tr><td>24</td><td>Tela de permissões</td><td><strong>Dentro do módulo</strong></td></tr>
+        <tr><td>25</td><td>Propriedade e regime na transferência</td><td><strong>Não são perguntados ao usuário</strong> — ver 14.3 e a pergunta 33</td></tr>
+        <tr><td>26</td><td>Categoria da transferência</td><td>Uma conta identificadora <strong>"TRANSFERÊNCIA ENTRE CONTAS"</strong></td></tr>
+        <tr><td>27</td><td>Filtro de valor</td><td><strong>Faixa</strong> "de … até"</td></tr>
+        <tr><td>28</td><td>Filtro de transferência</td><td><strong>Caixa de marcar</strong>: marcada, traz somente transferências</td></tr>
+        <tr><td>29</td><td>Fechamento de período</td><td><strong>Por conta movimento</strong>, com opção de aplicar a todas</td></tr>
+        <tr><td>30</td><td>Colunas do TSV</td><td>As 12 propostas <strong>mais USUÁRIO (e-mail real) e EMPRESA (nome real)</strong></td></tr>
+        <tr><td>31</td><td>Fases</td><td>Aprovadas como estão</td></tr>
+        <tr><td>32</td><td>Onde fica o botão de apagar</td><td><strong>(a)</strong> genérico na plataforma, com a coluna nova no catálogo de módulos</td></tr>
         <tr><td>9.1</td><td>"+ ADICIONAR NOVA"</td><td><strong>Modal</strong></td></tr>
         <tr><td>9.3</td><td>Ordem no extrato</td><td>Sugestão automática; <strong>se a ordem já existir no dia, alerta e, se prosseguir, reordena o dia</strong></td></tr>
         <tr><td>11</td><td>Editar lançamento</td><td><strong>Todos os campos, exceto USUÁRIO</strong></td></tr>
@@ -665,8 +675,17 @@ m2_lancamentos_empresa_alfa   |              2</pre>
     <li><strong>Apagar os dados ≠ descontratar o módulo ≠ apagar a empresa.</strong> São três ações distintas, e a tela deve deixar isso explícito.</li>
   </ul>
 
-  <h3>6.7 Onde o botão fica <span class="tag tag-par">PENDENTE — pergunta 32</span></h3>
-  <p>A função é do módulo (prefixo <code>fin_</code>), mas quem a aciona é o Desenvolvedor, cuja área é da plataforma. Dois caminhos:</p>
+  <h3>6.7 Onde o botão fica <span class="tag tag-ok">DECIDIDO: caminho (a)</span></h3>
+  <p>A função é do módulo (prefixo <code>fin_</code>), mas quem a aciona é o Desenvolvedor, cuja área é da plataforma. Você escolheu o caminho genérico:</p>
+  <div class="callout callout-ambar">
+    <span class="box-title">⚠️ Isto é uma mudança na PLATAFORMA, não no módulo</span>
+    <p style="margin-top:6px">O catálogo <code>platform_modules</code> ganha a coluna <code>funcao_limpeza text</code>, e a plataforma ganha a função <code>admin_apagar_dados_do_modulo(tenant, module_id)</code>, que lê essa coluna e executa a função declarada. Consequências:</p>
+    <ul>
+      <li><strong>Exige alterar o schema da plataforma</strong> — ou seja, recriar o banco (<code>00 → 01 → 02</code>) mais uma vez, como nos degraus 3 e 5.</li>
+      <li>Em troca, <strong>todo módulo futuro ganha o botão de graça</strong>: basta o seed dele preencher a coluna.</li>
+      <li>A plataforma continua sem conhecer nenhum módulo: ela lê o nome da função no catálogo, que o próprio módulo escreveu.</li>
+    </ul>
+  </div>
   <div class="table-wrap">
     <table>
       <thead><tr><th>Caminho</th><th>Como fica</th><th>Custo</th></tr></thead>
@@ -748,15 +767,16 @@ supabase/testes/</span><span class="m">teste_financeiro.sql</span><span class="p
         <tr><td>5</td><td>NOVO LANÇAMENTO + CONFERÊNCIA</td><td><code>/dashboard/financeiro/lancamentos/novo</code></td><td>Botão "NOVO LANÇAMENTO"</td></tr>
         <tr><td>6</td><td>PESQUISAR LANÇAMENTOS</td><td><code>/dashboard/financeiro/lancamentos/pesquisar</code></td><td>Botão "PESQUISAR"</td></tr>
         <tr><td>7</td><td>TRANSFERÊNCIA ENTRE CONTAS</td><td><code>/dashboard/financeiro/transferencia</code></td><td>Botão na tela 4 <span class="tag tag-pro">PROPOSTA</span></td></tr>
-        <tr><td>8</td><td>DEPENDENTES DO MÓDULO</td><td><code>/dashboard/financeiro/dependentes</code></td><td>Menu › CONFIGURAÇÕES <span class="tag tag-par">ver pergunta 24</span></td></tr>
+        <tr><td>8</td><td>DEPENDENTES DO MÓDULO</td><td><code>/dashboard/financeiro/dependentes</code></td><td>Menu › CONFIGURAÇÕES <span class="tag tag-ok">DECIDIDO: dentro do módulo</span></td></tr>
         <tr><td>9</td><td>IMPRESSÃO</td><td><code>/dashboard/financeiro/imprimir/...</code></td><td>Botão IMPRIMIR — <strong>abre em nova guia</strong></td></tr>
         <tr><td>—</td><td>CONFIGURAÇÕES / DASHBOARDS / ORÇAMENTO</td><td>—</td><td>Menu → abre aviso "EM DESENVOLVIMENTO"</td></tr>
       </tbody>
     </table>
   </div>
   <div class="callout callout-ambar">
-    <span class="box-title">Uma observação sobre a tela 8</span>
-    <p style="margin-top:6px">A habilitação de Dependentes é <strong>meio plataforma, meio módulo</strong>: quem é membro da empresa é assunto da plataforma (já existe a "Central de Comando de Tripulação"), mas <em>o que ele pode fazer dentro do financeiro</em> é assunto do módulo. <strong>Pergunta 24:</strong> a tela de permissões fica dentro do módulo (recomendo) ou acoplada à tela de equipe da plataforma?</p>
+    <span class="box-title">A tela 8 fica DENTRO do módulo <span class="tag tag-ok">DECIDIDO</span></span>
+    <p style="margin-top:6px">A habilitação de Dependentes é meio plataforma, meio módulo: quem é membro da empresa é assunto da plataforma (a "Central de Comando de Tripulação" já existe), mas <em>o que ele pode fazer dentro do financeiro</em> é do módulo. Ficando dentro do módulo, ela <strong>some junto quando o módulo for desplugado</strong> — que é a regra do LEGO.</p>
+    <p><strong>Consequência prática:</strong> o vínculo do Dependente com a empresa continua sendo criado pela plataforma; esta tela <strong>só</strong> liga e desliga as 17 permissões do financeiro e ativa/desativa o acesso dele ao módulo.</p>
   </div>
 </section>
 
@@ -1031,7 +1051,7 @@ SALDO:   saldo de abertura da conta
         <tr><td><strong>DATA</strong></td><td>Obrigatória; mesmas regras de data do lançamento</td></tr>
         <tr><td><strong>VALOR</strong></td><td>Obrigatório, maior que zero</td></tr>
         <tr><td><strong>HISTÓRICO</strong></td><td>Opcional, maiúsculas</td></tr>
-        <tr><td><strong>PROPRIEDADE</strong> e <strong>REGIME</strong></td><td><span class="tag tag-par">PENDENTE</span> — pergunta 25</td></tr>
+        <tr><td><strong>PROPRIEDADE</strong> e <strong>REGIME</strong></td><td><strong>Não aparecem na tela</strong> <span class="tag tag-ok">DECIDIDO</span> — o sistema grava sozinho. Ver 14.5</td></tr>
       </tbody>
     </table>
   </div>
@@ -1042,7 +1062,34 @@ PERNA 2: conta DESTINO · ENTRADA · valor · mesmo identificador de par
 
 As duas gravadas numa ÚNICA operação no banco: ou as duas existem, ou nenhuma.</pre>
   <p>As duas pernas aparecem normalmente no extrato de cada conta (para bater com o banco), e o filtro "TRANSFERÊNCIA ENTRE CONTAS" da tela de pesquisa (seção 15) permite isolá-las. No futuro, os dashboards excluem transferências das somas de receita e despesa — que é o correto.</p>
-  <p><span class="tag tag-par">PENDENTE</span> <strong>Pergunta 26:</strong> a transferência usa uma CONTA IDENTIFICADORA? Três caminhos: (a) o sistema cria automaticamente uma categoria "TRANSFERÊNCIA ENTRE CONTAS" do tipo OUTRAS; (b) o usuário escolhe a categoria; (c) as pernas ficam sem identificadora, e o extrato mostra "TRANSFERÊNCIA" naquela coluna. <strong>Recomendo (a)</strong> — mantém a regra de "todo lançamento tem identificadora" sem dar trabalho ao usuário.</p>
+  <h3>14.5 A categoria e os campos que o sistema preenche <span class="tag tag-ok">DECIDIDO</span></h3>
+  <p><strong>A transferência usa a conta identificadora "TRANSFERÊNCIA ENTRE CONTAS"</strong>, do tipo <code>OUTRAS</code>. O sistema a cria na primeira transferência da empresa, se ainda não existir.</p>
+  <div class="callout callout-ambar">
+    <span class="box-title">⚠️ Essa categoria precisa ser protegida — uma consequência que vale registrar</span>
+    <p style="margin-top:6px">Se ela for uma categoria comum, o usuário pode <strong>renomeá-la</strong> ("TRANSF"), <strong>trocar o tipo</strong> dela para DESPESA (o que inflaria os relatórios) ou <strong>desativá-la</strong> — e aí a próxima transferência falharia ou criaria uma segunda categoria igual.</p>
+    <p><strong>Proposta:</strong> a coluna <code>is_sistema boolean</code> nas contas identificadoras. Quando verdadeira: não pode ser renomeada, ter o tipo alterado, ser desativada nem excluída; aparece na lista com uma marca ("DO SISTEMA"). É a mesma ideia da linha <code>id = 1</code> de <code>global_settings</code>, que também não se apaga.</p>
+  </div>
+
+  <h3>14.6 O que o sistema grava nas duas pernas</h3>
+  <p>A tela não pergunta PROPRIEDADE nem REGIME <span class="tag tag-ok">DECIDIDO</span>. Mas as colunas existem e são obrigatórias no banco — então é preciso decidir o que vai nelas:</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Caminho</th><th>Como fica</th><th>Efeito</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>(a) Gravar <code>PRÓPRIO</code> e <code>CAIXA</code></strong> <span class="tag tag-pro">recomendado</span></td>
+          <td>O sistema preenche sozinho; o usuário não vê os campos</td>
+          <td>A transferência aparece no extrato normalmente (o extrato mostra só regime CAIXA — RN-19) e os filtros seguem funcionando sem exceção</td>
+        </tr>
+        <tr>
+          <td>(b) Deixar as duas colunas vazias</td>
+          <td>As colunas passariam a aceitar vazio</td>
+          <td><strong>A transferência sumiria do extrato</strong>, porque a RN-19 filtra por regime CAIXA — e o saldo deixaria de bater com o banco. Seria preciso abrir uma exceção na regra: "regime CAIXA <em>ou</em> transferência"</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p><strong>Pergunta 33:</strong> confirmo o caminho (a)? Ele entrega o que você pediu — os campos <em>não aparecem na tela</em> — sem criar uma exceção na regra do extrato, que é onde as exceções costumam virar defeito.</p>
 
   <h3>14.4 Excluir uma transferência</h3>
   <p><span class="tag tag-pro">PROPOSTA</span> Excluir <strong>qualquer</strong> uma das pernas apaga as duas, com aviso: "ESTE LANÇAMENTO FAZ PARTE DE UMA TRANSFERÊNCIA. EXCLUIR VAI APAGAR AS DUAS PERNAS." Deixar apagar só uma perna produziria exatamente o descontrole que a tela existe para evitar.</p>
@@ -1060,7 +1107,7 @@ As duas gravadas numa ÚNICA operação no banco: ou as duas existem, ou nenhuma
         <tr><td>1</td><td><strong>CONTAS MOVIMENTOS</strong></td><td><strong>Múltipla escolha</strong> — pode adicionar várias contas ao filtro</td></tr>
         <tr><td>2</td><td><strong>CONTAS IDENTIFICADORAS</strong></td><td><strong>Múltipla escolha</strong> — várias categorias</td></tr>
         <tr><td>3</td><td><strong>PERÍODO</strong></td><td>Data inicial e final</td></tr>
-        <tr><td>4</td><td><strong>VALOR</strong></td><td><span class="tag tag-par">PENDENTE</span> valor exato, ou faixa "de … até"? <strong>Pergunta 27</strong> — recomendo faixa</td></tr>
+        <tr><td>4</td><td><strong>VALOR</strong></td><td><strong>Faixa "DE … ATÉ"</strong> <span class="tag tag-ok">DECIDIDO</span>, com os dois campos opcionais: só "de" = a partir de; só "até" = até; os dois = entre</td></tr>
         <tr><td>5</td><td><strong>TIPO DA CONTA MOVIMENTO</strong></td><td>CAIXA / BANCO / OUTRAS</td></tr>
         <tr><td>6</td><td><strong>TIPO DA CONTA IDENTIFICADORA</strong></td><td>DESPESA / RECEITA / OUTRAS</td></tr>
         <tr><td>7</td><td><strong>USUÁRIO</strong></td><td>Quem criou o lançamento (lista de membros da empresa)</td></tr>
@@ -1068,12 +1115,17 @@ As duas gravadas numa ÚNICA operação no banco: ou as duas existem, ou nenhuma
         <tr><td>9</td><td><strong>TIPO DO MOVIMENTO</strong></td><td>ENTRADA / SAÍDA</td></tr>
         <tr><td>10</td><td><strong>PROPRIEDADE</strong></td><td>PRÓPRIO / TERCEIROS</td></tr>
         <tr><td>11</td><td><strong>REGIME</strong></td><td>CAIXA / COMPETÊNCIA</td></tr>
-        <tr><td>12</td><td><strong>TRANSFERÊNCIA ENTRE CONTAS</strong></td><td><span class="tag tag-par">PENDENTE</span> <strong>Pergunta 28</strong>: entendi como "mostrar somente transferências" — ou deveria ter três estados (todos / só transferências / esconder transferências)? <strong>Recomendo três estados</strong>: esconder transferências é o que dá o total real de despesas do mês</td></tr>
+        <tr><td>12</td><td><strong>TRANSFERÊNCIA ENTRE CONTAS</strong></td><td><strong>Caixa de marcar</strong> <span class="tag tag-ok">DECIDIDO</span>. Desmarcada: traz tudo (transferências incluídas). Marcada: traz <strong>somente</strong> transferências, cruzando com os demais filtros</td></tr>
         <tr><td>13</td><td><strong>ÚLTIMOS ADICIONADOS</strong></td><td>Todos os lançamentos do mais recente para o mais antigo, pela data de criação — <strong>independente dos demais filtros</strong></td></tr>
       </tbody>
     </table>
   </div>
   <p><strong>Todos se cruzam</strong> (RN-03): por exemplo "BANCO ITAÚ + CARTEIRA, categorias MERCADO e FARMÁCIA, setembro, só SAÍDAS, do usuário MARIA".</p>
+  <div class="callout callout-ambar">
+    <span class="box-title">Uma observação sobre a caixa de transferências, para ficar registrada</span>
+    <p style="margin-top:6px">Com dois estados (tudo / só transferências), <strong>não há como pedir "tudo EXCETO transferências"</strong> — e é essa a combinação que dá o total real de despesas do mês, porque transferência não é despesa: o dinheiro só mudou de bolso.</p>
+    <p>Na pesquisa isso se contorna (o usuário lê os totais e desconta). <strong>Nos DASHBOARDS, porém, a exclusão precisará existir</strong>, senão os gráficos de despesa nascem inflados. Fica anotado para a fase 5 — não é problema agora, e o campo <code>transferencia_id</code> já permite fazer isso quando chegar a hora.</p>
+  </div>
 
   <h3>15.2 O resultado</h3>
   <p>Lista com: DATA · CONTA MOVIMENTO · CONTA IDENTIFICADORA · TIPO · VALOR · HISTÓRICO · USUÁRIO · OPÇÕES (EDITAR / EXCLUIR).</p>
@@ -1123,13 +1175,21 @@ ESTA AÇÃO NÃO PODE SER DESFEITA.
       <tbody>
         <tr><td>O que é</td><td>Uma <strong>data de corte</strong>: "FECHADO ATÉ 31/08/2026"</td></tr>
         <tr><td>Efeito</td><td>Nenhum lançamento pode ser <strong>criado, editado ou excluído</strong> com data igual ou anterior ao corte (RN-24)</td></tr>
-        <tr><td>Abrangência</td><td><span class="tag tag-par">PENDENTE</span> <strong>Pergunta 29</strong>: o fechamento é <strong>da empresa inteira</strong> (uma data só) ou <strong>por conta movimento</strong> (cada conta com a sua)? <strong>Recomendo por empresa</strong> — mais simples de entender e de explicar</td></tr>
+        <tr><td>Abrangência</td><td><strong>Por CONTA MOVIMENTO</strong> <span class="tag tag-ok">DECIDIDO</span>, com a opção de aplicar a mesma data a <strong>todas</strong> as contas de uma vez. Cada conta guarda o próprio corte</td></tr>
         <tr><td>Quem fecha</td><td>Proprietário, ou Dependente com a permissão <code>fechar_periodo</code> (desligada por padrão)</td></tr>
         <tr><td>Reabrir</td><td><span class="tag tag-pro">PROPOSTA</span> Sim, com confirmação — e o evento fica na auditoria. Um fechamento irreversível transformaria um erro de digitação na data de corte num problema sem saída</td></tr>
-        <tr><td>Onde fica</td><td>Uma tabela própria do módulo: <code>fin_fechamentos</code> (seção 18.4)</td></tr>
+        <tr><td>Onde fica</td><td>Uma tabela própria do módulo: <code>fin_fechamentos</code>, com <strong>uma linha por conta</strong> (seção 18.4)</td></tr>
+        <tr><td>Transferência</td><td>Como ela toca <strong>duas</strong> contas, é recusada se <strong>qualquer uma das duas</strong> estiver com o período fechado naquela data</td></tr>
+        <tr><td>Edição que muda de conta</td><td>Verifica o fechamento da conta <strong>de origem e da de destino</strong> — senão seria possível tirar um lançamento de um mês fechado movendo-o para outra conta</td></tr>
       </tbody>
     </table>
   </div>
+  <div class="example-box">
+    <span class="box-title">Por que fechar por conta faz sentido na prática</span>
+    <p style="margin-top:6px">Cada conta é conferida contra um extrato diferente, e eles não chegam no mesmo dia: o extrato do banco sai no dia 1º, mas a conferência da carteira (dinheiro em espécie) pode demorar. Fechando por conta, você fecha "BANCO ITAÚ até 31/08" assim que conferir, sem esperar as outras — e o que já está conferido fica protegido.</p>
+    <p><strong>O custo:</strong> a resposta a "este mês está fechado?" deixa de ser uma data e passa a ser uma lista. A tela precisa mostrar isso com clareza — por exemplo, uma coluna "FECHADO ATÉ" na lista de contas.</p>
+  </div>
+
   <div class="callout callout-ambar">
     <span class="box-title">Por que o fechamento precisa estar no banco, e não na tela</span>
     <p style="margin-top:6px">Se a checagem ficasse só na tela, bastaria chamar a operação por outro caminho para gravar em período fechado — e o mês fechado deixaria de ser confiável, que é justamente o valor dele. A verificação vai dentro da função que grava, no PostgreSQL: <strong>a resposta é a mesma venha o pedido de onde vier.</strong></p>
@@ -1166,12 +1226,14 @@ ESTA AÇÃO NÃO PODE SER DESFEITA.
         <tr><td>RN-21</td><td>Ordenação do extrato: data → ordem (vazios por último) → instante de criação</td><td>Função do banco</td></tr>
         <tr><td>RN-22</td><td>O campo USUÁRIO (quem criou) <strong>nunca</strong> é editável</td><td>Função do banco</td></tr>
         <tr><td>RN-23</td><td>Transferência: origem e destino <strong>diferentes</strong>; as duas pernas gravadas numa única operação</td><td>Função do banco</td></tr>
-        <tr><td>RN-24</td><td><strong>Período fechado:</strong> não se cria, edita nem exclui lançamento com data até o corte</td><td>Função do banco</td></tr>
+        <tr><td>RN-24</td><td><strong>Período fechado, POR CONTA:</strong> não se cria, edita nem exclui lançamento com data até o corte <em>daquela conta</em>. Transferência: recusada se qualquer uma das duas contas estiver fechada. Edição que troca de conta: verifica as duas</td><td>Função do banco</td></tr>
         <tr><td>RN-25</td><td>Toda operação confere a <strong>permissão do membro</strong> antes de agir — esconder botão não é controle de acesso</td><td>Função do banco</td></tr>
         <tr><td>RN-26</td><td>Excluir lançamento apaga de verdade, com confirmação mostrando os dados; rastro na auditoria</td><td>Tela + auditoria</td></tr>
         <tr><td>RN-27</td><td><strong>Todo dado do módulo pertence a uma empresa</strong>; ninguém lê dado de outra empresa</td><td>RLS em todas as tabelas</td></tr>
         <tr><td>RN-28</td><td><strong>Apagar os dados de uma empresa</strong> é operação do Desenvolvedor, feita por função única (tudo ou nada), com o nome da empresa digitado para confirmar e oferta de exportar antes</td><td>Função do banco + tela</td></tr>
         <tr><td>RN-29</td><td><strong>Um lançamento nunca mistura empresas:</strong> a conta movimento e a conta identificadora dele têm de ser da MESMA empresa do lançamento</td><td><strong>Chave estrangeira composta</strong> (<code>tenant_id</code> + id) — o banco recusa sozinho</td></tr>
+        <tr><td>RN-30</td><td><strong>A categoria "TRANSFERÊNCIA ENTRE CONTAS" é do sistema:</strong> não pode ser renomeada, ter o tipo alterado, ser desativada nem excluída. É criada automaticamente na primeira transferência da empresa</td><td>Coluna <code>is_sistema</code> + função do banco</td></tr>
+        <tr><td>RN-31</td><td><strong>As duas pernas da transferência recebem <code>PRÓPRIO</code> e <code>CAIXA</code></strong>, gravados pelo sistema — a tela não pergunta (ver pergunta 33)</td><td>Função do banco</td></tr>
       </tbody>
     </table>
   </div>
@@ -1201,6 +1263,7 @@ tenant_id     uuid NOT NULL → tenants(id) ON DELETE CASCADE
 nome          text NOT NULL              -- MAIÚSCULAS
 tipo          text NOT NULL              -- CHECK: DESPESA | RECEITA | OUTRAS
 is_active     boolean NOT NULL DEFAULT true
+is_sistema    boolean NOT NULL DEFAULT false  -- RN-30: "TRANSFERÊNCIA ENTRE CONTAS"
 criado_por    uuid → users(id)
 created_at / updated_at
 
@@ -1247,15 +1310,19 @@ created_at / updated_at
 ÍNDICE (tenant_id, criado_por)                                         -- filtro por usuário
 ÍNDICE (transferencia_id) WHERE transferencia_id IS NOT NULL           -- achar o par</pre>
 
-  <h3>18.4 <code>fin_fechamentos</code> <span class="tag tag-ok">DECIDIDO</span></h3>
-  <pre>id              uuid PRIMARY KEY
-tenant_id       uuid NOT NULL → tenants(id) ON DELETE CASCADE
-fechado_ate     date NOT NULL      -- não se mexe em nada até esta data
-fechado_por     uuid NOT NULL → users(id)
-observacao      text NULL
-created_at      timestamptz NOT NULL DEFAULT now()
+  <h3>18.4 <code>fin_fechamentos</code> <span class="tag tag-ok">DECIDIDO: por conta</span></h3>
+  <pre>id                 uuid PRIMARY KEY
+tenant_id          uuid NOT NULL → tenants(id) ON DELETE CASCADE
+conta_movimento_id uuid NOT NULL          -- UMA LINHA POR CONTA
+fechado_ate        date NOT NULL          -- nada se mexe até esta data, NESTA conta
+fechado_por        uuid NOT NULL → users(id)
+observacao         text NULL
+created_at / updated_at
 
-UNIQUE (tenant_id)   -- um fechamento vigente por empresa (ver pergunta 29)</pre>
+UNIQUE (tenant_id, conta_movimento_id)    -- um corte vigente por conta
+FOREIGN KEY (tenant_id, conta_movimento_id)
+    REFERENCES fin_contas_movimento (tenant_id, id) ON DELETE CASCADE   -- RN-29</pre>
+  <p><strong>"Aplicar a todas as contas"</strong> não é uma linha especial: a função grava (ou atualiza) uma linha para cada conta ativa da empresa, numa única transação. Assim a consulta de "esta data está fechada?" é sempre a mesma — olha a linha da conta, e pronto.</p>
 
   <h3>18.5 As decisões de tipo, explicadas</h3>
   <div class="table-wrap">
@@ -1294,7 +1361,8 @@ UNIQUE (tenant_id)   -- um fechamento vigente por empresa (ver pergunta 29)</pre
         <tr><td><code>fin_gravar_conta_movimento(...)</code></td><td>Cria ou edita; <strong>recusa mudar o tipo se houver lançamento</strong></td><td>RN-01, 02, 07, 25</td></tr>
         <tr><td><code>fin_gravar_identificadora(...)</code></td><td>Idem</td><td>RN-01, 02, 07, 25</td></tr>
         <tr><td><code>fin_marcar_conferido(id, valor)</code></td><td>Marca/desmarca a linha</td><td>RN-20, 25</td></tr>
-        <tr><td><code>fin_fechar_periodo(data)</code> / <code>fin_reabrir_periodo()</code></td><td>Define ou remove o corte</td><td>RN-24, 25</td></tr>
+        <tr><td><code>fin_fechar_periodo(conta, data)</code> / <code>fin_reabrir_periodo(conta)</code></td><td>Define ou remove o corte <strong>de uma conta</strong>; com a conta em branco, aplica a todas numa transação</td><td>RN-24, 25</td></tr>
+        <tr><td><code>fin_periodo_fechado(conta, data)</code></td><td>Responde se aquela data está fechada naquela conta — usada por todas as funções que gravam</td><td>RN-24</td></tr>
         <tr><td><code>fin_apagar_dados_da_empresa(tenant)</code></td><td>Apaga <strong>tudo</strong> do módulo naquela empresa, na ordem certa e numa transação; devolve quantos registros saíram de cada tabela</td><td>RN-28 — só o Desenvolvedor (seção 6.6)</td></tr>
       </tbody>
     </table>
@@ -1361,7 +1429,27 @@ USING ( check_is_tenant_member(tenant_id) OR check_is_tenant_owner(tenant_id) )
     </ul>
     <p><strong>Duas precauções que o gerador precisa ter:</strong> (1) se algum histórico contiver uma tabulação ou quebra de linha digitada, ela deve ser trocada por espaço, senão a linha se parte ao meio; (2) texto que comece com <code>=</code>, <code>+</code>, <code>-</code> ou <code>@</code> deve ser neutralizado — do contrário o Excel o interpreta como fórmula.</p>
   </div>
-  <p><span class="tag tag-pro">PROPOSTA</span> Colunas do TSV de lançamentos: DATA · CONTA MOVIMENTO · TIPO CM · CONTA IDENTIFICADORA · TIPO CI · TIPO MOVIMENTO · PROPRIEDADE · REGIME · VALOR · HISTÓRICO · USUÁRIO · CONFERIDO. Codificação <strong>UTF-8 com BOM</strong> (é o que faz o Excel mostrar acentos corretamente). <strong>Pergunta 30</strong> confirma as colunas.</p>
+  <h3>20.3 As 14 colunas do TSV <span class="tag tag-ok">DECIDIDO</span></h3>
+  <pre> 1. EMPRESA                      ← nome real da empresa (ex.: "EMPRESA ALFA")
+ 2. DATA
+ 3. CONTA MOVIMENTO
+ 4. TIPO DA CONTA MOVIMENTO
+ 5. CONTA IDENTIFICADORA
+ 6. TIPO DA CONTA IDENTIFICADORA
+ 7. TIPO DO MOVIMENTO
+ 8. PROPRIEDADE
+ 9. REGIME
+10. VALOR
+11. HISTÓRICO
+12. USUÁRIO                      ← e-mail real de quem lançou
+13. CONFERIDO
+14. ORDEM NO EXTRATO</pre>
+  <p>Codificação <strong>UTF-8 com BOM</strong> — é o que faz o Excel mostrar os acentos corretamente.</p>
+  <div class="callout callout-ambar">
+    <span class="box-title">Sobre a coluna EMPRESA e o e-mail do usuário</span>
+    <p style="margin-top:6px">Repetir o nome da empresa em toda linha parece redundante num arquivo só daquela empresa — e é, de propósito: <strong>arquivos exportados se juntam</strong>. Quando você abrir dois TSVs (matriz e filial) na mesma planilha, a coluna EMPRESA é o que impede misturar os números sem perceber.</p>
+    <p>O e-mail em vez do nome do usuário tem o mesmo motivo: <strong>e-mail é único, nome não</strong>. Dois "JOÃO SILVA" na equipe seriam indistinguíveis numa planilha.</p>
+  </div>
 </section>
 
 <section id="s21">
@@ -1423,7 +1511,7 @@ USING ( check_is_tenant_member(tenant_id) OR check_is_tenant_owner(tenant_id) )
         </tr>
         <tr>
           <td><strong>4 — Controlar</strong></td>
-          <td>Tela 6 (transferência), conciliação (CONFERIDO), fechamento de período, permissões de Dependente</td>
+          <td>Tela 6 (transferência) com a categoria do sistema, conciliação (CONFERIDO), fechamento de período <strong>por conta</strong>, e a tela de permissões do Dependente <strong>dentro do módulo</strong></td>
           <td>Trabalhar com mais de uma pessoa e fechar o mês</td>
         </tr>
         <tr>
@@ -1464,69 +1552,33 @@ USING ( check_is_tenant_member(tenant_id) OR check_is_tenant_owner(tenant_id) )
 </section>
 
 <section id="s24">
-  <h2>24. Perguntas da rodada 2</h2>
-  <p>A <strong>23</strong> foi respondida (seção 6) e a modelagem está liberada. Restam <strong>dez perguntas de detalhe</strong> — nenhuma delas impede começar o banco.</p>
+  <h2>24. Perguntas — situação</h2>
+  <p><strong>As doze perguntas das rodadas 1 e 2 estão respondidas.</strong> Restou <strong>uma</strong>, criada agora: ela nasceu da resposta 25 e é de detalhe, não de estrutura.</p>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>#</th><th>Pergunta</th><th>Minha recomendação</th></tr></thead>
+      <thead><tr><th>#</th><th>Pergunta</th><th>Situação</th></tr></thead>
       <tbody>
-        <tr>
-          <td><strong>22</strong></td>
-          <td>A lista de 17 permissões do Dependente (seção 4.3) está completa e com os nomes certos?</td>
-          <td>Usar como está; ajustar quando o uso mostrar falta</td>
-        </tr>
-        <tr>
-          <td><strong>23</strong><br><span class="tag tag-ok">RESPONDIDA</span></td>
-          <td><strong>Tabelas por usuário</strong> (seção 6)</td>
-          <td><strong>Decidido em 12/09/2026, após a prova: tabela única + RLS, com botão de exclusão por empresa.</strong> Ver seção 6</td>
-        </tr>
-        <tr>
-          <td><strong>24</strong></td>
-          <td>A tela de permissões do Dependente fica <strong>dentro do módulo</strong> ou junto da tela de equipe da plataforma?</td>
-          <td><strong>Dentro do módulo</strong> — assim ela some junto quando o módulo for desplugado</td>
-        </tr>
-        <tr>
-          <td><strong>25</strong></td>
-          <td>Transferência: quais PROPRIEDADE e REGIME as duas pernas recebem?</td>
-          <td><code>PRÓPRIO</code> e <code>CAIXA</code> automaticamente, sem perguntar</td>
-        </tr>
-        <tr>
-          <td><strong>26</strong></td>
-          <td>Transferência usa CONTA IDENTIFICADORA? Qual?</td>
-          <td>O sistema cria e usa "TRANSFERÊNCIA ENTRE CONTAS" (tipo OUTRAS) automaticamente</td>
-        </tr>
-        <tr>
-          <td><strong>27</strong></td>
-          <td>O filtro VALOR é exato ou faixa "de … até"?</td>
-          <td><strong>Faixa</strong>, com os dois campos opcionais (só "de" = a partir de; só "até" = até)</td>
-        </tr>
-        <tr>
-          <td><strong>28</strong></td>
-          <td>O filtro TRANSFERÊNCIA ENTRE CONTAS tem 2 ou 3 estados?</td>
-          <td><strong>Três</strong>: TODOS / SOMENTE TRANSFERÊNCIAS / SEM TRANSFERÊNCIAS</td>
-        </tr>
-        <tr>
-          <td><strong>29</strong></td>
-          <td>O fechamento de período é da empresa inteira ou por conta movimento?</td>
-          <td><strong>Da empresa inteira</strong> — mais simples de entender e de explicar</td>
-        </tr>
-        <tr>
-          <td><strong>30</strong></td>
-          <td>As 12 colunas do TSV (seção 20.2) estão certas?</td>
-          <td>Usar como está</td>
-        </tr>
-        <tr>
-          <td><strong>31</strong></td>
-          <td>Concorda com o corte das 6 fases (seção 22)?</td>
-          <td>Sim — cada fase entrega algo utilizável</td>
-        </tr>
-        <tr>
-          <td><strong>32</strong></td>
-          <td>Onde fica o botão de apagar os dados de uma empresa (seção 6.7): <strong>(a)</strong> genérico na plataforma, com uma coluna nova no catálogo de módulos, ou <strong>(b)</strong> dentro do próprio módulo?</td>
-          <td><strong>(a)</strong> — custa uma coluna na plataforma e todo módulo futuro ganha o botão de graça</td>
-        </tr>
+        <tr><td>22</td><td>Lista de 17 permissões do Dependente</td><td><span class="tag tag-ok">SIM</span> — usar como está</td></tr>
+        <tr><td>23</td><td>Separação dos dados</td><td><span class="tag tag-ok">RESPONDIDA</span> tabela única + RLS + botão (seção 6)</td></tr>
+        <tr><td>24</td><td>Onde fica a tela de permissões</td><td><span class="tag tag-ok">RESPONDIDA</span> dentro do módulo</td></tr>
+        <tr><td>25</td><td>Propriedade e regime na transferência</td><td><span class="tag tag-ok">RESPONDIDA</span> não aparecem na tela → <strong>gerou a pergunta 33</strong></td></tr>
+        <tr><td>26</td><td>Categoria da transferência</td><td><span class="tag tag-ok">RESPONDIDA</span> "TRANSFERÊNCIA ENTRE CONTAS" → gerou a RN-30 (categoria protegida)</td></tr>
+        <tr><td>27</td><td>Filtro de valor</td><td><span class="tag tag-ok">RESPONDIDA</span> faixa "de … até"</td></tr>
+        <tr><td>28</td><td>Filtro de transferência</td><td><span class="tag tag-ok">RESPONDIDA</span> caixa de marcar (traz somente transferências)</td></tr>
+        <tr><td>29</td><td>Fechamento de período</td><td><span class="tag tag-ok">RESPONDIDA</span> por conta movimento, com opção de todas</td></tr>
+        <tr><td>30</td><td>Colunas do TSV</td><td><span class="tag tag-ok">RESPONDIDA</span> 14 colunas, com EMPRESA e o e-mail do usuário</td></tr>
+        <tr><td>31</td><td>Fases</td><td><span class="tag tag-ok">SIM</span></td></tr>
+        <tr><td>32</td><td>Onde fica o botão de apagar</td><td><span class="tag tag-ok">RESPONDIDA</span> (a) genérico na plataforma — <strong>exige uma coluna nova no catálogo</strong></td></tr>
+        <tr><td><strong>33</strong><br><span class="tag tag-par">ABERTA</span></td><td>A transferência grava <code>PRÓPRIO</code> e <code>CAIXA</code> automaticamente nas duas pernas (caminho (a) da seção 14.6)?</td><td><strong>Recomendo sim.</strong> O caminho alternativo (deixar vazio) faria a transferência sumir do extrato, porque a RN-19 filtra por regime CAIXA — e o saldo deixaria de bater com o banco</td></tr>
       </tbody>
     </table>
+  </div>
+
+  <h3>24.1 O que mudou na plataforma por causa destas respostas</h3>
+  <div class="callout callout-vermelho">
+    <span class="box-title">⚠️ Uma mudança sai do módulo e entra na plataforma</span>
+    <p style="margin-top:6px">A resposta 32 (botão genérico) exige <strong>uma coluna nova em <code>platform_modules</code></strong> (<code>funcao_limpeza</code>) e <strong>uma função nova</strong> na plataforma. Isso significa <strong>recriar o banco</strong> (<code>00 → 01 → 02</code>) mais uma vez, como nos degraus 3 e 5, antes ou junto da primeira entrega do módulo.</p>
+    <p>Não é trabalho perdido: todo módulo futuro ganha o botão de exclusão sem escrever tela nenhuma. Mas é bom saber que a conta chega junto.</p>
   </div>
 
   <div class="highlight-box">
