@@ -1171,6 +1171,7 @@ ESTA AÇÃO NÃO PODE SER DESFEITA.
         <tr><td>RN-26</td><td>Excluir lançamento apaga de verdade, com confirmação mostrando os dados; rastro na auditoria</td><td>Tela + auditoria</td></tr>
         <tr><td>RN-27</td><td><strong>Todo dado do módulo pertence a uma empresa</strong>; ninguém lê dado de outra empresa</td><td>RLS em todas as tabelas</td></tr>
         <tr><td>RN-28</td><td><strong>Apagar os dados de uma empresa</strong> é operação do Desenvolvedor, feita por função única (tudo ou nada), com o nome da empresa digitado para confirmar e oferta de exportar antes</td><td>Função do banco + tela</td></tr>
+        <tr><td>RN-29</td><td><strong>Um lançamento nunca mistura empresas:</strong> a conta movimento e a conta identificadora dele têm de ser da MESMA empresa do lançamento</td><td><strong>Chave estrangeira composta</strong> (<code>tenant_id</code> + id) — o banco recusa sozinho</td></tr>
       </tbody>
     </table>
   </div>
@@ -1191,6 +1192,7 @@ criado_por              uuid → users(id)
 created_at / updated_at timestamptz NOT NULL DEFAULT now()
 
 UNIQUE (tenant_id, nome_normalizado)     -- RN-02, sem acento/caixa
+UNIQUE (tenant_id, id)                   -- ⚠️ RN-29: o alvo da chave composta
 ÍNDICE (tenant_id, is_active, nome)</pre>
 
   <h3>18.2 <code>fin_contas_identificadoras</code></h3>
@@ -1203,13 +1205,28 @@ criado_por    uuid → users(id)
 created_at / updated_at
 
 UNIQUE (tenant_id, nome_normalizado)
+UNIQUE (tenant_id, id)                   -- ⚠️ RN-29
 ÍNDICE (tenant_id, is_active, nome)</pre>
 
   <h3>18.3 <code>fin_lancamentos</code></h3>
   <pre>id                        uuid PRIMARY KEY
 tenant_id                 uuid NOT NULL → tenants(id) ON DELETE CASCADE
-conta_movimento_id        uuid NOT NULL → fin_contas_movimento(id)      ON DELETE RESTRICT
-conta_identificadora_id   uuid NOT NULL → fin_contas_identificadoras(id) ON DELETE RESTRICT
+conta_movimento_id        uuid NOT NULL
+conta_identificadora_id   uuid NOT NULL
+  -- ⚠️ RN-29: as chaves estrangeiras são COMPOSTAS, incluindo o tenant_id.
+  --    É o que impede um lançamento de uma empresa apontar para a conta de
+  --    outra — garantido pelo BANCO, não pelo código:
+  FOREIGN KEY (tenant_id, conta_movimento_id)
+      REFERENCES fin_contas_movimento (tenant_id, id)       ON DELETE RESTRICT
+  FOREIGN KEY (tenant_id, conta_identificadora_id)
+      REFERENCES fin_contas_identificadoras (tenant_id, id) ON DELETE RESTRICT
+
+  ✅ VALIDADO em PostgreSQL 18 (12/09/2026), 4 de 4 casos — ver
+     supabase/testes/ambiente-local/prova-chave-composta.sql:
+       • lançamento coerente ................. aceito
+       • lançamento misturando empresas ...... recusado (23503)
+       • UPDATE mudando só o tenant_id ....... recusado (23503)  ← vale na edição
+       • apagar conta com lançamento ......... recusado (23001)  ← RN-04 intacta
 tipo_conta_movimento      text NOT NULL   -- fotografia (RN-10)
 tipo_conta_identificadora text NOT NULL   -- fotografia (RN-10)
 data_movimento            date NOT NULL   -- date, nunca timestamptz
@@ -1248,6 +1265,8 @@ UNIQUE (tenant_id)   -- um fechamento vigente por empresa (ver pergunta 29)</pre
         <tr><td><code>valor_centavos bigint</code> (e não <code>numeric</code> nem <code>float</code>)</td><td>Proibição do <code>CLAUDE.md</code>: dinheiro em centavos inteiros. <code>0.1 + 0.2</code> não dá <code>0.3</code> em ponto flutuante, e num extrato de 300 linhas o erro aparece no saldo. O Core já tem <code>lib/dinheiro.ts</code> com 19 testes para converter</td></tr>
         <tr><td><code>data_movimento date</code> (e não <code>timestamptz</code>)</td><td>Também do <code>CLAUDE.md</code>: <code>timestamptz</code> é para o instante de um registro; data de calendário é <code>date</code>. Com <code>timestamptz</code>, um lançamento de 01/09 pode virar 31/08 conforme o fuso de quem lê</td></tr>
         <tr><td><code>ON DELETE RESTRICT</code> nas duas contas</td><td>É o que faz a RN-04 valer no banco, não só na tela</td></tr>
+        <tr><td><strong>Chaves estrangeiras compostas</strong> (<code>tenant_id</code> + id da conta)</td><td>Como o <code>tenant_id</code> se repete no lançamento, seria <em>teoricamente possível</em> gravar um lançamento da matriz apontando para uma conta da filial. As funções do módulo impedem — mas função é código, e código se esquece numa alteração futura. Com a chave composta, <strong>o próprio PostgreSQL recusa</strong> a mistura, venha o pedido de onde vier. Custa duas linhas no schema e nada depois (RN-29)</td></tr>
+        <tr><td>Por que o <code>tenant_id</code> se repete em <code>fin_lancamentos</code></td><td>A empresa poderia ser descoberta pela conta, mas a coluna é repetida de propósito: <strong>(1)</strong> a policy da RLS filtra a linha sem consultar outra tabela; <strong>(2)</strong> todo índice do módulo começa por empresa; <strong>(3)</strong> olhando uma linha isolada, sabe-se de quem ela é</td></tr>
         <tr><td><code>ON DELETE CASCADE</code> no <code>tenant_id</code></td><td>Se a empresa for apagada, os dados financeiros dela vão junto — não ficam órfãos</td></tr>
         <tr><td><code>nome_normalizado</code></td><td>Coluna gerada com o nome sem acento e em maiúsculas, para o índice único da RN-02. <strong>É preciso assim</strong> porque um índice sobre <code>unaccent(nome)</code> não é aceito diretamente pelo PostgreSQL: aquela função não é declarada como imutável</td></tr>
       </tbody>
@@ -1310,6 +1329,7 @@ USING ( check_is_tenant_member(tenant_id) OR check_is_tenant_owner(tenant_id) )
     <li>Reordenação: inserir ordem repetida desloca as seguintes, sem duplicar.</li>
     <li>Dependente sem permissão tem a operação recusada (RN-25).</li>
     <li>Apagar os dados de uma empresa não deixa resto e não toca na outra (RN-28).</li>
+    <li>Gravar um lançamento da empresa A apontando para a conta da empresa B é recusado pelo banco (RN-29).</li>
   </ol>
 </section>
 
