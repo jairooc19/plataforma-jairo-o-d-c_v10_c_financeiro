@@ -581,7 +581,15 @@ $$;
 -- nenhum da aplicação.
 -- ---------------------------------------------------------------------------
 
--- 5.11 Lista todos os usuários (triagem).
+-- 5.11 Lista os usuários da triagem.
+--
+-- ⚠️ O DESENVOLVEDOR NÃO ENTRA NA PRÓPRIA FILA. Ele nasce como qualquer usuário
+-- (`role = 'pending'`, porque o gatilho ignora o papel enviado pelo cliente) e o
+-- passo manual do seed só marca `is_superuser`. Sem o filtro abaixo, ele aparecia
+-- na "Triagem de Usuários" com o botão de promover ao lado — e promovê-lo criaria
+-- uma empresa em nome da conta de serviço, com `is_client_owner = true`. Filtrar
+-- aqui, e não na tela, é o que impede o erro nas DUAS pontas (web e aplicativo),
+-- que consomem esta mesma função.
 CREATE OR REPLACE FUNCTION public.admin_list_users()
 RETURNS TABLE (
   id uuid,
@@ -605,6 +613,7 @@ BEGIN
   RETURN QUERY
     SELECT u.id, u.email, u.full_name, u.role, u.is_active, u.is_client_owner, u.created_at
       FROM public.users u
+     WHERE u.is_superuser = false
      ORDER BY u.created_at DESC;
 END;
 $$;

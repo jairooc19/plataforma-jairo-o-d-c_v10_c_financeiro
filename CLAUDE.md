@@ -22,7 +22,7 @@ terreno para o módulo C FINANCEIRO. **Exige recriar o banco** (`00 → 01 → 0
 | admin-web | As 9 rotas `/api/*` e as 3 Server Actions administrativas **foram apagadas**; `middleware.ts` virou `proxy.ts` |
 | mobile-app | Sessão saiu do AsyncStorage para o SecureStore (em pedaços); telas de engenharia falam direto com o banco |
 | Testes | `npm test` (node:test, sem dependências) e `supabase/testes/teste_rls.sql` |
-| Git | Repositório iniciado; `main` = estado v10 renumerado, branch `degrau-03-correcoes` = estas mudanças |
+| Git | Repositório iniciado; `master` = estado v10 renumerado (`d463721`), branch `degrau-03-correcoes` = estas mudanças (`2b9e42e`), depois integradas ao `master` e enviadas a `github.com/jairooc19/plataforma-jairo-o-d-c_v10_c_financeiro` |
 
 ⚠️ **AS ROTAS `/api/*` NÃO FORAM "PROTEGIDAS" — FORAM REMOVIDAS.** Autenticar seis
 rotas que existiam só para carregar a chave mestra seria remendar: o desenho
@@ -51,12 +51,49 @@ base do C FINANCEIRO: `0.1 + 0.2` não dá `0.3` em ponto flutuante, e `10.10 * 
 dá `30.299999999999997`. No banco, `numeric(14,2)` ou `bigint` — nunca
 `real`/`double`.
 
-⚠️ **O QUE NÃO FOI TESTADO.** Nada foi executado contra um banco real: não há
-`.env` nem projeto Supabase acessível a partir daqui. Foram validados `npm test`
-(19 testes), `tsc --noEmit` nos dois apps, `eslint` e `npm run build` do
-admin-web. O `supabase/testes/teste_rls.sql` existe justamente para ser rodado
-por você, no banco, e provar o resto. **O aplicativo não foi aberto em aparelho
-nem em emulador.**
+⚠️ **O DESENVOLVEDOR NÃO ENTRA NA PRÓPRIA FILA DE TRIAGEM** (corrigido em
+2026-09-11, durante os testes). Ele nasce `role = 'pending'` como todo mundo — o
+gatilho ignora o papel enviado pelo cliente — e o passo manual do seed só marca
+`is_superuser`. A tela classifica como "aguardando triagem" quem está `pending`
+ou `user`, então a conta de serviço aparecia na própria fila, com o botão de
+promover ao lado; promovê-la criaria uma empresa em nome dela, com
+`is_client_owner = true`. O filtro (`WHERE u.is_superuser = false`) ficou dentro
+de `admin_list_users()`, **não na tela**: web e aplicativo consomem a mesma
+função, e filtrar na tela consertaria uma ponta só.
+
+⚠️ **`git commit` NÃO PUBLICA NADA — QUEM PUBLICA É O `git push`** (lição de
+2026-09-11). Entre o commit das correções e o envio ao GitHub, a Vercel seguiu
+construindo o commit anterior, e os sintomas apontavam para todo lado menos para
+a causa: o Painel de Engenharia **aceitava a senha fixa antiga** (`1qaz`) e
+recusava a nova, e a "Triagem de Usuários" vinha vazia — porque a versão no ar
+buscava a lista com a chave mestra, já removida da Vercel. Ao testar
+comportamento novo em produção, confira antes qual commit foi construído
+(`git log origin/master --oneline -1` contra o painel da Vercel).
+
+⚠️ **O DOMÍNIO DA VERCEL É TRUNCADO, E O GOOGLE COMPARA CARACTERE A CARACTERE.**
+O projeto publicado responde em `https://plataforma-jairo-o-d-c-v10-c-financ.vercel.app`
+— não no nome completo que se supõe pelo nome do projeto. Registrar o nome
+"esperado" nas Origens JavaScript do Google Cloud dá `Erro 400: origin_mismatch`,
+e a mensagem de erro (base64 no parâmetro `authError` da URL) traz a origem exata
+que o navegador enviou. É de lá que se tira o valor certo, não do palpite.
+
+⚠️ **O QUE FOI E O QUE NÃO FOI TESTADO.** Na entrega (2026-09-11), nada havia
+sido executado contra um banco real — não há `.env` nem projeto Supabase
+alcançável a partir daqui. Foram validados `npm test` (19 testes), `tsc --noEmit`
+nos dois apps, `eslint` e `npm run build` do admin-web.
+
+Na mesma data, o dono do projeto publicou na Vercel e começou a validação real.
+**Confirmado por ele, no ambiente publicado:**
+
+- login do Proprietário por Google, fim a fim (depois de corrigir a origem
+  JavaScript no Google Cloud — ver a armadilha do domínio truncado, acima);
+- o usuário do Desenvolvedor existe com `is_superuser = true`;
+- o usuário que entrou pelo Google nasce `role = 'pending'`, como o gatilho manda.
+
+**Continua pendente:** `supabase/testes/teste_rls.sql` **nunca foi executado**;
+não há confirmação de que as funções `admin_*` do schema novo existem no banco
+(a contagem sugerida não foi conferida); o build novo ainda não foi exercitado
+fim a fim; e **o aplicativo não foi aberto em aparelho nem em emulador.**
 
 ---
 
