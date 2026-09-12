@@ -90,10 +90,35 @@ Na mesma data, o dono do projeto publicou na Vercel e começou a validação rea
 - o usuário do Desenvolvedor existe com `is_superuser = true`;
 - o usuário que entrou pelo Google nasce `role = 'pending'`, como o gatilho manda.
 
-**Continua pendente:** `supabase/testes/teste_rls.sql` **nunca foi executado**;
-não há confirmação de que as funções `admin_*` do schema novo existem no banco
-(a contagem sugerida não foi conferida); o build novo ainda não foi exercitado
-fim a fim; e **o aplicativo não foi aberto em aparelho nem em emulador.**
+**Confirmado no banco real em 2026-09-12** (SQL Editor do Supabase, pelo dono do
+projeto): `supabase/testes/teste_rls.sql` rodou e devolveu **PASSOU nos 10
+testes** — inclusive o S3, a empresa criada pelo próprio cliente, que era o
+buraco da v9. As funções `admin_*` existem e funcionam (habilitar/desabilitar
+usuário e alterar `global_settings` exercitados pela tela).
+
+**Continua pendente:** o build novo ainda não foi exercitado fim a fim; e **o
+aplicativo não foi aberto em aparelho nem em emulador** — adiado sem previsão
+(2026-09-12), porque o foco é o `apps/admin-web`.
+
+⚠️ **`RAISE NOTICE` NÃO APARECE NO SQL EDITOR DO SUPABASE, E O SILÊNCIO PARECE
+APROVAÇÃO.** A primeira versão do `teste_rls.sql` reportava os dez vereditos por
+`RAISE NOTICE` dentro de blocos `DO` e terminava em `ROLLBACK`. No painel, o
+resultado foi `Success. No rows returned`, com o botão de exportar desabilitado
+— o editor exibe **apenas conjuntos de linhas** e descarta mensagens do servidor
+(`NOTICE` só sai no `psql`). Ou seja: os testes rodaram e as respostas foram
+jogadas fora, com aparência de sucesso. O arquivo foi reescrito para gravar cada
+veredito numa tabela e terminar com um `SELECT`. O `BEGIN … ROLLBACK` teve de
+sair junto: o rollback apagaria também as linhas de resultado — tabela
+temporária e `SET` de sessão voltam atrás do mesmo jeito. A limpeza virou
+explícita, idempotente, no início e no fim.
+
+⚠️ **TESTE DE TRAVA NÃO PODE OLHAR SÓ PARA O ERRO.** A RLS recusa de dois modos:
+levantando `42501` (privilégio de coluna ou de função) **ou em silêncio**,
+descartando a linha que a policy não deixa passar. Um teste que só verifica "deu
+exceção?" aprova o segundo caso sem perceber. Os testes 3 e 4 passaram a conferir
+o **valor final** (`is_superuser` continuou `false`; a empresa pirata não existe),
+e o 9 conta só os eventos da empresa criada pelo próprio teste — contar
+`audit_log` inteiro o faria passar de graça com o uso normal da plataforma.
 
 ---
 
@@ -1702,6 +1727,7 @@ inclusive numa máquina limpa — foi por isso que a versão com bcrypt foi reve
 - ❌ Nunca gravar data de vencimento/competência como `timestamptz` — use `date`; `timestamptz` é para o INSTANTE de um registro
 - ❌ Nunca calcular fuso à mão (`-3 horas`) — use `lib/datas.ts`, que trata o horário de verão pelo `Intl`
 - ❌ Nunca quebrar uma operação transacional do banco em chamadas TypeScript separadas — usar uma função SQL única
+- ❌ Nunca reportar resultado de teste SQL por `RAISE NOTICE` — o SQL Editor do Supabase descarta mensagens do servidor e mostra `Success. No rows returned`; grave os vereditos numa tabela e termine o arquivo com um `SELECT`
 - ❌ Nunca criar arquivo com múltiplas responsabilidades distintas
 - ❌ Nunca misturar lógica de plataforma com módulo, nem módulo com módulo
 - ❌ Nunca usar `toISOString()` para datas que precisam respeitar UTC-3
