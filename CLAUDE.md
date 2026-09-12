@@ -1043,7 +1043,7 @@ plataforma-jairo-o-d-c-v4/
 │   │   ├── plataforma_00_reset.sql    → Demolidor: derruba tudo do CORE
 │   │   ├── plataforma_01_schema.sql   → Construtor: schema consolidado v10
 │   │   └── plataforma_02_seed.sql     → Hidratador: dados iniciais obrigatórios
-│   ├── testes/             → teste_rls.sql prova as travas de acesso no banco (14 testes)
+│   ├── testes/             → teste_rls.sql (14 travas) + inventario.sql (confere o schema)
 │   ├── migrations/         → vazia; ler o README antes do primeiro dado real
 │   └── config.toml         → Configuração do Supabase CLI
 ├── scripts/
@@ -1070,6 +1070,14 @@ npm test             # 19 testes do Core (node:test, sem dependências)
 npm run modulos:verificar   # 🆕 o verificador de LEGO (plataforma × módulos)
 npm run verificar    # testes + verificador + lint + build, em sequência
 ```
+
+> ⚠️ **O DONO DO PROJETO NÃO RODA NADA DISSO** (dito em 2026-09-12): o ciclo dele é
+> **enviar ao GitHub → a Vercel constrói → ele abre o sistema publicado e testa**, e o
+> banco ele confere pelo **SQL Editor do Supabase**. Portanto: **rodar `npm run verificar`
+> antes de entregar é responsabilidade de quem escreve o código**, nunca uma tarefa
+> delegada a ele. E todo SQL entregue a ele precisa **devolver linhas** — o SQL Editor
+> descarta `RAISE NOTICE` (ver `supabase/testes/inventario.sql`, que já responde
+> OK/DIVERGE sozinho).
 
 > `packages/core` **não tem script de build** e não precisa de um: é consumido como
 > TypeScript cru via `transpilePackages: ["@jairo/core"]` no `next.config.ts` e via
