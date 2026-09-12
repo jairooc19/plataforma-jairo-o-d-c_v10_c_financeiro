@@ -321,9 +321,10 @@
   <h1>Módulo Controle Financeiro — Especificação Completa</h1>
   <p class="meta"><strong>Situação:</strong> documento de projeto em debate. <strong>Nenhum arquivo de código foi criado ou alterado.</strong></p>
   <p class="meta"><strong>Data:</strong> 12/09/2026 · <strong>Substitui</strong> a minuta original · <strong>Base:</strong> as 21 respostas do dono do projeto + as decisões do degrau 6</p>
-  <div class="callout callout-vermelho" style="margin-top:14px">
-    <span class="box-title">⚠️ Um ponto ainda BLOQUEIA a modelagem final</span>
-    <p style="margin-top:6px">A resposta ao item 12 pede <strong>tabelas específicas por usuário</strong> (o sufixo <code>_usuario</code> no nome da tabela). Isso muda tudo o que está nas seções 18 e 19 — e tem consequências que eu preciso que você conheça antes de decidir. <strong>A seção 6 é dedicada a isso.</strong> O resto do documento está escrito no modelo que a plataforma já usa e prova (uma tabela, isolamento por empresa), e a seção 6 diz exatamente o que mudaria se a sua exigência for mantida.</p>
+  <div class="callout callout-ambar" style="margin-top:14px">
+    <span class="box-title">✅ O ponto que bloqueava a modelagem foi decidido</span>
+    <p style="margin-top:6px">O modelo de separação dos dados está resolvido: <strong>tabela única com isolamento por RLS, mais um botão "APAGAR TODOS OS DADOS DESTA EMPRESA"</strong> no Painel de Engenharia. A decisão foi tomada em 12/09/2026 <strong>depois de uma prova medida num PostgreSQL real</strong>, comparando os dois modelos — está na seção 6, com os números.</p>
+    <p><strong>A modelagem (seções 18 e 19) está liberada.</strong> Restam perguntas de detalhe, reunidas na seção 24.</p>
   </div>
 </header>
 
@@ -335,7 +336,7 @@
     <li><a href="#s3">Glossário — o vocabulário fixo</a></li>
     <li><a href="#s4">Papéis e permissões</a></li>
     <li><a href="#s5">Decisões registradas (as 21 respostas)</a></li>
-    <li><a href="#s6">⚠️ O ponto pendente: uma tabela por usuário</a></li>
+    <li><a href="#s6">O modelo de separação dos dados (decidido, com prova)</a></li>
     <li><a href="#s7">Arquitetura e encaixe na plataforma</a></li>
     <li><a href="#s8">Mapa de telas e navegação</a></li>
     <li><a href="#s9">Tela 1 — Principal</a></li>
@@ -565,6 +566,7 @@
         <tr><td>20</td><td>Período antigo</td><td><strong>Criar fechamento de período</strong></td></tr>
         <tr><td>21</td><td>Excluir lançamento</td><td><strong>Apaga de verdade</strong>, com confirmação; rastro na auditoria</td></tr>
         <tr><td>Bônus</td><td>N1 a N10</td><td><strong>Todos aceitos</strong>, com o N6 mudando de CSV para <strong>TSV</strong></td></tr>
+        <tr><td><strong>23</strong></td><td><strong>Separação dos dados</strong></td><td><strong>Tabela única + RLS, com botão de exclusão por empresa</strong> — decidido após a prova medida (seção 6)</td></tr>
         <tr><td>9.1</td><td>"+ ADICIONAR NOVA"</td><td><strong>Modal</strong></td></tr>
         <tr><td>9.3</td><td>Ordem no extrato</td><td>Sugestão automática; <strong>se a ordem já existir no dia, alerta e, se prosseguir, reordena o dia</strong></td></tr>
         <tr><td>11</td><td>Editar lançamento</td><td><strong>Todos os campos, exceto USUÁRIO</strong></td></tr>
@@ -582,112 +584,113 @@
 </section>
 
 <section id="s6">
-  <h2>6. ⚠️ O ponto pendente: uma tabela por usuário</h2>
-  <p>Sua resposta ao item 12 pede: <em>"todas com o prefixo <code>fin_</code>, e com fim <code>_(algo que define o usuário)</code>, porque quero que cada usuário, mesmo estando dentro do mesmo banco de dados, tenha suas tabelas específicas"</em>, com o Painel de Engenharia tendo uma função para especificar quais tabelas são de qual usuário.</p>
-  <p>Eu entendi o <strong>objetivo</strong> — e ele é legítimo: <strong>garantia de que ninguém veja o dinheiro de outro</strong>. Mas o caminho tem consequências que eu preciso pôr na mesa antes de você decidir, porque depois de criado é caríssimo desfazer.</p>
-
-  <h3>6.1 Primeiro, um ajuste de conceito: o dado é da EMPRESA, não do usuário</h3>
-  <p>Repare numa contradição que aparece quando cruzamos duas respostas suas:</p>
-  <div class="antes-depois">
-    <div class="antes">
-      <b>Resposta ao item 12</b>
-      "Cada usuário tem suas tabelas específicas."
-    </div>
-    <div class="depois">
-      <b>Resposta 16 (o Dependente)</b>
-      O Proprietário habilita um Dependente para <strong>ver e lançar</strong> — inclusive <code>lc_ver_todos</code>, ver os lançamentos de toda a empresa.
-    </div>
-  </div>
-  <p>Se cada <strong>usuário</strong> tivesse a própria tabela, o Dependente lançaria na tabela <em>dele</em> — e o Proprietário não veria esses lançamentos no extrato, porque estariam em outra tabela. O saldo da conta ficaria partido entre duas tabelas. Para o extrato funcionar, seria preciso juntá-las a cada consulta — e aí a separação deixou de existir na prática.</p>
-  <p><strong>A conclusão:</strong> o eixo de separação do dado financeiro é a <strong>EMPRESA</strong> (o <em>tenant</em>), não o usuário. É por isso que a plataforma inteira já é organizada assim. Um Proprietário com duas empresas tem dois conjuntos de dados; os Dependentes dele participam de uma ou de outra.</p>
-
-  <h3>6.2 O que você quer já está garantido — e provado</h3>
-  <p>A garantia de "ninguém vê o dinheiro de outro" <strong>não depende</strong> de tabelas separadas. Ela vem da RLS, e no seu banco isso não é promessa:</p>
-  <div class="example-box">
-    <span class="box-title">O que os testes de 12/09 provaram no seu Supabase</span>
-    <ul>
-      <li>Visitante anônimo: <strong>permissão negada</strong> (nem a tabela ele enxerga).</li>
-      <li>Usuário comum: <strong>vê 1 perfil — o próprio</strong>, mesmo com a tabela contendo todos.</li>
-      <li>Usuário comum tentando ler dados administrativos: <strong>recusado com erro 42501</strong>.</li>
-      <li>Usuário comum tentando criar empresa: <strong>recusado</strong>.</li>
-    </ul>
-    <p>Ou seja: <strong>o banco já separa por dono, dentro da mesma tabela</strong>. As 14 travas foram executadas contra o banco publicado e todas passaram.</p>
+  <h2>6. O modelo de separação dos dados — DECIDIDO</h2>
+  <div class="highlight-box">
+    <span class="box-title">A decisão (12/09/2026)</span>
+    <p style="margin-top:6px"><strong>Tabela única, isolamento por RLS (por empresa), mais um botão "APAGAR TODOS OS DADOS DESTA EMPRESA".</strong></p>
+    <p>A decisão foi tomada <strong>depois de uma prova prática</strong>, não por argumento: os dois modelos foram montados num PostgreSQL 18 local, com dois clientes e um dependente, e medidos. O resultado está em 6.2, e o script ficou versionado em <code>supabase/testes/ambiente-local/prova-tabela-unica-x-por-cliente.sql</code>.</p>
   </div>
 
-  <h3>6.3 O que custaria fazer uma tabela por usuário (ou por empresa)</h3>
+  <h3>6.1 O que estava em discussão</h3>
+  <p>A minuta pedia <strong>uma tabela por usuário</strong> (<code>fin_lancamentos_&lt;usuario&gt;</code>), com o objetivo declarado de <strong>poder apagar um cliente apagando a tabela dele</strong>. A alternativa era o modelo que a plataforma já usa: uma tabela só, com a coluna da empresa e a RLS decidindo quem lê o quê.</p>
+
+  <h3>6.2 A prova — o que foi medido</h3>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Consequência</th><th>Por quê, em termos práticos</th></tr></thead>
+      <thead><tr><th>#</th><th>Pergunta</th><th>Tabela única + RLS</th><th>Uma tabela por cliente</th></tr></thead>
       <tbody>
-        <tr>
-          <td><strong>Multiplicação de objetos</strong></td>
-          <td>3 tabelas × 20 clientes = <strong>60 tabelas</strong>, cada uma precisando de RLS, policies, índices, gatilhos e privilégios próprios. São 60 chances de esquecer um <code>ENABLE ROW LEVEL SECURITY</code> — e o esquecimento não dá erro: a tabela simplesmente fica aberta</td>
-        </tr>
-        <tr>
-          <td><strong>Toda consulta vira texto montado</strong></td>
-          <td>O código não pode mais dizer <code>FROM fin_lancamentos</code>: precisa montar <code>'FROM fin_lancamentos_' || nome</code> e executar. Isso se chama SQL dinâmico, é a porta clássica de injeção de comando, e obriga a validar cada nome com rigor</td>
-        </tr>
-        <tr>
-          <td><strong>O supabase-js deixa de funcionar como hoje</strong></td>
-          <td>Hoje a tela faz <code>.from('fin_lancamentos')</code>. Com nome variável, cada tela precisa descobrir o nome antes — e a lista de tabelas passa a ser informação que trafega para o navegador</td>
-        </tr>
-        <tr>
-          <td><strong>Mudar uma coluna vira 60 mudanças</strong></td>
-          <td>Acrescentar um campo (digamos, "CONFERIDO") deixa de ser um comando e passa a ser um laço por todas as tabelas. Se falhar na 37ª, o banco fica com dois formatos convivendo</td>
-        </tr>
-        <tr>
-          <td><strong>Relatório entre empresas fica inviável</strong></td>
-          <td>Um Proprietário com 3 empresas que queira ver o total consolidado precisaria de uma consulta que une 3 tabelas — montada em texto, de novo</td>
-        </tr>
-        <tr>
-          <td><strong>O inventário e os testes perdem o alvo</strong></td>
-          <td>O placar do <code>inventario.sql</code> conta "7 tabelas". Com tabelas criadas a cada cliente, o número muda sozinho e o placar perde o sentido. O mesmo vale para o <code>teste_financeiro.sql</code></td>
-        </tr>
-        <tr>
-          <td><strong>Ninguém faz assim</strong></td>
-          <td>Não é argumento de autoridade, é de manutenção: sistemas multiempresa usam a coluna de dono + RLS justamente porque a alternativa não escala. O Supabase inteiro — PostgREST, Realtime, o painel — é construído em cima desse modelo</td>
-        </tr>
+        <tr><td>1</td><td>Dono da BETA lendo os dados da ALFA</td><td>0 linhas</td><td><strong>0 linhas</strong></td></tr>
+        <tr><td>2</td><td>Dependente habilitado lendo a ALFA</td><td>2 linhas</td><td><strong>2 linhas</strong></td></tr>
+        <tr><td>3</td><td>Dependente da ALFA lendo a BETA</td><td>0 linhas</td><td><strong>0 linhas</strong></td></tr>
+        <tr><td>4</td><td>Objetos criados para 2 clientes</td><td>2 tabelas / 2 policies</td><td>4 tabelas / 4 policies</td></tr>
+        <tr><td>5</td><td>Acrescentar 1 coluna ao módulo</td><td>1 comando</td><td>1 comando <strong>por cliente</strong></td></tr>
+        <tr><td>6</td><td>Apagar na ordem errada</td><td>sem erro</td><td>erro <code>2BP01</code></td></tr>
+        <tr><td>9</td><td>Policy esquecida, <strong>com</strong> o <code>ensure_rls</code> do Supabase</td><td>—</td><td><strong>estranho leu 0</strong> (a RLS liga sozinha)</td></tr>
+        <tr><td>10</td><td><code>DROP TABLE contas CASCADE</code></td><td>—</td><td>⚠️ <strong>sobrou a tabela de lançamentos, com os dados dentro</strong></td></tr>
       </tbody>
     </table>
   </div>
 
-  <h3>6.4 O meio-termo honesto, se você quiser separação FÍSICA de verdade</h3>
-  <p><span class="tag tag-pro">PROPOSTA</span> Existe um recurso do PostgreSQL que entrega quase exatamente o que você descreveu, <strong>sem</strong> nenhum dos custos acima: o <strong>particionamento por lista</strong>.</p>
-  <div class="example-box">
-    <span class="box-title">Como funciona, em linguagem simples</span>
-    <p style="margin-top:6px">Você declara <strong>uma</strong> tabela <code>fin_lancamentos</code> "particionada por empresa". O PostgreSQL então guarda os dados de cada empresa <strong>num arquivo separado</strong> — fisicamente separados no disco, com nomes como <code>fin_lancamentos_empresa_x</code>. Mas o código continua escrevendo <code>FROM fin_lancamentos</code>, e o banco escolhe sozinho o arquivo certo.</p>
-    <p><strong>Você ganha:</strong> separação física real, e a possibilidade de fazer backup ou apagar os dados de um cliente isoladamente.<br>
-    <strong>Você não perde:</strong> uma estrutura só para manter, uma RLS só, um <code>ALTER TABLE</code> só, e o <code>supabase-js</code> funcionando normalmente.<br>
-    <strong>O custo real:</strong> cada empresa nova precisa que o sistema crie a partição dela — uma linha dentro da função que já cria a empresa.</p>
-  </div>
-
-  <h3>6.5 As três opções, lado a lado</h3>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>&nbsp;</th><th>A) Uma tabela, isolamento por RLS<br><span class="small">o que a plataforma já faz</span></th><th>B) Particionada por empresa<br><span class="small">separação física, código igual</span></th><th>C) Uma tabela por usuário/empresa<br><span class="small">o que a sua resposta pediu</span></th></tr></thead>
-      <tbody>
-        <tr><td><strong>Isolamento dos dados</strong></td><td>Garantido pela RLS (provado nos 14 testes)</td><td>Garantido pela RLS + separação física</td><td>Garantido pela estrutura</td></tr>
-        <tr><td><strong>Complexidade do código</strong></td><td>Mínima</td><td>Mínima (igual à A)</td><td><strong>Alta</strong> — SQL dinâmico em toda parte</td></tr>
-        <tr><td><strong>Mudar uma coluna</strong></td><td>1 comando</td><td>1 comando</td><td><strong>N comandos</strong>, um por cliente</td></tr>
-        <tr><td><strong>Apagar os dados de um cliente</strong></td><td><code>DELETE</code> com filtro</td><td><strong>Soltar a partição</strong> — instantâneo</td><td>Apagar as tabelas dele</td></tr>
-        <tr><td><strong>Funciona com supabase-js direto</strong></td><td>Sim</td><td>Sim</td><td><strong>Não</strong></td></tr>
-        <tr><td><strong>Esforço para construir</strong></td><td>Baixo</td><td>Baixo + a criação da partição</td><td><strong>Muito alto</strong></td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <div class="callout callout-vermelho">
-    <span class="box-title">Minha recomendação, com a honestidade que você pediu</span>
-    <p style="margin-top:6px"><strong>Opção A</strong>, que é o que a plataforma já faz e já provou. Se a separação física for importante para você (por sensação de segurança, por exigência futura de apagar um cliente inteiro, ou por qualquer outro motivo legítimo), <strong>opção B</strong> — ela entrega isso sem contaminar o código.</p>
-    <p><strong>Não recomendo a opção C</strong>, e não vou implementá-la sem você confirmar depois de ler esta seção. Não é teimosia: é que ela transformaria cada mudança futura do módulo — e vão existir muitas — numa operação de risco, e tiraria do projeto as ferramentas que construímos nos degraus 3 e 5 (o inventário com placar, os testes de RLS, o verificador).</p>
-    <p><strong>Pergunta 23</strong> na seção 24.</p>
-  </div>
-
-  <h3>6.6 O que muda neste documento conforme a sua escolha</h3>
+  <h3>6.3 O que a prova mostrou a favor do modelo "uma tabela por cliente"</h3>
+  <p>Registro honesto, porque importa para quem ler isto depois: <strong>aquele modelo funcionava.</strong></p>
   <ul>
-    <li><strong>Opção A:</strong> nada. As seções 18 e 19 estão escritas assim.</li>
-    <li><strong>Opção B:</strong> muda uma linha em cada <code>CREATE TABLE</code> (a cláusula de partição) e acrescenta a criação da partição quando uma empresa é criada. Tudo o mais permanece.</li>
-    <li><strong>Opção C:</strong> as seções 18 e 19 são reescritas por inteiro, o Painel de Engenharia ganha a tela de "quais tabelas são de quem" que você descreveu, e as telas do módulo passam a resolver o nome da tabela antes de cada operação.</li>
+    <li><strong>Isolava exatamente igual</strong> (testes 1 a 3). A policy com a empresa fixa protege tanto quanto a RLS por coluna. A tabela separada não é mais segura — nem menos.</li>
+    <li><strong>O risco de "esquecer a policy e vazar" não existe neste Supabase</strong> (teste 9). O event trigger <code>ensure_rls</code>, que descobrimos no banco em 12/09, liga a RLS sozinha em toda tabela nova do <code>public</code>. Sem policy, ninguém lê — nem estranhos, nem o dono. O modo de falhar seria "o cliente novo não funciona", não "vazou".</li>
+  </ul>
+
+  <h3>6.4 O que decidiu a escolha: o objetivo não era atendido</h3>
+  <p>O motivo de querer tabelas separadas era <strong>facilidade de apagar um cliente</strong>. A prova mostrou que essa facilidade não se confirma:</p>
+  <div class="example-box">
+    <span class="box-title">O teste 10, passo a passo</span>
+    <pre>DROP TABLE m2_contas_empresa_alfa CASCADE;    → executou SEM ERRO NENHUM</pre>
+    <p>Ao conferir o que sobrou:</p>
+    <pre>tabela_que_sobrou             | linhas_com_dados_do_cliente
+------------------------------+-----------------------------
+m2_lancamentos_empresa_alfa   |              2</pre>
+    <p><strong>O <code>CASCADE</code> não apagou a tabela de lançamentos.</strong> Ele apagou a <em>chave estrangeira</em> e deixou a tabela do cliente no banco, com os dados dentro — sem erro e sem aviso. Quem fizesse isso acreditando ter apagado o cliente teria deixado os lançamentos dele lá.</p>
+    <p>Sem <code>CASCADE</code>, a ordem errada dá erro (teste 6) — o que é melhor, porque avisa, mas significa que "simplesmente deleto" é, na prática, <em>apagar N tabelas na ordem certa, sabendo quais são</em>. E cada módulo futuro acrescentaria as suas.</p>
+  </div>
+
+  <h3>6.5 O que foi escolhido, e o que ele entrega</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>&nbsp;</th><th>Tabelas por cliente</th><th>Botão "APAGAR DADOS DESTA EMPRESA" <span class="tag tag-ok">ESCOLHIDO</span></th></tr></thead>
+      <tbody>
+        <tr><td>Saber quais tabelas são do cliente</td><td>você precisa</td><td>a função sabe</td></tr>
+        <tr><td>Ordem certa de exclusão</td><td>você precisa</td><td>a função sabe</td></tr>
+        <tr><td>Risco de deixar resto</td><td><strong>real</strong> (teste 10)</td><td>nenhum: é tudo ou nada, numa transação</td></tr>
+        <tr><td>Módulos futuros</td><td>lembrar das tabelas novas</td><td>cada módulo registra a própria limpeza</td></tr>
+        <tr><td>Guardar antes de apagar</td><td>não (o <code>DROP</code> é definitivo)</td><td>exporta TSV antes, se quiser</td></tr>
+        <tr><td>Esforço</td><td>abrir o painel, achar, apagar em ordem</td><td><strong>um clique + digitar o nome da empresa</strong></td></tr>
+        <tr><td>Custo por mudança no módulo</td><td>1 comando por cliente</td><td>1 comando</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>6.6 Como o botão funciona</h3>
+  <pre>fin_apagar_dados_da_empresa(p_tenant_id uuid) RETURNS json
+
+  1. confere que quem chama é o Desenvolvedor (is_superuser)
+  2. apaga, NA ORDEM e NUMA ÚNICA TRANSAÇÃO:
+       fin_lancamentos        → da empresa
+       fin_fechamentos        → da empresa
+       fin_contas_movimento   → da empresa
+       fin_contas_identificadoras → da empresa
+  3. devolve quantos registros foram apagados de cada tabela
+  4. se qualquer passo falhar, NADA é apagado</pre>
+  <ul>
+    <li><strong>Dupla confirmação na tela:</strong> o botão só habilita depois que o nome da empresa for digitado por extenso. Apagar dado financeiro não pode ser um clique distraído.</li>
+    <li><strong>Exportar antes:</strong> a tela oferece baixar o TSV de tudo antes de apagar (o <code>DROP TABLE</code> não oferecia nada disso).</li>
+    <li><strong>Fica na trilha de auditoria</strong>, porque as exclusões passam pelos gatilhos do módulo.</li>
+    <li><strong>Apagar os dados ≠ descontratar o módulo ≠ apagar a empresa.</strong> São três ações distintas, e a tela deve deixar isso explícito.</li>
+  </ul>
+
+  <h3>6.7 Onde o botão fica <span class="tag tag-par">PENDENTE — pergunta 32</span></h3>
+  <p>A função é do módulo (prefixo <code>fin_</code>), mas quem a aciona é o Desenvolvedor, cuja área é da plataforma. Dois caminhos:</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Caminho</th><th>Como fica</th><th>Custo</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>(a) Genérico na plataforma</strong> <span class="tag tag-pro">recomendado</span></td>
+          <td>O catálogo <code>platform_modules</code> ganha a coluna <code>funcao_limpeza</code>, que o seed de cada módulo preenche (<code>fin_apagar_dados_da_empresa</code>). A tela <code>/dashboard/modulos</code> mostra o botão ao lado de cada módulo contratado e chama a função declarada</td>
+          <td>Uma coluna nova na plataforma — <strong>mudança de plataforma, não de módulo</strong>. Em troca, todo módulo futuro ganha o botão de graça</td>
+        </tr>
+        <tr>
+          <td>(b) Dentro do módulo</td>
+          <td>Uma tela do próprio financeiro, visível só ao Desenvolvedor</td>
+          <td>Nada na plataforma, mas cada módulo novo terá de fazer a sua</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>6.8 O que continua garantido</h3>
+  <ul>
+    <li><strong>Ninguém vê o dado de outro.</strong> Provado nos testes 1 a 3 desta prova e nas 14 travas do <code>teste_rls.sql</code> rodadas no banco publicado.</li>
+    <li><strong>O dependente lê a empresa em que foi habilitado, e só ela</strong> — inclusive sendo proprietário de outras.</li>
+    <li><strong>Matriz e filial ficam separadas</strong>, porque a separação é por empresa, e cada uma é uma empresa.</li>
+    <li><strong>Migrar um cliente para um Supabase próprio</strong> (o seu plano para quando escalar) continua simples: roda-se o mesmo <code>financeiro_01_schema.sql</code> no banco novo, copiam-se as linhas daquela empresa e apaga-se aqui com o mesmo botão.</li>
   </ul>
 </section>
 
@@ -1167,6 +1170,7 @@ ESTA AÇÃO NÃO PODE SER DESFEITA.
         <tr><td>RN-25</td><td>Toda operação confere a <strong>permissão do membro</strong> antes de agir — esconder botão não é controle de acesso</td><td>Função do banco</td></tr>
         <tr><td>RN-26</td><td>Excluir lançamento apaga de verdade, com confirmação mostrando os dados; rastro na auditoria</td><td>Tela + auditoria</td></tr>
         <tr><td>RN-27</td><td><strong>Todo dado do módulo pertence a uma empresa</strong>; ninguém lê dado de outra empresa</td><td>RLS em todas as tabelas</td></tr>
+        <tr><td>RN-28</td><td><strong>Apagar os dados de uma empresa</strong> é operação do Desenvolvedor, feita por função única (tudo ou nada), com o nome da empresa digitado para confirmar e oferta de exportar antes</td><td>Função do banco + tela</td></tr>
       </tbody>
     </table>
   </div>
@@ -1272,6 +1276,7 @@ UNIQUE (tenant_id)   -- um fechamento vigente por empresa (ver pergunta 29)</pre
         <tr><td><code>fin_gravar_identificadora(...)</code></td><td>Idem</td><td>RN-01, 02, 07, 25</td></tr>
         <tr><td><code>fin_marcar_conferido(id, valor)</code></td><td>Marca/desmarca a linha</td><td>RN-20, 25</td></tr>
         <tr><td><code>fin_fechar_periodo(data)</code> / <code>fin_reabrir_periodo()</code></td><td>Define ou remove o corte</td><td>RN-24, 25</td></tr>
+        <tr><td><code>fin_apagar_dados_da_empresa(tenant)</code></td><td>Apaga <strong>tudo</strong> do módulo naquela empresa, na ordem certa e numa transação; devolve quantos registros saíram de cada tabela</td><td>RN-28 — só o Desenvolvedor (seção 6.6)</td></tr>
       </tbody>
     </table>
   </div>
@@ -1304,6 +1309,7 @@ USING ( check_is_tenant_member(tenant_id) OR check_is_tenant_owner(tenant_id) )
     <li>Transferência grava as duas pernas; falhar numa não deixa a outra.</li>
     <li>Reordenação: inserir ordem repetida desloca as seguintes, sem duplicar.</li>
     <li>Dependente sem permissão tem a operação recusada (RN-25).</li>
+    <li>Apagar os dados de uma empresa não deixa resto e não toca na outra (RN-28).</li>
   </ol>
 </section>
 
@@ -1361,6 +1367,7 @@ USING ( check_is_tenant_member(tenant_id) OR check_is_tenant_owner(tenant_id) )
         <tr><td>Transferência com contas iguais</td><td>A CONTA DE DESTINO DEVE SER DIFERENTE DA CONTA DE ORIGEM.</td></tr>
         <tr><td>Excluir perna de transferência</td><td>ESTE LANÇAMENTO FAZ PARTE DE UMA TRANSFERÊNCIA. EXCLUIR VAI APAGAR AS DUAS PERNAS.</td></tr>
         <tr><td>Dependente: e-mail não encontrado</td><td>USUÁRIO NÃO ENCONTRADO. ELE PRECISA CRIAR UMA CONTA NA PLATAFORMA ANTES DE SER HABILITADO.</td></tr>
+        <tr><td>Apagar dados da empresa (confirmação)</td><td>ESTA AÇÃO APAGA TODOS OS LANÇAMENTOS, CONTAS E CATEGORIAS DE [EMPRESA]. DIGITE O NOME DA EMPRESA PARA CONFIRMAR. NÃO PODE SER DESFEITO.</td></tr>
         <tr><td>Função em construção</td><td>ESTA FUNÇÃO ESTÁ EM DESENVOLVIMENTO.</td></tr>
         <tr><td>Sem contas cadastradas (primeiro uso)</td><td>PARA COMEÇAR, CADASTRE UMA CONTA MOVIMENTO E UMA CONTA IDENTIFICADORA.</td></tr>
       </tbody>
@@ -1376,7 +1383,7 @@ USING ( check_is_tenant_member(tenant_id) OR check_is_tenant_owner(tenant_id) )
       <tbody>
         <tr>
           <td><strong>0 — Encaixe e banco</strong></td>
-          <td>As 5 pastas, o manifesto, as 4 tabelas, a RLS, as 13 funções, o seed do catálogo, as 3 soldas e o <code>teste_financeiro.sql</code> rodando</td>
+          <td>As 5 pastas, o manifesto, as 4 tabelas, a RLS, as <strong>14 funções</strong> (inclusive a de apagar os dados de uma empresa), o seed do catálogo, as 3 soldas e o <code>teste_financeiro.sql</code> rodando</td>
           <td>Nada ainda — mas o módulo aparece na plataforma e <strong>as travas estão provadas antes de existir tela</strong></td>
         </tr>
         <tr>
@@ -1438,7 +1445,7 @@ USING ( check_is_tenant_member(tenant_id) OR check_is_tenant_owner(tenant_id) )
 
 <section id="s24">
   <h2>24. Perguntas da rodada 2</h2>
-  <p>Dez perguntas. A <strong>23</strong> é a única que trava a modelagem — as outras mexem em tela ou em detalhe, e podem ser respondidas depois.</p>
+  <p>A <strong>23</strong> foi respondida (seção 6) e a modelagem está liberada. Restam <strong>dez perguntas de detalhe</strong> — nenhuma delas impede começar o banco.</p>
   <div class="table-wrap">
     <table>
       <thead><tr><th>#</th><th>Pergunta</th><th>Minha recomendação</th></tr></thead>
@@ -1449,9 +1456,9 @@ USING ( check_is_tenant_member(tenant_id) OR check_is_tenant_owner(tenant_id) )
           <td>Usar como está; ajustar quando o uso mostrar falta</td>
         </tr>
         <tr>
-          <td><strong>23</strong><br><span class="tag tag-nao">TRAVA</span></td>
-          <td><strong>Tabelas por usuário</strong> (seção 6): opção A (uma tabela, RLS), B (particionada por empresa) ou C (uma tabela por usuário)?</td>
-          <td><strong>A</strong>; ou <strong>B</strong> se quiser separação física de verdade</td>
+          <td><strong>23</strong><br><span class="tag tag-ok">RESPONDIDA</span></td>
+          <td><strong>Tabelas por usuário</strong> (seção 6)</td>
+          <td><strong>Decidido em 12/09/2026, após a prova: tabela única + RLS, com botão de exclusão por empresa.</strong> Ver seção 6</td>
         </tr>
         <tr>
           <td><strong>24</strong></td>
@@ -1492,6 +1499,11 @@ USING ( check_is_tenant_member(tenant_id) OR check_is_tenant_owner(tenant_id) )
           <td><strong>31</strong></td>
           <td>Concorda com o corte das 6 fases (seção 22)?</td>
           <td>Sim — cada fase entrega algo utilizável</td>
+        </tr>
+        <tr>
+          <td><strong>32</strong></td>
+          <td>Onde fica o botão de apagar os dados de uma empresa (seção 6.7): <strong>(a)</strong> genérico na plataforma, com uma coluna nova no catálogo de módulos, ou <strong>(b)</strong> dentro do próprio módulo?</td>
+          <td><strong>(a)</strong> — custa uma coluna na plataforma e todo módulo futuro ganha o botão de graça</td>
         </tr>
       </tbody>
     </table>
