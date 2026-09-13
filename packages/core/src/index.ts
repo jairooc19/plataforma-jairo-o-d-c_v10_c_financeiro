@@ -40,9 +40,12 @@ export * from './services/platform/moduleService';
 // registro e os tipos; o módulo em si entra em `modules/<nome>/` e ganha uma
 // linha de `export` aqui (ponto de solda nº 2). Ver `MODULOS.md` na raiz.
 //
-// Nenhum módulo instalado nesta versão — e a plataforma funciona inteira assim.
 export * from './modules/tipos';
 export * from './modules/registro';
+
+// ⚠️ PONTO DE SOLDA Nº 2 — a linha abaixo é o módulo Controle Financeiro.
+// Desplugar o módulo é apagar esta linha e as duas de `modules/registro.ts`.
+export * from './modules/financeiro';
 
 // 4. Constantes Globais e Versão
 export * from './constants/versions';

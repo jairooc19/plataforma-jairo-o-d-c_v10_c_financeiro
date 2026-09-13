@@ -111,6 +111,7 @@ function citaModulo(linha, id) {
     const anterior = linha[achado.index - 1] ?? '';
     const seguinte = linha.slice(achado.index + id.length);
     if (anterior === '@') continue;                       // voce@exemplo.com
+    if (seguinte.startsWith('@')) continue;               // financeiro@empresa.com
     if (/^\.(com|com\.br|br|org|net|io|dev)\b/i.test(seguinte)) continue;  // exemplo.com
     return true;
   }

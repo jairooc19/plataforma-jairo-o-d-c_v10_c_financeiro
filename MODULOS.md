@@ -45,12 +45,28 @@ CLAUDE.md · MODULOS.md · README.md
 
 ## 2. MÓDULOS CONECTADOS HOJE
 
-| Módulo | id | Pastas | Prefixo no banco | Conectado em | Commit |
-|---|---|---|---|---|---|
-| *(nenhum)* | — | — | — | — | — |
+| Módulo | id | Prefixo no banco | Conectado em | Commit |
+|---|---|---|---|---|
+| **Controle Financeiro** | `financeiro` | `fin_` | 12/09/2026 | degrau 7 (2/3) — as soldas S1 e S2 |
 
-**A plataforma funciona inteira assim** — com zero módulos. Essa é a prova viva
-da regra R9, e o estado de referência do verificador.
+**As 5 pastas do Controle Financeiro** (apagar estas cinco = desplugar a peça):
+
+```
+apps/admin-web/src/app/dashboard/financeiro/     as telas (9 rotas)
+apps/admin-web/src/components/financeiro/        os componentes
+packages/core/src/modules/financeiro/            regras de negócio + manifesto
+supabase/criar-bd-financeiro/                    o banco (4 tabelas, 16 funções)
+supabase/testes/teste_financeiro.sql             as travas do módulo (14 testes)
+```
+
+E a documentação dele, que também é do módulo:
+`_estudos/modulo-financeiro-especificacao.html` e `_estudos/degrau-06-projeto-modulo-financeiro.html`.
+
+> **A plataforma continua funcionando inteira sem ele** — é a regra R9, e
+> continua sendo o estado de referência do verificador. A prova foi medida no
+> ambiente local antes desta conexão: depois do `financeiro_00_reset.sql`, o
+> banco ficou com **0 tabelas `fin_`, 0 funções `fin_`, 0 linhas no catálogo**, e
+> o `teste_rls.sql` da plataforma seguiu **14/14**.
 
 ---
 

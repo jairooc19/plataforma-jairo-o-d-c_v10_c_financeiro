@@ -37,6 +37,7 @@
  */
 
 import type { ManifestoDeModulo } from './tipos';
+import { MANIFESTO_FINANCEIRO } from './financeiro/manifesto';   // ← SOLDA
 
 /**
  * Os módulos plugados nesta instalação.
@@ -44,7 +45,7 @@ import type { ManifestoDeModulo } from './tipos';
  * A ordem desta lista é a ordem dos cartões no painel do cliente.
  */
 export const MODULOS_INSTALADOS: ManifestoDeModulo[] = [
-  // (nenhum módulo conectado — ver `MODULOS.md`)
+  MANIFESTO_FINANCEIRO,                                          // ← SOLDA
 ];
 
 /**
