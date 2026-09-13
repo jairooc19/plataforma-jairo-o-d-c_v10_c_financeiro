@@ -7,6 +7,88 @@ Leia-o integralmente antes de tocar em qualquer arquivo.
 
 ## ⚠️ Histórico de Mudanças
 
+**2026-09-12 — v10: degrau 7, o MÓDULO CONTROLE FINANCEIRO conectado (a primeira peça de LEGO)**
+
+A primeira peça entrou no soquete que o degrau 5 construiu. O módulo `financeiro`
+está **plugado**: banco, Core e telas. **Exige recriar o banco** — primeiro a
+plataforma (`plataforma_00 → 01 → 02`), depois o módulo
+(`financeiro_01 → financeiro_02`).
+
+| Frente | O que entrou |
+|---|---|
+| Banco do módulo | `supabase/criar-bd-financeiro/` — 4 tabelas (`fin_contas_movimento`, `fin_contas_identificadoras`, `fin_lancamentos`, `fin_fechamentos`), 16 funções `fin_*`, 4 policies de SELECT, 9 gatilhos |
+| Travas | `supabase/testes/teste_financeiro.sql` — 14 testes, todos verdes no ambiente local |
+| Core | `packages/core/src/modules/financeiro/` — manifesto, tipos, 4 serviços e as 17 permissões |
+| Soldas | **S1** (`modules/registro.ts`, 2 linhas) e **S2** (`index.ts`, 1 linha) — as únicas linhas de plataforma que citam o módulo |
+| Telas | `apps/admin-web/src/app/dashboard/financeiro/` — 9 rotas; `components/financeiro/` — 9 componentes |
+| Mapa | `MODULOS.md` bloco 2 preenchido **no mesmo degrau** (regra R10) |
+
+⚠️ **O MÓDULO NÃO TEM UMA ÚNICA TABELA "POR USUÁRIO" — E ISSO FOI MEDIDO, NÃO
+ARGUMENTADO.** O dono do projeto propôs tabelas separadas por usuário para
+facilitar a exclusão. As duas propostas foram construídas no ambiente local e
+comparadas: o isolamento é **idêntico** nos dois modelos (a RLS já separa), e o
+modelo de tabelas separadas perde num ponto concreto — `DROP TABLE ... CASCADE`
+na tabela de contas **deixa a tabela de lançamentos com dado dentro**, em
+silêncio. Venceu **tabela única + RLS + botão de exclusão**
+(`fin_apagar_dados_da_empresa`). A medição está em
+`supabase/testes/ambiente-local/prova-tabela-unica-x-por-cliente.sql`.
+
+⚠️ **AS CHAVES ESTRANGEIRAS DO MÓDULO SÃO COMPOSTAS `(tenant_id, id)` — RN-29.**
+Uma FK simples para `fin_contas_movimento(id)` aceitaria um lançamento da empresa
+A apontando para a conta da empresa B: o id existe, a FK fica satisfeita, e o
+extrato da B passa a mostrar dinheiro da A. Com a chave composta o banco recusa —
+e recusa também no `UPDATE`, o que foi provado em
+`supabase/testes/ambiente-local/prova-chave-composta.sql`.
+
+⚠️ **A AUDITORIA DO MÓDULO GRAVA SÓ `UPDATE` E `DELETE`** (decisão do dono,
+12/09/2026). Lançamento é dado de alto volume; auditar `INSERT` faria a trilha
+crescer sem acrescentar informação — a linha criada já está lá para ser lida.
+
+⚠️ **TRÊS ERROS DO `fin_extrato` SÓ APARECERAM AO EXECUTAR.** O ambiente local
+descartável (`supabase/testes/ambiente-local/`) pagou-se neste degrau: (1)
+`ORDER BY` com expressão não é válido **depois** de um `UNION` — a ordenação
+precisou migrar para dentro de uma CTE com uma coluna `bloco`; (2) faltava a
+vírgula entre duas CTEs; (3) `SUM(bigint)` devolve **`numeric`**, não `bigint`, e
+a função só casou o tipo de retorno com `::bigint` explícito. Nenhum dos três
+seria pego por leitura.
+
+⚠️ **A GUIA DE IMPRESSÃO RECEBE OS DADOS PELO `localStorage`, NÃO PELA URL NEM
+PELO `sessionStorage`.** O `sessionStorage` é **por aba** — a guia nova nasceria
+vazia; a URL estoura o limite de tamanho com poucas dezenas de linhas. A chave
+`fin_impressao` é apagada assim que a guia a lê, para não deixar dado financeiro
+parado no navegador.
+
+⚠️ **A NUMERAÇÃO DE PÁGINAS DO RELATÓRIO É DO NAVEGADOR, E NÃO DO NOSSO CSS.** O
+único lugar onde o CSS conhece o número da página é a caixa de margem do `@page`
+(`@bottom-right { content: counter(page) }`), que **nenhum navegador de mercado
+implementa**. Quem numera é a opção "Cabeçalhos e rodapés" do diálogo de
+impressão. O rodapé que desenhamos (totais + empresa) se repete em toda folha por
+`position: fixed`; escrever "Página 1" nele seria mentira a partir da segunda.
+
+⚠️ **`react-hooks/set-state-in-effect` REPROVOU SEIS EFEITOS DO MÓDULO, E A REGRA
+ESTAVA CERTA.** Chamar `setState` no mesmo tique do efeito dispara renderização
+em cascata. A correção foi sempre a mesma: a busca vira uma função `async`
+definida **dentro** do efeito, e o estado só muda depois do `await`. Não use
+`eslint-disable` para calar essa regra neste projeto.
+
+⚠️ **DESPLUGAR CONTINUA SENDO APAGAR 5 PASTAS E 3 LINHAS.** Está medido: depois
+do `financeiro_00_reset.sql` o banco fica com **0 tabelas `fin_`, 0 funções
+`fin_`, 0 linhas no catálogo e 0 sobras em `allowed_modules`**, e o
+`teste_rls.sql` da plataforma segue **14/14**. O caminho completo está em
+`MODULOS.md`, seção 7.
+
+⚠️ **O QUE FOI E O QUE NÃO FOI TESTADO.** Validado aqui: `npm test` (19),
+`npm run modulos:verificar` (sem violação), `tsc --noEmit` nos dois apps,
+`eslint` limpo e `npm run build` do admin-web com as **9 rotas do módulo**
+listadas; e os 14 testes de `teste_financeiro.sql` contra um PostgreSQL 18 local
+com um Supabase falso. **Nada foi executado contra o Supabase real** — não há
+`.env` alcançável a partir daqui. Pendente com o dono do projeto: recriar o banco
+na ordem acima, rodar os dois arquivos de teste no SQL Editor, contratar o módulo
+para uma empresa no Painel de Engenharia › Módulos e liberá-lo a um membro na
+Central de Comandos.
+
+---
+
 **2026-09-12 — v10: degrau 5, o soquete dos módulos (a plataforma vira LEGO de verdade)**
 
 O pedido do degrau 4 virou código: a Plataforma Jairo O D C é o **Sol**, cada módulo é
@@ -1076,7 +1158,9 @@ plataforma-jairo-o-d-c-v4/
 │   │   ├── plataforma_00_reset.sql    → Demolidor: derruba tudo do CORE
 │   │   ├── plataforma_01_schema.sql   → Construtor: schema consolidado v10
 │   │   └── plataforma_02_seed.sql     → Hidratador: dados iniciais obrigatórios
-│   ├── testes/             → teste_rls.sql (14 travas), inventario.sql (confere o schema)
+│   ├── criar-bd-financeiro/→ 🧩 MÓDULO: banco do Controle Financeiro (01 → 02; o 00 despluga)
+│   ├── testes/             → teste_rls.sql (14 travas da plataforma), teste_financeiro.sql
+│   │                         (14 travas do módulo), inventario.sql (confere o schema)
 │   │   └── ambiente-local/ → 🆕 sobe um PostgreSQL descartável e valida o SQL antes do Supabase
 │   ├── migrations/         → vazia; ler o README antes do primeiro dado real
 │   └── config.toml         → Configuração do Supabase CLI
@@ -1087,10 +1171,12 @@ plataforma-jairo-o-d-c-v4/
 └── package.json            → Workspace root
 ```
 
-> 🧩 **Quando houver um módulo**, ele acrescenta 5 pastas com o nome dele:
+> 🧩 **Cada módulo acrescenta 5 pastas com o nome dele:**
 > `packages/core/src/modules/<nome>/`, `apps/admin-web/src/app/dashboard/<nome>/`,
 > `apps/admin-web/src/components/<nome>/`, `supabase/criar-bd-<nome>/` e
 > `supabase/testes/teste_<nome>.sql`. Tudo o que **não** tem nome de módulo é plataforma.
+> Hoje há **um** módulo conectado — `financeiro` (prefixo `fin_` no banco). O mapa
+> completo, com as soldas e o caminho de desconexão, está em `MODULOS.md`.
 
 ---
 
@@ -1938,6 +2024,12 @@ inclusive numa máquina limpa — foi por isso que a versão com bcrypt foi reve
 - ❌ Nunca tratar "remover empresa" como exclusão — é `is_active = false`, e o histórico com "Reabilitar" depende disso
 - ❌ Nunca ler o deep link do OAuth com `Linking.useURL()` numa rota de callback — com o app já aberto ele devolve `null` para sempre (o evento `url` disparou antes de a tela montar); espere a SESSÃO pelo supabase-js
 - ❌ Nunca confiar só no `WebBrowser.openAuthSessionAsync` para receber o retorno do OAuth no mobile — o Expo Router escuta o mesmo deep link, e sem a rota `app/auth/google.tsx` o app cai em "Endereço não encontrado" (`+not-found`)
+- ❌ Nunca criar chave estrangeira SIMPLES de tabela de módulo para outra tabela de módulo — a chave é composta `(tenant_id, id)`, senão um registro de uma empresa aponta para o cadastro de outra (RN-29)
+- ❌ Nunca calar `react-hooks/set-state-in-effect` com `eslint-disable` — mover a busca para uma função `async` dentro do efeito e só mudar o estado depois do `await`
+- ❌ Nunca passar dados para a guia de impressão por `sessionStorage` (é por aba) nem pela URL (estoura o tamanho) — usar a chave temporária do `localStorage`, apagada na leitura
+- ❌ Nunca escrever "Página 1" num rodapé de impressão — o CSS não conhece o número da página fora das caixas de margem do `@page`, que nenhum navegador implementa; quem numera é o diálogo do navegador
+- ❌ Nunca supor o tipo de retorno de um agregado no PostgreSQL — `SUM(bigint)` devolve `numeric`, e a função só compila com o `::bigint` explícito
+- ❌ Nunca pôr `ORDER BY` com expressão depois de um `UNION` — mover a ordenação para dentro de uma CTE, com uma coluna que marque o bloco
 - ❌ Nunca concluir que o OAuth do mobile está configurado porque o da web funciona — popup usa "Origens JavaScript autorizadas", redirecionamento usa "URIs de redirecionamento"; são metades independentes do mesmo OAuth client
 
 ---
