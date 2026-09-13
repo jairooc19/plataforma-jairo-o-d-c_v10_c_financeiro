@@ -2,7 +2,7 @@
 
 import React from "react";
 
-type MiscView = 'about' | 'contact' | 'viewer-only' | 'waiting-approval' | 'planet-blocked';
+type MiscView = 'about' | 'contact' | 'viewer-only' | 'waiting-approval' | 'waiting-team' | 'planet-blocked';
 
 interface MiscViewsProps {
   view: MiscView;
@@ -75,6 +75,34 @@ export default function MiscViews({ view, pegadinha, onAction, onBack }: MiscVie
       )}
 
       {/* ⌛ Aguardando Aprovação (Triagem) */}
+      {/* ⏳ DEPENDENTE SEM VÍNCULO — quem o autoriza é o dono da empresa.
+          ⚠️ NÃO REAPROVEITE A TELA "AGUARDANDO TRIAGEM" AQUI. Ela diz que "o
+          Desenvolvedor Master está analisando sua solicitação", o que é
+          verdadeiro para o PROPRIETÁRIO (que espera ser promovido no Painel de
+          Engenharia) e FALSO para o Dependente: o Desenvolvedor não vai fazer
+          nada por ele. Quem precisa agir é o Proprietário da empresa, incluindo
+          o e-mail dele na equipe. Uma pessoa esperando pelo interlocutor errado
+          espera para sempre. */}
+      {view === 'waiting-team' && (
+        <div className="bg-white/95 backdrop-blur-xl p-10 rounded-[2.5rem] shadow-2xl border border-amber-200 text-center animate-fade-in">
+          <div className="bg-amber-100 text-amber-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 text-2xl font-bold">👥</div>
+          <h2 className="text-xl font-black text-slate-800 uppercase mb-4">Conta criada. Falta o convite.</h2>
+          <p className="text-slate-500 text-sm leading-relaxed mb-4">
+            Seu acesso funcionou, mas você ainda não faz parte de nenhuma equipe.
+          </p>
+          <div className="text-left text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-xl p-4 mb-2 leading-relaxed">
+            <p className="font-bold text-slate-700 mb-2">O próximo passo é do Proprietário da empresa:</p>
+            <ol className="list-decimal list-inside space-y-1">
+              <li>ele abre o Painel e vai em <strong>Equipe</strong>;</li>
+              <li>procura <strong>o mesmo e-mail que você acabou de usar aqui</strong>;</li>
+              <li>marca quais módulos você pode abrir e salva.</li>
+            </ol>
+            <p className="mt-3">Depois disso, entre de novo por esta mesma porta.</p>
+          </div>
+          {renderBackButton()}
+        </div>
+      )}
+
       {view === 'waiting-approval' && (
         <div className="bg-white/95 backdrop-blur-xl p-10 rounded-[2.5rem] shadow-2xl border border-blue-200 text-center animate-fade-in">
           <div className="bg-blue-100 text-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 text-2xl font-bold">⌛</div>

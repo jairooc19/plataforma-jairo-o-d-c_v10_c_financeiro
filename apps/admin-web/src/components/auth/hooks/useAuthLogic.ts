@@ -50,7 +50,10 @@ export type ViewState =
   | 'menu' | 'access-options' | 'about' | 'contact'
   | 'login-owner' | 'login-dependent' | 'viewer-only'
   | 'signup' | 'planet-blocked' | 'login-developer'
-  | 'select-tenant' | 'waiting-approval' | 'complete-profile';
+  | 'select-tenant' | 'waiting-approval' | 'waiting-team' | 'complete-profile';
+
+/** Por qual porta a pessoa entrou. Decide só a TRIAGEM, nunca a autorização. */
+export type PapelDeAcesso = 'OWNER' | 'DEPENDENT';
 
 /** Vínculo como a tela de seleção o consome. */
 export type TenantLink = VinculoDeEmpresa;
@@ -74,6 +77,21 @@ export function useAuthLogic(initialView: ViewState) {
    * cadastro ou ao "Completar Cadastro" — e a v9 devolvia sempre ao cadastro.
    */
   const [origemDoBloqueio, setOrigemDoBloqueio] = useState<ViewState>('signup');
+
+  /**
+   * 🔑 POR QUAL PORTA A PESSOA ENTROU — Proprietário ou Dependente.
+   *
+   * ⚠️ ELE PRECISA SER ESTADO, E NÃO SER DEDUZIDO DA `view` NA HORA DA TRIAGEM.
+   * Entre o login e a triagem existe um desvio: quem entra pela primeira vez
+   * cai em "Completar Cadastro", e ali a `view` já não é mais `login-dependent`.
+   * Se a triagem olhasse a tela atual, todo Dependente novo seria triado como
+   * Proprietário depois de completar o cadastro — não acharia vínculo nenhum e
+   * cairia na sala de espera errada, sem erro nenhum para denunciar.
+   *
+   * ⚠️ E ELE NÃO AUTORIZA NADA. O papel de verdade está em `tenant_members`, no
+   * banco. Isto aqui só escolhe qual pergunta fazer.
+   */
+  const [papelDoAcesso, setPapelDoAcesso] = useState<PapelDeAcesso>('OWNER');
 
   const [formData, setFormData] = useState({
     full_name: '', email: '', password: '', confirm_password: '',
@@ -150,6 +168,7 @@ export function useAuthLogic(initialView: ViewState) {
   const goHome = () => {
     setView('menu');
     setMessage(null);
+    setPapelDoAcesso('OWNER');
     setPegadinha(false);
     setShowPassword(false);
     setShowHelpOptions(false);
@@ -250,6 +269,14 @@ export function useAuthLogic(initialView: ViewState) {
         return;
       }
 
+      /**
+       * ⚠️ ESTE TRECHO SÓ É ALCANÇADO SE `login-dependent` VOLTAR AO FORMULÁRIO
+       * DE SENHA. Desde 13/09/2026 o Dependente entra pelo Google, como o
+       * Proprietário, e o `AuthInterface` manda apenas `login-developer` para o
+       * `LoginFormsView`. O caminho abaixo ficou de pé de propósito: é a volta
+       * pronta caso um dia exista Dependente com senha, e apagá-lo faria a
+       * decisão parecer irreversível.
+       */
       const members = await authService.getUserTenants(user.id, 'DEPENDENT');
 
       if (!members || members.length === 0) {
@@ -265,14 +292,21 @@ export function useAuthLogic(initialView: ViewState) {
   };
 
   /**
-   * ✅ TRIAGEM PÓS-LOGIN DO PROPRIETÁRIO (Google)
+   * ✅ TRIAGEM PÓS-LOGIN (Google) — vale para os DOIS papéis.
    * Nenhum vínculo -> sala de espera; um -> entra; vários -> seletor.
+   *
+   * ⚠️ AS DUAS SALAS DE ESPERA SÃO DIFERENTES, E ISSO IMPORTA. Quem espera pelo
+   * PROPRIETÁRIO é o Desenvolvedor, na triagem do Painel de Engenharia
+   * (`waiting-approval`). Quem espera pelo DEPENDENTE é o dono da empresa, que
+   * precisa incluir o e-mail dele na equipe (`waiting-team`). Mandar um
+   * Dependente para a tela do Desenvolvedor o faria esperar por alguém que não
+   * vai agir — e a mensagem "o Desenvolvedor está analisando" seria falsa.
    */
-  const encaminharProprietario = async (userId: string) => {
-    const members = await authService.getUserTenants(userId, 'OWNER');
+  const encaminharPorPapel = async (userId: string, papel: PapelDeAcesso) => {
+    const members = await authService.getUserTenants(userId, papel);
 
     if (!members || members.length === 0) {
-      setView('waiting-approval');
+      setView(papel === 'OWNER' ? 'waiting-approval' : 'waiting-team');
       return;
     }
 
@@ -281,21 +315,29 @@ export function useAuthLogic(initialView: ViewState) {
   };
 
   /**
-   * 🔑 LOGIN GOOGLE DO PROPRIETÁRIO — CAMINHO PRINCIPAL (POPUP)
+   * 🔑 LOGIN GOOGLE — CAMINHO PRINCIPAL (POPUP)
+   *
+   * ⚠️ SERVE AO PROPRIETÁRIO **E** AO DEPENDENTE desde 13/09/2026. Era exclusivo
+   * do Proprietário, e o Dependente ficava no formulário de e-mail e senha — sem
+   * ter como criar essa senha, porque o cadastro saiu do menu na v7. Ver
+   * `views/LoginGoogleView.tsx`.
    */
   const handleGoogleSignIn = async (credentialResponse: CredentialResponse) => {
     setLoading(true);
     setMessage(null);
+
+    const papel = papelDoAcesso;
+    const fluxo = papel === 'OWNER' ? 'owner' : 'dependent';
 
     try {
       const idToken = credentialResponse.credential;
       if (!idToken) throw new Error("O Google não devolveu nenhuma credencial.");
 
       telemetry.capture(ANALYTICS_EVENTS.AUTH_GOOGLE_ATTEMPT, {
-        [ANALYTICS_PROPERTIES.AUTH_FLOW]: 'owner'
+        [ANALYTICS_PROPERTIES.AUTH_FLOW]: fluxo
       });
 
-      const response = await authService.googleSignInOwner(idToken);
+      const response = await authService.googleSignIn(idToken, papel);
       if (!response.success || !response.user) throw new Error(response.error);
 
       // 🍪 A sessão do popup nasce só no navegador. Espelhamos nos cookies HTTP
@@ -321,13 +363,13 @@ export function useAuthLogic(initialView: ViewState) {
         return;
       }
 
-      await encaminharProprietario(response.user.id);
+      await encaminharPorPapel(response.user.id, papel);
     } catch (error: unknown) {
       const mensagem = mensagemDeErro(error);
       setMessage({ text: "❌ Falha no Google OAuth: " + mensagem, type: "error" });
       telemetry.capture(ANALYTICS_EVENTS.AUTH_GOOGLE_FAILED, {
         [ANALYTICS_PROPERTIES.ERROR_MESSAGE]: mensagem,
-        [ANALYTICS_PROPERTIES.AUTH_FLOW]: 'owner'
+        [ANALYTICS_PROPERTIES.AUTH_FLOW]: fluxo
       });
     } finally {
       setLoading(false);
@@ -339,7 +381,7 @@ export function useAuthLogic(initialView: ViewState) {
     setMessage({ text: "❌ Falha na autenticação Google. Tente novamente.", type: "error" });
     telemetry.capture(ANALYTICS_EVENTS.AUTH_GOOGLE_FAILED, {
       [ANALYTICS_PROPERTIES.ERROR_MESSAGE]: 'google_button_error',
-      [ANALYTICS_PROPERTIES.AUTH_FLOW]: 'owner'
+      [ANALYTICS_PROPERTIES.AUTH_FLOW]: papelDoAcesso === 'OWNER' ? 'owner' : 'dependent'
     });
   };
 
@@ -351,11 +393,22 @@ export function useAuthLogic(initialView: ViewState) {
     setLoading(true);
     setMessage(null);
 
+    const fluxo = papelDoAcesso === 'OWNER' ? 'owner_redirect' : 'dependent_redirect';
+
     try {
       telemetry.capture(ANALYTICS_EVENTS.AUTH_GOOGLE_ATTEMPT, {
-        [ANALYTICS_PROPERTIES.AUTH_FLOW]: 'owner_redirect'
+        [ANALYTICS_PROPERTIES.AUTH_FLOW]: fluxo
       });
 
+      /**
+       * ⚠️ O CAMINHO DE RESERVA NÃO PASSA POR `encaminharPorPapel`, E ESTÁ CERTO.
+       * Aqui o navegador sai da página: quem recebe a volta é
+       * `/auth/google/callback`, que manda para `/dashboard`. Lá o Lobby lista
+       * os vínculos dos DOIS papéis desde a v10 — então o Dependente é atendido
+       * sem que esta função precise saber quem ele é. Guardar o papel num
+       * cookie ou na URL para reconstruí-lo depois seria estado a mais para
+       * nada.
+       */
       await googleAuthService.signInWithGoogleRedirect(
         `${window.location.origin}/auth/google/callback`
       );
@@ -364,7 +417,7 @@ export function useAuthLogic(initialView: ViewState) {
       setMessage({ text: "❌ Falha no Google OAuth: " + mensagem, type: "error" });
       telemetry.capture(ANALYTICS_EVENTS.AUTH_GOOGLE_FAILED, {
         [ANALYTICS_PROPERTIES.ERROR_MESSAGE]: mensagem,
-        [ANALYTICS_PROPERTIES.AUTH_FLOW]: 'owner_redirect'
+        [ANALYTICS_PROPERTIES.AUTH_FLOW]: fluxo
       });
       setLoading(false);
     }
@@ -396,7 +449,9 @@ export function useAuthLogic(initialView: ViewState) {
         [ANALYTICS_PROPERTIES.AUTH_PROVIDER]: 'google'
       });
 
-      await encaminharProprietario(currentUser.id);
+      // ⚠️ `papelDoAcesso` é lembrado desde o clique na guarita — ver o
+      // comentário na declaração dele. A `view` aqui já é 'complete-profile'.
+      await encaminharPorPapel(currentUser.id, papelDoAcesso);
     } catch (error: unknown) {
       setMessage({ text: "❌ " + mensagemDeErro(error), type: "error" });
     } finally {
@@ -437,7 +492,7 @@ export function useAuthLogic(initialView: ViewState) {
     view, setView, loading, showPassword, setShowPassword, pegadinha, setPegadinha,
     showHelpOptions, setShowHelpOptions, message, setMessage,
     userTenants, formData, countriesOptions, statesOptions, citiesOptions,
-    currentUser,
+    currentUser, papelDoAcesso, setPapelDoAcesso,
     handleInputChange, handlePlanetAction, goHome, handleSignUp, handleSignIn,
     handleSelectTenant, handleGoogleSignIn, handleGoogleError, handleGoogleRedirect,
     handleCompleteProfile, handleLogout

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { cadastroFinanceiroService, lancamentoService, formatarBRL, type ContaMovimento } from "@jairo/core";
 import { useEmpresaAtiva } from "@/components/financeiro/useEmpresaAtiva";
 import CampoDinheiro from "@/components/financeiro/CampoDinheiro";
+import IconeFin from "@/components/financeiro/IconeFin";
 
 /**
  * 🔄 TELA: TRANSFERÊNCIA ENTRE CONTAS (PJODC v10)
@@ -81,7 +82,10 @@ export default function TransferenciaPage() {
 
   return (
     <div className="max-w-xl mx-auto">
-      <h1 className="text-2xl font-black uppercase tracking-tighter text-slate-800 mb-6">TRANSFERÊNCIA ENTRE CONTAS</h1>
+      <h1 className="flex items-center gap-2.5 text-2xl font-black uppercase tracking-tighter text-slate-800 mb-6">
+        <IconeFin nome="transferencia" tamanho={26} traco={1.75} />
+        TRANSFERÊNCIA ENTRE CONTAS
+      </h1>
 
       {erro && <div className="mb-4 bg-red-50 border border-red-200 rounded-2xl px-5 py-4 text-xs font-bold uppercase text-red-800">{erro}</div>}
       {aviso && <div className="mb-4 bg-emerald-50 border border-emerald-200 rounded-2xl px-5 py-4 text-xs font-bold uppercase text-emerald-800">{aviso}</div>}
@@ -134,11 +138,17 @@ export default function TransferenciaPage() {
         <div className="flex gap-3">
           <button type="button" onClick={transferir}
                   disabled={gravando || !origem || !destino || mesmaConta || !data || valor <= 0}
-                  className="flex-1 py-3 rounded-xl bg-blue-600 text-white text-xs font-black uppercase tracking-widest disabled:opacity-40">
+                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-600 text-white text-xs font-black uppercase tracking-widest disabled:opacity-40">
+            <IconeFin nome="transferencia" tamanho={16} />
             {gravando ? "TRANSFERINDO…" : "TRANSFERIR"}
           </button>
-          <button type="button" onClick={() => router.push("/dashboard/financeiro/lancamentos")}
-                  className="px-5 py-3 rounded-xl bg-white border border-slate-300 text-xs font-black uppercase tracking-widest text-slate-600">
+          {/* ⚠️ VOLTA PARA "NOVO LANÇAMENTO", que desde 13/09/2026 é a única
+              porta de entrada da transferência (a tela inicial e o menu OPÇÕES
+              deixaram de oferecê-la). Devolver o usuário à lista de lançamentos
+              o deixaria sem o caminho de volta que ele acabou de usar. */}
+          <button type="button" onClick={() => router.push("/dashboard/financeiro/lancamentos/novo")}
+                  className="flex items-center gap-2 px-5 py-3 rounded-xl bg-white border border-slate-300 text-xs font-black uppercase tracking-widest text-slate-600">
+            <IconeFin nome="voltar" tamanho={15} />
             VOLTAR
           </button>
         </div>

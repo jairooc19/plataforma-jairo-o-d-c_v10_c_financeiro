@@ -8,7 +8,7 @@ import { useAuthLogic, ViewState } from "./auth/hooks/useAuthLogic";
 import MainMenuView from "./auth/views/MainMenuView";
 import AccessOptionsView from "./auth/views/AccessOptionsView";
 import LoginFormsView from "./auth/views/LoginFormsView";
-import LoginGoogleOwnerView from "./auth/views/LoginGoogleOwnerView";
+import LoginGoogleView from "./auth/views/LoginGoogleView";
 import CompleteProfileView from "./auth/views/CompleteProfileView";
 import SignUpView from "./auth/views/SignUpView";
 import TenantSelectorView from "./auth/views/TenantSelectorView";
@@ -31,7 +31,7 @@ export default function AuthInterface({ initialView = 'menu' }: { initialView?: 
     view, setView, loading, showPassword, setShowPassword, pegadinha,
     showHelpOptions, setShowHelpOptions, message,
     userTenants, formData, countriesOptions, statesOptions, citiesOptions,
-    currentUser,
+    currentUser, papelDoAcesso, setPapelDoAcesso,
     handleInputChange, handlePlanetAction, goHome, handleSignUp, handleSignIn,
     handleSelectTenant, handleGoogleSignIn, handleGoogleError, handleGoogleRedirect,
     handleCompleteProfile, handleLogout
@@ -81,17 +81,27 @@ export default function AuthInterface({ initialView = 'menu' }: { initialView?: 
         {view === 'access-options' && (
           <AccessOptionsView
             onSelectRole={(role) => {
-              if (role === 'OWNER') setView('login-owner');
-              else if (role === 'DEPENDENT') setView('login-dependent');
+              /**
+               * ⚠️ O PAPEL É GRAVADO AQUI, NO CLIQUE, e não é lido da tela mais
+               * tarde. Entre este clique e a triagem existe o desvio do
+               * "Completar Cadastro", onde a tela atual já é outra — ver o
+               * comentário de `papelDoAcesso` no `useAuthLogic`.
+               */
+              if (role === 'OWNER') { setPapelDoAcesso('OWNER'); setView('login-owner'); }
+              else if (role === 'DEPENDENT') { setPapelDoAcesso('DEPENDENT'); setView('login-dependent'); }
               else setView('viewer-only');
             }}
             onBack={goHome}
           />
         )}
 
-        {/* 🔑 PROPRIETÁRIO: porta exclusiva do Google. Sem e-mail nem senha. */}
-        {view === 'login-owner' && (
-          <LoginGoogleOwnerView
+        {/* 🔑 PROPRIETÁRIO e DEPENDENTE: porta do Google. Sem e-mail nem senha.
+            ⚠️ 13/09/2026 — o Dependente passou a entrar por aqui. Antes ele caía
+            no formulário de senha e NÃO TINHA COMO CRIAR ESSA SENHA: o botão de
+            cadastro saiu do menu na v7. Ver `views/LoginGoogleView.tsx`. */}
+        {(view === 'login-owner' || view === 'login-dependent') && (
+          <LoginGoogleView
+            papel={papelDoAcesso}
             loading={loading}
             onSubmit={handleGoogleSignIn}
             onGoogleError={handleGoogleError}
@@ -100,10 +110,10 @@ export default function AuthInterface({ initialView = 'menu' }: { initialView?: 
           />
         )}
 
-        {/* 🔑 DEPENDENTE e DESENVOLVEDOR: e-mail + senha.
+        {/* 🔑 DESENVOLVEDOR: e-mail + senha.
             ⚠️ v10 — o Desenvolvedor usa a MESMA autenticação de todo mundo; o que
             o distingue é a coluna `is_superuser` no banco. */}
-        {(view === 'login-dependent' || view === 'login-developer') && (
+        {view === 'login-developer' && (
           <LoginFormsView
             view={view}
             formData={formData}
@@ -154,7 +164,8 @@ export default function AuthInterface({ initialView = 'menu' }: { initialView?: 
           />
         )}
 
-        {(view === 'about' || view === 'contact' || view === 'viewer-only' || view === 'waiting-approval' || view === 'planet-blocked') && (
+        {(view === 'about' || view === 'contact' || view === 'viewer-only'
+          || view === 'waiting-approval' || view === 'waiting-team' || view === 'planet-blocked') && (
           <MiscViews
             view={view}
             pegadinha={pegadinha}

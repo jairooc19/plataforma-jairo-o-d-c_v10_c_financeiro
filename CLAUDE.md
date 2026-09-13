@@ -7,6 +7,126 @@ Leia-o integralmente antes de tocar em qualquer arquivo.
 
 ## ⚠️ Histórico de Mudanças
 
+**2026-09-13 — v10: o REVOKE que desligava o módulo, o Dependente sem porta, e o módulo com ícones**
+
+Rodada de correções nascida do teste do dono do projeto no Vercel. **Exige rodar
+de novo dois arquivos, nesta ordem: `plataforma_01_schema.sql` e
+`financeiro_01_schema.sql`** (os dois são idempotentes e não apagam dado).
+
+| Onde | O que mudou |
+|---|---|
+| `plataforma_01_schema.sql` 8.3 | O `REVOKE … ON ALL FUNCTIONS IN SCHEMA public` virou **27 REVOKEs nome a nome** |
+| `plataforma_01_schema.sql` 8.4 | O `ALTER DEFAULT PRIVILEGES … REVOKE` foi removido: ele **não fazia nada** |
+| `financeiro_01_schema.sql` 7 | ✨ **17 REVOKEs novos** — as funções do módulo estavam abertas ao `anon` |
+| `teste_financeiro.sql` | ✨ Porteiro no topo + **testes 15 e 16**; foi de 14 para **16 testes** |
+| `AuthInterface`, `useAuthLogic`, `LoginGoogleView`, `MiscViews` | ✨ O **Dependente entra pelo Google**, como o Proprietário |
+| `authService`, `googleAuthService` | `googleSignInOwner` → **`googleSignIn(idToken, papel)`** |
+| ✨ `components/financeiro/IconeFin.tsx` | Registro de ícones **de linha** do módulo |
+| ✨ `components/financeiro/menu/` | O menu OPÇÕES virou **painel à direita, com níveis que abrem ao clique** |
+| ✨ `components/financeiro/ContextoFinanceiro.tsx` | O contexto do módulo carrega **uma vez**, não uma por tela |
+| ✨ `components/financeiro/lancamento/` | A tela de 354 linhas virou hook + 2 componentes |
+| `financeiro/page.tsx` | **Três botões centrais**, só |
+
+⚠️ **`REVOKE … ON ALL FUNCTIONS IN SCHEMA public` NA PLATAFORMA DESLIGA O MÓDULO
+PLUGADO, EM SILÊNCIO.** Foi a causa do `42501: permission denied for function
+fin_gravar_lancamento` que apareceu no `teste_financeiro.sql` **e** nos botões
+"+ ADICIONAR NOVA" da tela de lançamento. O gesto que causou o estrago foi o
+**correto e recomendado**: reaplicar só o `plataforma_01_schema.sql` para
+corrigir o defeito das duas chaves, em 12/09/2026. Aquele REVOKE não distingue
+"funções da plataforma" de "funções do schema `public`" — arrancou o EXECUTE das
+17 `fin_*`, e as linhas seguintes só devolvem as da plataforma. **Nada avisa:**
+tabelas, dados, policies e gatilhos continuam no lugar; o erro só aparece na
+primeira gravação, e parece defeito do módulo. É o irmão suave da proibição que
+já existia ("nunca 'limpe' o `public` com um laço de `DROP FUNCTION`").
+
+⚠️ **`ALTER DEFAULT PRIVILEGES … REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC` É UM
+COMANDO QUE NÃO FAZ NADA.** A seção 8.4 prometia que "o que vier daqui para a
+frente nasce fechado". Medido no PostgreSQL 18 local: o comando é aceito, grava
+**zero** linhas em `pg_default_acl`, e uma função criada logo depois continua
+com `=X/postgres` na ACL — executável por `anon`. O motivo é a semântica do
+comando: `ALTER DEFAULT PRIVILEGES … REVOKE` só subtrai de um privilégio que o
+próprio `ALTER DEFAULT PRIVILEGES` concedeu antes; o padrão embutido do
+PostgreSQL não está lá para ser subtraído. (Com `GRANT`, a mesma família de
+comando funciona e a linha aparece na hora — foi assim que se provou que o
+problema é o `REVOKE`, e não o ambiente.)
+
+⚠️ **AS 17 FUNÇÕES DO MÓDULO ESTAVAM ABERTAS AO `anon` — INCLUSIVE A DE APAGAR
+TUDO.** Consequência direta do item acima. `fin_apagar_dados_da_empresa` tinha
+um comentário dizendo que ela "não recebe GRANT para `authenticated`" — verdade,
+e irrelevante: **"sem GRANT" no PostgreSQL significa "no padrão", e o padrão é
+PUBLIC.** Não houve vazamento (as funções são `SECURITY DEFINER` e conferem
+`fin_pode()` ou `is_superuser()`, que dependem de `auth.uid()`, nulo para o
+anônimo), mas a plataforma exige duas trancas e esta estava só encostada.
+Medição antes: `anon` alcançava **17 de 17**. Depois: **0 de 17**, e
+`authenticated` alcança **16 de 17** — todas menos a de apagar.
+
+⚠️ **O TESTE QUE FALTAVA ERA, DE NOVO, O DO CAMINHO FELIZ.** Os 14 testes do
+módulo provavam recusas; nenhum provava que o app **alcança** as funções. O
+teste 16 faz exatamente isso, e teria acusado o estrago no mesmo dia. É a mesma
+lição do degrau 7-b, repetida — ao escrever uma trava, escreva o par que prova
+que alguém passa.
+
+⚠️ **ARQUIVO DE TESTE QUE ESTOURA NÃO MOSTRA LINHA NENHUMA.** Quando o
+`teste_financeiro.sql` morria no `42501`, o `SELECT` final nunca rodava e sumia
+até o resultado dos testes que já tinham passado. Agora há um **porteiro no
+topo**: ele confere se o módulo está instalado e com privilégio e, se não
+estiver, levanta uma exceção que **diz qual arquivo rodar**. Erro que instrui
+vale mais do que erro que descreve.
+
+⚠️ **NÃO HAVIA CAMINHO NENHUM PARA UM DEPENDENTE ENTRAR NA PLATAFORMA, E ISSO
+ERA MAIOR DO QUE "FALTA UM BOTÃO".** O Dependente era mandado ao formulário de
+e-mail e senha; para ter senha, precisaria ter se cadastrado; o botão "CADASTRAR
+USUÁRIO" saiu do menu principal na **v7**; e o `SignUpView` só é alcançável pelo
+desvio de planeta. A porta do Google resolve porque **cria a conta no primeiro
+acesso**, pelo gatilho `on_auth_user_created`. Agora `login-owner` e
+`login-dependent` usam o mesmo `LoginGoogleView`; o `LoginFormsView` ficou só
+para o Desenvolvedor.
+
+⚠️ **O PAPEL ESCOLHIDO NA GUARITA PRECISA SER ESTADO, NÃO DEDUÇÃO DA TELA
+ATUAL.** Entre o login e a triagem existe o desvio do "Completar Cadastro" —
+naquele instante a `view` já não é `login-dependent`. Se a triagem olhasse a
+tela, todo Dependente novo seria triado como Proprietário, não acharia vínculo e
+cairia na sala de espera errada, **sem erro nenhum para denunciar**. Daí o
+`papelDoAcesso`, gravado no clique de `AccessOptionsView`.
+
+⚠️ **O PAPEL DA GUARITA NÃO AUTORIZA NADA.** Ele não vai ao Google, não vai ao
+Supabase e não é gravado: escolhe só qual pergunta a triagem faz
+(`getUserTenants(id, 'DEPENDENT')` em vez de `'OWNER'`). Quem é o quê está em
+`tenant_members`, e a RLS não pergunta por qual botão a pessoa clicou.
+
+⚠️ **AS DUAS SALAS DE ESPERA NÃO SÃO A MESMA.** Quem espera pelo Proprietário é
+o **Desenvolvedor** (triagem do Painel de Engenharia, tela `waiting-approval`).
+Quem espera pelo Dependente é o **dono da empresa**, que precisa incluir o
+e-mail dele na equipe — daí a tela nova `waiting-team`. Reaproveitar a primeira
+diria ao Dependente que "o Desenvolvedor está analisando sua solicitação": ele
+esperaria por alguém que não vai agir.
+
+⚠️ **`lucide-react` 1.x TAMBÉM RENOMEOU O CATÁLOGO — A ARMADILHA DO MOBILE VALE
+NA WEB.** Conferido na versão instalada: `Trash2` → **`Trash`**, `Unlock` →
+**`LockOpen`**, `Filter` → **`Funnel`**. O nome antigo **não quebra o build e não
+acusa nada no editor**: devolve `undefined` e só estoura no navegador. Por isso
+todo ícone do módulo passa por `components/financeiro/IconeFin.tsx`, onde o nome
+errado vira erro de TypeScript. E nunca `import * as Lucide` — o curinga arrasta
+os mais de mil ícones do catálogo para o pacote.
+
+⚠️ **"TRANSFERÊNCIA" SAIU DE TRÊS LUGARES, NÃO DE UM.** O pedido foi que ela
+exista apenas dentro de "Novo Lançamento". Ela estava na tela inicial **e** na
+tela `/lancamentos` — cumprir o pedido só na primeira deixaria um segundo
+caminho que ninguém mandou existir. A rota continua e funciona; o que mudou foi
+de onde se chega até ela.
+
+⚠️ **O BOTÃO IMPRIMIR DA "CONFERÊNCIA DA CONTA" NÃO ESTAVA ESCONDIDO À ESPERA DE
+LINHAS — ELE NÃO EXISTIA.** Foi a dúvida honesta do dono do projeto, e a
+resposta honesta é essa. Agora existe, com o comportamento da tela PESQUISAR:
+visível para quem tem a permissão `imprimir`, habilitado só quando há linhas.
+
+⚠️ **O PROPRIETÁRIO JÁ VINHA COM TODAS AS LIBERAÇÕES — O ERRO ERA OUTRO.** Tanto
+`fin_pode()` no banco quanto o contexto da tela já davam as 17 permissões a quem
+é `OWNER`. O `permission denied` que ele viu era o GRANT arrancado, não falta de
+permissão de negócio. Nada precisou mudar nessa frente.
+
+---
+
 **2026-09-12 — v10: o beco sem saída das duas chaves (correção encontrada na validação do degrau 7)**
 
 O dono do projeto contratou o módulo no Painel de Engenharia, liberou no painel de
@@ -1209,8 +1329,8 @@ plataforma-jairo-o-d-c-v4/
 │   │   ├── plataforma_01_schema.sql   → Construtor: schema consolidado v10
 │   │   └── plataforma_02_seed.sql     → Hidratador: dados iniciais obrigatórios
 │   ├── criar-bd-financeiro/→ 🧩 MÓDULO: banco do Controle Financeiro (01 → 02; o 00 despluga)
-│   ├── testes/             → teste_rls.sql (14 travas da plataforma), teste_financeiro.sql
-│   │                         (14 travas do módulo), inventario.sql (confere o schema)
+│   ├── testes/             → teste_rls.sql (16 travas da plataforma), teste_financeiro.sql
+│   │                         (16 travas do módulo), inventario.sql (confere o schema)
 │   │   └── ambiente-local/ → 🆕 sobe um PostgreSQL descartável e valida o SQL antes do Supabase
 │   ├── migrations/         → vazia; ler o README antes do primeiro dado real
 │   └── config.toml         → Configuração do Supabase CLI
@@ -1378,9 +1498,14 @@ src/services/platform/
 └── settingsService.ts    → configurações globais (cores, título, emails admin)
 ```
 
-> `authService.googleSignInOwner()` é uma **fachada fina** sobre o `googleAuthService`:
-> existe para que a guarita tenha uma porta só, sem que a tela precise saber qual serviço
-> chamar para cada tipo de acesso. A lógica mora no `googleAuthService`.
+> `authService.googleSignIn(idToken, papel)` é uma **fachada fina** sobre o
+> `googleAuthService.signInComGoogle`: existe para que a guarita tenha uma porta só, sem
+> que a tela precise saber qual serviço chamar para cada tipo de acesso. A lógica mora no
+> `googleAuthService`.
+>
+> ⚠️ **Chamava-se `googleSignInOwner` até 13/09/2026.** O `papel`
+> (`'OWNER' | 'DEPENDENT'`) só escolhe a triagem e o rótulo da telemetria — **não
+> autoriza nada**: não vai ao Google, não vai ao Supabase e não é gravado.
 
 ### Exportação
 `src/index.ts` — porta de entrada. Exporta tudo: clientes, serviços, tipos, constantes, analytics.
@@ -1577,17 +1702,22 @@ src/components/auth/
 └── views/
     ├── MainMenuView.tsx          → SEM botão de cadastro (v7)
     ├── AccessOptionsView.tsx
-    ├── LoginGoogleOwnerView.tsx  → PROPRIETÁRIO: só o botão do Google (v7)
+    ├── LoginGoogleView.tsx       → PROPRIETÁRIO e DEPENDENTE: só o botão do Google
     ├── CompleteProfileView.tsx   → cadastro pela metade (obrigatório, sem "voltar")
-    ├── LoginFormsView.tsx        → DEPENDENTE e DESENVOLVEDOR: e-mail + senha
+    ├── LoginFormsView.tsx        → DESENVOLVEDOR: e-mail + senha
     ├── SignUpView.tsx            → só alcançável pelo desvio de planeta
     ├── TenantSelectorView.tsx
-    └── MiscViews.tsx
+    └── MiscViews.tsx             → inclui `waiting-team` (Dependente sem convite)
 ```
 
-> ⚠️ `LoginFormsView.tsx` **não atende mais** o `login-owner`. O `AuthInterface` roteia
-> `login-owner` para o `LoginGoogleOwnerView` e deixa apenas `login-dependent` e
-> `login-developer` no formulário de senha.
+> ⚠️ **`LoginGoogleOwnerView.tsx` NÃO EXISTE MAIS** (13/09/2026): virou
+> `LoginGoogleView.tsx`, com a prop `papel`. O `AuthInterface` roteia `login-owner` **e**
+> `login-dependent` para ele, e deixa só `login-developer` no formulário de senha.
+>
+> ⚠️ **O Dependente passou a entrar pelo Google porque não tinha como entrar de jeito
+> nenhum.** Ele caía no formulário de senha, e para ter senha precisaria se cadastrar — mas
+> o botão de cadastro saiu do menu na v7 e o `SignUpView` só é alcançável pelo desvio de
+> planeta. A porta do Google cria a conta no primeiro acesso.
 
 **Dashboard — Perfil (fatiado por responsabilidade):**
 ```
@@ -1876,22 +2006,29 @@ commit `9a41664` e volta com um `git checkout`.
 só `Início`, porque não tem linha em `public.users` para um perfil carregar.
 ## Segurança de Autenticação — v10
 
-### Proprietário — Google OAuth 2.0
+### Proprietário **e Dependente** — Google OAuth 2.0
 
-1. `LoginGoogleOwnerView` mostra **só** o botão do Google (sem e-mail, sem senha)
-2. O popup devolve um ID Token; `authService.googleSignInOwner` → `googleAuthService`
-   troca por sessão via `supabase.auth.signInWithIdToken`
+1. `LoginGoogleView` mostra **só** o botão do Google (sem e-mail, sem senha)
+2. O popup devolve um ID Token; `authService.googleSignIn(idToken, papel)` →
+   `googleAuthService.signInComGoogle` troca por sessão via
+   `supabase.auth.signInWithIdToken`
 3. `ensure_google_user_profile` confirma o perfil em `public.users` (rede de segurança:
    o gatilho `on_auth_user_created` já é o caminho normal)
 4. `syncGoogleSessionAction` espelha a sessão nos cookies HTTP — sem isso o servidor não
    enxerga o login feito no navegador
-5. Segue para a triagem de empresas, igual ao fluxo de senha
+5. Triagem por papel (`encaminharPorPapel`): sem vínculo, o Proprietário vai para
+   `waiting-approval` (espera o Desenvolvedor) e o Dependente para `waiting-team`
+   (espera o dono da empresa); com um vínculo, entra; com vários, escolhe
 
 > **Quem valida o token é o Supabase**, contra o Client ID cadastrado no provedor Google.
 > Validar o ID Token no navegador seria teatro: um cliente comprometido validaria o que
 > quisesse. Por isso o Core não tem nenhuma função `validateGoogleToken`.
 
-### Dependente e Desenvolvedor — e-mail + senha (inalterado)
+> ⚠️ **O papel escolhido na guarita é lembrado em `papelDoAcesso`, gravado no clique** —
+> nunca deduzido da `view` na hora da triagem. O "Completar Cadastro" fica no meio do
+> caminho, e ali a tela já é outra.
+
+### Desenvolvedor — e-mail + senha
 
 A catraca anti-bot (Cloudflare Turnstile) foi removida. O fluxo hoje é:
 
@@ -2025,6 +2162,14 @@ inclusive numa máquina limpa — foi por isso que a versão com bcrypt foi reve
 - ❌ Nunca exigir `allowed_modules` do PROPRIETÁRIO — a coluna é a chave que ele entrega à tripulação dele; para o dono da empresa vale o que ela contratou (`modulos_do_membro` trata os dois casos)
 - ❌ Nunca chamar `admin_list_tenant_modules` de tela do Proprietário — ela confere `is_superuser()` e devolve 42501; a função dele é `modulos_contratados(uuid)`
 - ❌ Nunca chamar `salvarDependente` sem a lista de módulos — o parâmetro tem `= []` por padrão e a gravação APAGA as permissões que o integrante já tinha
+- ❌ Nunca escrever `REVOKE … ON ALL FUNCTIONS IN SCHEMA public` (nem `GRANT` amplo) em arquivo da plataforma — "ALL FUNCTIONS" inclui as dos MÓDULOS plugados, a `rls_auto_enable()` do ambiente e as das extensões; a plataforma revoga **nome a nome**, só do que ela criou
+- ❌ Nunca conceder `EXECUTE` a uma função nova sem o `REVOKE … FROM PUBLIC` antes — no PostgreSQL toda função nasce executável por PUBLIC, e `anon` herda de PUBLIC; só o GRANT não fecha nada
+- ❌ Nunca confiar em `ALTER DEFAULT PRIVILEGES … REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC` — o comando é aceito, grava zero linhas em `pg_default_acl` e não muda nada (ele só subtrai de privilégio que o próprio `ALTER DEFAULT PRIVILEGES` concedeu)
+- ❌ Nunca ler "não recebe GRANT" como "está fechada" — sem GRANT a função fica no padrão do PostgreSQL, que é PUBLIC
+- ❌ Nunca deixar um arquivo de teste SQL morrer com o erro cru do PostgreSQL — quando ele estoura, o `SELECT` final não roda e some até o resultado dos testes que passaram; ponha um porteiro no topo que diga qual arquivo rodar
+- ❌ Nunca deduzir o papel escolhido na guarita a partir da `view` no momento da triagem — o "Completar Cadastro" fica no meio do caminho e a tela já é outra; guarde o papel em estado, no clique
+- ❌ Nunca mandar um Dependente sem vínculo para a tela `waiting-approval` — ela diz que o Desenvolvedor está analisando, e quem precisa agir é o dono da empresa; a tela dele é a `waiting-team`
+- ❌ Nunca importar um ícone direto de `lucide-react` numa tela de módulo — usar o registro (`components/financeiro/IconeFin.tsx`); a v1 renomeou o catálogo (`Trash2`→`Trash`, `Unlock`→`LockOpen`, `Filter`→`Funnel`) e o nome antigo devolve `undefined` sem acusar erro de build
 - ❌ Nunca criar arquivo com múltiplas responsabilidades distintas
 - ❌ Nunca misturar lógica de plataforma com módulo, nem módulo com módulo
 - ❌ Nunca usar `toISOString()` para datas que precisam respeitar UTC-3
@@ -2034,7 +2179,7 @@ inclusive numa máquina limpa — foi por isso que a versão com bcrypt foi reve
   (exceção consciente: a credencial do Painel de Engenharia, documentada acima)
 - ❌ Nunca gravar `users.country` como `NULL` — a coluna é `NOT NULL` e o padrão é `'BRASIL'`
 - ❌ Nunca gravar `users.auth_provider` como `NULL` — é `NOT NULL` e o padrão é `'email'`
-- ❌ Nunca rotear `login-owner` para o `LoginFormsView` — o Proprietário entra só por Google
+- ❌ Nunca rotear `login-owner` nem `login-dependent` para o `LoginFormsView` — os dois entram só por Google; o formulário de senha ficou para o Desenvolvedor
 - ❌ Nunca detectar o provedor consultando `auth.identities` dentro do gatilho `on_auth_user_created` — a identidade ainda não existe naquele instante; usar `raw_app_meta_data->>'provider'`
 - ❌ Nunca criar perfil em `public.users` por `upsert` do cliente anon — não há policy de INSERT; usar a função `SECURITY DEFINER` `ensure_google_user_profile`
 - ❌ Nunca usar `@supabase/auth-helpers-nextjs` — descontinuado e ausente do projeto; o padrão aqui é `@supabase/ssr`

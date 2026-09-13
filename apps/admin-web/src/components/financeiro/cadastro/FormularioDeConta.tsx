@@ -2,6 +2,7 @@
 
 import React from "react";
 import CampoDinheiro from "@/components/financeiro/CampoDinheiro";
+import IconeFin from "@/components/financeiro/IconeFin";
 
 /**
  * 📝 O FORMULÁRIO DOS DOIS CADASTROS (PJODC v10)
@@ -141,17 +142,19 @@ export default function FormularioDeConta({
           type="button"
           onClick={onGravar}
           disabled={gravando || nome.trim() === ""}
-          className="px-6 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-black uppercase tracking-widest
+          className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-black uppercase tracking-widest
                      disabled:opacity-40"
         >
+          <IconeFin nome={editandoId ? "salvar" : "adicionar"} tamanho={15} />
           {gravando ? "GRAVANDO…" : editandoId ? "SALVAR" : "ADICIONAR"}
         </button>
         {editandoId && (
           <button
             type="button"
             onClick={onCancelar}
-            className="px-6 py-2.5 rounded-xl bg-white border border-slate-300 text-xs font-black uppercase tracking-widest text-slate-600"
+            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-white border border-slate-300 text-xs font-black uppercase tracking-widest text-slate-600"
           >
+            <IconeFin nome="fechar" tamanho={15} />
             CANCELAR
           </button>
         )}

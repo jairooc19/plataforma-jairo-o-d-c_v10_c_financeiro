@@ -1143,6 +1143,58 @@ GRANT SELECT ON public.fin_contas_identificadoras TO authenticated;
 GRANT SELECT ON public.fin_lancamentos            TO authenticated;
 GRANT SELECT ON public.fin_fechamentos            TO authenticated;
 
+-- ---------------------------------------------------------------------------
+-- ⚠️ AS 17 FUNÇÕES PRECISAM DE UM `REVOKE ... FROM PUBLIC` ANTES DO GRANT.
+--
+-- Descoberto em 2026-09-13, medindo o banco em vez de ler o arquivo: TODAS as
+-- 17 estavam alcançáveis pelo papel `anon` — quem não fez login nenhum.
+--
+-- A razão é uma regra do PostgreSQL que engana: **toda função nasce com
+-- EXECUTE concedido a PUBLIC**, e `authenticated` e `anon` herdam de PUBLIC.
+-- Escrever só `GRANT ... TO authenticated` não fecha nada: a porta já estava
+-- aberta antes do GRANT, e o GRANT apenas repete para um papel o que PUBLIC já
+-- tinha. É o mesmo raciocínio do `TO` obrigatório nas policies (a proibição do
+-- CLAUDE.md sobre policy sem `TO`), aplicado a função.
+--
+-- ⚠️ E NÃO ADIANTA CONFIAR NO `ALTER DEFAULT PRIVILEGES` DA PLATAFORMA. A
+-- seção 8.4 do `plataforma_01_schema.sql` tinha
+-- `ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM
+-- PUBLIC`, que PARECE resolver isto para todo objeto futuro — e não resolve.
+-- Provado no PostgreSQL 18 local: aquele comando não grava linha nenhuma em
+-- `pg_default_acl`, e uma função criada logo depois continua com `=X/postgres`
+-- na ACL (PUBLIC com EXECUTE). O `ALTER DEFAULT PRIVILEGES ... REVOKE` só
+-- consegue subtrair de um privilégio que o próprio `ALTER DEFAULT PRIVILEGES`
+-- concedeu antes; o padrão embutido do PostgreSQL não está lá para ser
+-- subtraído.
+--
+-- Não havia vazamento de dado: as funções são `SECURITY DEFINER` e conferem
+-- `fin_pode()` (ou `is_superuser()`), que dependem de `auth.uid()` — nulo para
+-- o anônimo. Mas a plataforma exige DUAS trancas, e esta estava só encostada.
+--
+-- ⚠️ `fin_apagar_dados_da_empresa` ERA O CASO MAIS GRAVE. O comentário no fim
+-- desta seção dizia que ela "não recebe GRANT" — verdade, e irrelevante: sem
+-- GRANT ela ficava no padrão, que é PUBLIC. A função que apaga o financeiro
+-- inteiro de uma empresa estava exposta à API pública, defendida apenas pelo
+-- `is_superuser()` de dentro. Agora está fechada nas duas camadas.
+-- ---------------------------------------------------------------------------
+REVOKE EXECUTE ON FUNCTION public.fin_normalizar(text)                                   FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_pode(uuid, text)                                   FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_periodo_fechado(uuid, date)                        FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_proxima_ordem(uuid, date)                          FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_buscar_contas_movimento(uuid, text)                FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_buscar_identificadoras(uuid, text)                 FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_gravar_conta_movimento(uuid, uuid, text, text, bigint, boolean) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_gravar_identificadora(uuid, uuid, text, text, boolean)          FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_gravar_lancamento(uuid, uuid, uuid, uuid, date, integer, text, text, text, bigint, text) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_excluir_lancamento(uuid, uuid)                     FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_transferir(uuid, uuid, uuid, date, bigint, text)   FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_marcar_conferido(uuid, uuid, boolean)              FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_fechar_periodo(uuid, uuid, date, text)             FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_reabrir_periodo(uuid, uuid)                        FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_extrato(uuid, uuid, date, date)                    FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_saldo_atual(uuid, uuid)                            FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_apagar_dados_da_empresa(uuid)                      FROM PUBLIC, anon, authenticated;
+
 GRANT EXECUTE ON FUNCTION public.fin_normalizar(text)                                   TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_pode(uuid, text)                                   TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_periodo_fechado(uuid, date)                        TO authenticated;
@@ -1164,6 +1216,11 @@ GRANT EXECUTE ON FUNCTION public.fin_saldo_atual(uuid, uuid)                    
 -- chamada de dentro de `admin_apagar_dados_do_modulo`, que roda como dono do
 -- banco e já confere `is_superuser()`. Dar execução direta ao cliente seria
 -- oferecer um botão de apagar tudo à API pública.
+--
+-- ⚠️ MAS "NÃO DAR GRANT" NÃO É O MESMO QUE "FECHAR" — foi o engano de
+-- 2026-09-12, corrigido em 2026-09-13. Quem fecha é o REVOKE do bloco acima,
+-- que também consta desta lista. Sem ele, "sem GRANT" significava "no padrão
+-- do PostgreSQL", e o padrão é PUBLIC.
 
 
 -- ===========================================================================

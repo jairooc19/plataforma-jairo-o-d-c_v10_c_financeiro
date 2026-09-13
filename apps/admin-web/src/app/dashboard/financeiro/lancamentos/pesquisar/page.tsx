@@ -9,6 +9,7 @@ import {
 import { useEmpresaAtiva } from "@/components/financeiro/useEmpresaAtiva";
 import { baixarTSV } from "@/components/financeiro/exportarTSV";
 import { abrirImpressao } from "@/components/financeiro/prepararImpressao";
+import IconeFin from "@/components/financeiro/IconeFin";
 
 /**
  * 🔎 TELA: PESQUISAR LANÇAMENTOS (PJODC v10)
@@ -128,7 +129,7 @@ export default function PesquisarLancamentosPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-black uppercase tracking-tighter text-slate-800">PESQUISAR LANÇAMENTOS</h1>
+      <h1 className="flex items-center gap-2.5 text-2xl font-black uppercase tracking-tighter text-slate-800"><IconeFin nome="pesquisar" tamanho={26} traco={1.75} />PESQUISAR LANÇAMENTOS</h1>
 
       {erro && <div className="bg-red-50 border border-red-200 rounded-2xl px-5 py-4 text-xs font-bold uppercase text-red-800">{erro}</div>}
 
@@ -219,7 +220,8 @@ export default function PesquisarLancamentosPage() {
 
         <div className="flex flex-wrap gap-3 mt-5">
           <button type="button" onClick={pesquisar}
-                  className="px-6 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-black uppercase tracking-widest">
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-black uppercase tracking-widest">
+            <IconeFin nome="pesquisar" tamanho={16} />
             PESQUISAR
           </button>
           {pode("imprimir") && (
@@ -246,12 +248,14 @@ export default function PesquisarLancamentosPage() {
                         ]),
                         rodape: `${linhas.length} LANÇAMENTO(S) · ENTRADAS ${formatarBRL(totalEntradas)} · SAÍDAS ${formatarBRL(totalSaidas)}`,
                       })}
-                      className="px-6 py-2.5 rounded-xl bg-slate-800 text-white text-xs font-black uppercase tracking-widest disabled:opacity-30">
+                      className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-slate-800 text-white text-xs font-black uppercase tracking-widest disabled:opacity-30">
+                <IconeFin nome="imprimir" tamanho={15} />
                 IMPRIMIR
               </button>
               <button type="button" disabled={linhas.length === 0}
                       onClick={() => baixarTSV(linhas, nomeEmpresa)}
-                      className="px-6 py-2.5 rounded-xl bg-white border border-slate-300 text-xs font-black uppercase tracking-widest text-slate-700 disabled:opacity-30">
+                      className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-white border border-slate-300 text-xs font-black uppercase tracking-widest text-slate-700 disabled:opacity-30">
+                <IconeFin nome="exportar" tamanho={15} />
                 EXPORTAR TSV
               </button>
             </>
@@ -301,7 +305,10 @@ export default function PesquisarLancamentosPage() {
                   <td className="px-2 py-2 border-b border-slate-100 text-right">
                     {(pode("lc_excluir_todos") || pode("lc_excluir_proprios")) && (
                       <button type="button" onClick={() => excluir(l.id)}
-                              className="text-[10px] font-black uppercase tracking-widest text-red-600">EXCLUIR</button>
+                              className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-red-600">
+                        <IconeFin nome="excluir" tamanho={13} />
+                        EXCLUIR
+                      </button>
                     )}
                   </td>
                 </tr>

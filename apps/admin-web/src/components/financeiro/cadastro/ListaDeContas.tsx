@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { formatarBRL } from "@jairo/core";
+import IconeFin from "../IconeFin";
 
 /**
  * 📋 A LISTA DOS CADASTROS, COM OS FILTROS E AS OPÇÕES (PJODC v10)
@@ -53,13 +54,17 @@ export default function ListaDeContas({
   return (
     <section className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
       <div className="flex flex-wrap items-end justify-between gap-4 mb-5">
-        <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">PESQUISAR</h2>
+        <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-slate-400">
+          <IconeFin nome="filtrar" tamanho={15} />
+          PESQUISAR
+        </h2>
         <button
           type="button"
           onClick={onImprimir}
           disabled={itens.length === 0}
-          className="px-4 py-2 rounded-xl bg-slate-800 text-white text-[11px] font-black uppercase tracking-widest disabled:opacity-30"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 text-white text-[11px] font-black uppercase tracking-widest disabled:opacity-30"
         >
+          <IconeFin nome="imprimir" tamanho={14} />
           IMPRIMIR
         </button>
       </div>
@@ -108,8 +113,9 @@ export default function ListaDeContas({
       <button
         type="button"
         onClick={onPesquisar}
-        className="mb-6 px-6 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-black uppercase tracking-widest"
+        className="mb-6 flex items-center gap-2 px-6 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-black uppercase tracking-widest"
       >
+        <IconeFin nome="pesquisar" tamanho={15} />
         PESQUISAR
       </button>
 
@@ -143,8 +149,9 @@ export default function ListaDeContas({
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); setMenuAberto(menuAberto === item.id ? null : item.id); }}
-                  className="px-3 py-1.5 rounded-lg bg-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-600"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-600"
                 >
+                  <IconeFin nome="menu" tamanho={13} />
                   OPÇÕES
                 </button>
                 {menuAberto === item.id && (
@@ -156,18 +163,21 @@ export default function ListaDeContas({
                     >
                       {podeGravar && !item.is_sistema && (
                         <button type="button" onClick={() => { setMenuAberto(null); onEditar(item); }}
-                                className="w-full text-left px-3 py-2 rounded-lg text-xs font-bold uppercase text-slate-700 hover:bg-slate-50">
+                                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold uppercase text-slate-700 hover:bg-slate-50">
+                          <IconeFin nome="editar" tamanho={14} />
                           EDITAR
                         </button>
                       )}
                       {podeExcluir && !item.is_sistema && (
                         <>
                           <button type="button" onClick={() => { setMenuAberto(null); onAlternarAtivo(item); }}
-                                  className="w-full text-left px-3 py-2 rounded-lg text-xs font-bold uppercase text-slate-700 hover:bg-slate-50">
+                                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold uppercase text-slate-700 hover:bg-slate-50">
+                            <IconeFin nome={item.is_active ? "inativo" : "ativo"} tamanho={14} />
                             {item.is_active ? "DESATIVAR" : "REATIVAR"}
                           </button>
                           <button type="button" onClick={() => { setMenuAberto(null); onExcluir(item); }}
-                                  className="w-full text-left px-3 py-2 rounded-lg text-xs font-bold uppercase text-red-600 hover:bg-red-50">
+                                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold uppercase text-red-600 hover:bg-red-50">
+                            <IconeFin nome="excluir" tamanho={14} />
                             EXCLUIR
                           </button>
                         </>

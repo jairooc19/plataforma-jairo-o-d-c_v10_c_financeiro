@@ -4,7 +4,10 @@ import React from "react";
 import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
 import { HAS_GOOGLE_CLIENT_ID } from "@/lib/googleClientId";
 
-interface LoginGoogleOwnerViewProps {
+export type PapelDeAcesso = "OWNER" | "DEPENDENT";
+
+interface LoginGoogleViewProps {
+  papel: PapelDeAcesso;
   loading: boolean;
   onSubmit: (credentialResponse: CredentialResponse) => void;
   onGoogleError: () => void;
@@ -13,35 +16,50 @@ interface LoginGoogleOwnerViewProps {
 }
 
 /**
- * 🔑 VIEW: LOGIN DO PROPRIETÁRIO VIA GOOGLE (PJODC v10)
- * Local: apps/admin-web/src/components/auth/views/LoginGoogleOwnerView.tsx
+ * 🔑 VIEW: LOGIN VIA GOOGLE — PROPRIETÁRIO E DEPENDENTE (PJODC v10)
+ * Local: apps/admin-web/src/components/auth/views/LoginGoogleView.tsx
  *
- * ESCOPO: apenas o acesso "Usuário Proprietário". Dependente e Desenvolvedor
- * continuam no LoginFormsView, com e-mail e senha.
+ * ⚠️ ESTE ARQUIVO ERA `LoginGoogleOwnerView.tsx` e servia só ao Proprietário.
+ * Em 13/09/2026 o dono do projeto tentou entrar como "Usuário Dependente" e não
+ * conseguiu. O diagnóstico foi pior do que "falta um botão":
  *
- * Não há campos: quem valida a identidade é o Google. Conta nova é criada
- * sozinha em public.users no primeiro acesso (gatilho on_auth_user_created,
- * com a rede de segurança ensure_google_user_profile logo atrás).
+ *   - o Dependente era mandado ao formulário de e-mail e senha;
+ *   - para ter e-mail e senha, precisaria ter se cadastrado;
+ *   - o botão "CADASTRAR USUÁRIO" foi removido do menu principal na v7;
+ *   - o formulário de cadastro sobrevive só atrás do desvio de planeta.
+ *
+ * Ou seja: **não existia caminho nenhum para um Dependente entrar.** A porta do
+ * Google resolve porque ela cria a conta no primeiro acesso, pelo gatilho
+ * `on_auth_user_created` (com a rede de segurança `ensure_google_user_profile`
+ * logo atrás).
+ *
+ * ⚠️ ESCOLHER "DEPENDENTE" NA GUARITA NÃO TORNA NINGUÉM DEPENDENTE. O papel só
+ * diz que triagem fazer depois do login: procurar vínculos `DEPENDENT` em vez de
+ * `OWNER`. Quem é o quê está em `tenant_members`, no banco, escrito pelo
+ * Proprietário da empresa — e a RLS não pergunta por qual botão a pessoa clicou.
  *
  * DOIS BOTÕES POSSÍVEIS, NUNCA OS DOIS AO MESMO TEMPO:
  *  - com NEXT_PUBLIC_GOOGLE_CLIENT_ID: o botão oficial do Google, em popup;
  *  - sem a chave: um botão nosso que entrega o OAuth ao Supabase por
- *    redirecionamento. Assim a porta do Proprietário nunca fica sem maçaneta.
+ *    redirecionamento. Assim a porta nunca fica sem maçaneta.
  */
-export default function LoginGoogleOwnerView({
+export default function LoginGoogleView({
+  papel,
   loading,
   onSubmit,
   onGoogleError,
   onRedirectFallback,
-  onBack
-}: LoginGoogleOwnerViewProps) {
+  onBack,
+}: LoginGoogleViewProps) {
+  const ehDono = papel === "OWNER";
+
   return (
     <div className="w-full bg-white/95 backdrop-blur-xl p-10 rounded-[2.5rem] shadow-2xl border border-white animate-fade-in">
       <div className="space-y-8 flex flex-col">
 
         <div className="text-center mb-8">
           <h2 className="text-2xl font-black text-slate-800 tracking-tight">
-            Login Proprietário
+            {ehDono ? "Login Proprietário" : "Login Dependente"}
           </h2>
           <p className="text-xs text-slate-500 mt-2">Autentique-se com sua conta Google</p>
         </div>
@@ -77,6 +95,17 @@ export default function LoginGoogleOwnerView({
             </button>
           )}
         </div>
+
+        {/* O Dependente precisa saber que quem o autoriza é o dono da empresa,
+            e não o Desenvolvedor. Sem este aviso, o primeiro acesso (que sempre
+            cai em "sem vínculo") parece defeito. */}
+        {!ehDono && (
+          <p className="text-center text-xs text-slate-500 leading-relaxed bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+            No primeiro acesso, entre aqui uma vez para que sua conta exista.
+            Depois, peça ao <strong>Proprietário da empresa</strong> para incluir
+            este mesmo e-mail na equipe dele.
+          </p>
+        )}
 
         <div className="text-center text-xs text-slate-400">
           {HAS_GOOGLE_CLIENT_ID ? (

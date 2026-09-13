@@ -121,11 +121,29 @@ export const googleAuthService = {
   },
 
   /**
-   * 🚪 PORTA ÚNICA DO PROPRIETÁRIO: autentica, garante perfil e devolve o pacote.
+   * 🚪 A PORTA DO GOOGLE: autentica, garante perfil e devolve o pacote.
    * Nunca lança — devolve `{ success: false, error }` para a tela decidir o que
    * mostrar. O `useAuthLogic` depende desse contrato.
+   *
+   * ⚠️ ATÉ 12/09/2026 ESTA FUNÇÃO SE CHAMAVA `signInOwner` E ERA SÓ DO
+   * PROPRIETÁRIO. O Dependente entrava por e-mail e senha — e não tinha como
+   * criar a conta: o botão "CADASTRAR USUÁRIO" saiu do menu principal na v7, e
+   * o formulário de cadastro só é alcançável pelo desvio de planeta. Na
+   * prática, **não havia caminho nenhum para um Dependente entrar na
+   * plataforma**. Agora os dois usam esta função.
+   *
+   * ⚠️ O `papel` NÃO AUTORIZA NADA. Ele não vai ao Google, não vai ao Supabase e
+   * não é gravado: serve para a telemetria dizer por qual porta a pessoa entrou
+   * e para a tela saber que triagem fazer depois. **Quem decide o que a pessoa
+   * é** são os vínculos em `tenant_members` e a RLS do banco. Se alguém
+   * escolher "Dependente" na guarita e for dono de empresa, a triagem
+   * simplesmente não acha vínculo de dependente — e é isso que tem de acontecer.
    */
-  async signInOwner(idToken: string): Promise<GoogleSignInResult> {
+  async signInComGoogle(
+    idToken: string,
+    papel: 'OWNER' | 'DEPENDENT' = 'OWNER',
+  ): Promise<GoogleSignInResult> {
+    const fluxo = papel === 'OWNER' ? 'owner' : 'dependent';
     try {
       const { session, user } = await this.signInWithGoogleIdToken(idToken);
 
@@ -136,14 +154,14 @@ export const googleAuthService = {
       telemetry.capture(ANALYTICS_EVENTS.AUTH_GOOGLE_OWNER_SUCCESS, {
         [ANALYTICS_PROPERTIES.USER_EMAIL]: user.email,
         [ANALYTICS_PROPERTIES.AUTH_PROVIDER]: 'google',
-        [ANALYTICS_PROPERTIES.AUTH_FLOW]: 'owner',
+        [ANALYTICS_PROPERTIES.AUTH_FLOW]: fluxo,
       });
 
       return { success: true, session, user };
     } catch (error: any) {
       telemetry.capture(ANALYTICS_EVENTS.AUTH_GOOGLE_OWNER_FAILED, {
         [ANALYTICS_PROPERTIES.ERROR_MESSAGE]: error.message,
-        [ANALYTICS_PROPERTIES.AUTH_FLOW]: 'owner',
+        [ANALYTICS_PROPERTIES.AUTH_FLOW]: fluxo,
       });
       return { success: false, error: error.message };
     }

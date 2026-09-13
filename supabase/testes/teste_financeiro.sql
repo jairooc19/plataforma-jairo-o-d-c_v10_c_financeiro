@@ -57,6 +57,40 @@ ALTER TABLE public.resultado_teste_financeiro ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.resultado_teste_financeiro FROM anon, authenticated;
 
 -- ---------------------------------------------------------------------------
+-- 🚦 PORTEIRO: o módulo está instalado E COM PRIVILÉGIO?
+--
+-- ⚠️ POR QUE ISTO EXISTE. Em 13/09/2026 este arquivo morreu com
+-- `42501: permission denied for function fin_gravar_lancamento` no meio da
+-- preparação. O erro é verdadeiro, mas não diz o que fazer — e quando um
+-- arquivo de teste estoura, o `SELECT` do fim nunca roda e NENHUMA linha
+-- aparece: some inclusive o resultado dos testes que já tinham passado.
+--
+-- A causa era um `REVOKE` amplo da plataforma reaplicado por cima do módulo.
+-- O porteiro abaixo troca o erro críptico por uma instrução.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE v_alcanca int;
+BEGIN
+  IF to_regprocedure('public.fin_gravar_lancamento(uuid,uuid,uuid,uuid,date,integer,text,text,text,bigint,text)') IS NULL THEN
+    RAISE EXCEPTION E'O MODULO FINANCEIRO NAO ESTA INSTALADO NESTE BANCO.\n'
+      '>>> RODE ANTES: supabase/criar-bd-financeiro/financeiro_01_schema.sql e depois o financeiro_02_seed.sql.';
+  END IF;
+
+  SELECT count(*) INTO v_alcanca
+    FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+   WHERE n.nspname = 'public' AND p.proname LIKE 'fin\_%'
+     AND p.proname <> 'fin_apagar_dados_da_empresa'
+     AND has_function_privilege('authenticated', p.oid, 'EXECUTE');
+
+  IF v_alcanca < 16 THEN
+    RAISE EXCEPTION E'AS FUNCOES DO MODULO PERDERAM O GRANT DE EXECUCAO (o app alcanca % de 16).\n'
+      'ISTO NAO E DEFEITO DO MODULO: alguem reaplicou um REVOKE amplo da plataforma por cima dele.\n'
+      '>>> RODE DE NOVO: supabase/criar-bd-financeiro/financeiro_01_schema.sql (idempotente, nao apaga dado).', v_alcanca;
+  END IF;
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
 -- PREPARAÇÃO: 2 empresas, 2 donos, 1 dependente e 1 Desenvolvedor
 -- ---------------------------------------------------------------------------
 INSERT INTO auth.users (instance_id, id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
@@ -512,6 +546,75 @@ BEGIN
     14, CASE WHEN v_erro='nenhum' AND v_sobrou_a = 0 AND v_sobrou_b = 1 THEN 'PASSOU' ELSE 'FALHOU' END, 'RN-28',
     'Botao do Desenvolvedor apaga a empresa A inteira e nao toca na B',
     format('erro=%s; retorno=%s; sobrou na A=%s; sobrou na B=%s', v_erro, v_res::text, v_sobrou_a, v_sobrou_b));
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 15 — A SEGUNDA TRANCA: nenhuma função `fin_*` responde ao ANÔNIMO
+--
+-- ⚠️ ESTE TESTE NASCEU DE UM DEFEITO REAL (2026-09-13). As 17 funções do
+-- módulo estavam alcançáveis pelo papel `anon`, porque no PostgreSQL **toda
+-- função nasce com EXECUTE concedido a PUBLIC** e o schema só escrevia
+-- `GRANT ... TO authenticated` — que não tira nada de ninguém. A pior delas era
+-- `fin_apagar_dados_da_empresa`, que apaga o financeiro inteiro de uma empresa.
+-- Não houve vazamento (as funções conferem `fin_pode()` / `is_superuser()`, que
+-- dependem de `auth.uid()`), mas a regra da plataforma são DUAS trancas.
+-- ===========================================================================
+DO $$
+DECLARE v_abertas int; v_quais text;
+BEGIN
+  SELECT count(*), COALESCE(string_agg(p.proname, ', ' ORDER BY p.proname), '—')
+    INTO v_abertas, v_quais
+    FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+   WHERE n.nspname = 'public' AND p.proname LIKE 'fin\_%'
+     AND has_function_privilege('anon', p.oid, 'EXECUTE');
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    15, CASE WHEN v_abertas = 0 THEN 'PASSOU' ELSE 'FALHOU' END, 'SEGUNDA TRANCA',
+    'Nenhuma funcao fin_* responde ao papel anon (sem login)',
+    format('%s funcao(oes) abertas ao anonimo: %s', v_abertas, v_quais));
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 16 — O CAMINHO FELIZ DO PRIVILÉGIO: o app ALCANÇA as 16 funções
+--
+-- ⚠️ ESTE É O TESTE QUE FALTAVA, E A FALTA CUSTOU UMA MANHÃ. Em 12/09/2026 o
+-- `plataforma_01_schema.sql` foi reaplicado (gesto correto e recomendado, pois
+-- o arquivo é idempotente) e a linha
+-- `REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public …` arrancou o EXECUTE das
+-- funções do MÓDULO. Nada avisou: as tabelas, os dados e as policies
+-- continuaram lá. O sintoma apareceu só na primeira gravação, como
+-- `42501: permission denied for function fin_gravar_lancamento`, e parecia
+-- defeito do módulo.
+--
+-- É a mesma lição do degrau 7-b: os testes provavam as RECUSAS e nenhum
+-- provava que alguém CONSEGUE. Um teste de trava que não tem o par do caminho
+-- feliz aprova um sistema trancado por fora.
+--
+-- ⚠️ `fin_apagar_dados_da_empresa` FICA DE FORA DE PROPÓSITO: ela é chamada de
+-- dentro de `admin_apagar_dados_do_modulo` e NÃO deve responder ao cliente.
+-- São 16 de 17.
+-- ===========================================================================
+DO $$
+DECLARE v_alcanca int; v_faltando text;
+BEGIN
+  SELECT count(*) FILTER (WHERE has_function_privilege('authenticated', p.oid, 'EXECUTE')),
+         COALESCE(string_agg(p.proname, ', ' ORDER BY p.proname)
+                  FILTER (WHERE NOT has_function_privilege('authenticated', p.oid, 'EXECUTE')), '—')
+    INTO v_alcanca, v_faltando
+    FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+   WHERE n.nspname = 'public' AND p.proname LIKE 'fin\_%'
+     AND p.proname <> 'fin_apagar_dados_da_empresa';
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    16, CASE WHEN v_alcanca = 16 THEN 'PASSOU' ELSE 'FALHOU' END, 'CAMINHO FELIZ',
+    'O app (authenticated) alcanca as 16 funcoes de cliente',
+    format('alcanca %s de 16; sem EXECUTE: %s%s', v_alcanca, v_faltando,
+           CASE WHEN v_alcanca = 16 THEN ''
+                ELSE '  >>> RODE DE NOVO O financeiro_01_schema.sql: alguem reaplicou um REVOKE amplo por cima do modulo.' END));
 END;
 $$;
 

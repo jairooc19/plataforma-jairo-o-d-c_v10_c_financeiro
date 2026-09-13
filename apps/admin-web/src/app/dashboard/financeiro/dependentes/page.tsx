@@ -8,6 +8,7 @@ import {
   type PermissaoFinanceiro, type MembroDoModulo, type ContaMovimento, type FechamentoDaConta,
 } from "@jairo/core";
 import { useEmpresaAtiva } from "@/components/financeiro/useEmpresaAtiva";
+import IconeFin from "@/components/financeiro/IconeFin";
 
 /**
  * 🔑 TELA: DEPENDENTES E FECHAMENTO DE PERÍODO (PJODC v10)
@@ -145,7 +146,7 @@ export default function DependentesPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-black uppercase tracking-tighter text-slate-800">CONFIGURAÇÕES DO MÓDULO</h1>
+      <h1 className="flex items-center gap-2.5 text-2xl font-black uppercase tracking-tighter text-slate-800"><IconeFin nome="configuracoes" tamanho={26} traco={1.75} />CONFIGURAÇÕES DO MÓDULO</h1>
 
       {erro && <div className="bg-red-50 border border-red-200 rounded-2xl px-5 py-4 text-xs font-bold uppercase text-red-800">{erro}</div>}
       {aviso && <div className="bg-emerald-50 border border-emerald-200 rounded-2xl px-5 py-4 text-xs font-bold uppercase text-emerald-800">{aviso}</div>}
@@ -161,7 +162,8 @@ export default function DependentesPage() {
                    className={campo} placeholder="PESSOA@EXEMPLO.COM" />
           </div>
           <button type="button" onClick={procurar} disabled={buscando || !email.trim()}
-                  className="px-6 py-2.5 rounded-xl bg-slate-800 text-white text-xs font-black uppercase tracking-widest disabled:opacity-40">
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-slate-800 text-white text-xs font-black uppercase tracking-widest disabled:opacity-40">
+            <IconeFin nome="pesquisar" tamanho={15} />
             {buscando ? "PROCURANDO…" : "PROCURAR"}
           </button>
         </div>
@@ -181,9 +183,10 @@ export default function DependentesPage() {
                   <p className="text-[11px] font-bold text-slate-400">{m.email}</p>
                 </div>
                 <button type="button" onClick={() => alternarModulo(m)}
-                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest ${
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest ${
                           m.modulo_ativo ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"
                         }`}>
+                  <IconeFin nome={m.modulo_ativo ? "ativo" : "inativo"} tamanho={13} />
                   {m.modulo_ativo ? "MÓDULO ATIVO" : "MÓDULO DESATIVADO"}
                 </button>
               </div>
@@ -233,7 +236,8 @@ export default function DependentesPage() {
           </div>
 
           <button type="button" onClick={fechar} disabled={!dataFechar}
-                  className="mt-4 px-6 py-2.5 rounded-xl bg-slate-800 text-white text-xs font-black uppercase tracking-widest disabled:opacity-40">
+                  className="mt-4 flex items-center gap-2 px-6 py-2.5 rounded-xl bg-slate-800 text-white text-xs font-black uppercase tracking-widest disabled:opacity-40">
+            <IconeFin nome="fechado" tamanho={15} />
             FECHAR PERÍODO
           </button>
 
@@ -250,7 +254,8 @@ export default function DependentesPage() {
                       {f.observacao && <p className="text-[11px] font-bold uppercase text-slate-400">{f.observacao}</p>}
                     </div>
                     <button type="button" onClick={() => reabrir(f.conta_movimento_id)}
-                            className="text-[10px] font-black uppercase tracking-widest text-blue-600">
+                            className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-blue-600">
+                      <IconeFin nome="aberto" tamanho={13} />
                       REABRIR
                     </button>
                   </li>

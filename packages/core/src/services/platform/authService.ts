@@ -65,7 +65,7 @@ export interface ContextoDeMembro {
 
 export interface AuthService {
   signIn(email: string, pass: string): Promise<{ user: User | null; session: Session | null }>;
-  googleSignInOwner(idToken: string): Promise<GoogleSignInResult>;
+  googleSignIn(idToken: string, papel?: 'OWNER' | 'DEPENDENT'): Promise<GoogleSignInResult>;
   signOut(): Promise<{ success: boolean }>;
   refreshSession(): Promise<Session | null>;
   ehDesenvolvedor(): Promise<boolean>;
@@ -82,12 +82,18 @@ export const authService: AuthService = {
   },
 
   /**
-   * 🔑 LOGIN GOOGLE DO PROPRIETÁRIO
+   * 🔑 LOGIN PELO GOOGLE — PROPRIETÁRIO **E** DEPENDENTE (desde 13/09/2026)
+   *
    * Fachada fina: a lógica mora no googleAuthService, que é o dono do assunto.
    * Existe aqui para que a guarita tenha uma porta só.
+   *
+   * ⚠️ CHAMAVA-SE `googleSignInOwner` E FOI RENOMEADA. O nome antigo dizia que a
+   * porta era do Proprietário; ela deixou de ser. Como o Dependente não tinha
+   * NENHUM caminho para criar conta (o cadastro saiu do menu na v7), manter o
+   * nome antigo esconderia justamente a mudança que resolveu isso.
    */
-  async googleSignInOwner(idToken: string) {
-    return googleAuthService.signInOwner(idToken);
+  async googleSignIn(idToken: string, papel: 'OWNER' | 'DEPENDENT' = 'OWNER') {
+    return googleAuthService.signInComGoogle(idToken, papel);
   },
 
   /**

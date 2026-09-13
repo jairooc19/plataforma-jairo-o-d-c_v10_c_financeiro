@@ -55,8 +55,8 @@ CLAUDE.md · MODULOS.md · README.md
 apps/admin-web/src/app/dashboard/financeiro/     as telas (9 rotas)
 apps/admin-web/src/components/financeiro/        os componentes
 packages/core/src/modules/financeiro/            regras de negócio + manifesto
-supabase/criar-bd-financeiro/                    o banco (4 tabelas, 16 funções)
-supabase/testes/teste_financeiro.sql             as travas do módulo (14 testes)
+supabase/criar-bd-financeiro/                    o banco (4 tabelas, 17 funções)
+supabase/testes/teste_financeiro.sql             as travas do módulo (16 testes)
 ```
 
 E a documentação dele, que também é do módulo:
@@ -151,6 +151,27 @@ export const MANIFESTO_<NOME>: ManifestoDeModulo = {
 - Toda tabela com o prefixo do módulo, **RLS ligada**, policy começando por `tenant_id`.
 - Chave estrangeira aponta **do módulo para a plataforma** (`<pre>_contas.tenant_id → tenants.id`), nunca o contrário.
 - Dinheiro em `numeric(14,2)` ou `bigint` de centavos — nunca ponto flutuante.
+- **Toda função do módulo leva um par `REVOKE` + `GRANT`, nesta ordem.** No
+  PostgreSQL, função nova nasce com `EXECUTE` concedido a **PUBLIC**, e `anon` e
+  `authenticated` herdam de PUBLIC. Escrever só `GRANT ... TO authenticated` não
+  fecha nada — a porta já estava aberta antes. Sem o `REVOKE`, a função responde
+  a quem nem fez login.
+  ```sql
+  REVOKE EXECUTE ON FUNCTION public.<pre>_minha_funcao(uuid) FROM PUBLIC, anon, authenticated;
+  GRANT  EXECUTE ON FUNCTION public.<pre>_minha_funcao(uuid) TO authenticated;
+  ```
+  ⚠️ **Não conte com o `ALTER DEFAULT PRIVILEGES` da plataforma.** A seção 8.4 do
+  `plataforma_01_schema.sql` tinha um `ALTER DEFAULT PRIVILEGES … REVOKE EXECUTE
+  ON FUNCTIONS FROM PUBLIC` que parecia cuidar disso para todo objeto futuro —
+  e não fazia nada (aquele comando só subtrai de um privilégio que ele próprio
+  concedeu; o padrão embutido do PostgreSQL não está lá para ser subtraído).
+  Foi por isso que as 17 funções `fin_*` ficaram abertas ao `anon` de 12 a
+  13/09/2026.
+- ⚠️ **A plataforma não retira privilégio "de tudo".** Quem escrever
+  `REVOKE … ON ALL FUNCTIONS IN SCHEMA public` num arquivo da plataforma
+  desliga o módulo plugado em silêncio: as tabelas e os dados continuam lá, e a
+  primeira gravação responde `42501: permission denied for function <pre>_…`.
+  Aconteceu em 12/09/2026. A plataforma revoga nome a nome, só do que ela criou.
 - Vencimento e competência em `date`; `timestamptz` só para o instante de um registro.
 - **Auditoria do módulo: só `UPDATE` e `DELETE`** (decisão do dono, 12/09/2026). Lançamento é dado de alto volume; auditar `INSERT` faria a trilha crescer sem acrescentar informação — o registro criado já está lá.
 - O `<nome>_02_seed.sql` grava a linha do módulo em `platform_modules`.

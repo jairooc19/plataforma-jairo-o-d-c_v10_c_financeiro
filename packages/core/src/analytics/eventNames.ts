@@ -27,7 +27,13 @@ export const ANALYTICS_EVENTS = {
   AUTH_ATTEMPT_SUCCESS: 'auth_attempt_success', // Login bem-sucedido
   AUTH_ATTEMPT_FAILED: 'auth_attempt_failed',   // Falha (detecção de robôs/brute force)
 
-  // --- FASE 2.1: LOGIN GOOGLE (EXCLUSIVO DO PROPRIETÁRIO) ---
+  // --- FASE 2.1: LOGIN GOOGLE ---
+  // ⚠️ DEIXOU DE SER "EXCLUSIVO DO PROPRIETÁRIO" EM 13/09/2026: o Dependente
+  // passou a entrar pela mesma porta. Os dois eventos com `OWNER` no nome
+  // continuam existindo porque o histórico gravado já usa essas strings —
+  // renomeá-las quebraria a comparação com o que foi coletado antes. Quem
+  // distingue os dois papéis é a propriedade `AUTH_FLOW` ('owner'/'dependent'),
+  // enviada em toda captura.
   AUTH_GOOGLE_ATTEMPT: 'auth_google_attempt',             // Popup devolveu credencial
   AUTH_GOOGLE_OWNER_SUCCESS: 'auth_google_owner_success', // Sessão criada via Google
   AUTH_GOOGLE_OWNER_FAILED: 'auth_google_owner_failed',   // Falha dentro do serviço do Core

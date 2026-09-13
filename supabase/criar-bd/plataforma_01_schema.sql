@@ -1604,7 +1604,62 @@ GRANT SELECT ON public.tenant_modules   TO authenticated;
 
 -- 8.3 Funções: no PostgreSQL o EXECUTE é concedido a PUBLIC por padrão. Tiramos
 -- tudo e devolvemos nome a nome.
-REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC, anon, authenticated;
+--
+-- ⚠️⚠️ NUNCA VOLTE A ESCREVER AQUI
+--      `REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM …`.
+--
+-- Era o que estava neste lugar até 2026-09-13, e custou uma manhã de
+-- diagnóstico. "ALL FUNCTIONS IN SCHEMA public" **não** quer dizer "todas as
+-- funções da plataforma": quer dizer TODAS as funções do schema — as dos
+-- MÓDULOS plugados (as 16 `fin_*` do Controle Financeiro), a rede de segurança
+-- `rls_auto_enable()` do ambiente e as das extensões (`uuid-ossp`,
+-- `unaccent`), que moram no `public` neste banco.
+--
+-- O estrago acontecia num gesto inocente: rodar de novo só este arquivo (que é
+-- idempotente, e por isso é o que se manda rodar). Este REVOKE arrancava o
+-- EXECUTE das funções do módulo, e as linhas seguintes só devolvem as da
+-- plataforma. O módulo continuava lá — tabelas, dados, policies, tudo — e
+-- passava a responder `42501: permission denied for function
+-- fin_gravar_lancamento` na primeira gravação. Nada na tela dizia "faltou um
+-- GRANT"; parecia defeito do módulo.
+--
+-- É o mesmo erro que o CLAUDE.md já proíbe na forma destrutiva ("NUNCA 'LIMPE'
+-- O public COM UM LAÇO DE DROP FUNCTION"), um grau mais suave: aqui não se
+-- apaga a função, apaga-se a permissão dela.
+--
+-- Regra do LEGO: **a plataforma retira privilégio só do que ela própria criou,
+-- nome a nome.** A lista abaixo tem as 27 funções deste arquivo. Ao criar a 28ª,
+-- acrescente-a aqui E no GRANT correspondente — se esquecer o REVOKE, ela nasce
+-- executável por PUBLIC (o padrão do PostgreSQL); se esquecer o GRANT, o app
+-- leva 42501. As duas listas andam juntas.
+
+REVOKE EXECUTE ON FUNCTION public.handle_auto_confirm_email()                   FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.handle_new_user()                             FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.check_is_tenant_member(uuid)                  FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.check_is_tenant_owner(uuid)                   FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.is_superuser()                                FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.can_view_user_profile(uuid)                   FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.get_user_by_email_for_invite(text, uuid)      FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.ensure_google_user_profile(uuid, text, text)  FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.check_profile_completed(uuid)                 FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.delete_user_permanently(uuid)                 FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.admin_list_users()                            FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.admin_list_user_tenants(uuid)                 FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.gerar_slug_empresa(text)                      FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.admin_sync_user_tenants(uuid, jsonb, uuid[])  FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.admin_promote_to_owner(uuid, text)            FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.admin_update_global_settings(jsonb)           FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.sync_auth_users()                             FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.marcar_atualizacao()                          FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.registrar_auditoria()                         FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.modulo_contratado(uuid, text)                 FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.validar_modulos_do_membro()                   FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.admin_set_tenant_module(uuid, text, boolean)  FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.admin_list_tenant_modules(uuid)               FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.modulos_do_membro(uuid)                       FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.modulos_contratados(uuid)                     FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.admin_list_all_tenants()                      FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.admin_apagar_dados_do_modulo(uuid, text)      FROM PUBLIC, anon, authenticated;
 
 -- Chamadas pelo usuário autenticado (o próprio app):
 GRANT EXECUTE ON FUNCTION public.check_profile_completed(uuid)                TO authenticated;
@@ -1637,9 +1692,35 @@ GRANT EXECUTE ON FUNCTION public.modulo_contratado(uuid, text)                TO
 -- `sync_auth_users` e `gerar_slug_empresa` ficam só para o servidor/manutenção:
 -- nenhum GRANT para anon ou authenticated.
 
--- 8.4 O que vier daqui para a frente (tabelas e funções novas do C FINANCEIRO)
--- nasce fechado; cada objeto novo precisa do seu GRANT explícito.
-ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+-- 8.4 ⚠️ AQUI HAVIA UMA PROMESSA QUE O POSTGRESQL NÃO CUMPRE.
+--
+-- A linha era:
+--   ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+-- e o comentário ao lado dizia que "o que vier daqui para a frente nasce
+-- fechado". **Não nasce.** Medido no PostgreSQL 18 local em 2026-09-13:
+--
+--   ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+--   SELECT count(*) FROM pg_default_acl WHERE defaclobjtype = 'f';   -->  0
+--   CREATE FUNCTION public.zz_cobaia() ...;
+--   SELECT has_function_privilege('anon','public.zz_cobaia()','EXECUTE'); -->  true
+--
+-- O comando é aceito sem erro, não grava nada e não muda nada. O motivo é a
+-- semântica do `ALTER DEFAULT PRIVILEGES ... REVOKE`: ele só sabe subtrair de
+-- um privilégio que o PRÓPRIO `ALTER DEFAULT PRIVILEGES` concedeu antes. O
+-- padrão embutido do PostgreSQL ("toda função nova é executável por PUBLIC")
+-- não está em `pg_default_acl` e não pode ser subtraído de lá. (Com `GRANT` a
+-- mesma família de comando funciona — a linha aparece na hora. Foi assim que
+-- se provou que o problema é o `REVOKE`, e não o ambiente.)
+--
+-- A consequência real: as 17 funções `fin_*` do módulo Controle Financeiro
+-- ficaram executáveis pelo papel `anon` desde que o módulo foi plugado — a
+-- plataforma dizia estar cuidando disso, e não estava.
+--
+-- REGRA QUE FICA NO LUGAR DA PROMESSA: **cada função nova precisa do seu par
+-- REVOKE + GRANT, escrito à mão, no arquivo de quem a criou** — as da
+-- plataforma na seção 8.3 acima, as de cada módulo no schema do módulo. Não
+-- existe rede automática; quem esquecer o REVOKE publica a função para a
+-- internet inteira, e nada acusa.
 
 
 -- ===========================================================================

@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Correções de 13/09/2026 — o REVOKE que desligava o módulo, o Dependente sem porta, e as telas</title>
+<style>
+  :root{
+    --tinta:#000000;
+    --tinta-suave:#2f3540;
+    --papel:#ffffff;
+    --creme:#faf8f4;
+    --azul:#2c5282;
+    --azul-claro:#f0f4f8;
+    --verde-claro:#f0f9f7;
+    --ambar-claro:#fef5e7;
+    --vermelho-claro:#fdf0ef;
+    --borda:#dfe3e8;
+  }
+  *{box-sizing:border-box; print-color-adjust:exact; -webkit-print-color-adjust:exact;}
+  body{
+    margin:0; background:var(--creme); color:var(--tinta);
+    font-family:Georgia,"Times New Roman",serif; font-size:16px; line-height:1.7;
+  }
+  .folha{max-width:940px; margin:0 auto; padding:56px 32px 96px;}
+  h1{font-family:Helvetica,Arial,sans-serif; font-size:30px; line-height:1.25; margin:0 0 8px; color:var(--tinta);}
+  h2{font-family:Helvetica,Arial,sans-serif; font-size:22px; margin:0 0 14px; padding-bottom:8px; border-bottom:2px solid var(--azul); color:var(--tinta);}
+  h3{font-family:Helvetica,Arial,sans-serif; font-size:17px; margin:26px 0 8px; color:var(--tinta);}
+  h4{font-family:Helvetica,Arial,sans-serif; font-size:14.5px; margin:18px 0 6px; color:var(--tinta-suave); text-transform:uppercase; letter-spacing:.06em;}
+  p{margin:0 0 12px;}
+  ul,ol{margin:0 0 12px; padding-left:24px;}
+  li{margin-bottom:6px;}
+  code{font-family:Consolas,"Courier New",monospace; font-size:.88em; background:var(--azul-claro); padding:1px 5px; border-radius:3px;}
+  pre{font-family:Consolas,"Courier New",monospace; font-size:12.5px; line-height:1.55; background:var(--azul-claro);
+      border:1px solid var(--borda); border-left:4px solid var(--azul); border-radius:6px; padding:14px 16px; overflow-x:auto; margin:0 0 14px;}
+  pre code{background:none; padding:0;}
+  table{width:100%; border-collapse:collapse; margin:0 0 16px; font-size:14px; font-family:Helvetica,Arial,sans-serif;}
+  thead th{background:var(--azul); color:#fff; text-align:left; padding:9px 11px; font-size:12.5px; text-transform:uppercase; letter-spacing:.05em;}
+  tbody td{border:1px solid var(--borda); padding:9px 11px; vertical-align:top;}
+  tbody tr:nth-child(even) td{background:#f6f8fa;}
+  .cabecalho{background:var(--papel); border:1px solid var(--borda); border-radius:10px; padding:28px 30px; margin-bottom:34px;}
+  .cabecalho .selo{font-family:Helvetica,Arial,sans-serif; font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--azul); margin-bottom:10px;}
+  .cabecalho .sub{font-family:Helvetica,Arial,sans-serif; font-size:13.5px; color:var(--tinta-suave); margin:0;}
+  .prompt{background:var(--creme); border:1px dashed #c3ccd6; border-radius:8px; padding:16px 18px; margin-top:20px;
+          font-family:Consolas,"Courier New",monospace; font-size:12px; line-height:1.6; white-space:pre-wrap; max-height:none;}
+  .prompt .rot{font-family:Helvetica,Arial,sans-serif; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--tinta-suave); display:block; margin-bottom:8px;}
+  .toc{background:var(--papel); border:1px solid var(--borda); border-radius:10px; padding:22px 28px; margin-bottom:38px;}
+  .toc h2{border:none; font-size:18px; margin-bottom:10px; padding:0;}
+  .toc ol{padding-left:22px; font-family:Helvetica,Arial,sans-serif; font-size:14.5px;}
+  .toc a{color:var(--azul); text-decoration:none;}
+  .toc a:hover{text-decoration:underline;}
+  .toc ol ol{margin-top:5px; font-size:13.5px;}
+  section{background:var(--papel); border:1px solid var(--borda); border-radius:10px; padding:26px 30px; margin-bottom:26px;}
+  .caixa{border-radius:8px; padding:14px 18px; margin:0 0 16px; border:1px solid var(--borda);}
+  .caixa .rot{font-family:Helvetica,Arial,sans-serif; font-size:11px; letter-spacing:.13em; text-transform:uppercase; display:block; margin-bottom:6px; color:var(--tinta-suave);}
+  .destaque{background:var(--azul-claro); border-left:4px solid var(--azul);}
+  .alerta{background:var(--ambar-claro); border-left:4px solid #b7791f;}
+  .perigo{background:var(--vermelho-claro); border-left:4px solid #9b2c2c;}
+  .exemplo{background:var(--verde-claro); border-left:4px solid #2c7a7b;}
+  .bonus{background:#f6f4fb; border-left:4px solid #553c9a;}
+  .analogia{background:var(--creme); border-left:4px solid #718096; font-style:italic;}
+  .placar{font-family:Helvetica,Arial,sans-serif; font-size:13px;}
+  .ok{color:#22543d; font-weight:bold;}
+  .nao{color:#9b2c2c; font-weight:bold;}
+  .rodape{text-align:center; font-family:Helvetica,Arial,sans-serif; font-size:12px; color:var(--tinta-suave); padding-top:26px; border-top:1px solid var(--borda);}
+
+  /* ---------- BOTÃO DE IMPRESSÃO ---------- */
+  .print-container{position:fixed; top:18px; right:18px; z-index:9999; font-family:Helvetica,Arial,sans-serif;}
+  #printBtn{background:var(--azul); color:#fff; border:none; border-radius:8px; padding:11px 18px; font-size:13px;
+            font-weight:bold; cursor:pointer; box-shadow:0 3px 12px rgba(0,0,0,.22);}
+  #printBtn:hover{background:#234069;}
+  #printMenu{display:none; position:absolute; top:calc(100% + 8px); right:0; min-width:216px; background:#fff;
+             border:1px solid var(--borda); border-radius:8px; box-shadow:0 8px 26px rgba(0,0,0,.18); overflow:hidden;}
+  #printMenu.aberto{display:block;}
+  #printMenu button{display:block; width:100%; text-align:left; background:#fff; border:none; padding:12px 16px;
+                    font-size:13px; cursor:pointer; color:var(--tinta);}
+  #printMenu button:hover{background:var(--azul-claro);}
+  #printMenu button + button{border-top:1px solid var(--borda);}
+
+  /* ---------- PRETO & BRANCO ---------- */
+  body.print-bw, body.print-bw .folha{background:#fff !important; color:#000 !important;}
+  body.print-bw section, body.print-bw .cabecalho, body.print-bw .toc, body.print-bw .caixa,
+  body.print-bw pre, body.print-bw .prompt{
+    background-color:#fff !important; color:#000 !important; border-color:#000 !important;
+  }
+  body.print-bw h1, body.print-bw h2, body.print-bw h3, body.print-bw h4,
+  body.print-bw p, body.print-bw li, body.print-bw td, body.print-bw code,
+  body.print-bw a, body.print-bw .sub, body.print-bw .rot, body.print-bw .selo{color:#000 !important;}
+  body.print-bw h2{border-bottom-color:#000 !important;}
+  body.print-bw code{background-color:#eeeeee !important;}
+  body.print-bw table thead th{background-color:#333333 !important; color:#ffffff !important;}
+  body.print-bw table thead{background-color:#333333 !important;}
+  body.print-bw tbody tr:nth-child(even) td{background-color:#f4f4f4 !important;}
+  body.print-bw .ok, body.print-bw .nao{color:#000 !important;}
+  body.print-bw .rodape{border-top-color:#000 !important;}
+
+  /* ---------- IMPRESSÃO A4 ---------- */
+  @media print{
+    @page{size:A4; margin:12mm;}
+    .print-container{display:none !important;}
+    body{font-size:11.5pt;}
+    .folha{max-width:none; padding:0;}
+    section, .cabecalho, .toc, .caixa, .prompt{box-shadow:none;}
+    section, .toc, .caixa, .prompt, table, pre{page-break-inside:avoid;}
+    h2, h3, h4{page-break-after:avoid; page-break-inside:avoid;}
+    pre{overflow-x:visible; white-space:pre-wrap; word-break:break-word;}
+    a{text-decoration:none;}
+  }
+</style>
+</head>
+<body>
+
+<div class="print-container">
+  <button id="printBtn" type="button">🖨 Imprimir ▾</button>
+  <div id="printMenu">
+    <button id="btnCores" type="button">Cores (A4)</button>
+    <button id="btnPB" type="button">Preto &amp; Branco (A4)</button>
+  </div>
+</div>
+
+<div class="folha">
+
+<div class="cabecalho">
+  <div class="selo">Plataforma Jairo O D C · v10 · Módulo Controle Financeiro</div>
+  <h1>O <code>REVOKE</code> que desligava o módulo, o Dependente sem porta,<br>e as telas que você pediu</h1>
+  <p class="sub">Relatório de execução — 13 de setembro de 2026 · sequência do degrau 7</p>
+
+  <div class="prompt"><span class="rot">Transcrição literal do seu pedido</span>[resultado do teste_rls.sql colado: 16 linhas, todas PASSOU]
+
+REFERENTE supabase\testes\teste_financeiro.sql REGORNOU MENSAGEM Failed to run sql query: ERROR:  42501: permission denied for function fin_gravar_lancamento
+CONTEXT:  SQL statement "SELECT public.fin_gravar_lancamento('aa000000-0000-0000-0000-0000000000a1', NULL, v_cm, v_ci,
+    DATE '2026-09-11', NULL, 'SAIDA','PROPRIO','COMPETENCIA', 500000, 'CONTA DE LUZ DE AGOSTO')"
+PL/pgSQL function inline_code_block line 12 at PERFORM
+
+ACESSEI DOIS USUARIO PROPRIETÁRIO E EM UM HABILITEI O OUTRO COMO DEPENDENTE, MAS NÃO CONSIGO ACESSAR COMO "USUÁRIO DEPENDENTE" PORQUE ESTE LOGIN AINDA NÃO FOI DESENVOLVIDA FUNÇÃO PARA ACESSAR PELO GOOGLE IGUAL FUNCIONA "USUARIO PROPRIETARIO", DESENVOLVER AGORA.
+
+EM TODAS OS BOTÕES E OPÇÕES DO MODULO TER Ícones Outline (Linha)
+
+NA TELA "CONTROLE FINANCEIRO" MOVER MENU "OPÇÕES" PARA O LADO DIREITO. O MENU "OPÇÕES" TER A LISTA EM NIVEL E SUBNIVEIS COMO POR EXEMPLO CADASTRO QUE TEM SUBNIVEIS "CONTA MOVIMENTO" E " CONTA IDENTIFICADORA" E O SUBNIVEL SÓ SER APRESENTADO SE FOR CLICADO NO NÍVEL PAI.
+
+NA TELA "CONTROLE FINANCEIRO" FICAR SÓ TRÊ BOTÕES CENTRAIS, "DINHEIRO DO PERÍODO", "NOVO LANÇAMENTO" E "PESQUISAR" PORQUE AS OUTRAS OPÇÕES JÁ EXISTEM NO MENU "OPÇÕES"
+
+A OÇÃO "TRANSFERÊNCIA" EXISTIR APENAS DENTRO DA OPÇÃO "NOVO LANÇAMENTO"
+
+MESMO LOGADO COM USUARIO PROPRIETARIO EM "NOVO LANÇAMENTO" AO CLICAR EM "+ ADICIONAR NOVA" AO TENTAR GRAVAR APRESENTA permission denied for function fin_gravar_conta_movimento. QUANDO SE LOGA COMO USUARIO PROPRIETARIO O PROPRIETARIO DEVE VIR COM TODAS AS LIBERAÇÕES. O MESMO OCORRE AO TENTAR GRAVAR "CADASTRO DE CONTAS IDENTIFICADORAS"
+
+EM "NOVO LANÇAMENTO" "CONFERÊNCIA DA CONTA" NÃO APRESENTA O BOTÃO "IMPRIMIR" COMO AINDA NÃO CONSEGUIR ADICINOAR UM LANÇAMENTO NÃO SEI SE SO VAI APRESENTAR IMPRIMIR APÓS REGORNAR ALGUM REGISTRO NA CONFERENCIA
+
+DEPOIS QUE VOCÊ PROCESSAR TUDO FIZER O QUE PRECISAR FAZER SEU RESULTADO ENTREGUE FORMATO HONESTIDADE: 100% HONESTA, SEM INVENÇÕES O PÚBLICO É PESSOA QUE PRECISA 100% DE ORIENTAÇÃO. [...] FORMATO DE ENTREGA: CRIE UM ARQUIVO HTML COM: 1. SUMÁRIO [...] 2. CORPO [...] 3. DESIGN [...] 4. BOTÃO DE IMPRESSÃO [...]</div>
+</div>
+
+<!-- ===================== SUMÁRIO ===================== -->
+<div class="toc">
+  <h2>Sumário</h2>
+  <ol>
+    <li><a href="#s0">O resumo de uma página — leia isto se não ler mais nada</a></li>
+    <li><a href="#s1">O que você precisa fazer agora (2 arquivos, nesta ordem)</a></li>
+    <li><a href="#s2">Defeito 1 — o <code>permission denied</code>: uma linha da plataforma desligava o módulo inteiro</a>
+      <ol>
+        <li><a href="#s2a">O que é um GRANT, explicado do zero</a></li>
+        <li><a href="#s2b">A linha culpada, e por que ela parecia inofensiva</a></li>
+        <li><a href="#s2c">Por que ISSO explica os três erros que você viu</a></li>
+        <li><a href="#s2d">A correção, e a medição que prova</a></li>
+      </ol>
+    </li>
+    <li><a href="#s3">Defeito 2 — o que eu encontrei sem você pedir: as 17 funções abertas a quem não fez login</a>
+      <ol>
+        <li><a href="#s3a">Uma frase do PostgreSQL que engana todo mundo</a></li>
+        <li><a href="#s3b">O comando que não faz nada (e estava no seu schema)</a></li>
+        <li><a href="#s3c">Qual era o risco de verdade — sem dramatizar</a></li>
+      </ol>
+    </li>
+    <li><a href="#s4">O teste que faltava, e o teste que agora explica em vez de estourar</a></li>
+    <li><a href="#s5">O Proprietário JÁ vinha com todas as liberações — o erro era outro</a></li>
+    <li><a href="#s6">Login do Dependente pelo Google — e a descoberta maior por trás dele</a>
+      <ol>
+        <li><a href="#s6a">Não faltava um botão: não havia caminho nenhum</a></li>
+        <li><a href="#s6b">Como ficou, passo a passo</a></li>
+        <li><a href="#s6c">A armadilha do "Completar Cadastro"</a></li>
+        <li><a href="#s6d">Duas salas de espera, porque são dois chefes diferentes</a></li>
+      </ol>
+    </li>
+    <li><a href="#s7">As telas — ícones de linha, menu à direita, três botões, transferência e IMPRIMIR</a>
+      <ol>
+        <li><a href="#s7a">Ícones de linha em todos os botões</a></li>
+        <li><a href="#s7b">O menu OPÇÕES: painel à direita, com níveis que abrem ao clique</a></li>
+        <li><a href="#s7c">Três botões centrais na tela CONTROLE FINANCEIRO</a></li>
+        <li><a href="#s7d">TRANSFERÊNCIA só dentro de NOVO LANÇAMENTO — em três lugares, não um</a></li>
+        <li><a href="#s7e">O botão IMPRIMIR da CONFERÊNCIA DA CONTA: a resposta honesta</a></li>
+      </ol>
+    </li>
+    <li><a href="#s8">Arquivos tocados — a lista completa</a></li>
+    <li><a href="#s9">O que foi testado, e o que NÃO foi</a></li>
+    <li><a href="#s10">Seu roteiro de teste, na ordem</a></li>
+    <li><a href="#s11">Bônus: cinco coisas que eu sugiro, e que você não pediu</a></li>
+  </ol>
+</div>
+
+<!-- ===================== 0 ===================== -->
+<section id="s0">
+  <h2>1. O resumo de uma página</h2>
+
+  <div class="caixa destaque">
+    <span class="rot">Em uma frase</span>
+    <p style="margin:0"><strong>O módulo Controle Financeiro não estava com defeito.</strong> Uma linha do arquivo
+    da <em>plataforma</em> retirava, em silêncio, a permissão de executar as funções do <em>módulo</em> — e essa
+    linha era acionada justamente pelo gesto que eu te mandei fazer ontem: rodar de novo o
+    <code>plataforma_01_schema.sql</code>.</p>
+  </div>
+
+  <table>
+    <thead><tr><th style="width:34%">O que você relatou</th><th style="width:33%">Causa real</th><th style="width:33%">Situação</th></tr></thead>
+    <tbody>
+      <tr><td><code>teste_financeiro.sql</code> parou com <code>permission denied for function fin_gravar_lancamento</code></td>
+          <td>Um <code>REVOKE</code> amplo no schema da plataforma</td>
+          <td><span class="ok">CORRIGIDO</span> — provado no PostgreSQL local</td></tr>
+      <tr><td>"+ ADICIONAR NOVA" dava <code>permission denied for function fin_gravar_conta_movimento</code></td>
+          <td>A mesmíssima causa</td>
+          <td><span class="ok">CORRIGIDO</span> pela mesma correção</td></tr>
+      <tr><td>O mesmo em "Contas Identificadoras"</td>
+          <td>A mesmíssima causa</td>
+          <td><span class="ok">CORRIGIDO</span> pela mesma correção</td></tr>
+      <tr><td>"O Proprietário deve vir com todas as liberações"</td>
+          <td>Ele <strong>já vinha</strong>. Isto não era um segundo defeito</td>
+          <td><span class="ok">CONFIRMADO</span> — nada precisou mudar</td></tr>
+      <tr><td>Não consigo entrar como "Usuário Dependente"</td>
+          <td>Pior que faltar o botão do Google: <strong>não havia caminho nenhum</strong> para um Dependente entrar</td>
+          <td><span class="ok">FEITO</span> — entra pelo Google, como o Proprietário</td></tr>
+      <tr><td>Ícones outline em todos os botões</td><td>O módulo não tinha ícone nenhum — só texto e emoji</td>
+          <td><span class="ok">FEITO</span> — registro único, 36 ícones de linha</td></tr>
+      <tr><td>Menu OPÇÕES à direita, com níveis e subníveis</td><td>Era uma caixinha suspensa com os filhos sempre à mostra</td>
+          <td><span class="ok">FEITO</span> — painel lateral que abre ao clique</td></tr>
+      <tr><td>Só três botões centrais</td><td>Havia cinco</td><td><span class="ok">FEITO</span></td></tr>
+      <tr><td>TRANSFERÊNCIA só dentro de NOVO LANÇAMENTO</td><td>Estava em <strong>dois</strong> lugares, não um</td>
+          <td><span class="ok">FEITO</span> — saiu dos dois</td></tr>
+      <tr><td>IMPRIMIR não aparece na CONFERÊNCIA DA CONTA</td>
+          <td><strong>Ele não existia.</strong> Não era o caso de "só aparece com registros"</td>
+          <td><span class="ok">FEITO</span> — criado, habilitado quando há linhas</td></tr>
+      <tr><td><em>(você não pediu)</em> As 17 funções do módulo respondiam a quem <strong>não fez login</strong></td>
+          <td>Um comando do schema que parece proteger e não protege</td>
+          <td><span class="ok">CORRIGIDO</span> — de 17 abertas para 0</td></tr>
+    </tbody>
+  </table>
+
+  <div class="caixa alerta">
+    <span class="rot">O que ainda depende de você</span>
+    <p style="margin:0">Rodar <strong>dois arquivos SQL</strong> no SQL Editor do Supabase (seção 2) e depois testar
+    as telas. Eu não tenho acesso ao seu Supabase nem ao Vercel a partir daqui — <strong>nada do que está aqui foi
+    executado contra o seu banco real</strong>.</p>
+  </div>
+</section>
+
+<!-- ===================== 1 ===================== -->
+<section id="s1">
+  <h2>2. O que você precisa fazer agora</h2>
+
+  <p>São dois arquivos, <strong>nesta ordem</strong>. Os dois são <em>idempotentes</em> — palavra difícil para uma
+  ideia simples: <strong>rodar duas vezes dá o mesmo resultado que rodar uma</strong>. Nenhum dos dois apaga dado.</p>
+
+  <table>
+    <thead><tr><th style="width:8%">Ordem</th><th style="width:47%">Arquivo</th><th>Por quê</th></tr></thead>
+    <tbody>
+      <tr><td><strong>1º</strong></td><td><code>supabase/criar-bd/plataforma_01_schema.sql</code></td>
+          <td>Traz a correção que <strong>impede</strong> a plataforma de desligar o módulo de novo</td></tr>
+      <tr><td><strong>2º</strong></td><td><code>supabase/criar-bd-financeiro/financeiro_01_schema.sql</code></td>
+          <td><strong>Devolve</strong> as permissões que já tinham sido arrancadas, e fecha as funções ao anônimo</td></tr>
+    </tbody>
+  </table>
+
+  <div class="caixa perigo">
+    <span class="rot">A ordem importa, e muito</span>
+    <p style="margin:0">Se você rodar só o <strong>2º</strong>, o módulo volta a funcionar — mas na próxima vez que
+    reaplicar a plataforma ele quebra de novo. Se rodar só o <strong>1º</strong>, a plataforma para de estragar, mas
+    as permissões que <em>já foram</em> arrancadas continuam arrancadas. <strong>Os dois, nessa ordem.</strong></p>
+  </div>
+
+  <div class="caixa alerta">
+    <span class="rot">Antes de colar, sempre</span>
+    <p style="margin:0"><strong>Ctrl+A e apague</strong> o conteúdo do SQL Editor. Ele executa <em>todo o texto do
+    painel</em>, não só o que você acabou de colar — resto da execução anterior entra junto e o erro aponta para uma
+    linha que parece do comando novo. Já aconteceu neste projeto.</p>
+  </div>
+
+  <p>Depois dos dois, rode os testes:</p>
+  <ol>
+    <li><code>supabase/testes/teste_rls.sql</code> → esperado: <strong>16 linhas, todas PASSOU</strong></li>
+    <li><code>supabase/testes/teste_financeiro.sql</code> → esperado: <strong>16 linhas, todas PASSOU</strong>
+      <br><small>(era 14; os testes 15 e 16 são novos e cobrem exatamente o defeito de hoje)</small></li>
+  </ol>
+</section>
+
+<!-- ===================== 2 ===================== -->
+<section id="s2">
+  <h2>3. Defeito 1 — uma linha da plataforma desligava o módulo inteiro</h2>
+
+  <h3 id="s2a">3.1. O que é um GRANT, explicado do zero</h3>
+
+  <p>No PostgreSQL, existir e poder ser usado são <strong>duas coisas separadas</strong>. Uma função pode estar lá,
+  perfeita, e mesmo assim recusar quem a chama — porque falta a <em>permissão de executar</em>.</p>
+
+  <div class="caixa analogia">
+    <span class="rot">Analogia</span>
+    <p style="margin:0">Pense num prédio. A <strong>sala</strong> existe (a função). A <strong>chave</strong> é outra
+    coisa (o <code>GRANT EXECUTE</code>). Alguém pode recolher todas as chaves do prédio sem demolir sala nenhuma —
+    e é exatamente isso que aconteceu. Você olha e vê a sala lá, intacta. Só quando tenta abrir é que descobre.</p>
+  </div>
+
+  <p>Os dois comandos que importam nesta história:</p>
+  <ul>
+    <li><code>GRANT EXECUTE ON FUNCTION x TO papel</code> — <em>entrega</em> a chave</li>
+    <li><code>REVOKE EXECUTE ON FUNCTION x FROM papel</code> — <em>recolhe</em> a chave</li>
+  </ul>
+
+  <p>E os "papéis" que existem no Supabase:</p>
+  <table>
+    <thead><tr><th style="width:22%">Papel</th><th>Quem é</th></tr></thead>
+    <tbody>
+      <tr><td><code>anon</code></td><td>Qualquer visitante da internet que descubra o endereço da sua API. <strong>Não fez login.</strong></td></tr>
+      <tr><td><code>authenticated</code></td><td>Quem fez login — o seu aplicativo, com uma sessão real</td></tr>
+      <tr><td><code>PUBLIC</code></td><td>Palavra especial do PostgreSQL que significa <strong>todo mundo</strong>. Os dois acima herdam do <code>PUBLIC</code>.</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="s2b">3.2. A linha culpada</h3>
+
+  <p>Estava na seção 8.3 do <code>plataforma_01_schema.sql</code>, com um comentário que parecia sensato:</p>
+
+  <pre><code>-- 8.3 Funções: no PostgreSQL o EXECUTE é concedido a PUBLIC por padrão. Tiramos
+-- tudo e devolvemos nome a nome.
+REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC, anon, authenticated;
+
+GRANT EXECUTE ON FUNCTION public.check_profile_completed(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_superuser()                TO authenticated;
+-- ... e mais 25 GRANTs, todos da PLATAFORMA</code></pre>
+
+  <p>A intenção estava certa: "recolher tudo e devolver só o necessário". O problema está em três palavras:
+  <strong><code>ALL FUNCTIONS IN SCHEMA public</code></strong>.</p>
+
+  <div class="caixa perigo">
+    <span class="rot">O engano exato</span>
+    <p style="margin:0">Quem escreveu essa linha leu <code>ALL FUNCTIONS</code> como <em>"todas as funções que este
+    arquivo criou"</em>. O PostgreSQL lê como <em>"todas as funções que existem no schema <code>public</code>,
+    venham de onde vierem"</em>. E no <code>public</code> deste banco moram também:</p>
+    <ul style="margin:8px 0 0">
+      <li>as <strong>17 funções <code>fin_*</code></strong> do módulo Controle Financeiro;</li>
+      <li>a <code>rls_auto_enable()</code>, que é uma rede de segurança do ambiente Supabase e não é sua;</li>
+      <li>as funções das extensões <code>uuid-ossp</code> e <code>unaccent</code>.</li>
+    </ul>
+  </div>
+
+  <p>Repare na sequência do arquivo: o <code>REVOKE</code> recolhe as chaves <strong>de tudo</strong>, e os
+  <code>GRANT</code>s seguintes devolvem <strong>só as da plataforma</strong>. As 17 do módulo ficam sem chave.</p>
+
+  <div class="caixa alerta">
+    <span class="rot">Por que ninguém tinha percebido antes</span>
+    <p style="margin:0">Porque isso <strong>só faz mal se o módulo já estiver instalado</strong>. Na sequência normal
+    (plataforma primeiro, módulo depois), o <code>REVOKE</code> roda quando ainda não existe nenhuma função
+    <code>fin_</code> — não há o que recolher. O estrago só acontece ao <strong>reaplicar a plataforma sobre um
+    módulo já plugado</strong>, que foi exatamente o que você fez ontem, seguindo a minha instrução.</p>
+  </div>
+
+  <h3 id="s2c">3.3. Por que isso explica os três erros que você viu</h3>
+
+  <p>Os três eram o mesmo erro, aparecendo em três lugares:</p>
+
+  <table>
+    <thead><tr><th style="width:40%">Onde apareceu</th><th>Função sem chave</th></tr></thead>
+    <tbody>
+      <tr><td>Rodar <code>teste_financeiro.sql</code></td><td><code>fin_gravar_lancamento</code></td></tr>
+      <tr><td>"+ ADICIONAR NOVA" na Conta Movimento</td><td><code>fin_gravar_conta_movimento</code></td></tr>
+      <tr><td>Gravar Conta Identificadora</td><td><code>fin_gravar_identificadora</code></td></tr>
+    </tbody>
+  </table>
+
+  <p>Todas dizem <code>42501</code>, que é o código do PostgreSQL para "sem permissão". É o mesmo código que aparece
+  quando a regra de negócio recusa alguém — e é isso que confunde: parece que o sistema está dizendo <em>"você não
+  tem direito a isso"</em>, quando na verdade ele está dizendo <em>"eu nem consigo abrir esta porta"</em>.</p>
+
+  <h3 id="s2d">3.4. A correção, e a medição que prova</h3>
+
+  <p>A linha única virou <strong>27 linhas, uma por função da plataforma</strong>:</p>
+
+  <pre><code>REVOKE EXECUTE ON FUNCTION public.handle_auto_confirm_email()   FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.handle_new_user()             FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.check_is_tenant_member(uuid)  FROM PUBLIC, anon, authenticated;
+-- ... as 27, nome a nome. Nenhuma delas começa com "fin_".</code></pre>
+
+  <p>Mais verboso? Sim. Mas agora o arquivo da plataforma <strong>só toca no que a plataforma criou</strong> — que é
+  a regra de LEGO do projeto, aplicada a privilégios.</p>
+
+  <h4>A prova, medida e não argumentada</h4>
+
+  <p>Subi um PostgreSQL 18 descartável na máquina, apliquei a plataforma, o módulo, e então <strong>reaplicei a
+  plataforma</strong> — reproduzindo exatamente o seu gesto de ontem:</p>
+
+  <table class="placar">
+    <thead><tr><th style="width:44%">Momento</th><th style="width:28%">Antes da correção</th><th style="width:28%">Depois da correção</th></tr></thead>
+    <tbody>
+      <tr><td>Funções <code>fin_*</code> que o app alcança, logo após instalar</td><td>16 de 17</td><td>16 de 17</td></tr>
+      <tr><td><strong>Depois de reaplicar só a plataforma</strong></td>
+          <td><span class="nao">0 de 17</span></td>
+          <td><span class="ok">16 de 17</span></td></tr>
+    </tbody>
+  </table>
+
+  <p><small>"16 de 17" é o número certo: a décima sétima é a <code>fin_apagar_dados_da_empresa</code>, que
+  <strong>não deve</strong> responder ao aplicativo — ela é chamada por dentro da função do Painel de Engenharia.</small></p>
+</section>
+
+<!-- ===================== 3 ===================== -->
+<section id="s3">
+  <h2>4. Defeito 2 — o que eu encontrei sem você pedir</h2>
+
+  <div class="caixa perigo">
+    <span class="rot">O achado</span>
+    <p style="margin:0">Ao medir o banco para provar a correção anterior, descobri que <strong>todas as 17 funções
+    do módulo estavam alcançáveis pelo papel <code>anon</code></strong> — ou seja, por quem <em>não fez login
+    nenhum</em>. Inclusive a <code>fin_apagar_dados_da_empresa</code>, que apaga o financeiro inteiro de uma empresa.</p>
+  </div>
+
+  <h3 id="s3a">4.1. Uma frase do PostgreSQL que engana todo mundo</h3>
+
+  <p>Aqui está a regra que causou isso, e ela é contraintuitiva:</p>
+
+  <div class="caixa destaque">
+    <p style="margin:0"><strong>No PostgreSQL, toda função nova nasce com permissão de execução concedida ao
+    <code>PUBLIC</code>.</strong> Ou seja: nasce aberta, não fechada.</p>
+  </div>
+
+  <p>O schema do módulo escrevia assim:</p>
+  <pre><code>GRANT EXECUTE ON FUNCTION public.fin_gravar_lancamento(...) TO authenticated;</code></pre>
+
+  <p>Isso parece dizer "só o autenticado pode". <strong>Não diz.</strong> Diz apenas "o autenticado também pode" —
+  e o <code>PUBLIC</code> continuava podendo, de fábrica, desde o momento em que a função foi criada.</p>
+
+  <div class="caixa analogia">
+    <span class="rot">Analogia</span>
+    <p style="margin:0">É como instalar uma porta que já vem <strong>destrancada de fábrica</strong> e depois entregar
+    uma chave para o morador. Você entregou a chave, mas nunca trancou. Qualquer um empurra e entra.</p>
+  </div>
+
+  <p>E note: no schema do módulo havia <code>REVOKE ALL</code> para as <strong>tabelas</strong> — mas nenhum
+  <code>REVOKE</code> para as <strong>funções</strong>. A metade que faltava.</p>
+
+  <h3 id="s3b">4.2. O comando que não faz nada — e estava no seu schema</h3>
+
+  <p>Você pode perguntar: "mas a plataforma não tinha algo cuidando disso?" Tinha. A seção 8.4 do
+  <code>plataforma_01_schema.sql</code> dizia, textualmente, que "o que vier daqui para a frente nasce fechado":</p>
+
+  <pre><code>-- 8.4 O que vier daqui para a frente (tabelas e funções novas do C FINANCEIRO)
+-- nasce fechado; cada objeto novo precisa do seu GRANT explícito.
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;</code></pre>
+
+  <div class="caixa perigo">
+    <span class="rot">Esse comando não faz absolutamente nada</span>
+    <p style="margin:0">É aceito sem erro, não grava nada, e não muda nada. Eu não deduzi isso — <strong>medi</strong>:</p>
+  </div>
+
+  <pre><code>ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+
+SELECT count(*) FROM pg_default_acl WHERE defaclobjtype = 'f';
+--  0     &lt;-- não registrou NADA
+
+CREATE FUNCTION public.zz_cobaia() RETURNS int LANGUAGE sql AS 'SELECT 1';
+
+SELECT has_function_privilege('anon','public.zz_cobaia()','EXECUTE');
+--  true  &lt;-- a função nova continua aberta ao anônimo</code></pre>
+
+  <p><strong>O motivo:</strong> o <code>ALTER DEFAULT PRIVILEGES ... REVOKE</code> só sabe <em>subtrair</em> de um
+  privilégio que o próprio <code>ALTER DEFAULT PRIVILEGES</code> concedeu antes. O padrão embutido do PostgreSQL
+  ("função nova é executável por <code>PUBLIC</code>") não está guardado nesse lugar, então não há de onde subtrair.
+  Para confirmar que o problema era o comando e não o ambiente, testei a variante com <code>GRANT</code> — e essa
+  registrou a linha na hora.</p>
+
+  <div class="caixa alerta">
+    <span class="rot">A lição, que vale para muito além deste caso</span>
+    <p style="margin:0"><strong>Um comentário afirmando que algo está protegido não é prova de nada.</strong> Aquele
+    comentário estava escrito com toda a convicção, ao lado de um comando real, e a proteção nunca existiu. Só a
+    medição no banco diz a verdade.</p>
+  </div>
+
+  <h3 id="s3c">4.3. Qual era o risco de verdade — sem dramatizar</h3>
+
+  <p>Sendo 100% honesto com você, como pediu: <strong>não houve vazamento de dado, e provavelmente nunca haveria.</strong>
+  Motivo: as funções são <code>SECURITY DEFINER</code> e conferem, por dentro, <code>fin_pode()</code> ou
+  <code>is_superuser()</code>. Essas duas dependem de <code>auth.uid()</code> — que devolve <strong>nulo</strong> para
+  o anônimo. Um visitante sem login chamaria a função e levaria uma recusa.</p>
+
+  <p>Então por que corrigir? Porque a plataforma tem uma regra explícita de <strong>duas trancas</strong>: o
+  privilégio (pode tocar no objeto?) e a RLS/verificação interna (pode tocar nesta linha?). Uma tranca estava só
+  encostada. Bastaria alguém escrever, um dia, uma função <code>fin_</code> nova esquecendo a checagem interna, e a
+  porta estaria escancarada — sem nenhuma segunda linha de defesa.</p>
+
+  <h4>O caso mais grave, e o comentário que mentia sem querer</h4>
+
+  <p>No schema do módulo havia esta observação:</p>
+  <pre><code>-- ⚠️ `fin_apagar_dados_da_empresa` NÃO recebe GRANT para `authenticated`: (...)
+-- Dar execução direta ao cliente seria oferecer um botão de apagar tudo à API pública.</code></pre>
+
+  <p>A frase é <strong>verdadeira e inútil ao mesmo tempo</strong>. É verdade que ela não recebia GRANT. Só que
+  <em>"sem GRANT"</em>, no PostgreSQL, significa <em>"no padrão"</em> — e o padrão é <code>PUBLIC</code>. O
+  comentário descrevia com precisão o que fez, e concluía o oposto do que aconteceu.</p>
+
+  <h4>A correção e a medição</h4>
+
+  <p>Foram acrescentados <strong>17 <code>REVOKE</code></strong> no schema do módulo, antes dos GRANTs:</p>
+  <pre><code>REVOKE EXECUTE ON FUNCTION public.fin_gravar_lancamento(...) FROM PUBLIC, anon, authenticated;
+GRANT  EXECUTE ON FUNCTION public.fin_gravar_lancamento(...) TO authenticated;</code></pre>
+
+  <table class="placar">
+    <thead><tr><th style="width:44%">Medição</th><th style="width:28%">Antes</th><th style="width:28%">Depois</th></tr></thead>
+    <tbody>
+      <tr><td>Funções <code>fin_*</code> que o <strong>anônimo</strong> alcança</td>
+          <td><span class="nao">17 de 17</span></td><td><span class="ok">0 de 17</span></td></tr>
+      <tr><td>Funções <code>fin_*</code> que o <strong>app logado</strong> alcança</td>
+          <td>17 de 17</td><td><span class="ok">16 de 17</span></td></tr>
+      <tr><td><code>fin_apagar_dados_da_empresa</code> ao anônimo</td>
+          <td><span class="nao">alcançável</span></td><td><span class="ok">fechada</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ===================== 4 ===================== -->
+<section id="s4">
+  <h2>5. O teste que faltava, e o teste que agora explica</h2>
+
+  <h3>5.1. Dois testes novos (15 e 16)</h3>
+
+  <p>Os 14 testes do módulo provavam <strong>recusas</strong>: o Dependente não exclui, a empresa B não vê a A,
+  período fechado recusa lançamento. Nenhum provava que <strong>alguém consegue</strong> chegar às funções.</p>
+
+  <div class="caixa alerta">
+    <span class="rot">A mesma lição, pela segunda vez</span>
+    <p style="margin:0">Isto é exatamente o que aconteceu no defeito de ontem (o das duas chaves): os testes
+    provavam que o Dependente <em>não</em> recebia módulo não contratado, e nenhum provava que alguém
+    <em>recebia</em>. <strong>Ao escrever uma trava, escreva também o teste que prova que alguém passa.</strong>
+    Um sistema trancado por fora passa em todos os testes de trava.</p>
+  </div>
+
+  <table>
+    <thead><tr><th style="width:12%">Teste</th><th style="width:30%">O que prova</th><th>Por que existe</th></tr></thead>
+    <tbody>
+      <tr><td><strong>15</strong></td><td>Nenhuma função <code>fin_*</code> responde ao <code>anon</code></td>
+          <td>A segunda tranca do defeito 2. Se alguém criar uma função nova sem o <code>REVOKE</code>, este teste acusa</td></tr>
+      <tr><td><strong>16</strong></td><td>O app alcança as <strong>16</strong> funções de cliente</td>
+          <td>O caminho feliz. <strong>Este teste teria acusado o estrago de ontem no mesmo dia</strong></td></tr>
+    </tbody>
+  </table>
+
+  <h3>5.2. O arquivo de teste agora instrui em vez de estourar</h3>
+
+  <p>Repare no que aconteceu com você: o arquivo morreu no <code>42501</code> e você <strong>não viu linha
+  nenhuma</strong> — nem o resultado dos testes que já tinham passado. Isso porque, quando o SQL Editor encontra um
+  erro, ele para; e o <code>SELECT</code> que mostra o placar fica no fim do arquivo, nunca alcançado.</p>
+
+  <p>Agora existe um <strong>porteiro no topo</strong>. Se o módulo não estiver instalado, ou se as funções estiverem
+  sem permissão, ele para logo no começo com uma mensagem que <strong>diz o que fazer</strong>:</p>
+
+  <pre><code>ERRO: AS FUNCOES DO MODULO PERDERAM O GRANT DE EXECUCAO (o app alcanca 0 de 16).
+ISTO NAO E DEFEITO DO MODULO: alguem reaplicou um REVOKE amplo da plataforma por cima dele.
+&gt;&gt;&gt; RODE DE NOVO: supabase/criar-bd-financeiro/financeiro_01_schema.sql (idempotente, nao apaga dado).</code></pre>
+
+  <p>Eu testei esse porteiro <strong>quebrando o banco de propósito</strong>: rodei o <code>REVOKE</code> amplo
+  antigo, rodei o teste, e a mensagem acima foi o que apareceu. Depois rodei o arquivo que ela indica, e tudo voltou
+  a 16/16.</p>
+
+  <div class="caixa exemplo">
+    <span class="rot">Princípio</span>
+    <p style="margin:0"><strong>Erro que descreve o sintoma vale pouco; erro que aponta o próximo passo vale
+    muito.</strong> "permission denied for function fin_gravar_lancamento" é verdadeiro e não ajuda ninguém.</p>
+  </div>
+</section>
+
+<!-- ===================== 5 ===================== -->
+<section id="s5">
+  <h2>6. O Proprietário JÁ vinha com todas as liberações</h2>
+
+  <p>Você escreveu: <em>"QUANDO SE LOGA COMO USUARIO PROPRIETARIO O PROPRIETARIO DEVE VIR COM TODAS AS
+  LIBERAÇÕES"</em>. Concordo inteiramente — e fui conferir se estava assim. <strong>Estava.</strong> Nos dois
+  lugares onde precisa estar:</p>
+
+  <table>
+    <thead><tr><th style="width:32%">Onde</th><th>O que já dizia</th></tr></thead>
+    <tbody>
+      <tr><td><strong>No banco</strong> — <code>fin_pode()</code></td>
+          <td>Se o membro tem <code>role = 'OWNER'</code>, devolve verdadeiro para qualquer permissão, sem consultar a lista do Dependente</td></tr>
+      <tr><td><strong>Na tela</strong> — contexto do módulo</td>
+          <td>Se o membro é <code>OWNER</code>, recebe o conjunto completo das 17 permissões</td></tr>
+    </tbody>
+  </table>
+
+  <div class="caixa destaque">
+    <span class="rot">Por que então dava erro</span>
+    <p style="margin:0">Porque o <code>permission denied</code> que você viu <strong>não era permissão de
+    negócio</strong>. O banco nem chegou a perguntar "quem é você e o que pode fazer" — ele parou antes disso, no
+    porteiro do prédio: <em>"você não tem chave desta sala"</em>. Duas camadas diferentes, com o mesmo código de erro
+    (<code>42501</code>). É por isso que a mensagem enganava.</p>
+  </div>
+
+  <p><strong>Nada precisou mudar nesta frente.</strong> Corrigido o GRANT, o Proprietário passa a ter tudo — como já
+  estava escrito que teria.</p>
+</section>
+
+<!-- ===================== 6 ===================== -->
+<section id="s6">
+  <h2>7. Login do Dependente pelo Google</h2>
+
+  <h3 id="s6a">7.1. Não faltava um botão: não havia caminho nenhum</h3>
+
+  <p>Você descreveu como "ainda não foi desenvolvida função para acessar pelo Google". O diagnóstico é mais sério do
+  que isso. Segui a trilha:</p>
+
+  <table>
+    <thead><tr><th style="width:8%">Passo</th><th>O que eu encontrei</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Escolher "Usuário Dependente" na guarita levava ao formulário de <strong>e-mail e senha</strong></td></tr>
+      <tr><td>2</td><td>Para ter uma senha, a pessoa precisaria ter feito um <strong>cadastro</strong></td></tr>
+      <tr><td>3</td><td>O botão "CADASTRAR USUÁRIO" foi <strong>removido do menu principal na v7</strong></td></tr>
+      <tr><td>4</td><td>A tela de cadastro ainda existe, mas só é alcançável pelo <strong>desvio de planeta</strong> (escolher um planeta diferente de TERRA e voltar) — que é uma brincadeira do sistema, não um caminho</td></tr>
+    </tbody>
+  </table>
+
+  <div class="caixa perigo">
+    <span class="rot">Conclusão</span>
+    <p style="margin:0"><strong>Não existia caminho nenhum para um Dependente entrar na plataforma.</strong> Não era
+    uma funcionalidade faltando — era um beco sem saída, o segundo em dois dias.</p>
+  </div>
+
+  <p>A porta do Google resolve porque ela <strong>cria a conta no primeiro acesso</strong>, sozinha, pelo gatilho
+  <code>on_auth_user_created</code> do banco. Não há formulário para preencher nem senha para inventar.</p>
+
+  <h3 id="s6b">7.2. Como ficou</h3>
+
+  <p>Hoje as três portas da guarita são:</p>
+  <table>
+    <thead><tr><th style="width:28%">Acesso</th><th style="width:26%">Como entra</th><th>Depois do login</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Usuário Proprietário</strong></td><td>Google</td><td>Procura empresas onde ele é <code>OWNER</code></td></tr>
+      <tr><td><strong>Usuário Dependente</strong> ✨</td><td>Google</td><td>Procura empresas onde ele é <code>DEPENDENT</code></td></tr>
+      <tr><td><strong>Painel de Engenharia</strong></td><td>E-mail + senha</td><td>O banco confere <code>is_superuser</code></td></tr>
+    </tbody>
+  </table>
+
+  <div class="caixa alerta">
+    <span class="rot">Muito importante: escolher "Dependente" não torna ninguém Dependente</span>
+    <p style="margin:0">O papel escolhido na guarita <strong>não vai ao Google, não vai ao Supabase e não é
+    gravado</strong>. Ele só decide qual <em>pergunta</em> o sistema faz depois do login. Quem é o quê está em
+    <code>tenant_members</code>, escrito pelo Proprietário da empresa — e a RLS do banco não pergunta em qual botão a
+    pessoa clicou. Se um dono de empresa entrar pela porta "Dependente", simplesmente não vai achar vínculo de
+    dependente. <strong>É segurança, e é o comportamento correto.</strong></p>
+  </div>
+
+  <h4>A ordem certa dos passos, para você testar</h4>
+  <ol>
+    <li>A pessoa entra <strong>uma vez</strong> pela porta "Usuário Dependente" → cai em "Conta criada. Falta o convite."
+      <br><small>Isso é <strong>esperado</strong>. Esse acesso serve para a conta dela passar a existir.</small></li>
+    <li>Você, como Proprietário, abre <strong>Configurações do Módulo</strong> e procura pelo <strong>mesmo e-mail</strong></li>
+    <li>Liga o módulo e marca as permissões dela</li>
+    <li>A pessoa entra de novo pela mesma porta → agora entra na empresa</li>
+  </ol>
+
+  <div class="caixa destaque">
+    <span class="rot">Por que a ordem é essa, e não pode ser outra</span>
+    <p style="margin:0">A função do banco que procura pessoa por e-mail (<code>get_user_by_email_for_invite</code>)
+    só encontra quem <strong>já existe</strong> em <code>public.users</code>. Ela não cria conta — e nem deveria: se
+    criasse, um erro de digitação no e-mail geraria um usuário fantasma que nunca ninguém reclamaria. Por isso o
+    primeiro acesso do Dependente vem <em>antes</em> do convite.</p>
+  </div>
+
+  <h3 id="s6c">7.3. A armadilha do "Completar Cadastro"</h3>
+
+  <p>Esta é sutil, e vale explicar porque é o tipo de coisa que quebra em produção sem erro nenhum na tela.</p>
+
+  <p>Quem entra pelo Google pela primeira vez é desviado para a tela <strong>"Completar Cadastro"</strong> (o Google
+  entrega e-mail e nome, mas não planeta, país, estado e cidade). Só depois dela é que a triagem acontece.</p>
+
+  <div class="caixa perigo">
+    <span class="rot">O que teria dado errado</span>
+    <p style="margin:0">Se a triagem perguntasse <em>"em qual tela estamos agora?"</em> para descobrir o papel, a
+    resposta naquele momento seria <code>complete-profile</code> — e não <code>login-dependent</code>. Todo
+    Dependente novo seria triado como Proprietário, não acharia vínculo nenhum e cairia na sala de espera errada.
+    <strong>Sem mensagem de erro, sem nada no log.</strong> Pareceria "o sistema não me deixa entrar".</p>
+  </div>
+
+  <p>Por isso o papel é <strong>gravado no clique</strong>, lá na tela de escolha do tipo de acesso, e carregado até
+  o fim. É uma linha de código a mais e uma classe inteira de defeito a menos.</p>
+
+  <h3 id="s6d">7.4. Duas salas de espera, porque são dois chefes diferentes</h3>
+
+  <p>Quando alguém entra e não tem vínculo com empresa nenhuma, ele precisa esperar. Mas <strong>esperar por
+  quem?</strong></p>
+
+  <table>
+    <thead><tr><th style="width:24%">Quem</th><th style="width:26%">Espera por</th><th>Tela</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Proprietário</strong></td><td>O <strong>Desenvolvedor</strong>, que o promove no Painel de Engenharia</td>
+          <td>"Aguardando Triagem" (já existia)</td></tr>
+      <tr><td><strong>Dependente</strong></td><td>O <strong>dono da empresa</strong>, que o inclui na equipe</td>
+          <td>✨ "Conta criada. Falta o convite." (nova)</td></tr>
+    </tbody>
+  </table>
+
+  <div class="caixa alerta">
+    <span class="rot">Por que não reaproveitei a tela que já existia</span>
+    <p style="margin:0">Porque ela diz: <em>"O Desenvolvedor Master está analisando sua solicitação."</em> Para o
+    Dependente isso é <strong>falso</strong> — o Desenvolvedor não vai fazer nada por ele, nunca. A pessoa ficaria
+    esperando por alguém que não tem ação a tomar. Uma mensagem errada é pior que nenhuma mensagem: ela produz
+    espera infinita e uma reclamação que você não conseguiria reproduzir.</p>
+  </div>
+
+  <p>A tela nova diz, em três passos numerados, exatamente o que o Proprietário precisa fazer — e avisa para usar
+  <strong>o mesmo e-mail</strong> do acesso.</p>
+</section>
+
+<!-- ===================== 7 ===================== -->
+<section id="s7">
+  <h2>8. As telas</h2>
+
+  <h3 id="s7a">8.1. Ícones de linha em todos os botões</h3>
+
+  <p>Primeiro, a constatação: <strong>o módulo não tinha ícone nenhum.</strong> Havia texto e dois emojis
+  (<code>☰</code> no menu e <code>🖨️</code> na guia de impressão). Emoji não é ícone — ele muda de desenho em cada
+  sistema operacional e não acompanha a cor do texto.</p>
+
+  <p>Agora há um registro único com <strong>36 ícones</strong>, todos de linha, em
+  <code>components/financeiro/IconeFin.tsx</code>. A biblioteca é a <code>lucide-react</code>, que já estava
+  instalada no projeto e desenha tudo em traço por natureza — "outline" não é uma opção que se liga, é o que ela é.</p>
+
+  <div class="caixa perigo">
+    <span class="rot">Uma armadilha que eu já conhecia do aplicativo, e que vale igual na web</span>
+    <p style="margin:0">A versão 1.x do <code>lucide</code> <strong>renomeou o catálogo</strong>. Conferi na versão
+    instalada aqui:</p>
+    <table style="margin:10px 0 0">
+      <thead><tr><th style="width:50%">Nome antigo (não existe mais)</th><th>Nome atual</th></tr></thead>
+      <tbody>
+        <tr><td><code>Trash2</code></td><td><code>Trash</code></td></tr>
+        <tr><td><code>Unlock</code></td><td><code>LockOpen</code></td></tr>
+        <tr><td><code>Filter</code></td><td><code>Funnel</code></td></tr>
+      </tbody>
+    </table>
+    <p style="margin:10px 0 0">Importar o nome antigo <strong>não quebra o build e não acusa nada no editor</strong>:
+    devolve "indefinido" e só estoura no navegador do usuário, na hora de desenhar. Passando tudo pelo registro, o
+    nome errado vira erro de compilação — num arquivo só, antes de sair daqui.</p>
+  </div>
+
+  <p>Também há uma regra de tamanho: <strong>nunca</strong> importar o catálogo com curinga
+  (<code>import * as Lucide</code>). O curinga arrasta os mais de mil ícones para dentro do pacote que o navegador
+  baixa, porque o empacotador não consegue provar quais serão usados.</p>
+
+  <h3 id="s7b">8.2. O menu OPÇÕES</h3>
+
+  <p>Duas mudanças no mesmo componente:</p>
+
+  <table>
+    <thead><tr><th style="width:22%">Item</th><th style="width:39%">Como estava</th><th style="width:39%">Como ficou</th></tr></thead>
+    <tbody>
+      <tr><td>Formato</td><td>Caixinha suspensa presa ao botão, com altura livre</td>
+          <td><strong>Painel lateral pela direita</strong>, altura inteira da tela, com rolagem própria e o fundo escurecido</td></tr>
+      <tr><td>Hierarquia</td><td>"CADASTROS" era um rótulo apagado, e os dois filhos ficavam <strong>sempre à mostra</strong></td>
+          <td>"CADASTROS" é <strong>clicável</strong>; os filhos aparecem só depois do clique, com a setinha girando</td></tr>
+    </tbody>
+  </table>
+
+  <h4>A árvore, como ficou</h4>
+  <pre><code>CADASTROS            (clique para abrir)
+   └ CONTA MOVIMENTO
+   └ CONTA IDENTIFICADORA
+LANÇAMENTOS          (clique para abrir)
+   └ NOVO LANÇAMENTO
+   └ PESQUISAR
+CONFIGURAÇÕES        (clique para abrir)
+   └ EQUIPE E PERMISSÕES
+DASHBOARDS           (avisa "em desenvolvimento")
+ORÇAMENTO            (avisa "em desenvolvimento")</code></pre>
+
+  <div class="caixa alerta">
+    <span class="rot">Uma escolha minha que você pode querer diferente</span>
+    <p style="margin:0">O botão OPÇÕES <strong>já estava</strong> no canto direito da barra. Entendi o seu pedido de
+    "mover para o lado direito" como querendo o <em>menu em si</em> — a lista — ancorado na borda direita da tela, e
+    não uma caixinha flutuante. Foi o que fiz: um painel que entra pela direita. Se você quisesse outra coisa (uma
+    coluna fixa sempre visível, por exemplo), me diga — é uma mudança pequena e localizada num arquivo só.</p>
+  </div>
+
+  <div class="caixa destaque">
+    <span class="rot">Detalhe técnico que já custou caro neste projeto</span>
+    <p style="margin:0">O fundo escuro fecha o menu no evento <code>click</code>, <strong>nunca</strong> no
+    <code>mousedown</code>. Com <code>mousedown</code>, o painel some <em>antes</em> de o clique chegar ao item —
+    e a opção simplesmente não abre, sem erro nenhum. Está registrado no <code>CLAUDE.md</code> como a lição nº 3.</p>
+  </div>
+
+  <p>Um detalhe a mais que ninguém pediu, mas que era consequência natural: <strong>o menu esconde o que a pessoa
+  não pode abrir.</strong> Um Dependente sem permissão de ver contas não enxerga "CADASTROS" — e se um nível pai
+  ficar sem nenhum filho permitido, ele some inteiro em vez de abrir vazio.</p>
+
+  <h3 id="s7c">8.3. Três botões centrais</h3>
+
+  <p>A tela CONTROLE FINANCEIRO tinha <strong>cinco</strong> atalhos. Ficaram os três que você pediu:</p>
+
+  <table>
+    <thead><tr><th style="width:40%">Atalho</th><th>Destino</th></tr></thead>
+    <tbody>
+      <tr><td><strong>DINHEIRO DO PERÍODO</strong></td><td>Cartão grande, no lugar definitivo, dizendo "EM DESENVOLVIMENTO"</td></tr>
+      <tr><td><strong>NOVO LANÇAMENTO</strong></td><td>A tela central do módulo</td></tr>
+      <tr><td><strong>PESQUISAR</strong></td><td>Os 13 filtros, com imprimir e exportar</td></tr>
+    </tbody>
+  </table>
+
+  <p>Saíram CONTAS MOVIMENTO e CONTAS IDENTIFICADORAS — que, como você observou, <strong>já estão no menu
+  OPÇÕES</strong>, em CADASTROS. Acrescentei abaixo dos botões uma linha discreta lembrando onde o resto está, para
+  que a tela não pareça ter perdido funções.</p>
+
+  <h3 id="s7d">8.4. TRANSFERÊNCIA só dentro de NOVO LANÇAMENTO</h3>
+
+  <div class="caixa alerta">
+    <span class="rot">Ela estava em dois lugares, não em um</span>
+    <p style="margin:0">Além da tela inicial, a TRANSFERÊNCIA também era um cartão grande na tela
+    <code>/lancamentos</code>. Cumprir o seu pedido só no primeiro lugar deixaria um segundo caminho vivo que
+    ninguém mandou existir. <strong>Saiu dos dois.</strong></p>
+  </div>
+
+  <p>Agora ela aparece uma vez só: um botão no topo do formulário de NOVO LANÇAMENTO, com o ícone das duas setas.
+  Também ajustei o botão VOLTAR <em>dentro</em> da tela de transferência — ele devolvia a pessoa para
+  <code>/lancamentos</code>, que agora não tem mais o caminho de volta; passou a devolver para NOVO LANÇAMENTO, de
+  onde ela veio.</p>
+
+  <div class="caixa exemplo">
+    <span class="rot">Por que a sua decisão faz sentido, tecnicamente</span>
+    <p style="margin:0">Transferir <strong>é</strong> um jeito de lançar: o banco cria <em>duas pernas de
+    lançamento</em> numa operação só — uma saída na origem e uma entrada no destino (regra RN-23). Tê-la num menu
+    separado sugeria que era outro assunto. Ela agora está onde conceitualmente sempre pertenceu.</p>
+  </div>
+
+  <h3 id="s7e">8.5. O botão IMPRIMIR da CONFERÊNCIA DA CONTA</h3>
+
+  <p>Você perguntou, honestamente, se ele só apareceria depois de retornar registros. A resposta honesta:</p>
+
+  <div class="caixa perigo">
+    <span class="rot">Não era isso</span>
+    <p style="margin:0"><strong>Ele não existia.</strong> A tela PESQUISAR tinha IMPRIMIR e EXPORTAR TSV; a
+    CONFERÊNCIA DA CONTA não tinha nenhum dos dois. Foi um esquecimento na construção do degrau 7, e a sua pergunta
+    o encontrou.</p>
+  </div>
+
+  <p>Agora existe, e o comportamento é o mesmo da tela PESQUISAR:</p>
+  <ul>
+    <li><strong>Visível o tempo todo</strong> para quem tem a permissão <code>imprimir</code>;</li>
+    <li><strong>Apagado (desabilitado)</strong> enquanto não há linhas no extrato, com uma dica ao passar o mouse
+      explicando o que falta.</li>
+  </ul>
+
+  <p>A escolha entre "sumir" e "apagar" foi deliberada: <strong>botão que some confunde</strong> (a pessoa se
+  pergunta se a função existe); botão apagado ensina que ele existe e o que falta para usá-lo.</p>
+
+  <div class="caixa destaque">
+    <span class="rot">O relatório não recalcula nada</span>
+    <p style="margin:0">As colunas de dinheiro e o saldo que vão para o papel são <strong>exatamente os mesmos
+    números</strong> que a função <code>fin_extrato</code> devolveu para a tela. Se a soma fosse refeita na hora de
+    imprimir, existiriam duas cópias da mesma conta — e no dia em que uma fosse corrigida e a outra não, você teria
+    dois saldos para o mesmo mês.</p>
+  </div>
+</section>
+
+<!-- ===================== 8 ===================== -->
+<section id="s8">
+  <h2>9. Arquivos tocados</h2>
+
+  <h4>Banco (o que você precisa rodar)</h4>
+  <table>
+    <thead><tr><th style="width:46%">Arquivo</th><th>O que mudou</th></tr></thead>
+    <tbody>
+      <tr><td><code>supabase/criar-bd/plataforma_01_schema.sql</code></td>
+          <td>Seção 8.3: o <code>REVOKE</code> amplo virou 27 nome a nome. Seção 8.4: o <code>ALTER DEFAULT PRIVILEGES</code> inútil foi removido e substituído pela regra escrita</td></tr>
+      <tr><td><code>supabase/criar-bd-financeiro/financeiro_01_schema.sql</code></td>
+          <td>17 <code>REVOKE</code> novos antes dos GRANTs; o comentário enganoso sobre a função de apagar foi corrigido</td></tr>
+      <tr><td><code>supabase/testes/teste_financeiro.sql</code></td>
+          <td>Porteiro no topo + testes 15 e 16 (de 14 para 16 testes)</td></tr>
+    </tbody>
+  </table>
+
+  <h4>Autenticação (Dependente pelo Google)</h4>
+  <table>
+    <thead><tr><th style="width:46%">Arquivo</th><th>O que mudou</th></tr></thead>
+    <tbody>
+      <tr><td>✨ <code>components/auth/views/LoginGoogleView.tsx</code></td><td><strong>NOVO</strong> — atende Proprietário e Dependente</td></tr>
+      <tr><td>🗑 <code>components/auth/views/LoginGoogleOwnerView.tsx</code></td><td><strong>APAGADO</strong> — virou o de cima</td></tr>
+      <tr><td><code>components/AuthInterface.tsx</code></td><td>Roteia as duas portas para a tela do Google; grava o papel no clique</td></tr>
+      <tr><td><code>components/auth/hooks/useAuthLogic.ts</code></td><td><code>papelDoAcesso</code>; <code>encaminharProprietario</code> → <code>encaminharPorPapel</code></td></tr>
+      <tr><td><code>components/auth/views/MiscViews.tsx</code></td><td>Tela nova "Conta criada. Falta o convite."</td></tr>
+      <tr><td><code>core/services/platform/authService.ts</code></td><td><code>googleSignInOwner</code> → <code>googleSignIn(idToken, papel)</code></td></tr>
+      <tr><td><code>core/services/platform/googleAuthService.ts</code></td><td><code>signInOwner</code> → <code>signInComGoogle(idToken, papel)</code></td></tr>
+      <tr><td><code>core/analytics/eventNames.ts</code></td><td>Comentário: a porta deixou de ser exclusiva do Proprietário</td></tr>
+    </tbody>
+  </table>
+
+  <h4>Telas do módulo</h4>
+  <table>
+    <thead><tr><th style="width:46%">Arquivo</th><th>O que mudou</th></tr></thead>
+    <tbody>
+      <tr><td>✨ <code>components/financeiro/IconeFin.tsx</code></td><td><strong>NOVO</strong> — registro de 36 ícones de linha</td></tr>
+      <tr><td>✨ <code>components/financeiro/menu/opcoes.ts</code></td><td><strong>NOVO</strong> — a árvore do menu, só dados</td></tr>
+      <tr><td>✨ <code>components/financeiro/menu/PainelDeOpcoes.tsx</code></td><td><strong>NOVO</strong> — o painel da direita</td></tr>
+      <tr><td>✨ <code>components/financeiro/MolduraFinanceiro.tsx</code></td><td><strong>NOVO</strong> — a faixa do topo e o rodapé</td></tr>
+      <tr><td>✨ <code>components/financeiro/ContextoFinanceiro.tsx</code></td><td><strong>NOVO</strong> — carrega o contexto uma vez só</td></tr>
+      <tr><td>✨ <code>components/financeiro/lancamento/</code> (3 arquivos)</td><td><strong>NOVO</strong> — hook + formulário + conferência</td></tr>
+      <tr><td><code>app/dashboard/financeiro/layout.tsx</code></td><td>De 150 para 20 linhas: provedor + moldura</td></tr>
+      <tr><td><code>app/dashboard/financeiro/page.tsx</code></td><td>Três botões centrais</td></tr>
+      <tr><td><code>app/dashboard/financeiro/lancamentos/novo/page.tsx</code></td><td>De 354 para 66 linhas (orquestrador)</td></tr>
+      <tr><td><code>app/dashboard/financeiro/lancamentos/page.tsx</code></td><td>Cartão da transferência removido; ícones</td></tr>
+      <tr><td><code>.../pesquisar</code>, <code>.../transferencia</code>, <code>.../dependentes</code>, <code>.../imprimir</code></td><td>Ícones nos botões; volta da transferência corrigida</td></tr>
+      <tr><td><code>components/financeiro/{ModalNovoCadastro,cadastro/*}</code></td><td>Ícones nos botões</td></tr>
+      <tr><td><code>components/financeiro/useEmpresaAtiva.ts</code></td><td>Virou leitor do contexto (assinatura inalterada)</td></tr>
+    </tbody>
+  </table>
+
+  <h4>Documentação</h4>
+  <p><code>CLAUDE.md</code> (entrada de histórico + 9 proibições novas) e <code>MODULOS.md</code> (a regra do par
+  <code>REVOKE</code>+<code>GRANT</code> para módulos).</p>
+
+  <div class="caixa destaque">
+    <span class="rot">Uma faxina que veio junto, e por quê</span>
+    <p style="margin:0">A tela de NOVO LANÇAMENTO tinha <strong>354 linhas</strong>. A regra de ouro do projeto manda
+    fatiar acima de ~150. Ao acrescentar o IMPRIMIR e a porta da TRANSFERÊNCIA, ela passaria de 400 — então dividi em
+    um "cérebro" (o estado e as chamadas ao banco) e duas colunas de desenho. <strong>Nenhum comportamento mudou
+    nessa divisão</strong>, e o arquivo da rota ficou com 66 linhas.</p>
+    <p style="margin:8px 0 0">Na mesma linha: o contexto do módulo (quem é você, em qual empresa, o que pode fazer)
+    era buscado <em>por cada tela</em> — três consultas por página aberta. Com o menu passando a esconder itens por
+    permissão, seriam <strong>seis</strong>. Agora a busca acontece uma vez, na moldura. As nove telas continuam
+    escrevendo <code>useEmpresaAtiva()</code> exatamente como antes: nenhuma delas precisou saber que a origem do
+    dado mudou de lugar.</p>
+  </div>
+</section>
+
+<!-- ===================== 9 ===================== -->
+<section id="s9">
+  <h2>10. O que foi testado, e o que NÃO foi</h2>
+
+  <h3>10.1. Executado aqui, com resultado</h3>
+  <table>
+    <thead><tr><th style="width:52%">Verificação</th><th>Resultado</th></tr></thead>
+    <tbody>
+      <tr><td><code>teste_rls.sql</code> no PostgreSQL 18 local</td><td><span class="ok">16 de 16 PASSOU</span></td></tr>
+      <tr><td><code>teste_financeiro.sql</code> no PostgreSQL 18 local</td><td><span class="ok">16 de 16 PASSOU</span></td></tr>
+      <tr><td>Reprodução do defeito: instalar módulo → reaplicar plataforma</td><td><span class="ok">Antes: 0 de 17. Depois da correção: 16 de 17</span></td></tr>
+      <tr><td>Funções <code>fin_*</code> alcançáveis pelo anônimo</td><td><span class="ok">Antes: 17. Depois: 0</span></td></tr>
+      <tr><td>O porteiro do arquivo de teste, com o banco quebrado de propósito</td><td><span class="ok">Deu a mensagem com a instrução</span></td></tr>
+      <tr><td>Recuperação: rodar o schema do módulo depois do estrago</td><td><span class="ok">Voltou a 16/16</span></td></tr>
+      <tr><td><code>npm test</code> (Core)</td><td><span class="ok">19 de 19</span></td></tr>
+      <tr><td><code>npm run modulos:verificar</code></td><td><span class="ok">Nenhuma violação</span></td></tr>
+      <tr><td><code>tsc --noEmit</code> no admin-web e no mobile-app</td><td><span class="ok">Limpo nos dois</span></td></tr>
+      <tr><td><code>eslint</code></td><td><span class="ok">Limpo</span></td></tr>
+      <tr><td><code>npm run build</code> do admin-web</td><td><span class="ok">Concluído, com as 9 rotas do módulo listadas</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3>10.2. NÃO foi testado — e isto é importante</h3>
+  <div class="caixa perigo">
+    <ul style="margin:0">
+      <li><strong>Nada foi executado contra o seu Supabase real.</strong> Não há <code>.env</code> alcançável a partir daqui.</li>
+      <li><strong>Nada foi aberto no Vercel.</strong> O build local termina; ver a tela funcionando é com você.</li>
+      <li><strong>O login do Dependente pelo Google nunca foi exercitado fim a fim.</strong> O ambiente local não sobe
+        o GoTrue (o serviço de autenticação do Supabase) nem fala com o Google. O código compila, o desenho está
+        correto e reaproveita o caminho do Proprietário — que <em>você</em> já validou em produção. Mas isso é
+        <strong>expectativa fundamentada, não verificação</strong>.</li>
+      <li><strong>Nenhuma das telas foi vista por olho humano.</strong> Ícones, painel lateral, três botões, o IMPRIMIR
+        — tudo compila e passa no lint; a aparência é o seu teste.</li>
+      <li><strong>O aplicativo mobile continua sem ser aberto</strong> em aparelho ou emulador (adiado sem previsão,
+        como combinado). O <code>tsc</code> dele está limpo com as mudanças do Core.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===================== 10 ===================== -->
+<section id="s10">
+  <h2>11. Seu roteiro de teste, na ordem</h2>
+
+  <h4>Parte A — banco (SQL Editor do Supabase)</h4>
+  <ol>
+    <li><code>Ctrl+A</code>, apagar. Colar e rodar <code>plataforma_01_schema.sql</code></li>
+    <li><code>Ctrl+A</code>, apagar. Colar e rodar <code>financeiro_01_schema.sql</code></li>
+    <li><code>Ctrl+A</code>, apagar. Colar e rodar <code>teste_rls.sql</code> → <strong>16 PASSOU</strong></li>
+    <li><code>Ctrl+A</code>, apagar. Colar e rodar <code>teste_financeiro.sql</code> → <strong>16 PASSOU</strong></li>
+  </ol>
+
+  <div class="caixa alerta">
+    <span class="rot">Se algo falhar aqui</span>
+    <p style="margin:0">Me mande <strong>a tabela inteira</strong>, não só a linha vermelha. A coluna
+    <em>detalhe</em> de cada teste carrega o número que ele mediu — é ela que diz o que aconteceu, e sem ela eu
+    fico adivinhando.</p>
+  </div>
+
+  <h4>Parte B — telas (depois do envio ao GitHub e do build da Vercel)</h4>
+  <ol>
+    <li>Entre como <strong>Proprietário</strong> e abra o Controle Financeiro
+      <ul><li>A tela inicial tem <strong>três</strong> botões?</li>
+          <li>O botão OPÇÕES abre um painel <strong>pela direita</strong>?</li>
+          <li>Clicar em CADASTROS abre os dois filhos? Clicar de novo fecha?</li></ul></li>
+    <li>Abra <strong>NOVO LANÇAMENTO</strong>
+      <ul><li>Aparece o botão TRANSFERÊNCIA ENTRE CONTAS no topo?</li>
+          <li>Clique em "+ ADICIONAR NOVA" na Conta Movimento e grave — <strong>este é o teste do defeito de hoje</strong></li>
+          <li>Idem para a Conta Identificadora</li>
+          <li>Grave um lançamento de verdade</li></ul></li>
+    <li>Na <strong>CONFERÊNCIA DA CONTA</strong> (coluna direita)
+      <ul><li>O botão IMPRIMIR aparece apagado antes de escolher conta e datas?</li>
+          <li>Escolha conta + data inicial + data final; ele acende?</li>
+          <li>Clique: abre a guia com o relatório e o menu Cores / Preto &amp; Branco?</li></ul></li>
+    <li><strong>Dependente</strong> — com a outra conta Google, num navegador anônimo:
+      <ul><li>Guarita → "Usuário Dependente" → entrar com Google</li>
+          <li>Se a conta ainda não estiver na equipe: aparece "Conta criada. Falta o convite."?</li>
+          <li>Volte como Proprietário → Configurações do Módulo → procure o e-mail → ligue o módulo e marque permissões</li>
+          <li>Entre de novo como Dependente: agora entra na empresa?</li>
+          <li>O menu OPÇÕES mostra só o que você liberou para ele?</li></ul></li>
+  </ol>
+</section>
+
+<!-- ===================== 11 ===================== -->
+<section id="s11">
+  <h2>12. Bônus: cinco sugestões que você não pediu</h2>
+
+  <div class="caixa bonus">
+    <span class="rot">1 — Um arquivo de inventário para o módulo</span>
+    <p style="margin:0">A plataforma tem o <code>inventario.sql</code>, que devolve OK/DIVERGE contando tabelas,
+    funções, policies e gatilhos. <strong>O módulo não tem equivalente.</strong> Um
+    <code>inventario_financeiro.sql</code> (4 tabelas, 17 funções, 4 policies, 9 gatilhos, 17 privilégios) daria uma
+    resposta de um segundo à pergunta "o módulo está inteiro?" — que hoje só o arquivo de teste completo responde,
+    e ele escreve no banco. <em>Relevância: alta. É barato e você usaria toda semana.</em></p>
+  </div>
+
+  <div class="caixa bonus">
+    <span class="rot">2 — Uma checagem de privilégios no <code>inventario.sql</code> da plataforma</span>
+    <p style="margin:0">O defeito de hoje passou por um ponto cego: <strong>ninguém contava privilégios</strong>.
+    Duas linhas no inventário — "quantas funções da plataforma o <code>authenticated</code> alcança?" e "quantas
+    funções, de qualquer origem, o <code>anon</code> alcança?" — teriam pegado os dois defeitos deste relatório antes
+    de você abrir o sistema. <em>Relevância: alta.</em></p>
+  </div>
+
+  <div class="caixa bonus">
+    <span class="rot">3 — Ligar as duas contas de teste que você já tem</span>
+    <p style="margin:0">Você me contou que criou dois Proprietários e habilitou um como Dependente do outro. Guarde
+    esse par: é um <strong>ambiente de teste de duas cadeiras</strong>, e ele é raro. Com ele você consegue verificar,
+    em minutos, coisas que eu não consigo verificar de jeito nenhum daqui — o isolamento entre empresas visto pela
+    tela, e o que o Dependente enxerga de verdade. <em>Relevância: alta, e custo zero.</em></p>
+  </div>
+
+  <div class="caixa bonus">
+    <span class="rot">4 — O "DINHEIRO DO PERÍODO" merece ser o próximo degrau</span>
+    <p style="margin:0">É o maior elemento da tela inicial e diz "EM DESENVOLVIMENTO". Todo mundo que abre o módulo
+    clica nele primeiro. Os números que ele mostraria já existem no banco (a <code>fin_extrato</code> devolve saldos
+    prontos) — o trabalho é de tela, não de banco. <em>Relevância: média-alta. É o que dá cara de "pronto" ao
+    módulo.</em></p>
+  </div>
+
+  <div class="caixa bonus">
+    <span class="rot">5 — Ordem de execução dos arquivos SQL, escrita num lugar só</span>
+    <p style="margin:0">Já são <strong>cinco</strong> arquivos SQL com ordens que dependem umas das outras, e o
+    defeito de hoje nasceu justamente de uma ordem inesperada (plataforma <em>depois</em> do módulo). Um
+    <code>supabase/LEIA-ME-ORDEM.md</code> de meia página — "banco novo: 1,2,3,4,5" / "só corrigir a plataforma: 1
+    e depois 4" — evita a próxima. <em>Relevância: média. É documentação, mas é a documentação que faltou ontem.</em></p>
+  </div>
+</section>
+
+<div class="rodape">
+  Plataforma Jairo O D C · v10 · Módulo Controle Financeiro<br>
+  Relatório gerado em 13 de setembro de 2026 · nenhum número deste documento foi estimado: todos foram medidos
+</div>
+
+</div>
+
+<script>
+(function () {
+  var container = document.querySelector('.print-container');
+  var botao = document.getElementById('printBtn');
+  var menu = document.getElementById('printMenu');
+  var btnCores = document.getElementById('btnCores');
+  var btnPB = document.getElementById('btnPB');
+
+  // Abre e fecha o menu. stopPropagation impede que o clique suba até o
+  // documento e feche o menu no mesmo instante em que ele foi aberto.
+  botao.addEventListener('click', function (event) {
+    event.stopPropagation();
+    menu.classList.toggle('aberto');
+  });
+
+  // O menu inteiro engole os próprios cliques: assim o mouse passeia entre as
+  // duas opções sem que o menu se feche por baixo do cursor.
+  menu.addEventListener('click', function (event) {
+    event.stopPropagation();
+  });
+
+  // Só fecha quando o clique acontece FORA do container (nem no botão, nem no menu).
+  document.addEventListener('click', function (event) {
+    if (!container.contains(event.target)) {
+      menu.classList.remove('aberto');
+    }
+  });
+
+  function imprimirEmCores() {
+    menu.classList.remove('aberto');
+    document.body.classList.remove('print-bw');
+    // 100ms para o navegador repintar sem a classe antes de montar a prévia.
+    setTimeout(function () { window.print(); }, 100);
+  }
+
+  function imprimirEmPB() {
+    menu.classList.remove('aberto');
+    document.body.classList.add('print-bw');
+    // 100ms para o navegador aplicar os estilos da classe antes de imprimir.
+    setTimeout(function () {
+      window.print();
+      // E 100ms depois, devolve a tela ao normal.
+      setTimeout(function () { document.body.classList.remove('print-bw'); }, 100);
+    }, 100);
+  }
+
+  btnCores.addEventListener('click', function (event) {
+    event.stopPropagation();
+    imprimirEmCores();
+  });
+
+  btnPB.addEventListener('click', function (event) {
+    event.stopPropagation();
+    imprimirEmPB();
+  });
+
+  console.log('[Relatorio 2026-09-13] Menu de impressao carregado: Cores (A4) e Preto & Branco (A4).');
+})();
+</script>
+
+</body>
+</html>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { cadastroFinanceiroService } from "@jairo/core";
 import CampoDinheiro from "@/components/financeiro/CampoDinheiro";
+import IconeFin from "@/components/financeiro/IconeFin";
 
 /**
  * ➕ O "+ ADICIONAR NOVA" DO FORMULÁRIO DE LANÇAMENTO (PJODC v10)
@@ -88,11 +89,13 @@ export default function ModalNovoCadastro({
 
         <div className="flex gap-3 mt-6">
           <button type="button" onClick={gravar} disabled={gravando || nome.trim() === ""}
-                  className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-black uppercase tracking-widest disabled:opacity-40">
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-black uppercase tracking-widest disabled:opacity-40">
+            <IconeFin nome="salvar" tamanho={15} />
             {gravando ? "GRAVANDO…" : "GRAVAR E USAR"}
           </button>
           <button type="button" onClick={onFechar}
-                  className="px-5 py-2.5 rounded-xl bg-white border border-slate-300 text-xs font-black uppercase tracking-widest text-slate-600">
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white border border-slate-300 text-xs font-black uppercase tracking-widest text-slate-600">
+            <IconeFin nome="fechar" tamanho={15} />
             CANCELAR
           </button>
         </div>

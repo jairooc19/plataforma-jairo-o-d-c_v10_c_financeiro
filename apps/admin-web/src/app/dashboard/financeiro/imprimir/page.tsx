@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CHAVE_IMPRESSAO, type ConteudoParaImpressao } from "@/components/financeiro/prepararImpressao";
+import IconeFin from "@/components/financeiro/IconeFin";
 
 /**
  * 🖨️ A GUIA DE IMPRESSÃO (PJODC v10)
@@ -104,9 +105,11 @@ export default function ImprimirPage() {
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); setMenuAberto((v) => !v); }}
-          className="px-4 py-2.5 rounded-xl bg-blue-700 text-white text-xs font-black uppercase tracking-widest shadow-lg"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-700 text-white text-xs font-black uppercase tracking-widest shadow-lg"
         >
-          🖨️ IMPRIMIR ▾
+          <IconeFin nome="imprimir" tamanho={15} />
+          IMPRIMIR
+          <IconeFin nome="fecharNivel" tamanho={14} />
         </button>
         {menuAberto && (
           <>
