@@ -4,8 +4,10 @@ import { useState, useEffect } from "react";
 import {
   supabase,
   tenantService,
+  moduleService,
   type CandidatoDependente,
   type MembroDaEquipe,
+  type ModuloContratado,
 } from "@jairo/core";
 import { mensagemDeErro } from "@/lib/erro";
 
@@ -27,6 +29,19 @@ interface TeamManagementModalProps {
  * ⚠️ v10 — `allowed_modules` É LISTA. A gravação manda `[]`, e não `''`: a
  * coluna virou `text[]` no banco.
  *
+ * ⚠️ 12/09/2026 — AS CHAVES DE MÓDULO ESTAVAM FALTANDO AQUI, e por isso não
+ * havia como liberar módulo nenhum a ninguém. Esta tela mostrava um cartaz fixo
+ * dizendo "nenhum módulo contratado encontrado" — sem nunca ter perguntado ao
+ * banco — e a gravação chamava `salvarDependente` sem a lista, o que ainda
+ * APAGAVA as permissões de quem já tivesse alguma. Agora ela pergunta
+ * (`moduleService.modulosContratados`), desenha uma caixa por módulo e carrega
+ * as marcações do integrante ao abri-lo.
+ *
+ * ⚠️ O PROPRIETÁRIO NÃO APARECE NESTA LISTA — e não é esquecimento. `allowed_modules`
+ * é a chave que ele entrega à TRIPULAÇÃO; o dono da empresa não se convida. O que a
+ * empresa contratou já é o que ele pode abrir, e quem decide isso é
+ * `modulos_do_membro()`, no banco.
+ *
  * 🧹 SEM EFEITO DE REINICIALIZAÇÃO: o modal é MONTADO só enquanto aberto (quem
  * decide é o dashboard, com `{aberto && <TeamManagementModal/>}`), então cada
  * abertura nasce limpa.
@@ -40,6 +55,8 @@ export default function TeamManagementModal({ onClose, tenantId }: TeamManagemen
   const [existingMembers, setExistingMembers] = useState<MembroDaEquipe[]>([]);
 
   const [isActive, setIsActive] = useState(true);
+  const [modulosDaEmpresa, setModulosDaEmpresa] = useState<ModuloContratado[]>([]);
+  const [modulosMarcados, setModulosMarcados] = useState<string[]>([]);
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -48,6 +65,7 @@ export default function TeamManagementModal({ onClose, tenantId }: TeamManagemen
         const { data: { user } } = await supabase.auth.getUser();
         setCurrentUserEmail(user?.email || null);
         setExistingMembers(await tenantService.listarMembros(tenantId));
+        setModulosDaEmpresa(await moduleService.modulosContratados(tenantId));
       } catch (err) {
         console.error("Erro ao carregar a equipe:", err);
         setError(mensagemDeErro(err, "NÃO FOI POSSÍVEL CARREGAR A EQUIPE."));
@@ -76,6 +94,9 @@ export default function TeamManagementModal({ onClose, tenantId }: TeamManagemen
       if (user) {
         setFoundUser(user);
         setIsActive(true);
+        // Integrante que já existe traz as chaves dele; integrante novo começa sem nenhuma.
+        const jaMembro = existingMembers.find((m) => m.user_id === user.id);
+        setModulosMarcados(jaMembro?.allowed_modules ?? []);
       } else {
         setError("USUÁRIO NÃO LOCALIZADO: CERTIFIQUE-SE QUE O E-MAIL ESTÁ CORRETO.");
       }
@@ -93,18 +114,26 @@ export default function TeamManagementModal({ onClose, tenantId }: TeamManagemen
       email: member.users.email
     });
     setIsActive(member.is_active);
+    setModulosMarcados(member.allowed_modules ?? []);
     setError("");
+  };
+
+  const alternarModulo = (moduleId: string) => {
+    setModulosMarcados((atuais) =>
+      atuais.includes(moduleId) ? atuais.filter((m) => m !== moduleId) : [...atuais, moduleId]
+    );
   };
 
   const handleSave = async () => {
     if (!foundUser) return;
     setIsLoading(true);
     try {
-      await tenantService.salvarDependente(tenantId, foundUser.id, isActive);
+      await tenantService.salvarDependente(tenantId, foundUser.id, isActive, modulosMarcados);
       setExistingMembers(await tenantService.listarMembros(tenantId));
 
       setFoundUser(null);
       setEmailSearch("");
+      setModulosMarcados([]);
       alert("✅ CONFIGURAÇÕES DE ACESSO DA EQUIPE ATUALIZADAS!");
     } catch (err) {
       setError(mensagemDeErro(err, "FALHA AO GRAVAR NO BANCO DE DADOS."));
@@ -205,10 +234,46 @@ export default function TeamManagementModal({ onClose, tenantId }: TeamManagemen
                 </div>
               </div>
 
-              {/* 🛡️ NENHUM MÓDULO FUNCIONAL INSTALADO NA PLATAFORMA */}
-              <div className="p-8 text-center bg-yellow-50 border border-yellow-200 rounded-2xl">
-                <p className="text-xs font-black text-yellow-700 uppercase tracking-tight">⚠️ NENHUM MÓDULO CONTRATADO ENCONTRADO NESTA EMPRESA.</p>
-              </div>
+              {/* 🔑 AS CHAVES DE MÓDULO — o que a EMPRESA contratou é o teto do que
+                  o Proprietário pode distribuir. O gatilho `validar_modulos_membro`
+                  recusaria qualquer coisa fora desta lista, de qualquer forma. */}
+              {modulosDaEmpresa.length === 0 ? (
+                <div className="p-8 text-center bg-yellow-50 border border-yellow-200 rounded-2xl">
+                  <p className="text-xs font-black text-yellow-700 uppercase tracking-tight">
+                    ⚠️ NENHUM MÓDULO CONTRATADO NESTA EMPRESA.
+                  </p>
+                  <p className="text-[10px] font-bold text-yellow-600 uppercase mt-2">
+                    A CONTRATAÇÃO É FEITA PELO DESENVOLVEDOR, NO PAINEL DE ENGENHARIA › MÓDULOS.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {modulosDaEmpresa.map((modulo) => {
+                    const marcado = modulosMarcados.includes(modulo.module_id);
+                    return (
+                      <label
+                        key={modulo.module_id}
+                        className={`flex items-center gap-4 p-5 rounded-[1.5rem] border-2 cursor-pointer transition-all ${
+                          marcado ? "bg-blue-50 border-blue-400 shadow-sm" : "bg-white border-slate-200 hover:border-slate-300"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={marcado}
+                          onChange={() => alternarModulo(modulo.module_id)}
+                          className="w-5 h-5 accent-blue-600"
+                        />
+                        <div>
+                          <p className="text-xs font-black text-slate-800 uppercase tracking-tight">{modulo.nome}</p>
+                          {modulo.descricao && (
+                            <p className="text-[10px] font-bold text-slate-400 uppercase">{modulo.descricao}</p>
+                          )}
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>

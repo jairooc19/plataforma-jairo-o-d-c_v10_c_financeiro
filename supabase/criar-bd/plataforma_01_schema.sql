@@ -1175,10 +1175,17 @@ $$;
 
 -- 5.24 OS MÓDULOS QUE **ESTE** USUÁRIO PODE ABRIR NESTA EMPRESA.
 --
--- É a interseção das três condições: liberado ao membro, contratado pela
--- empresa e ativo no catálogo. A tela poderia cruzar isso sozinha, mas então a
--- regra viveria no navegador — e regra que vive no navegador se edita com o
--- console aberto. Aqui ela vive no banco, como o degrau 3 estabeleceu.
+-- É a interseção das condições: contratado pela empresa, ativo no catálogo e —
+-- para o Dependente — liberado em `allowed_modules`. A tela poderia cruzar isso
+-- sozinha, mas então a regra viveria no navegador, onde se edita com o console
+-- aberto. Aqui ela vive no banco, como o degrau 3 estabeleceu.
+--
+-- ⚠️ O PROPRIETÁRIO NÃO PRECISA LIBERAR O MÓDULO PARA SI MESMO — e a primeira
+-- versão desta função exigia isso, o que era um beco sem saída descoberto na
+-- validação do degrau 7 (12/09/2026): ele contratava o módulo, liberava para a
+-- equipe, entrava no painel e não via nada. `allowed_modules` é a chave que o
+-- Proprietário entrega à TRIPULAÇÃO dele; o dono da empresa não se convida.
+-- Para ele, o que a empresa contratou já é o que ele pode abrir.
 CREATE OR REPLACE FUNCTION public.modulos_do_membro(p_tenant_id uuid)
 RETURNS text[]
 LANGUAGE sql
@@ -1186,13 +1193,58 @@ STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT COALESCE(array_agg(m ORDER BY m), '{}'::text[])
+  SELECT COALESCE(array_agg(DISTINCT m ORDER BY m), '{}'::text[])
     FROM public.tenant_members tmem
-    CROSS JOIN LATERAL unnest(tmem.allowed_modules) AS m
+    CROSS JOIN LATERAL unnest(
+           CASE
+             WHEN tmem.role = 'OWNER' THEN
+               COALESCE((SELECT array_agg(tmod.module_id)
+                           FROM public.tenant_modules tmod
+                           JOIN public.platform_modules pmod ON pmod.id = tmod.module_id
+                          WHERE tmod.tenant_id = p_tenant_id
+                            AND tmod.is_active = true
+                            AND pmod.is_active = true), '{}'::text[])
+             ELSE COALESCE(tmem.allowed_modules, '{}'::text[])
+           END
+         ) AS m
    WHERE tmem.tenant_id = p_tenant_id
      AND tmem.user_id = auth.uid()
      AND tmem.is_active = true
      AND public.modulo_contratado(p_tenant_id, m);
+$$;
+
+-- 5.24-b OS MÓDULOS QUE A EMPRESA CONTRATOU — para o PROPRIETÁRIO montar a
+-- equipe. Sem esta função o "Painel de Controle de Tripulação" não tem o que
+-- oferecer: `admin_list_tenant_modules` é do Desenvolvedor (confere
+-- `is_superuser`), e o Proprietário levaria 42501 na cara. Foi essa a segunda
+-- metade do beco sem saída do degrau 7 — não havia como liberar um módulo a
+-- ninguém, porque a tela não sabia quais existiam.
+CREATE OR REPLACE FUNCTION public.modulos_contratados(p_tenant_id uuid)
+RETURNS TABLE (
+  module_id text,
+  nome      text,
+  descricao text
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT public.check_is_tenant_owner(p_tenant_id) AND NOT public.is_superuser() THEN
+    RAISE EXCEPTION 'Somente o Proprietario desta empresa pode listar os modulos contratados.'
+      USING ERRCODE = '42501';
+  END IF;
+
+  RETURN QUERY
+    SELECT pmod.id, pmod.nome, pmod.descricao
+      FROM public.tenant_modules tmod
+      JOIN public.platform_modules pmod ON pmod.id = tmod.module_id
+     WHERE tmod.tenant_id = p_tenant_id
+       AND tmod.is_active = true
+       AND pmod.is_active = true
+     ORDER BY pmod.nome;
+END;
 $$;
 
 
@@ -1579,6 +1631,7 @@ GRANT EXECUTE ON FUNCTION public.can_view_user_profile(uuid)                  TO
 
 -- Módulos: o app pergunta ao banco o que este membro pode abrir.
 GRANT EXECUTE ON FUNCTION public.modulos_do_membro(uuid)                      TO authenticated;
+GRANT EXECUTE ON FUNCTION public.modulos_contratados(uuid)                    TO authenticated;
 GRANT EXECUTE ON FUNCTION public.modulo_contratado(uuid, text)                TO authenticated;
 
 -- `sync_auth_users` e `gerar_slug_empresa` ficam só para o servidor/manutenção:
@@ -1623,6 +1676,6 @@ $$;
 --              where email = 'coloque-o-email-aqui';
 --      ⚠️ Não existe mais credencial fixa no código. Sem este passo, o Painel de
 --      Engenharia não abre para ninguém.
---   3. Conferir: 7 tabelas, 26 funções, 12 policies, 15 triggers.
+--   3. Conferir: 7 tabelas, 27 funções, 12 policies, 15 triggers.
 --   4. Rodar `supabase/testes/teste_rls.sql` para verificar as travas de acesso.
 -- ===========================================================================

@@ -39,6 +39,13 @@ export interface ModuloDaEmpresa {
   contratado: boolean;
 }
 
+/** Um módulo que a EMPRESA contratou — a lista que o Proprietário oferece à equipe. */
+export interface ModuloContratado {
+  module_id: string;
+  nome: string;
+  descricao: string | null;
+}
+
 /** Uma empresa, na tela de contratação de módulos do Painel de Engenharia. */
 export interface EmpresaParaModulos {
   id: string;
@@ -95,6 +102,25 @@ export const moduleService = {
 
     if (error) throw new Error(error.message);
     return (data ?? []) as string[];
+  },
+
+  /**
+   * PROPRIETÁRIO: os módulos que a EMPRESA contratou, para ele distribuir à
+   * equipe dele.
+   *
+   * ⚠️ NÃO USE `listarModulosDaEmpresa` PARA ISSO. Aquela é do Desenvolvedor e
+   * confere `is_superuser()` lá dentro — na mão do Proprietário ela devolve
+   * 42501. Foi a ausência desta função aqui que deixou o "Painel de Controle de
+   * Tripulação" sem nada para oferecer (defeito encontrado por ele em
+   * 12/09/2026, na validação do degrau 7).
+   */
+  async modulosContratados(tenantId: string): Promise<ModuloContratado[]> {
+    const { data, error } = await supabase.rpc('modulos_contratados', {
+      p_tenant_id: tenantId,
+    });
+
+    if (error) throw new Error(error.message);
+    return (data ?? []) as ModuloContratado[];
   },
 
   /**

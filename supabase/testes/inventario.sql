@@ -5,7 +5,7 @@
 --
 -- PARA QUE SERVE: conferir, no banco de verdade, que o que está lá é o que o
 -- `plataforma_01_schema.sql` manda estar. É o passo 3 do roteiro de recriação
--- ("Conferir: 7 tabelas, 26 funções, 12 policies, 15 triggers").
+-- ("Conferir: 7 tabelas, 27 funções, 12 policies, 15 triggers").
 --
 -- COMO USAR: cada bloco abaixo é INDEPENDENTE. Cole UM bloco por vez no SQL
 -- Editor e execute. Todos devolvem LINHAS (nunca `RAISE NOTICE`, que o SQL
@@ -91,7 +91,7 @@ SELECT x.objeto      AS "objeto",
                AND NOT EXISTS (SELECT 1 FROM pg_depend d
                                 WHERE d.objid = p.oid AND d.deptype = 'e')
                AND p.proname <> 'rls_auto_enable'),
-           26
+           27
     UNION ALL
     SELECT '3. policies',
            (SELECT count(*)::int FROM pg_policies WHERE schemaname = 'public'),
@@ -153,7 +153,8 @@ SELECT z.situacao   AS "situacao",
          'check_is_tenant_member', 'check_is_tenant_owner', 'check_profile_completed',
          'delete_user_permanently', 'ensure_google_user_profile', 'gerar_slug_empresa',
          'get_user_by_email_for_invite', 'handle_auto_confirm_email', 'handle_new_user',
-         'is_superuser', 'marcar_atualizacao', 'modulo_contratado', 'modulos_do_membro',
+         'is_superuser', 'marcar_atualizacao', 'modulo_contratado',
+         'modulos_contratados', 'modulos_do_membro',
          'registrar_auditoria', 'sync_auth_users', 'validar_modulos_do_membro'
        )
 
@@ -171,7 +172,8 @@ SELECT z.situacao   AS "situacao",
          ('check_is_tenant_member'), ('check_is_tenant_owner'), ('check_profile_completed'),
          ('delete_user_permanently'), ('ensure_google_user_profile'), ('gerar_slug_empresa'),
          ('get_user_by_email_for_invite'), ('handle_auto_confirm_email'), ('handle_new_user'),
-         ('is_superuser'), ('marcar_atualizacao'), ('modulo_contratado'), ('modulos_do_membro'),
+         ('is_superuser'), ('marcar_atualizacao'), ('modulo_contratado'),
+         ('modulos_contratados'), ('modulos_do_membro'),
          ('registrar_auditoria'), ('sync_auth_users'), ('validar_modulos_do_membro')
        ) AS e(nome)
      WHERE NOT EXISTS (

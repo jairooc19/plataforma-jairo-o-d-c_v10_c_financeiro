@@ -563,6 +563,88 @@ $$;
 
 
 -- ---------------------------------------------------------------------------
+-- TESTE 14 — o PROPRIETÁRIO abre o que a empresa contratou, sem se autoliberar
+-- (L5). Este teste nasceu de um defeito real, encontrado por ele na validação
+-- do degrau 7: o módulo estava contratado, o painel dizia "nenhum módulo
+-- disponível", e a causa era `modulos_do_membro` exigir o id em
+-- `allowed_modules` TAMBÉM para o dono da empresa. Note que o `allowed_modules`
+-- dele continua VAZIO aqui — é justamente esse o ponto.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  v_tenant  uuid;
+  v_lista   text[];
+  v_membro  text[];
+BEGIN
+  SELECT id INTO v_tenant FROM public.tenants
+   WHERE owner_id = '11111111-1111-1111-1111-111111111111' LIMIT 1;
+
+  -- O Desenvolvedor contrata o módulo de mentira para a empresa.
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims', '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', true);
+  PERFORM public.admin_set_tenant_module(v_tenant, 'teste_lego', true);
+
+  -- Agora o PROPRIETÁRIO pergunta o que pode abrir.
+  PERFORM set_config('request.jwt.claims', '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
+  v_lista := public.modulos_do_membro(v_tenant);
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims', '{}', true);
+
+  SELECT allowed_modules INTO v_membro
+    FROM public.tenant_members
+   WHERE tenant_id = v_tenant AND user_id = '11111111-1111-1111-1111-111111111111';
+
+  INSERT INTO public.resultado_teste_rls VALUES (
+    14,
+    CASE WHEN v_lista @> ARRAY['teste_lego'] THEN 'PASSOU' ELSE 'FALHOU' END,
+    'L5 — Proprietário abre o módulo contratado sem se autoliberar',
+    format('modulos_do_membro=%s; allowed_modules dele=%s (tem de estar vazio)',
+           COALESCE(v_lista::text, '<nulo>'), COALESCE(v_membro::text, '<nulo>'))
+  );
+END;
+$$;
+
+
+-- ---------------------------------------------------------------------------
+-- TESTE 15 — `modulos_contratados` responde ao dono e recusa o estranho (L5).
+-- É a função que alimenta o "Painel de Controle de Tripulação": sem ela, o
+-- Proprietário não tem o que oferecer aos Dependentes. E ela não pode ser
+-- pública — a lista de módulos de uma empresa é informação dela.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  v_tenant uuid;
+  v_dono   int  := -1;
+  v_erro   text := 'nenhum';
+BEGIN
+  SELECT id INTO v_tenant FROM public.tenants
+   WHERE owner_id = '11111111-1111-1111-1111-111111111111' LIMIT 1;
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims', '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
+  SELECT count(*)::int INTO v_dono FROM public.modulos_contratados(v_tenant);
+
+  PERFORM set_config('request.jwt.claims', '{"sub":"33333333-3333-3333-3333-333333333333","role":"authenticated"}', true);
+  BEGIN
+    PERFORM count(*) FROM public.modulos_contratados(v_tenant);
+  EXCEPTION WHEN OTHERS THEN
+    v_erro := SQLSTATE;
+  END;
+
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims', '{}', true);
+
+  INSERT INTO public.resultado_teste_rls VALUES (
+    15,
+    CASE WHEN v_dono >= 1 AND v_erro <> 'nenhum' THEN 'PASSOU' ELSE 'FALHOU' END,
+    'L5 — modulos_contratados: dono vê, estranho leva 42501',
+    format('dono viu %s módulo(s); estranho: SQLSTATE=%s', v_dono, v_erro)
+  );
+END;
+$$;
+
+
+-- ---------------------------------------------------------------------------
 -- LIMPEZA FINAL — os três usuários, as empresas deles e o rastro na auditoria.
 -- Mesma ordem da limpeza prévia, pelo mesmo motivo (ON DELETE RESTRICT).
 -- A tabela `resultado_teste_rls` NÃO é apagada aqui: é ela que o SELECT abaixo

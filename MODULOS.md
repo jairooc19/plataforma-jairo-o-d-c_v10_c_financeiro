@@ -226,7 +226,17 @@ função `modulos_do_membro(tenant_id)`:
 | Chave | Onde mora | Quem concede | Tela |
 |---|---|---|---|
 | **A empresa contratou** | `tenant_modules` | Desenvolvedor | Painel de Engenharia › Módulos |
-| **O membro foi liberado** | `tenant_members.allowed_modules` | Proprietário | Central de Comando de Tripulação |
+| **O membro foi liberado** | `tenant_members.allowed_modules` | Proprietário | Painel de Controle de Tripulação |
+
+> 👑 **O PROPRIETÁRIO PRECISA DE UMA CHAVE SÓ.** `allowed_modules` é o que ele
+> entrega à **tripulação** dele; o dono da empresa não se convida. Para quem tem
+> `role = 'OWNER'`, o que a empresa contratou já é o que ele pode abrir — e quem
+> decide isso é `modulos_do_membro()`, no banco, não a tela. Exigir as duas chaves
+> dele era um beco sem saída: contratava, liberava e não via nada (corrigido em
+> 12/09/2026, na validação do degrau 7; testes 14 e 15 do `teste_rls.sql`).
+>
+> E a lista que ele distribui vem de `modulos_contratados(tenant_id)` — não de
+> `admin_list_tenant_modules`, que é do Desenvolvedor e recusa o Proprietário.
 
 E há uma terceira condição implícita: o módulo precisa estar **ativo no catálogo**
 (`platform_modules.is_active`).

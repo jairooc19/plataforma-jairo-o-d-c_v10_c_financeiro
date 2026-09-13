@@ -7,6 +7,56 @@ Leia-o integralmente antes de tocar em qualquer arquivo.
 
 ## ⚠️ Histórico de Mudanças
 
+**2026-09-12 — v10: o beco sem saída das duas chaves (correção encontrada na validação do degrau 7)**
+
+O dono do projeto contratou o módulo no Painel de Engenharia, liberou no painel de
+equipe, entrou como **Proprietário** — e o painel dele continuou dizendo *"nenhum
+módulo disponível"*. Não era o módulo: era a plataforma. **Exige rodar de novo o
+`plataforma_01_schema.sql`** (só ele; o arquivo é idempotente e não apaga nada).
+
+| Onde | O que mudou |
+|---|---|
+| `plataforma_01_schema.sql` 5.24 | `modulos_do_membro` passou a devolver, para quem é `OWNER`, tudo o que a empresa contratou |
+| `plataforma_01_schema.sql` 5.24-b | ✨ **NOVA** `modulos_contratados(uuid)` — a lista que o Proprietário distribui; o banco foi a **27 funções** |
+| `moduleService` | ✨ `modulosContratados()` |
+| `TeamManagementModal` | O cartaz fixo virou **uma caixa por módulo contratado**, com as marcações do integrante carregadas ao abri-lo |
+| `teste_rls.sql` | Foi de 14 para **16 testes** (os 2 novos são exatamente este defeito) |
+| `inventario.sql`, `plataforma_00_reset.sql` | Acompanharam a função nova |
+
+⚠️ **ERAM DOIS DEFEITOS, E O SEGUNDO ESCONDIA O PRIMEIRO.**
+
+1. **`modulos_do_membro` exigia `allowed_modules` também do dono da empresa.** Mas
+   `allowed_modules` é a chave que o Proprietário entrega à **tripulação** dele —
+   o dono não se convida. Para ele, o que a empresa contratou já é o que ele pode
+   abrir.
+2. **O "Painel de Controle de Tripulação" nunca perguntou ao banco quais módulos
+   existiam.** Mostrava o cartaz *"nenhum módulo contratado encontrado"* fixo no
+   JSX, escrito quando não havia módulo nenhum, e **nunca revisto**. Pior: o
+   `handleSave` chamava `salvarDependente(tenant, user, ativo)` sem a lista — e o
+   parâmetro tem `= []` por padrão, então **gravar um integrante APAGAVA as
+   permissões dele**. Ou seja: não havia caminho para liberar módulo a ninguém, e
+   o pouco que se liberasse por SQL seria apagado na primeira edição pela tela.
+
+⚠️ **A FUNÇÃO DO PROPRIETÁRIO NÃO PODIA SER A DO DESENVOLVEDOR.**
+`admin_list_tenant_modules` confere `is_superuser()` por dentro e devolveria
+`42501` na mão do dono da empresa. Daí a `modulos_contratados(uuid)` separada, que
+confere `check_is_tenant_owner()` — e mostra só o que está **contratado e ativo**,
+não o catálogo inteiro: o catálogo é assunto da plataforma, não da empresa.
+
+⚠️ **O TESTE QUE FALTAVA ERA O ÓBVIO.** Os 14 testes provavam que o Dependente
+**não** recebe módulo não contratado (L4, quatro ângulos) e nenhum provava que
+alguém **recebe**. Os testes 14 e 15 fecham isso: o Proprietário vê o módulo com
+`allowed_modules = {}`, e `modulos_contratados` responde ao dono e recusa o
+estranho. Provados no PostgreSQL local: **16/16**.
+
+⚠️ **RODAR SÓ O `01` É SEGURO, E É O CAMINHO AQUI.** O arquivo não tem
+`TRUNCATE`, `DELETE`, `DROP TABLE` nem `DROP COLUMN`: as tabelas são
+`CREATE TABLE IF NOT EXISTS`, as funções `CREATE OR REPLACE` e cada policy tem o
+`DROP POLICY IF EXISTS` antes. Quem apaga dado é o `00`, e ele **não** deve ser
+rodado para esta correção.
+
+---
+
 **2026-09-12 — v10: degrau 7, o MÓDULO CONTROLE FINANCEIRO conectado (a primeira peça de LEGO)**
 
 A primeira peça entrou no soquete que o degrau 5 construiu. O módulo `financeiro`
@@ -1972,6 +2022,9 @@ inclusive numa máquina limpa — foi por isso que a versão com bcrypt foi reve
 - ❌ Nunca alterar tabela, função ou policy da plataforma a pedido de um módulo — o módulo cria as próprias tabelas com o prefixo dele e aponta para a plataforma por chave estrangeira
 - ❌ Nunca cadastrar um módulo no catálogo (`platform_modules`) pela aplicação — quem grava é o seed do módulo, e o reset dele apaga
 - ❌ Nunca liberar módulo a um membro sem a empresa ter contratado — são duas chaves, e o gatilho recusa
+- ❌ Nunca exigir `allowed_modules` do PROPRIETÁRIO — a coluna é a chave que ele entrega à tripulação dele; para o dono da empresa vale o que ela contratou (`modulos_do_membro` trata os dois casos)
+- ❌ Nunca chamar `admin_list_tenant_modules` de tela do Proprietário — ela confere `is_superuser()` e devolve 42501; a função dele é `modulos_contratados(uuid)`
+- ❌ Nunca chamar `salvarDependente` sem a lista de módulos — o parâmetro tem `= []` por padrão e a gravação APAGA as permissões que o integrante já tinha
 - ❌ Nunca criar arquivo com múltiplas responsabilidades distintas
 - ❌ Nunca misturar lógica de plataforma com módulo, nem módulo com módulo
 - ❌ Nunca usar `toISOString()` para datas que precisam respeitar UTC-3
