@@ -106,6 +106,15 @@ export interface LinhaDoExtrato {
   saldo_centavos: number;
   historico: string | null;
   conferido: boolean | null;
+  /**
+   * O e-mail de quem lançou (13/09/2026).
+   *
+   * ⚠️ É `null` nas linhas de SALDO INICIAL e de TOTAIS — elas não têm autor,
+   * são somas. E pode ser `null` também numa linha de lançamento cujo autor
+   * tenha sido apagado da plataforma: o extrato continua mostrando o dinheiro,
+   * porque o fato aconteceu.
+   */
+  usuario: string | null;
 }
 
 /** Uma linha de fechamento: até quando aquela conta está trancada (RN-24). */

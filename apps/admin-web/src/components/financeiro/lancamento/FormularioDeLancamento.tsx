@@ -4,6 +4,7 @@ import Link from "next/link";
 import { formatarBRL } from "@jairo/core";
 import CampoDinheiro from "../CampoDinheiro";
 import IconeFin from "../IconeFin";
+import SelecaoComBusca from "../SelecaoComBusca";
 import type { useNovoLancamento } from "./useNovoLancamento";
 
 /**
@@ -32,16 +33,37 @@ export default function FormularioDeLancamento({
     <section className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
       <div className="flex items-center justify-between gap-3 mb-5">
         <h1 className="flex items-center gap-2 text-lg font-black uppercase tracking-tight text-slate-800">
-          <IconeFin nome="novo" tamanho={20} traco={1.75} />
-          NOVO LANÇAMENTO
+          <IconeFin nome={m.editandoId ? "editar" : "novo"} tamanho={20} traco={1.75} />
+          {m.editandoId ? "EDITAR LANÇAMENTO" : "NOVO LANÇAMENTO"}
         </h1>
-        {m.gravadosNaSessao > 0 && (
+        {m.gravadosNaSessao > 0 && !m.editandoId && (
           <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-700">
             <IconeFin nome="ativo" tamanho={13} />
             {m.gravadosNaSessao} NESTA SESSÃO
           </span>
         )}
       </div>
+
+      {/* ⚠️ A FAIXA DO MODO EDIÇÃO NÃO É ENFEITE. Sem ela, a pessoa que clicou
+          em EDITAR numa linha do extrato veria um formulário preenchido e
+          acharia que estava criando um lançamento novo — e o botão de gravar
+          SUBSTITUIRIA o antigo em silêncio. */}
+      {m.editandoId && (
+        <div className="mb-4 flex items-start justify-between gap-3 bg-amber-50 border border-amber-300 rounded-xl px-4 py-3">
+          <div className="flex items-start gap-2 text-xs font-bold uppercase text-amber-900">
+            <IconeFin nome="editar" tamanho={15} />
+            <span>ALTERANDO UM LANÇAMENTO EXISTENTE — GRAVAR SUBSTITUI O REGISTRO.</span>
+          </div>
+          <button
+            type="button"
+            onClick={m.limparFormulario}
+            className="shrink-0 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-amber-900 hover:text-amber-700"
+          >
+            <IconeFin nome="fechar" tamanho={13} />
+            CANCELAR
+          </button>
+        </div>
+      )}
 
       {/* A TRANSFERÊNCIA, no lugar que o dono do projeto pediu */}
       {pode("transferencia") && (
@@ -159,38 +181,56 @@ export default function FormularioDeLancamento({
               </button>
             )}
           </div>
-          <select id="l-cat" value={f.categoriaId} onChange={(e) => f.setCategoriaId(e.target.value)}
-                  className={`${campo} uppercase font-bold`}>
-            <option value="">SELECIONE</option>
-            {categorias.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-          </select>
+          {/* ⚠️ CAMPO QUE SE DIGITA **E** SE ESCOLHE (13/09/2026). Era um
+              `<select>` puro: com muitas categorias, achar uma exigia rolar a
+              lista inteira. Agora, ao digitar o primeiro caractere, o BANCO
+              devolve até 4 sugestões — casando o texto em qualquer posição do
+              nome e ignorando acento (`fin_buscar_identificadoras`). Clicar sem
+              digitar continua abrindo a lista completa, como antes. */}
+          <SelecaoComBusca
+            id="l-cat"
+            valor={f.categoriaId}
+            opcoes={categorias}
+            aoEscolher={f.setCategoriaId}
+            aoBuscar={m.sugerirIdentificadoras}
+            placeholder="DIGITE PARA PROCURAR OU CLIQUE PARA VER A LISTA"
+          />
           <span className="text-[11px] font-bold uppercase text-slate-400">
             TIPO: {categoriaEscolhida?.tipo ?? "—"}
           </span>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="l-valor" className={rotulo}>VALOR DO LANÇAMENTO</label>
-            <CampoDinheiro id="l-valor" valorCentavos={f.valor} onChange={f.setValor} />
-          </div>
-          <div>
-            <label htmlFor="l-hist" className={rotulo}>HISTÓRICO DO MOVIMENTO</label>
-            <input id="l-hist" type="text" maxLength={200} value={f.historico}
-                   onChange={(e) => f.setHistorico(e.target.value.toUpperCase())}
-                   className={`${campo} uppercase`} placeholder="OPCIONAL" />
-          </div>
+        <div>
+          <label htmlFor="l-valor" className={rotulo}>VALOR DO LANÇAMENTO</label>
+          <CampoDinheiro id="l-valor" valorCentavos={f.valor} onChange={f.setValor} />
+        </div>
+
+        {/* ⚠️ O HISTÓRICO OCUPA A LINHA INTEIRA, ABAIXO DO VALOR (pedido de
+            13/09/2026). Ele aceita 200 caracteres e dividia a linha com o valor:
+            na prática, sobravam menos de 30 caracteres visíveis de cada vez, e
+            quem escreve um histórico longo digitava às cegas. Campo de texto
+            livre e campo numérico curto não têm por que dividir a mesma linha. */}
+        <div>
+          <label htmlFor="l-hist" className={rotulo}>HISTÓRICO DO MOVIMENTO</label>
+          <input id="l-hist" type="text" maxLength={200} value={f.historico}
+                 onChange={(e) => f.setHistorico(e.target.value.toUpperCase())}
+                 className={`${campo} uppercase`} placeholder="OPCIONAL — ATÉ 200 CARACTERES" />
+          <span className="text-[11px] font-bold uppercase text-slate-400">
+            {f.historico.length}/200
+          </span>
         </div>
 
         <button
           type="button"
           onClick={m.gravar}
           disabled={m.gravando || !f.contaId || !f.categoriaId || !f.data || f.valor <= 0}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-600 text-white
-                     text-xs font-black uppercase tracking-widest disabled:opacity-40"
+          className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white
+                     text-xs font-black uppercase tracking-widest disabled:opacity-40 ${
+                       m.editandoId ? "bg-amber-600" : "bg-blue-600"
+                     }`}
         >
           <IconeFin nome="salvar" tamanho={16} />
-          {m.gravando ? "GRAVANDO…" : "GRAVAR LANÇAMENTO"}
+          {m.gravando ? "GRAVANDO…" : m.editandoId ? "SALVAR ALTERAÇÕES" : "GRAVAR LANÇAMENTO"}
         </button>
       </div>
     </section>

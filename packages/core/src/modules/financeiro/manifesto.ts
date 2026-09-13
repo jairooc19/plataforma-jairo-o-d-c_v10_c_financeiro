@@ -23,6 +23,12 @@ export const MANIFESTO_FINANCEIRO: ManifestoDeModulo = {
   nome: 'Controle Financeiro',
   descricao: 'Contas, lançamentos, extrato com saldo e conferência.',
   rotaWeb: '/dashboard/financeiro',
+  /**
+   * Onde o Proprietário liga e desliga as 17 permissões de cada Dependente.
+   * A plataforma só usa isto para desenhar um link no Painel de Controle de
+   * Tripulação — ela não sabe (e não deve saber) que são 17 nem quais são.
+   */
+  rotaConfiguracao: '/dashboard/financeiro/dependentes',
   prefixoBanco: 'fin_',
   versao: '1.0.0',
   exigePlataforma: 'v10',

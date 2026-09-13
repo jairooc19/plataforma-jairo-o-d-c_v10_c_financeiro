@@ -34,6 +34,15 @@ export interface ContextoFinanceiro {
   nomeEmpresa: string;
   /** E-mail real de quem está logado — idem. */
   emailUsuario: string;
+  /**
+   * O papel do usuário NESTA empresa: `OWNER`, `DEPENDENT` ou `VIEWER`.
+   *
+   * ⚠️ SERVE PARA MOSTRAR NA TELA, NÃO PARA AUTORIZAR. Quem autoriza é
+   * `fin_pode()`, dentro do banco. Este campo existe porque o dono do projeto
+   * pediu, em 13/09/2026, que o módulo mostrasse quem está logado — e "qual
+   * conta" sem "em que papel" ainda deixa a pergunta pela metade.
+   */
+  papel: string;
   permissoes: Set<PermissaoFinanceiro>;
   /** Atalho para a tela perguntar se pode mostrar um botão. */
   pode: (p: PermissaoFinanceiro) => boolean;
@@ -55,6 +64,7 @@ const VAZIO: ContextoFinanceiro = {
   userId: null,
   nomeEmpresa: "",
   emailUsuario: "",
+  papel: "",
   permissoes: new Set(),
   pode: () => false,
   erro: null,
@@ -110,6 +120,7 @@ export function ProvedorFinanceiro({ children }: { children: React.ReactNode }) 
           tenantId: empresa,
           userId: user.id,
           emailUsuario: user.email ?? "",
+          papel: eu.role,
           nomeEmpresa: emp?.tenant_name ?? "",
           permissoes: new Set(eu.role === "OWNER" ? TUDO : eu.permissoes),
         });

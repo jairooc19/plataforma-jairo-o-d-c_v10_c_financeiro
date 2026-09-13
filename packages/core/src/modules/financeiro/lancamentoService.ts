@@ -72,6 +72,41 @@ export const lancamentoService = {
   },
 
   /**
+   * Um lançamento inteiro, pelo id — para preencher o formulário na EDIÇÃO.
+   *
+   * ⚠️ POR QUE ISTO PRECISOU EXISTIR (13/09/2026). O extrato e a pesquisa
+   * mostram o lançamento *resumido* (o extrato nem traz o valor bruto: traz
+   * entrada, saída e saldo já calculados). Para reabrir a linha no formulário é
+   * preciso o registro completo — conta, categoria, tipo, propriedade, regime,
+   * valor e histórico. Montar isso a partir das colunas da tela seria adivinhar:
+   * uma linha com "saída de 500,00" não diz se o regime era CAIXA ou
+   * COMPETÊNCIA, e gravar de volta com o palpete errado corromperia o extrato.
+   *
+   * ⚠️ LEITURA DIRETA NA TABELA, e pode ser: a RLS já limita à empresa de quem
+   * pergunta. O `.eq('tenant_id')` é o escudo explícito por cima disso —
+   * cinto e suspensório, como o resto do módulo.
+   *
+   * Devolve `null` quando não existe (ou quando a RLS o esconde): a tela avisa
+   * em vez de abrir um formulário vazio que gravaria um lançamento novo.
+   */
+  async buscarPorId(tenantId: string, id: string): Promise<Lancamento | null> {
+    const { data, error } = await supabase
+      .from('fin_lancamentos')
+      .select(`
+        id, tenant_id, conta_movimento_id, conta_identificadora_id,
+        tipo_conta_movimento, tipo_conta_identificadora,
+        data_movimento, ordem_extrato, tipo_movimento, propriedade, regime,
+        valor_centavos, historico, conferido, transferencia_id, criado_por, created_at
+      `)
+      .eq('tenant_id', tenantId)
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    return (data as unknown as Lancamento) ?? null;
+  },
+
+  /**
    * Exclui um lançamento.
    *
    * ⚠️ SE FOR PERNA DE TRANSFERÊNCIA, AS DUAS SAEM JUNTAS (RN-23) — e a

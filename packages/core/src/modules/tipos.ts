@@ -43,6 +43,33 @@ export interface ManifestoDeModulo {
   rotaWeb: string;
 
   /**
+   * (Opcional) A tela DENTRO do módulo onde o Proprietário ajusta, em detalhe,
+   * o que cada integrante pode fazer ali. Ex.: `/dashboard/financeiro/dependentes`.
+   *
+   * ⚠️ POR QUE ISTO EXISTE, E POR QUE NÃO VIOLA A REGRA DE CIMA. Há **duas**
+   * decisões diferentes sobre um integrante, e elas moram em lugares
+   * diferentes de propósito:
+   *
+   *   1. "ele pode ABRIR este módulo?"  → é da PLATAFORMA. Vive em
+   *      `tenant_members.allowed_modules`, e a tela é o Painel de Controle de
+   *      Tripulação.
+   *   2. "o que ele pode fazer DENTRO?" → é do MÓDULO. As permissões são do
+   *      negócio de cada peça (o financeiro tem 17; outro módulo terá outras
+   *      quantas), e a plataforma não pode conhecê-las sem virar refém delas.
+   *
+   * Em 13/09/2026 o dono do projeto foi à tela (1) procurar a resposta de (2) e
+   * não achou — o que é justo, porque nada ali dizia que a segunda decisão
+   * existia e ficava noutro lugar. Este campo é **o endereço da porta**, não a
+   * porta: a plataforma mostra um link, sem saber o que há do outro lado.
+   *
+   * ⚠️ CONTINUA VALENDO A REGRA ACIMA: nunca acrescente a este tipo um campo
+   * que só um módulo usa. `rotaConfiguracao` é genérico — qualquer módulo com
+   * permissões internas tem uma; quem não tiver, simplesmente omite, e a
+   * plataforma não desenha link nenhum.
+   */
+  rotaConfiguracao?: string;
+
+  /**
    * O prefixo de TODAS as tabelas e funções do módulo no banco. Ex.: `fin_`.
    * É o que permite ao reset do módulo derrubar só o que é dele.
    */

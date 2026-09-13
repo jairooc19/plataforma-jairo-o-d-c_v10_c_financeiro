@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   cadastroFinanceiroService, lancamentoService, extratoService, hojeISO,
   type ContaMovimento, type ContaIdentificadora, type LinhaDoExtrato,
@@ -26,6 +27,18 @@ import { useEmpresaAtiva } from "../useEmpresaAtiva";
 export function useNovoLancamento() {
   const ctx = useEmpresaAtiva();
   const { tenantId } = ctx;
+  const parametros = useSearchParams();
+
+  /**
+   * 📝 O ID QUE ESTÁ SENDO EDITADO. `null` = lançamento novo.
+   *
+   * ⚠️ ELE MUDA O SIGNIFICADO DO BOTÃO DE GRAVAR, e é por isso que precisa ser
+   * estado visível na tela e não uma variável escondida: com `editandoId`
+   * preenchido, `fin_gravar_lancamento` faz UPDATE em vez de INSERT. Se a tela
+   * não avisasse em que modo está, a pessoa pensaria estar criando um
+   * lançamento novo e estaria sobrescrevendo um antigo.
+   */
+  const [editandoId, setEditandoId] = useState<string | null>(null);
 
   const [contas, setContas] = useState<ContaMovimento[]>([]);
   const [categorias, setCategorias] = useState<ContaIdentificadora[]>([]);
@@ -112,6 +125,74 @@ export function useNovoLancamento() {
   const contaEscolhida = contas.find((c) => c.id === contaId);
   const contaDoExtrato = contas.find((c) => c.id === contaExtrato);
 
+  /** As até 4 sugestões da categoria, buscadas NO BANCO enquanto se digita. */
+  const sugerirIdentificadoras = useCallback(async (texto: string) => {
+    if (!tenantId) return [];
+    return cadastroFinanceiroService.sugerirIdentificadoras(tenantId, texto);
+  }, [tenantId]);
+
+  const limparFormulario = useCallback(() => {
+    setEditandoId(null);
+    setCategoriaId(""); setValor(0); setHistorico(""); setOrdem("");
+  }, []);
+
+  /**
+   * Carrega um lançamento existente no formulário.
+   *
+   * ⚠️ O REGISTRO COMPLETO VEM DO BANCO, e não da linha que está na tela. O
+   * extrato mostra entrada, saída e saldo — números já calculados. Ele não diz
+   * o valor bruto, a propriedade nem o regime. Preencher o formulário com o que
+   * está visível seria adivinhar, e gravar de volta o palpite corromperia o
+   * lançamento em silêncio.
+   */
+  const editar = useCallback(async (lancamentoId: string) => {
+    if (!tenantId) return;
+    setErro(null); setAviso(null);
+    try {
+      const l = await lancamentoService.buscarPorId(tenantId, lancamentoId);
+      if (!l) { setErro("LANÇAMENTO NÃO ENCONTRADO."); return; }
+
+      // ⚠️ TRANSFERÊNCIA NÃO SE EDITA POR AQUI. Ela tem duas pernas amarradas
+      // (RN-23); mexer numa deixaria a outra com valor ou data diferente, e o
+      // saldo de uma das contas erraria para sempre. O caminho é excluir (o
+      // banco apaga as duas) e lançar de novo.
+      if (l.transferencia_id) {
+        setErro("ESTE LANÇAMENTO É UMA PERNA DE TRANSFERÊNCIA E NÃO PODE SER EDITADO AQUI. EXCLUA-O (AS DUAS PERNAS SAEM JUNTAS) E LANCE A TRANSFERÊNCIA DE NOVO.");
+        return;
+      }
+
+      setEditandoId(l.id);
+      setContaId(l.conta_movimento_id);
+      setCategoriaId(l.conta_identificadora_id);
+      setData(l.data_movimento);
+      setOrdem(l.ordem_extrato ?? "");
+      setTipoMov(l.tipo_movimento);
+      setPropriedade(l.propriedade);
+      setRegime(l.regime);
+      setValor(l.valor_centavos);
+      setHistorico(l.historico ?? "");
+      if (!contaExtrato) setContaExtrato(l.conta_movimento_id);
+      setAviso("EDITANDO UM LANÇAMENTO EXISTENTE. GRAVAR VAI SUBSTITUIR O REGISTRO.");
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "FALHA AO ABRIR O LANÇAMENTO.");
+    }
+  }, [tenantId, contaExtrato]);
+
+  /**
+   * Quem chega em `/lancamentos/novo?editar=<id>` (vindo da tela PESQUISAR)
+   * cai direto no formulário preenchido.
+   *
+   * ⚠️ SÓ DISPARA UMA VEZ, quando ainda não há nada em edição. Sem essa guarda,
+   * qualquer nova renderização recarregaria o lançamento do banco e apagaria o
+   * que a pessoa já tivesse digitado.
+   */
+  useEffect(() => {
+    const pedido = parametros?.get("editar");
+    if (!pedido || !tenantId || editandoId) return;
+    const rodar = async () => { await editar(pedido); };
+    rodar();
+  }, [parametros, tenantId, editandoId, editar]);
+
   const gravar = async () => {
     if (!tenantId) return;
     setErro(null); setAviso(null);
@@ -132,6 +213,8 @@ export function useNovoLancamento() {
     setGravando(true);
     try {
       await lancamentoService.gravar(tenantId, {
+        // `null` = lançamento novo; preenchido = o banco faz UPDATE (RN-12).
+        id: editandoId,
         conta_movimento_id: contaId,
         conta_identificadora_id: categoriaId,
         data_movimento: data,
@@ -143,17 +226,45 @@ export function useNovoLancamento() {
         historico: historico || null,
       });
 
-      setGravadosNaSessao((n) => n + 1);
-      setAviso("LANÇAMENTO REGISTRADO.");
+      setAviso(editandoId ? "LANÇAMENTO ALTERADO." : "LANÇAMENTO REGISTRADO.");
+      if (!editandoId) setGravadosNaSessao((n) => n + 1);
 
       // Mantém conta e data (que repetem em série) e limpa o resto — bônus N2.
-      setCategoriaId(""); setValor(0); setHistorico("");
+      // Na edição, `limparFormulario` também zera o `editandoId`: a tela volta
+      // ao modo "novo", senão a próxima gravação sobrescreveria o mesmo registro.
+      limparFormulario();
       if (!contaExtrato) setContaExtrato(contaId);
       await carregarExtrato();
     } catch (e) {
       setErro(e instanceof Error ? e.message : "FALHA AO GRAVAR O LANÇAMENTO.");
     } finally {
       setGravando(false);
+    }
+  };
+
+  /**
+   * Exclui um lançamento a partir do extrato.
+   *
+   * ⚠️ SE FOR PERNA DE TRANSFERÊNCIA, O BANCO APAGA AS DUAS (RN-23) — e a
+   * resposta diz isso, para a tela avisar. Apagar só uma perna deixaria o saldo
+   * de uma das contas errado para sempre.
+   */
+  const excluir = async (lancamentoId: string) => {
+    if (!tenantId) return;
+    if (!window.confirm("EXCLUIR ESTE LANÇAMENTO? SE FOR UMA TRANSFERÊNCIA, AS DUAS PERNAS SERÃO APAGADAS.")) return;
+    setErro(null); setAviso(null);
+    try {
+      const r = await lancamentoService.excluir(tenantId, lancamentoId);
+      setAviso(r.eraTransferencia
+        ? `TRANSFERÊNCIA EXCLUÍDA: ${r.apagados} LANÇAMENTO(S) APAGADO(S).`
+        : "LANÇAMENTO EXCLUÍDO.");
+      // Se o que saiu era justamente o que estava aberto no formulário, o modo
+      // de edição precisa cair junto — senão o botão gravaria um id que não
+      // existe mais.
+      if (editandoId === lancamentoId) limparFormulario();
+      await carregarExtrato();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "FALHA AO EXCLUIR O LANÇAMENTO.");
     }
   };
 
@@ -183,6 +294,7 @@ export function useNovoLancamento() {
     },
     conferencia: { contaExtrato, setContaExtrato, de, setDe, ate, setAte, linhas, carregandoExtrato },
     modal, setModal, gravando, erro, aviso, gravadosNaSessao,
+    editandoId, editar, excluir, limparFormulario, sugerirIdentificadoras,
     gravar, conferir, aoGravarCadastro,
   };
 }

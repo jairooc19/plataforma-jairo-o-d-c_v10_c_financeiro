@@ -862,6 +862,26 @@ $$;
 -- ⚠️ SÓ REGIME CAIXA ENTRA (RN-19). Lançamento de competência não é dinheiro
 -- que andou na conta; se entrasse, o saldo nunca bateria com o extrato do banco
 -- — que é o propósito desta tela.
+-- ⚠️ O `DROP` ABAIXO NÃO É DESCUIDO — É OBRIGATÓRIO, E FOI APRENDIDO NA MARRA.
+-- Em 13/09/2026 esta função ganhou a coluna `usuario` no retorno. O
+-- `CREATE OR REPLACE` **não consegue** mudar o RETURNS TABLE de uma função que
+-- já existe: ele recusa com
+--   "cannot change return type of existing function"
+-- (no português do servidor: "não pode mudar o tipo de retorno da função
+-- existente"), e a dica que ele dá é justamente "use DROP FUNCTION ... first".
+--
+-- Sem este DROP, quem já tinha o módulo instalado veria o arquivo inteiro
+-- falhar nesta linha — e o schema pararia no meio, com metade aplicada.
+--
+-- É seguro: derrubar uma função não toca em uma única linha de dado. O `IF
+-- EXISTS` cobre a instalação nova, onde ela ainda não existe.
+--
+-- ⚠️ A ASSINATURA DENTRO DO DROP É A ANTIGA (os parâmetros), não o retorno. No
+-- PostgreSQL uma função é identificada pelos PARÂMETROS; o tipo de retorno não
+-- faz parte do nome dela. Se um dia os parâmetros mudarem, este DROP precisa
+-- listar os antigos, ou não encontra nada para derrubar.
+DROP FUNCTION IF EXISTS public.fin_extrato(uuid, uuid, date, date);
+
 CREATE OR REPLACE FUNCTION public.fin_extrato(
   p_tenant_id uuid,
   p_conta_movimento_id uuid,
@@ -878,7 +898,21 @@ RETURNS TABLE (
   saida_centavos   bigint,
   saldo_centavos   bigint,
   historico        text,
-  conferido        boolean
+  conferido        boolean,
+  -- 13/09/2026: quem lançou. Pedido do dono do projeto para a CONFERÊNCIA DA
+  -- CONTA, que já tinha a coluna na tela de PESQUISAR e não aqui.
+  --
+  -- ⚠️ VEM DE UM `LEFT JOIN`, e o `LEFT` importa. `criado_por` aponta para
+  -- `public.users`, cuja RLS só deixa cada um ver o próprio perfil (e o dono
+  -- ver a equipe dele). Com `JOIN` simples, um Dependente veria as linhas dos
+  -- colegas SUMIREM do extrato — e um extrato com linhas faltando é pior que
+  -- um extrato sem a coluna: o saldo deixaria de bater com a soma visível.
+  -- Com `LEFT JOIN`, a linha fica e a coluna vem vazia.
+  --
+  -- ⚠️ A FUNÇÃO É `SECURITY DEFINER`, então na prática ela lê `users` como dona
+  -- do banco e enxerga todo mundo. O `LEFT` é a rede de segurança para o dia em
+  -- que isso mudar.
+  usuario          text
 )
 LANGUAGE plpgsql
 STABLE
@@ -926,9 +960,11 @@ BEGIN
                 ELSE -l.valor_centavos END AS delta,
            l.historico,
            l.conferido,
-           l.created_at
+           l.created_at,
+           u.email AS usuario
       FROM public.fin_lancamentos l
       JOIN public.fin_contas_identificadoras ci ON ci.id = l.conta_identificadora_id
+      LEFT JOIN public.users u ON u.id = l.criado_por
      WHERE l.conta_movimento_id = p_conta_movimento_id
        AND l.tenant_id = p_tenant_id
        AND l.regime = 'CAIXA'
@@ -960,11 +996,11 @@ BEGIN
            (p_data_inicial - 1) AS dt, NULL::integer AS ord,
            'SALDO INICIAL'::text AS ident, NULL::bigint AS ent, NULL::bigint AS sai,
            v_saldo_inicial AS sal, NULL::text AS hist, NULL::boolean AS conf,
-           NULL::timestamptz AS criado
+           NULL::text AS usu, NULL::timestamptz AS criado
     UNION ALL
     SELECT 2, 'LANCAMENTO'::text, s.id, s.data_movimento, s.ordem_extrato,
            s.identificadora, NULLIF(s.entrada, 0), NULLIF(s.saida, 0), s.saldo,
-           s.historico, s.conferido, s.created_at
+           s.historico, s.conferido, s.usuario, s.created_at
       FROM com_saldo s
     UNION ALL
     SELECT 3, 'TOTAL'::text, NULL::uuid, p_data_final, NULL::integer,
@@ -972,9 +1008,9 @@ BEGIN
            COALESCE((SELECT SUM(entrada) FROM com_saldo), 0)::bigint,
            COALESCE((SELECT SUM(saida)   FROM com_saldo), 0)::bigint,
            (v_saldo_inicial + COALESCE((SELECT SUM(delta) FROM com_saldo), 0))::bigint,
-           NULL::text, NULL::boolean, NULL::timestamptz
+           NULL::text, NULL::boolean, NULL::text, NULL::timestamptz
   )
-  SELECT t.lt, t.lid, t.dt, t.ord, t.ident, t.ent, t.sai, t.sal, t.hist, t.conf
+  SELECT t.lt, t.lid, t.dt, t.ord, t.ident, t.ent, t.sai, t.sal, t.hist, t.conf, t.usu
     FROM tudo t
    -- RN-21 outra vez, agora para EXIBIR na mesma ordem em que o saldo foi somado.
    ORDER BY t.bloco, t.dt, t.ord NULLS LAST, t.criado;

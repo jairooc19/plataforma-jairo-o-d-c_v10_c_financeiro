@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   cadastroFinanceiroService, lancamentoService, permissaoFinanceiroService,
   formatarBRL, formatarDataBR, paraCentavos,
@@ -10,6 +11,7 @@ import { useEmpresaAtiva } from "@/components/financeiro/useEmpresaAtiva";
 import { baixarTSV } from "@/components/financeiro/exportarTSV";
 import { abrirImpressao } from "@/components/financeiro/prepararImpressao";
 import IconeFin from "@/components/financeiro/IconeFin";
+import MenuDeLinha, { type AcaoDeLinha } from "@/components/financeiro/MenuDeLinha";
 
 /**
  * 🔎 TELA: PESQUISAR LANÇAMENTOS (PJODC v10)
@@ -23,6 +25,7 @@ import IconeFin from "@/components/financeiro/IconeFin";
  */
 export default function PesquisarLancamentosPage() {
   const { carregando: carregandoContexto, tenantId, erro: erroContexto, pode, nomeEmpresa } = useEmpresaAtiva();
+  const router = useRouter();
 
   const [contas, setContas] = useState<ContaMovimento[]>([]);
   const [categorias, setCategorias] = useState<ContaIdentificadora[]>([]);
@@ -112,6 +115,42 @@ export default function PesquisarLancamentosPage() {
     } catch (e) {
       setErro(e instanceof Error ? e.message : "FALHA AO EXCLUIR.");
     }
+  };
+
+  /**
+   * As ações do menu OPÇÕES de cada linha (13/09/2026).
+   *
+   * ⚠️ EDITAR SAI DESTA TELA E VAI PARA "NOVO LANÇAMENTO". Não é desvio: o
+   * formulário completo (conta, categoria, tipo, propriedade, regime, valor,
+   * histórico e ordem) mora lá, e ele já sabe editar. Duplicá-lo aqui criaria
+   * duas telas capazes de gravar o mesmo registro — e no dia em que uma regra
+   * mudasse, alguém corrigiria só uma delas.
+   *
+   * ⚠️ TRANSFERÊNCIA NÃO OFERECE "EDITAR". Ela tem duas pernas amarradas
+   * (RN-23); alterar uma sozinha deixaria o saldo da outra conta errado para
+   * sempre. O caminho é excluir (o banco apaga as duas) e lançar de novo.
+   */
+  const acoesDoLancamento = (l: (typeof linhas)[number]): AcaoDeLinha[] => {
+    const acoes: AcaoDeLinha[] = [];
+
+    if ((pode("lc_editar_todos") || pode("lc_editar_proprios")) && !l.transferencia_id) {
+      acoes.push({
+        rotulo: "EDITAR",
+        icone: "editar",
+        aoClicar: () => router.push(`/dashboard/financeiro/lancamentos/novo?editar=${l.id}`),
+      });
+    }
+
+    if (pode("lc_excluir_todos") || pode("lc_excluir_proprios")) {
+      acoes.push({
+        rotulo: "EXCLUIR",
+        icone: "excluir",
+        destrutiva: true,
+        aoClicar: () => excluir(l.id),
+      });
+    }
+
+    return acoes;
   };
 
   const totalEntradas = linhas.filter((l) => l.tipo_movimento === "ENTRADA").reduce((s, l) => s + l.valor_centavos, 0);
@@ -282,7 +321,7 @@ export default function PesquisarLancamentosPage() {
           <table className="w-full text-xs">
             <thead>
               <tr className="text-left">
-                {["DATA","CONTA","IDENTIFICADORA","TIPO","VALOR","HISTÓRICO","USUÁRIO",""].map((c) => (
+                {["DATA","CONTA","IDENTIFICADORA","TIPO","VALOR","HISTÓRICO","USUÁRIO","AÇÕES"].map((c) => (
                   <th key={c} className="px-2 py-2 font-black uppercase tracking-widest text-slate-400 border-b border-slate-200 whitespace-nowrap">{c}</th>
                 ))}
               </tr>
@@ -302,14 +341,14 @@ export default function PesquisarLancamentosPage() {
                   <td className="px-2 py-2 border-b border-slate-100 text-right font-mono">{formatarBRL(l.valor_centavos, { semSimbolo: true })}</td>
                   <td className="px-2 py-2 border-b border-slate-100 uppercase text-slate-500 max-w-[200px] truncate">{l.historico ?? ""}</td>
                   <td className="px-2 py-2 border-b border-slate-100 text-slate-400">{l.usuario?.email ?? ""}</td>
-                  <td className="px-2 py-2 border-b border-slate-100 text-right">
-                    {(pode("lc_excluir_todos") || pode("lc_excluir_proprios")) && (
-                      <button type="button" onClick={() => excluir(l.id)}
-                              className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-red-600">
-                        <IconeFin nome="excluir" tamanho={13} />
-                        EXCLUIR
-                      </button>
-                    )}
+                  {/* ⚠️ EXCLUIR ERA UM BOTÃO SOLTO E ENTROU PARA DENTRO DE
+                      "OPÇÕES" (13/09/2026), ao lado de EDITAR. Um botão de
+                      apagar exposto direto na linha, alinhado com o cursor que
+                      rola a tabela, é convite a clique acidental — e este
+                      apaga dinheiro lançado. Duas etapas: abrir o menu, depois
+                      escolher; e ainda há a confirmação do navegador. */}
+                  <td className="px-2 py-2 border-b border-slate-100 text-right whitespace-nowrap">
+                    <MenuDeLinha acoes={acoesDoLancamento(l)} />
                   </td>
                 </tr>
               ))}

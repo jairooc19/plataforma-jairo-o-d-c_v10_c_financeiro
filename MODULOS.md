@@ -140,11 +140,25 @@ export const MANIFESTO_<NOME>: ManifestoDeModulo = {
   nome: 'Nome Legível',
   descricao: 'Uma linha do que o módulo faz.',
   rotaWeb: '/dashboard/<nome>',
+  rotaConfiguracao: '/dashboard/<nome>/dependentes',   // opcional — ver abaixo
   prefixoBanco: '<pre>_',
   versao: '1.0.0',
   exigePlataforma: 'v10',
 };
 ```
+
+> 🔑 **`rotaConfiguracao` — as DUAS decisões sobre um integrante** (13/09/2026).
+> São perguntas diferentes, e moram em lugares diferentes de propósito:
+>
+> | Pergunta | De quem é | Onde |
+> |---|---|---|
+> | "ele pode **ABRIR** este módulo?" | da **plataforma** | `tenant_members.allowed_modules`, no Painel de Controle de Tripulação |
+> | "o que ele pode **FAZER** dentro?" | do **módulo** | as permissões do negócio dele, numa tela do próprio módulo |
+>
+> A lista detalhada **nunca** sobe para a plataforma: ela conheceria o negócio de
+> uma peça e o verificador reprovaria — com razão. O manifesto declara só o
+> ENDEREÇO da porta, e a plataforma desenha um link sem saber o que há do outro
+> lado. Módulo sem permissões internas simplesmente omite o campo.
 
 ### As regras de banco do módulo
 
@@ -167,6 +181,20 @@ export const MANIFESTO_<NOME>: ManifestoDeModulo = {
   concedeu; o padrão embutido do PostgreSQL não está lá para ser subtraído).
   Foi por isso que as 17 funções `fin_*` ficaram abertas ao `anon` de 12 a
   13/09/2026.
+- ⚠️ **Mudar o `RETURNS TABLE` de uma função exige `DROP FUNCTION` antes.** O
+  `CREATE OR REPLACE` recusa com `cannot change return type of existing
+  function`, e o arquivo do módulo — que existe para ser reaplicado — pararia no
+  meio em quem já o tem instalado. Derrubar função não toca em dado nenhum:
+  ```sql
+  DROP FUNCTION IF EXISTS public.<pre>_extrato(uuid, uuid, date, date);
+  CREATE OR REPLACE FUNCTION public.<pre>_extrato(...) RETURNS TABLE (...)
+  ```
+  A assinatura do `DROP` são os **parâmetros antigos** — no PostgreSQL o tipo de
+  retorno não faz parte da identidade da função.
+- ⚠️ **Ao juntar `public.users` numa função de listagem, use `LEFT JOIN`.** A
+  RLS de `users` só deixa cada um ver o próprio perfil; com `JOIN` simples as
+  LINHAS dos colegas somem da lista, e uma lista de dinheiro com linha faltando
+  é pior que uma coluna vazia — o saldo deixa de bater com a soma visível.
 - ⚠️ **A plataforma não retira privilégio "de tudo".** Quem escrever
   `REVOKE … ON ALL FUNCTIONS IN SCHEMA public` num arquivo da plataforma
   desliga o módulo plugado em silêncio: as tabelas e os dados continuam lá, e a

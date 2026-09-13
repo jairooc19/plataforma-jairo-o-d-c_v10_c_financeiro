@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   supabase,
   tenantService,
   moduleService,
+  manifestoDoModulo,
   type CandidatoDependente,
   type MembroDaEquipe,
   type ModuloContratado,
@@ -250,26 +252,65 @@ export default function TeamManagementModal({ onClose, tenantId }: TeamManagemen
                 <div className="space-y-3">
                   {modulosDaEmpresa.map((modulo) => {
                     const marcado = modulosMarcados.includes(modulo.module_id);
+                    /**
+                     * 🔑 A SEGUNDA DECISÃO MORA DENTRO DO MÓDULO — 13/09/2026.
+                     *
+                     * Esta caixa responde "ele pode ABRIR o módulo?". O que ele
+                     * pode FAZER lá dentro é outra decisão, com outras opções,
+                     * numa tela do próprio módulo. O dono do projeto veio
+                     * procurar aqui a lista detalhada e não achou — e a culpa
+                     * não era dele: nada nesta tela dizia que a segunda decisão
+                     * existia.
+                     *
+                     * ⚠️ A LISTA DETALHADA NÃO PODE VIR PARA CÁ. Este arquivo é
+                     * da PLATAFORMA; desenhar as permissões do financeiro aqui
+                     * a faria conhecer o negócio de uma peça, e o
+                     * `npm run modulos:verificar` reprovaria — com razão. O que
+                     * a plataforma sabe é o FORMATO do manifesto, e um manifesto
+                     * pode declarar `rotaConfiguracao`. Módulo sem essa rota
+                     * simplesmente não mostra link.
+                     */
+                    const manifesto = manifestoDoModulo(modulo.module_id);
                     return (
-                      <label
+                      <div
                         key={modulo.module_id}
-                        className={`flex items-center gap-4 p-5 rounded-[1.5rem] border-2 cursor-pointer transition-all ${
+                        className={`rounded-[1.5rem] border-2 transition-all ${
                           marcado ? "bg-blue-50 border-blue-400 shadow-sm" : "bg-white border-slate-200 hover:border-slate-300"
                         }`}
                       >
-                        <input
-                          type="checkbox"
-                          checked={marcado}
-                          onChange={() => alternarModulo(modulo.module_id)}
-                          className="w-5 h-5 accent-blue-600"
-                        />
-                        <div>
-                          <p className="text-xs font-black text-slate-800 uppercase tracking-tight">{modulo.nome}</p>
-                          {modulo.descricao && (
-                            <p className="text-[10px] font-bold text-slate-400 uppercase">{modulo.descricao}</p>
-                          )}
-                        </div>
-                      </label>
+                        <label className="flex items-center gap-4 p-5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={marcado}
+                            onChange={() => alternarModulo(modulo.module_id)}
+                            className="w-5 h-5 accent-blue-600"
+                          />
+                          <div>
+                            <p className="text-xs font-black text-slate-800 uppercase tracking-tight">{modulo.nome}</p>
+                            {modulo.descricao && (
+                              <p className="text-[10px] font-bold text-slate-400 uppercase">{modulo.descricao}</p>
+                            )}
+                          </div>
+                        </label>
+
+                        {marcado && manifesto?.rotaConfiguracao && (
+                          <div className="px-5 pb-5 -mt-1">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase leading-relaxed mb-2">
+                              Esta marcação diz apenas que ele <strong>pode abrir</strong> o módulo.
+                              O que ele pode fazer lá dentro se ajusta na tela do próprio módulo.
+                            </p>
+                            <Link
+                              href={manifesto.rotaConfiguracao}
+                              className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-blue-700 hover:text-blue-900"
+                            >
+                              AJUSTAR AS PERMISSÕES DE {modulo.nome} →
+                            </Link>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase mt-1.5">
+                              Salve esta tela antes de ir, ou a marcação se perde.
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>

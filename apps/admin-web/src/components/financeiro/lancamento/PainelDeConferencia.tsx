@@ -46,7 +46,7 @@ export default function PainelDeConferencia({
         `PERÍODO ${formatarDataBR(c.de)} A ${formatarDataBR(c.ate)}`,
         "REGIME CAIXA (o extrato ignora COMPETÊNCIA — RN-19)",
       ],
-      colunas: ["DATA", "ORDEM", "CONTA IDENTIFICADORA", "ENTRADA", "SAÍDA", "SALDO", "HISTÓRICO"],
+      colunas: ["DATA", "ORDEM", "CONTA IDENTIFICADORA", "ENTRADA", "SAÍDA", "SALDO", "HISTÓRICO", "USUÁRIO"],
       colunasNumericas: [3, 4, 5],
       linhas: c.linhas.map((l) => [
         formatarDataBR(l.data_movimento),
@@ -56,6 +56,7 @@ export default function PainelDeConferencia({
         l.saida_centavos != null ? formatarBRL(l.saida_centavos, { semSimbolo: true }) : "",
         formatarBRL(l.saldo_centavos, { semSimbolo: true }),
         l.historico ?? "",
+        l.usuario ?? "",
       ]),
       rodape: `${lancamentos.length} LANÇAMENTO(S) · SALDO FINAL ${formatarBRL(saldoFinal)}`,
     });
@@ -104,6 +105,12 @@ export default function PainelDeConferencia({
         </div>
       </div>
 
+      {/* ⚠️ AS PERMISSÕES AQUI SÓ DESENHAM O MENU. Quem recusa de verdade é
+          `fin_gravar_lancamento` / `fin_excluir_lancamento`, que chamam
+          `fin_pode()` dentro do banco (RN-25). Mostrar EDITAR a quem só tem
+          `lc_editar_proprios` e o lançamento é de outro é aceitável: o banco
+          recusa e a tela mostra o motivo. Esconder não seria segurança —
+          seria conforto, como todo o resto desta camada. */}
       <ExtratoDaConta
         linhas={c.linhas}
         carregando={c.carregandoExtrato}
@@ -112,6 +119,10 @@ export default function PainelDeConferencia({
           : null}
         podeConciliar={pode("conciliar")}
         onConferir={m.conferir}
+        podeEditar={pode("lc_editar_todos") || pode("lc_editar_proprios")}
+        podeExcluir={pode("lc_excluir_todos") || pode("lc_excluir_proprios")}
+        onEditar={m.editar}
+        onExcluir={m.excluir}
       />
     </section>
   );

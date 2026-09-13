@@ -7,6 +7,93 @@ Leia-o integralmente antes de tocar em qualquer arquivo.
 
 ## ⚠️ Histórico de Mudanças
 
+**2026-09-13 (tarde) — v10: editar e excluir na linha, campo que se digita, e quem está logado**
+
+Segunda rodada do dia, nascida do teste dele no Vercel depois de o banco fechar
+**16/16 nos dois arquivos**. **Exige rodar de novo SÓ o
+`financeiro_01_schema.sql`** — a plataforma não mudou.
+
+| Onde | O que mudou |
+|---|---|
+| `financeiro_01_schema.sql` 4.12 | `fin_extrato` passou a devolver **`usuario`** (quem lançou); ganhou um `DROP FUNCTION` antes |
+| `modules/tipos.ts` | ✨ `rotaConfiguracao?` no manifesto — o endereço da tela de permissões finas |
+| `manifesto.ts` (financeiro) | Preenche `rotaConfiguracao` |
+| `TeamManagementModal` | Módulo marcado agora mostra o link "AJUSTAR AS PERMISSÕES DE …" |
+| `lancamentoService` | ✨ `buscarPorId` — o registro completo, para a edição |
+| ✨ `SelecaoComBusca.tsx` | Campo que se digita **e** se escolhe; 4 sugestões do banco |
+| ✨ `MenuDeLinha.tsx` | O botão OPÇÕES por linha, com EDITAR e EXCLUIR |
+| `ExtratoDaConta` | Colunas **USUÁRIO** e **AÇÕES** |
+| `useNovoLancamento` | Modo edição (`?editar=<id>`), `excluir`, `sugerirIdentificadoras` |
+| `FormularioDeLancamento` | HISTÓRICO em linha própria, abaixo do VALOR; faixa do modo edição |
+| `novo/page.tsx` | Partido em casca + conteúdo por causa do `<Suspense>` |
+| `MolduraFinanceiro` | Mostra **o e-mail e o papel** de quem está logado |
+
+⚠️ **`CREATE OR REPLACE FUNCTION` NÃO CONSEGUE MUDAR O `RETURNS TABLE`.** Ao
+acrescentar a coluna `usuario` ao `fin_extrato`, o arquivo do módulo — que é
+idempotente e feito para ser reaplicado — **falharia em quem já tem o módulo
+instalado**, com `cannot change return type of existing function`, parando o
+schema no meio. A correção é o `DROP FUNCTION IF EXISTS` imediatamente antes do
+`CREATE`. Derrubar função não toca em dado nenhum. E **a assinatura do DROP são
+os PARÂMETROS, não o retorno**: no PostgreSQL o tipo de retorno não faz parte da
+identidade da função.
+
+⚠️ **A COLUNA `usuario` VEM DE `LEFT JOIN`, E O `LEFT` IMPORTA.** `criado_por`
+aponta para `public.users`, cuja RLS só deixa cada um ver o próprio perfil. Com
+`JOIN` simples, um Dependente veria as linhas dos colegas **sumirem do extrato**
+— e extrato com linha faltando é pior que extrato sem a coluna: o saldo deixaria
+de bater com a soma visível. Hoje a função é `SECURITY DEFINER` e lê `users`
+como dona do banco; o `LEFT` é a rede para o dia em que isso mudar.
+
+⚠️ **SÃO DUAS DECISÕES SOBRE UM INTEGRANTE, E ELAS MORAM EM LUGARES DIFERENTES
+DE PROPÓSITO.** (1) *"ele pode ABRIR este módulo?"* é da **plataforma**
+(`allowed_modules`, Painel de Controle de Tripulação). (2) *"o que ele pode fazer
+DENTRO?"* é do **módulo** (as 17 permissões, tela do próprio módulo). O dono do
+projeto foi à tela (1) procurar a resposta de (2) e não achou — justo, porque
+nada ali dizia que a segunda decisão existia. **A lista detalhada não pode subir
+para a plataforma**: ela conheceria o negócio de uma peça, e o
+`npm run modulos:verificar` reprovaria. A saída foi o campo genérico
+`rotaConfiguracao` no manifesto: a plataforma desenha um link sem saber o que há
+do outro lado, e módulo que não declarar a rota não mostra link nenhum.
+
+⚠️ **`useSearchParams()` EXIGE `<Suspense>`, E O `<Suspense>` TEM DE FICAR FORA
+DO COMPONENTE QUE CHAMA O HOOK.** Ao ler `?editar=<id>`, o `npm run build`
+passou a **falhar** (não avisar) com *"useSearchParams() should be wrapped in a
+suspense boundary"*. Pôr o `<Suspense>` dentro do mesmo componente não resolve:
+o erro acontece ao renderizar aquele componente, antes de o `<Suspense>` dele
+existir na árvore. Por isso `novo/page.tsx` está partido em casca (não lê a URL)
+e conteúdo (lê).
+
+⚠️ **O MENU DE LINHA REPETE AS TRÊS ARMADILHAS DE DROPDOWN QUE O PROJETO JÁ
+DOCUMENTA — POR ISSO É UM COMPONENTE SÓ.** (1) `position: fixed` com
+`getBoundingClientRect`, nunca `absolute`: as tabelas rolam
+(`overflow-x-auto`) e um menu `absolute` é recortado, sumindo atrás da borda;
+(2) fechar no `click`, nunca no `mousedown`, senão o item desmonta antes de o
+React processar o clique e **nada acontece**; (3) abrir para cima quando não cabe
+embaixo. A segunda cópia de um menu desses é sempre a que esquece uma delas.
+
+⚠️ **QUEM BUSCA A CATEGORIA É O BANCO, NÃO A TELA.** O campo novo chama
+`fin_buscar_identificadoras`, que já fazia `LIKE '%texto%'` sobre
+`nome_normalizado` (sem acento) com `LIMIT 4` desde o degrau 7. Filtrar no
+navegador daria o mesmo resultado **hoje** e mentiria amanhã: a lista carregada
+na tela é a primeira página do cadastro — numa empresa com 500 categorias, o
+item digitado poderia não estar na memória, e o campo diria "nada encontrado"
+sobre algo que existe. E "independente da posição" é o `%` **dos dois lados**:
+`LIKE 'texto%'` acharia "LUZ" ao digitar "LU", mas nunca "CONTA DE LUZ".
+
+⚠️ **TRANSFERÊNCIA NÃO SE EDITA — SÓ SE EXCLUI E SE REFAZ.** Ela tem duas pernas
+amarradas (RN-23); alterar uma sozinha deixaria o saldo da outra conta errado
+para sempre. As duas telas escondem EDITAR quando `transferencia_id` está
+preenchido, e o hook recusa com uma mensagem que explica o caminho.
+
+⚠️ **`react-hooks/set-state-in-effect` REPROVOU O CAMPO DE BUSCA, E DE NOVO
+ESTAVA CERTA.** O efeito fazia `setSugestoes([])` no mesmo tique quando o texto
+ficava vazio. A correção foi **sair do efeito sem tocar em estado** (com o campo
+vazio a lista exibida é a completa, e `sugestoes` nem é lido) e limpar no
+`onChange`, que é evento de gente digitando. O `setBuscando(true)` também desceu
+para dentro do `setTimeout`. Nada de `eslint-disable`.
+
+---
+
 **2026-09-13 — v10: o REVOKE que desligava o módulo, o Dependente sem porta, e o módulo com ícones**
 
 Rodada de correções nascida do teste do dono do projeto no Vercel. **Exige rodar
@@ -2170,6 +2257,13 @@ inclusive numa máquina limpa — foi por isso que a versão com bcrypt foi reve
 - ❌ Nunca deduzir o papel escolhido na guarita a partir da `view` no momento da triagem — o "Completar Cadastro" fica no meio do caminho e a tela já é outra; guarde o papel em estado, no clique
 - ❌ Nunca mandar um Dependente sem vínculo para a tela `waiting-approval` — ela diz que o Desenvolvedor está analisando, e quem precisa agir é o dono da empresa; a tela dele é a `waiting-team`
 - ❌ Nunca importar um ícone direto de `lucide-react` numa tela de módulo — usar o registro (`components/financeiro/IconeFin.tsx`); a v1 renomeou o catálogo (`Trash2`→`Trash`, `Unlock`→`LockOpen`, `Filter`→`Funnel`) e o nome antigo devolve `undefined` sem acusar erro de build
+- ❌ Nunca mudar o `RETURNS TABLE` de uma função com `CREATE OR REPLACE` — o PostgreSQL recusa com `cannot change return type of existing function` e o arquivo idempotente para no meio; ponha um `DROP FUNCTION IF EXISTS` (com os PARÂMETROS antigos) imediatamente antes
+- ❌ Nunca fazer `JOIN` simples de tabela de módulo para `public.users` numa função de listagem — a RLS de `users` esconde os colegas e as LINHAS somem da lista; use `LEFT JOIN`, para a linha ficar e só a coluna vir vazia
+- ❌ Nunca levar a lista de permissões de um módulo para uma tela da plataforma — a plataforma passaria a conhecer o negócio da peça; declare `rotaConfiguracao` no manifesto e deixe a plataforma só desenhar o link
+- ❌ Nunca chamar `useSearchParams()` sem um `<Suspense>` **acima** do componente que o chama — o `npm run build` falha (não avisa) com "should be wrapped in a suspense boundary"; `<Suspense>` dentro do próprio componente não resolve
+- ❌ Nunca abrir menu de linha com `position: absolute` dentro de tabela que rola — ele é recortado pelo `overflow`; usar `fixed` com `getBoundingClientRect`, e abrir para cima quando não couber embaixo
+- ❌ Nunca oferecer "EDITAR" numa perna de transferência — as duas pernas são amarradas (RN-23) e alterar uma deixa o saldo da outra conta errado para sempre; o caminho é excluir (o banco apaga as duas) e lançar de novo
+- ❌ Nunca filtrar no navegador uma lista que o banco já sabe buscar — a lista carregada é só a primeira página do cadastro, e a tela diria "nada encontrado" sobre algo que existe
 - ❌ Nunca criar arquivo com múltiplas responsabilidades distintas
 - ❌ Nunca misturar lógica de plataforma com módulo, nem módulo com módulo
 - ❌ Nunca usar `toISOString()` para datas que precisam respeitar UTC-3

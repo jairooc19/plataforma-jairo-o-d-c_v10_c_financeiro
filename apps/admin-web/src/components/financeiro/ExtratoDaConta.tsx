@@ -2,6 +2,7 @@
 
 import React from "react";
 import { formatarBRL, formatarDataBR, type LinhaDoExtrato } from "@jairo/core";
+import MenuDeLinha, { type AcaoDeLinha } from "./MenuDeLinha";
 
 /**
  * 📊 A CONFERÊNCIA DA CONTA — o extrato com saldo (PJODC v10)
@@ -16,15 +17,28 @@ import { formatarBRL, formatarDataBR, type LinhaDoExtrato } from "@jairo/core";
  *
  * As três espécies de linha (saldo inicial, lançamento, totais) chegam na mesma
  * lista, distinguidas por `linha_tipo`.
+ *
+ * ⚠️ 13/09/2026 — DUAS COLUNAS NOVAS, A PEDIDO DO DONO DO PROJETO: USUÁRIO (quem
+ * lançou) e OPÇÕES (editar e excluir a linha). A de usuário exigiu mudar a
+ * função `fin_extrato` no banco, que não devolvia essa informação.
+ *
+ * ⚠️ O MENU SÓ APARECE NAS LINHAS DE LANÇAMENTO. "SALDO INICIAL" e "TOTAIS DO
+ * PERÍODO" são somas, não registros: não existe o que editar nem o que excluir
+ * ali. Um menu naquelas linhas prometeria uma ação impossível.
  */
 export default function ExtratoDaConta({
-  linhas, carregando, mensagem, podeConciliar, onConferir,
+  linhas, carregando, mensagem, podeConciliar, onConferir, onEditar, onExcluir,
+  podeEditar = false, podeExcluir = false,
 }: {
   linhas: LinhaDoExtrato[];
   carregando: boolean;
   mensagem?: string | null;
   podeConciliar: boolean;
   onConferir?: (lancamentoId: string, conferido: boolean) => void;
+  onEditar?: (lancamentoId: string) => void;
+  onExcluir?: (lancamentoId: string) => void;
+  podeEditar?: boolean;
+  podeExcluir?: boolean;
 }) {
   if (mensagem) {
     return (
@@ -38,12 +52,32 @@ export default function ExtratoDaConta({
     return <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin" /></div>;
   }
 
+  const temMenu = podeEditar || podeExcluir;
+
+  const colunas = [
+    "DATA", "ORDEM", "CONTA IDENTIFICADORA", "ENTRADA", "SAÍDA", "SALDO",
+    "HISTÓRICO", "USUÁRIO",
+    ...(podeConciliar ? ["OK"] : []),
+    ...(temMenu ? ["AÇÕES"] : []),
+  ];
+
+  const acoesDaLinha = (l: LinhaDoExtrato): AcaoDeLinha[] => {
+    const lista: AcaoDeLinha[] = [];
+    if (podeEditar && onEditar && l.lancamento_id) {
+      lista.push({ rotulo: "EDITAR", icone: "editar", aoClicar: () => onEditar(l.lancamento_id!) });
+    }
+    if (podeExcluir && onExcluir && l.lancamento_id) {
+      lista.push({ rotulo: "EXCLUIR", icone: "excluir", destrutiva: true, aoClicar: () => onExcluir(l.lancamento_id!) });
+    }
+    return lista;
+  };
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-xs">
         <thead>
           <tr className="text-left">
-            {["DATA", "ORDEM", "CONTA IDENTIFICADORA", "ENTRADA", "SAÍDA", "SALDO", "HISTÓRICO", podeConciliar ? "OK" : ""].map((c) => (
+            {colunas.map((c) => (
               <th key={c} className="px-2 py-2 font-black uppercase tracking-widest text-slate-400 border-b border-slate-200 whitespace-nowrap">
                 {c}
               </th>
@@ -75,6 +109,11 @@ export default function ExtratoDaConta({
                 <td className="px-2 py-2 uppercase text-slate-500 border-b border-slate-100 max-w-[180px] truncate">
                   {l.historico ?? ""}
                 </td>
+                {/* Quem lançou. Vazio nas linhas de resumo, que não têm autor. */}
+                <td className="px-2 py-2 text-slate-400 border-b border-slate-100 max-w-[150px] truncate"
+                    title={l.usuario ?? ""}>
+                  {l.usuario ?? ""}
+                </td>
                 {podeConciliar && (
                   <td className="px-2 py-2 text-center border-b border-slate-100">
                     {l.linha_tipo === "LANCAMENTO" && l.lancamento_id && (
@@ -85,6 +124,13 @@ export default function ExtratoDaConta({
                         className="w-4 h-4"
                         title="MARCAR COMO CONFERIDO"
                       />
+                    )}
+                  </td>
+                )}
+                {temMenu && (
+                  <td className="px-2 py-2 text-right border-b border-slate-100 whitespace-nowrap">
+                    {l.linha_tipo === "LANCAMENTO" && l.lancamento_id && (
+                      <MenuDeLinha acoes={acoesDaLinha(l)} />
                     )}
                   </td>
                 )}
