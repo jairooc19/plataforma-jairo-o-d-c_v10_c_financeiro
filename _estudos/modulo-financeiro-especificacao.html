@@ -354,7 +354,7 @@
     <li><a href="#s21">Catálogo de mensagens ao usuário</a></li>
     <li><a href="#s22">Fases de entrega</a></li>
     <li><a href="#s23">Bônus: sugestões desta rodada</a></li>
-    <li><a href="#s24">Perguntas — situação (12 respondidas, 1 aberta)</a></li>
+    <li><a href="#s24">Perguntas — todas respondidas</a></li>
   </ol>
 </nav>
 
@@ -1070,14 +1070,14 @@ As duas gravadas numa ÚNICA operação no banco: ou as duas existem, ou nenhuma
     <p><strong>Proposta:</strong> a coluna <code>is_sistema boolean</code> nas contas identificadoras. Quando verdadeira: não pode ser renomeada, ter o tipo alterado, ser desativada nem excluída; aparece na lista com uma marca ("DO SISTEMA"). É a mesma ideia da linha <code>id = 1</code> de <code>global_settings</code>, que também não se apaga.</p>
   </div>
 
-  <h3>14.6 O que o sistema grava nas duas pernas</h3>
-  <p>A tela não pergunta PROPRIEDADE nem REGIME <span class="tag tag-ok">DECIDIDO</span>. Mas as colunas existem e são obrigatórias no banco — então é preciso decidir o que vai nelas:</p>
+  <h3>14.6 O que o sistema grava nas duas pernas <span class="tag tag-ok">DECIDIDO</span></h3>
+  <p>A tela <strong>não pergunta</strong> PROPRIEDADE nem REGIME. As colunas são obrigatórias no banco, e o sistema as preenche sozinho com <strong><code>PRÓPRIO</code> e <code>CAIXA</code></strong>:</p>
   <div class="table-wrap">
     <table>
       <thead><tr><th>Caminho</th><th>Como fica</th><th>Efeito</th></tr></thead>
       <tbody>
         <tr>
-          <td><strong>(a) Gravar <code>PRÓPRIO</code> e <code>CAIXA</code></strong> <span class="tag tag-pro">recomendado</span></td>
+          <td><strong>(a) Gravar <code>PRÓPRIO</code> e <code>CAIXA</code></strong> <span class="tag tag-ok">ESCOLHIDO</span></td>
           <td>O sistema preenche sozinho; o usuário não vê os campos</td>
           <td>A transferência aparece no extrato normalmente (o extrato mostra só regime CAIXA — RN-19) e os filtros seguem funcionando sem exceção</td>
         </tr>
@@ -1089,7 +1089,7 @@ As duas gravadas numa ÚNICA operação no banco: ou as duas existem, ou nenhuma
       </tbody>
     </table>
   </div>
-  <p><strong>Pergunta 33:</strong> confirmo o caminho (a)? Ele entrega o que você pediu — os campos <em>não aparecem na tela</em> — sem criar uma exceção na regra do extrato, que é onde as exceções costumam virar defeito.</p>
+  <p>É o caminho (a), confirmado em 12/09/2026. Ele entrega o que foi pedido — os campos <em>não aparecem na tela</em> — <strong>sem criar uma exceção na regra do extrato</strong>, que é onde as exceções costumam virar defeito: com regime <code>CAIXA</code> gravado, a transferência entra no extrato pela regra geral (RN-19), e o saldo continua batendo com o do banco.</p>
 
   <h3>14.4 Excluir uma transferência</h3>
   <p><span class="tag tag-pro">PROPOSTA</span> Excluir <strong>qualquer</strong> uma das pernas apaga as duas, com aviso: "ESTE LANÇAMENTO FAZ PARTE DE UMA TRANSFERÊNCIA. EXCLUIR VAI APAGAR AS DUAS PERNAS." Deixar apagar só uma perna produziria exatamente o descontrole que a tela existe para evitar.</p>
@@ -1233,7 +1233,7 @@ ESTA AÇÃO NÃO PODE SER DESFEITA.
         <tr><td>RN-28</td><td><strong>Apagar os dados de uma empresa</strong> é operação do Desenvolvedor, feita por função única (tudo ou nada), com o nome da empresa digitado para confirmar e oferta de exportar antes</td><td>Função do banco + tela</td></tr>
         <tr><td>RN-29</td><td><strong>Um lançamento nunca mistura empresas:</strong> a conta movimento e a conta identificadora dele têm de ser da MESMA empresa do lançamento</td><td><strong>Chave estrangeira composta</strong> (<code>tenant_id</code> + id) — o banco recusa sozinho</td></tr>
         <tr><td>RN-30</td><td><strong>A categoria "TRANSFERÊNCIA ENTRE CONTAS" é do sistema:</strong> não pode ser renomeada, ter o tipo alterado, ser desativada nem excluída. É criada automaticamente na primeira transferência da empresa</td><td>Coluna <code>is_sistema</code> + função do banco</td></tr>
-        <tr><td>RN-31</td><td><strong>As duas pernas da transferência recebem <code>PRÓPRIO</code> e <code>CAIXA</code></strong>, gravados pelo sistema — a tela não pergunta (ver pergunta 33)</td><td>Função do banco</td></tr>
+        <tr><td>RN-31</td><td><strong>As duas pernas da transferência recebem <code>PRÓPRIO</code> e <code>CAIXA</code></strong>, gravados pelo sistema — a tela não pergunta</td><td>Função do banco</td></tr>
       </tbody>
     </table>
   </div>
@@ -1522,7 +1522,11 @@ USING ( check_is_tenant_member(tenant_id) OR check_is_tenant_owner(tenant_id) )
       </tbody>
     </table>
   </div>
-  <p><span class="tag tag-par">PENDENTE</span> <strong>Pergunta 31:</strong> concorda com este corte, ou prefere entregas maiores (por exemplo, tudo de 1 a 4 de uma vez)?</p>
+  <p><span class="tag tag-ok">APROVADO</span> O corte das 6 fases foi aprovado em 12/09/2026 (pergunta 31).</p>
+  <div class="callout callout-ambar">
+    <span class="box-title">Um ajuste na fase 0, por causa da resposta 32</span>
+    <p style="margin-top:6px">Como o botão de exclusão ficou <strong>genérico na plataforma</strong>, a fase 0 passa a incluir <strong>uma alteração no schema da plataforma</strong> (a coluna <code>funcao_limpeza</code> em <code>platform_modules</code> e a função que a usa) — e, portanto, <strong>recriar o banco</strong> antes de seguir. Ver a seção 24.1.</p>
+  </div>
 </section>
 
 <section id="s23">
@@ -1552,8 +1556,11 @@ USING ( check_is_tenant_member(tenant_id) OR check_is_tenant_owner(tenant_id) )
 </section>
 
 <section id="s24">
-  <h2>24. Perguntas — situação</h2>
-  <p><strong>As doze perguntas das rodadas 1 e 2 estão respondidas.</strong> Restou <strong>uma</strong>, criada agora: ela nasceu da resposta 25 e é de detalhe, não de estrutura.</p>
+  <h2>24. Perguntas — todas respondidas</h2>
+  <div class="highlight-box">
+    <span class="box-title">✅ Não há mais perguntas em aberto</span>
+    <p style="margin-top:6px">As 33 perguntas das três rodadas estão respondidas. <strong>A especificação está completa e pronta para a sua aprovação.</strong> Nada aqui foi preenchido por minha conta: onde havia dúvida, ela foi perguntada.</p>
+  </div>
   <div class="table-wrap">
     <table>
       <thead><tr><th>#</th><th>Pergunta</th><th>Situação</th></tr></thead>
@@ -1569,7 +1576,7 @@ USING ( check_is_tenant_member(tenant_id) OR check_is_tenant_owner(tenant_id) )
         <tr><td>30</td><td>Colunas do TSV</td><td><span class="tag tag-ok">RESPONDIDA</span> 14 colunas, com EMPRESA e o e-mail do usuário</td></tr>
         <tr><td>31</td><td>Fases</td><td><span class="tag tag-ok">SIM</span></td></tr>
         <tr><td>32</td><td>Onde fica o botão de apagar</td><td><span class="tag tag-ok">RESPONDIDA</span> (a) genérico na plataforma — <strong>exige uma coluna nova no catálogo</strong></td></tr>
-        <tr><td><strong>33</strong><br><span class="tag tag-par">ABERTA</span></td><td>A transferência grava <code>PRÓPRIO</code> e <code>CAIXA</code> automaticamente nas duas pernas (caminho (a) da seção 14.6)?</td><td><strong>Recomendo sim.</strong> O caminho alternativo (deixar vazio) faria a transferência sumir do extrato, porque a RN-19 filtra por regime CAIXA — e o saldo deixaria de bater com o banco</td></tr>
+        <tr><td>33</td><td>Propriedade e regime gravados na transferência</td><td><span class="tag tag-ok">RESPONDIDA</span> sim — <code>PRÓPRIO</code> e <code>CAIXA</code> automáticos (RN-31)</td></tr>
       </tbody>
     </table>
   </div>
@@ -1582,12 +1589,13 @@ USING ( check_is_tenant_member(tenant_id) OR check_is_tenant_owner(tenant_id) )
   </div>
 
   <div class="highlight-box">
-    <span class="box-title">O que acontece depois que você responder</span>
+    <span class="box-title">O que falta para começar a executar</span>
     <ol>
-      <li>Eu aplico as respostas <strong>neste mesmo documento</strong> e devolvo a versão 2 — que passa a ser a especificação oficial do módulo.</li>
-      <li>Se ainda houver pontos em aberto, eles continuam marcados <span class="tag tag-par">PENDENTE</span>, sem serem preenchidos por minha conta.</li>
-      <li>Quando você disser "está aprovado", <strong>aí sim</strong> começa a execução, em outro degrau: banco primeiro, telas por último.</li>
+      <li><strong>A sua aprovação deste documento.</strong> Ele está completo: 33 perguntas respondidas, 31 regras de negócio, 7 telas, 4 tabelas do módulo, 16 funções, e duas provas medidas em banco real (a do modelo de dados e a da chave composta).</li>
+      <li><strong>Recriar o banco da plataforma</strong> com a coluna <code>funcao_limpeza</code> (consequência da resposta 32) — pode ser feito junto da fase 0.</li>
+      <li>Então a execução começa, em outro degrau, <strong>nesta ordem</strong>: as 5 pastas → o SQL do módulo → o <code>teste_financeiro.sql</code> rodando → os serviços → as telas.</li>
     </ol>
+    <p><strong>Enquanto você não aprovar, nada é criado.</strong> É a regra do projeto desde o degrau 1.</p>
   </div>
 
   <div class="callout callout-ambar">
