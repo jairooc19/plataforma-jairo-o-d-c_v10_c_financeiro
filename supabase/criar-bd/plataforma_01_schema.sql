@@ -221,6 +221,18 @@ CREATE TABLE IF NOT EXISTS public.platform_modules (
     nome text NOT NULL,
     descricao text,
     is_active boolean NOT NULL DEFAULT true,
+    -- 🧹 O NOME DA FUNÇÃO QUE APAGA OS DADOS DESTE MÓDULO NUMA EMPRESA.
+    --
+    -- ⚠️ É ASSIM QUE A PLATAFORMA APAGA DADO DE MÓDULO SEM CONHECER MÓDULO
+    -- NENHUM. Quem escreve aqui é o SEED do próprio módulo (ex.:
+    -- 'fin_apagar_dados_da_empresa'); a função `admin_apagar_dados_do_modulo`
+    -- lê este nome e o executa. Sem isto, ou a plataforma teria uma lista de
+    -- módulos escrita dentro dela — quebrando o LEGO —, ou cada módulo teria
+    -- de construir a própria tela de exclusão.
+    --
+    -- O CHECK limita o que pode ser executado: só nome de função simples, com
+    -- o prefixo de módulo. É a defesa contra alguém gravar aqui um comando.
+    funcao_limpeza text CHECK (funcao_limpeza ~ '^[a-z][a-z0-9_]{3,60}$'),
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -1224,6 +1236,66 @@ END;
 $$;
 
 
+-- 5.26 APAGAR OS DADOS DE UM MÓDULO NUMA EMPRESA (Desenvolvedor).
+--
+-- 🧹 O QUE ELA FAZ: lê, no catálogo, o nome da função de limpeza que o módulo
+-- declarou, e a executa para aquela empresa. Nada mais. A plataforma não sabe o
+-- que o módulo guarda nem em quantas tabelas — quem sabe é o módulo.
+--
+-- ⚠️ ESTA É A ÚNICA EXECUÇÃO DINÂMICA DA PLATAFORMA, e ela é segura por três
+-- motivos, nesta ordem: (1) só o Desenvolvedor chega aqui; (2) o nome não vem
+-- de quem chamou — vem do catálogo, que só o SQL Editor escreve; (3) a coluna
+-- tem CHECK de formato, e o nome ainda é passado por `%I`, que impede injeção.
+--
+-- ⚠️ APAGAR OS DADOS ≠ DESCONTRATAR O MÓDULO ≠ APAGAR A EMPRESA. São três
+-- coisas distintas: esta só esvazia as tabelas do módulo naquela empresa.
+CREATE OR REPLACE FUNCTION public.admin_apagar_dados_do_modulo(
+  p_tenant_id uuid,
+  p_module_id text
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_funcao    text;
+  v_resultado json;
+  v_empresa   text;
+BEGIN
+  IF NOT public.is_superuser() THEN
+    RAISE EXCEPTION 'Acesso restrito ao Desenvolvedor.' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT tenant_name INTO v_empresa FROM public.tenants WHERE id = p_tenant_id;
+  IF v_empresa IS NULL THEN
+    RAISE EXCEPTION 'Empresa inexistente.' USING ERRCODE = '23503';
+  END IF;
+
+  SELECT funcao_limpeza INTO v_funcao
+    FROM public.platform_modules
+   WHERE id = p_module_id;
+
+  IF v_funcao IS NULL THEN
+    RAISE EXCEPTION 'O modulo % nao declarou funcao de limpeza no catalogo.', p_module_id
+      USING ERRCODE = '22023';
+  END IF;
+
+  -- `%I` trata o nome como identificador: mesmo que algo estranho passasse pelo
+  -- CHECK da coluna, não viraria comando.
+  EXECUTE format('SELECT public.%I($1)', v_funcao) INTO v_resultado USING p_tenant_id;
+
+  RETURN json_build_object(
+    'success',  true,
+    'empresa',  v_empresa,
+    'modulo',   p_module_id,
+    'funcao',   v_funcao,
+    'detalhe',  v_resultado
+  );
+END;
+$$;
+
+
 -- ===========================================================================
 -- 6. POLÍTICAS DE SEGURANÇA (RLS)
 --
@@ -1498,6 +1570,7 @@ GRANT EXECUTE ON FUNCTION public.admin_update_global_settings(jsonb)          TO
 GRANT EXECUTE ON FUNCTION public.admin_set_tenant_module(uuid, text, boolean) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_list_tenant_modules(uuid)              TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_list_all_tenants()                     TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_apagar_dados_do_modulo(uuid, text)     TO authenticated;
 
 -- As funções de apoio da RLS precisam ser executáveis por quem a RLS avalia.
 GRANT EXECUTE ON FUNCTION public.check_is_tenant_member(uuid)                 TO authenticated;
@@ -1550,6 +1623,6 @@ $$;
 --              where email = 'coloque-o-email-aqui';
 --      ⚠️ Não existe mais credencial fixa no código. Sem este passo, o Painel de
 --      Engenharia não abre para ninguém.
---   3. Conferir: 7 tabelas, 25 funções, 12 policies, 15 triggers.
+--   3. Conferir: 7 tabelas, 26 funções, 12 policies, 15 triggers.
 --   4. Rodar `supabase/testes/teste_rls.sql` para verificar as travas de acesso.
 -- ===========================================================================

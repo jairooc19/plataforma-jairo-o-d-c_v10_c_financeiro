@@ -90,6 +90,7 @@ DROP FUNCTION IF EXISTS public.admin_set_tenant_module(uuid, text, boolean) CASC
 DROP FUNCTION IF EXISTS public.admin_list_tenant_modules(uuid) CASCADE;
 DROP FUNCTION IF EXISTS public.modulos_do_membro(uuid) CASCADE;
 DROP FUNCTION IF EXISTS public.admin_list_all_tenants() CASCADE;
+DROP FUNCTION IF EXISTS public.admin_apagar_dados_do_modulo(uuid, text) CASCADE;
 
 -- Manutenção
 DROP FUNCTION IF EXISTS public.sync_auth_users() CASCADE;

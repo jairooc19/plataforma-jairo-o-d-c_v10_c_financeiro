@@ -5,7 +5,7 @@
 --
 -- PARA QUE SERVE: conferir, no banco de verdade, que o que está lá é o que o
 -- `plataforma_01_schema.sql` manda estar. É o passo 3 do roteiro de recriação
--- ("Conferir: 7 tabelas, 25 funções, 12 policies, 15 triggers").
+-- ("Conferir: 7 tabelas, 26 funções, 12 policies, 15 triggers").
 --
 -- COMO USAR: cada bloco abaixo é INDEPENDENTE. Cole UM bloco por vez no SQL
 -- Editor e execute. Todos devolvem LINHAS (nunca `RAISE NOTICE`, que o SQL
@@ -91,7 +91,7 @@ SELECT x.objeto      AS "objeto",
                AND NOT EXISTS (SELECT 1 FROM pg_depend d
                                 WHERE d.objid = p.oid AND d.deptype = 'e')
                AND p.proname <> 'rls_auto_enable'),
-           25
+           26
     UNION ALL
     SELECT '3. policies',
            (SELECT count(*)::int FROM pg_policies WHERE schemaname = 'public'),
@@ -114,7 +114,8 @@ SELECT x.objeto      AS "objeto",
 -- BLOCO 1B — QUANDO O PLACAR DE FUNÇÕES DIVERGE: quem é a intrusa?
 --
 -- Este bloco compara, nome por nome, o que está no banco com as 25 funções que
--- o `plataforma_01_schema.sql` cria. Ele responde três perguntas de uma vez:
+-- o `plataforma_01_schema.sql` cria (26 desde o degrau 7). Ele responde três
+-- perguntas de uma vez:
 --
 --   • SOBRANDO   — está no banco e não está no schema (resto de versão antiga)
 --   • FALTANDO   — está no schema e não chegou ao banco (o 01 não rodou inteiro)
@@ -145,6 +146,7 @@ SELECT z.situacao   AS "situacao",
        AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid = p.oid AND d.deptype = 'e')
        AND p.proname <> 'rls_auto_enable'   -- do ambiente, não do schema (nota 4)
        AND p.proname NOT IN (
+         'admin_apagar_dados_do_modulo',
          'admin_list_all_tenants', 'admin_list_tenant_modules', 'admin_list_user_tenants',
          'admin_list_users', 'admin_promote_to_owner', 'admin_set_tenant_module',
          'admin_sync_user_tenants', 'admin_update_global_settings', 'can_view_user_profile',
@@ -162,6 +164,7 @@ SELECT z.situacao   AS "situacao",
            e.nome,
            '(não existe)'
       FROM (VALUES
+         ('admin_apagar_dados_do_modulo'),
          ('admin_list_all_tenants'), ('admin_list_tenant_modules'), ('admin_list_user_tenants'),
          ('admin_list_users'), ('admin_promote_to_owner'), ('admin_set_tenant_module'),
          ('admin_sync_user_tenants'), ('admin_update_global_settings'), ('can_view_user_profile'),
