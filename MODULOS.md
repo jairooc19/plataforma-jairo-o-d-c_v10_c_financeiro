@@ -55,8 +55,8 @@ CLAUDE.md · MODULOS.md · README.md
 apps/admin-web/src/app/dashboard/financeiro/     as telas (9 rotas)
 apps/admin-web/src/components/financeiro/        os componentes
 packages/core/src/modules/financeiro/            regras de negócio + manifesto
-supabase/criar-bd-financeiro/                    o banco (4 tabelas, 17 funções)
-supabase/testes/teste_financeiro.sql             as travas do módulo (16 testes)
+supabase/criar-bd-financeiro/                    o banco (4 tabelas, 19 funções)
+supabase/testes/teste_financeiro.sql             as travas do módulo (18 testes)
 ```
 
 E a documentação dele, que também é do módulo:

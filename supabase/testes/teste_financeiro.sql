@@ -69,23 +69,32 @@ REVOKE ALL ON public.resultado_teste_financeiro FROM anon, authenticated;
 -- O porteiro abaixo troca o erro críptico por uma instrução.
 -- ---------------------------------------------------------------------------
 DO $$
-DECLARE v_alcanca int;
+DECLARE v_alcanca int; v_esperado int;
 BEGIN
   IF to_regprocedure('public.fin_gravar_lancamento(uuid,uuid,uuid,uuid,date,integer,text,text,text,bigint,text)') IS NULL THEN
     RAISE EXCEPTION E'O MODULO FINANCEIRO NAO ESTA INSTALADO NESTE BANCO.\n'
       '>>> RODE ANTES: supabase/criar-bd-financeiro/financeiro_01_schema.sql e depois o financeiro_02_seed.sql.';
   END IF;
 
-  SELECT count(*) INTO v_alcanca
+  /**
+   * ⚠️ O NUMERO ESPERADO E CONTADO, NUNCA ESCRITO À MÃO.
+   * Este bloco já dizia "de 16" fixo, e em 13/09/2026 o módulo ganhou duas
+   * funções de importação: o teste passou a acusar "18 de 16" e a FALHAR — por
+   * estar certo o código e errado o teste. Teste com número mágico envelhece
+   * sozinho e, pior, ensina a ignorar a cor vermelha.
+   */
+  SELECT count(*) FILTER (WHERE has_function_privilege('authenticated', p.oid, 'EXECUTE')),
+         count(*)
+    INTO v_alcanca, v_esperado
     FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
    WHERE n.nspname = 'public' AND p.proname LIKE 'fin\_%'
-     AND p.proname <> 'fin_apagar_dados_da_empresa'
-     AND has_function_privilege('authenticated', p.oid, 'EXECUTE');
+     AND p.proname <> 'fin_apagar_dados_da_empresa';
 
-  IF v_alcanca < 16 THEN
-    RAISE EXCEPTION E'AS FUNCOES DO MODULO PERDERAM O GRANT DE EXECUCAO (o app alcanca % de 16).\n'
+  IF v_alcanca < v_esperado THEN
+    RAISE EXCEPTION E'AS FUNCOES DO MODULO PERDERAM O GRANT DE EXECUCAO (o app alcanca % de %).\n'
       'ISTO NAO E DEFEITO DO MODULO: alguem reaplicou um REVOKE amplo da plataforma por cima dele.\n'
-      '>>> RODE DE NOVO: supabase/criar-bd-financeiro/financeiro_01_schema.sql (idempotente, nao apaga dado).', v_alcanca;
+      '>>> RODE DE NOVO: supabase/criar-bd-financeiro/financeiro_01_schema.sql (idempotente, nao apaga dado).',
+      v_alcanca, v_esperado;
   END IF;
 END;
 $$;
@@ -596,25 +605,150 @@ $$;
 --
 -- ⚠️ `fin_apagar_dados_da_empresa` FICA DE FORA DE PROPÓSITO: ela é chamada de
 -- dentro de `admin_apagar_dados_do_modulo` e NÃO deve responder ao cliente.
--- São 16 de 17.
+--
+-- ⚠️ O TOTAL É CONTADO, NUNCA ESCRITO À MÃO. Este teste dizia "as 16 funções",
+-- com o 16 fixo. Em 13/09/2026 o módulo ganhou duas funções de importação e ele
+-- passou a acusar "18 de 16" e a FALHAR — com o código certo e o teste errado.
+-- Teste com número mágico envelhece sozinho, e o pior efeito não é falhar: é
+-- ensinar quem lê a ignorar a cor vermelha.
 -- ===========================================================================
 DO $$
-DECLARE v_alcanca int; v_faltando text;
+DECLARE v_alcanca int; v_esperado int; v_faltando text;
 BEGIN
   SELECT count(*) FILTER (WHERE has_function_privilege('authenticated', p.oid, 'EXECUTE')),
+         count(*),
          COALESCE(string_agg(p.proname, ', ' ORDER BY p.proname)
                   FILTER (WHERE NOT has_function_privilege('authenticated', p.oid, 'EXECUTE')), '—')
-    INTO v_alcanca, v_faltando
+    INTO v_alcanca, v_esperado, v_faltando
     FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
    WHERE n.nspname = 'public' AND p.proname LIKE 'fin\_%'
      AND p.proname <> 'fin_apagar_dados_da_empresa';
 
   INSERT INTO public.resultado_teste_financeiro VALUES (
-    16, CASE WHEN v_alcanca = 16 THEN 'PASSOU' ELSE 'FALHOU' END, 'CAMINHO FELIZ',
-    'O app (authenticated) alcanca as 16 funcoes de cliente',
-    format('alcanca %s de 16; sem EXECUTE: %s%s', v_alcanca, v_faltando,
-           CASE WHEN v_alcanca = 16 THEN ''
+    16, CASE WHEN v_alcanca = v_esperado AND v_esperado > 0 THEN 'PASSOU' ELSE 'FALHOU' END, 'CAMINHO FELIZ',
+    'O app (authenticated) alcanca TODAS as funcoes de cliente do modulo',
+    format('alcanca %s de %s; sem EXECUTE: %s%s', v_alcanca, v_esperado, v_faltando,
+           CASE WHEN v_alcanca = v_esperado THEN ''
                 ELSE '  >>> RODE DE NOVO O financeiro_01_schema.sql: alguem reaplicou um REVOKE amplo por cima do modulo.' END));
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 17 — IMPORTAÇÃO EM LOTE: as três espécies de duplicata (13/09/2026)
+--
+-- O que este teste prova, de uma vez:
+--   • o mesmo nome REPETIDO NO ARQUIVO entra uma vez só;
+--   • o mesmo nome ESCRITO DIFERENTE (acento, caixa, espaço) é a mesma coisa —
+--     porque a comparação usa `fin_normalizar`, a mesma do índice único (RN-02);
+--   • o nome que JÁ EXISTE no banco é ignorado, não derruba a importação;
+--   • linha vazia, só espaço e NULL são descartadas;
+--   • e o relatório devolvido bate com o que realmente entrou na tabela.
+--
+-- ⚠️ O ÚLTIMO ITEM É O QUE IMPORTA MAIS. Um relatório que diz "criados: 6" e um
+-- banco com 5 linhas é pior que erro nenhum: a pessoa fecha a tela confiando.
+-- ===========================================================================
+DO $$
+DECLARE
+  v_res json; v_erro text := 'nenhum'; v_no_banco int;
+BEGIN
+  /**
+   * ⚠️ ESTE TESTE CRIA A PRÓPRIA DUPLICATA, E NÃO REAPROVEITA A DO TESTE 2.
+   *
+   * A primeira versão contava com o "BANCO ITAU" gravado no teste 2 — e falhou:
+   * o teste 14, que roda no meio, aciona o botão "apagar os dados desta
+   * empresa" e leva TODOS os cadastros da EMPRESA A junto. O relatório voltou
+   * dizendo que "BANCO ITAÚ" tinha sido criado, o que estava correto — não
+   * havia mais nada lá.
+   *
+   * A lição vale além deste arquivo: **teste que depende do estado deixado por
+   * outro teste quebra quando alguém insere um terceiro no meio** — e quebra
+   * apontando para o lugar errado. Cada teste monta o que precisa.
+   */
+  INSERT INTO public.fin_contas_movimento (tenant_id, nome, tipo, criado_por)
+  VALUES ('aa000000-0000-0000-0000-0000000000a1', 'BANCO ITAU', 'BANCO',
+          'a1000000-0000-0000-0000-0000000000a1')
+  ON CONFLICT DO NOTHING;
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+  BEGIN
+    v_res := public.fin_importar_contas_movimento(
+      'aa000000-0000-0000-0000-0000000000a1', 'BANCO',
+      ARRAY['Banco do Brasil','  BRADESCO  ','banco do brasil','Banco Itaú',
+            '','   ', NULL, 'Nubank']);
+  EXCEPTION WHEN OTHERS THEN v_erro := SQLSTATE || ' ' || SQLERRM;
+  END;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  SELECT count(*) INTO v_no_banco
+    FROM public.fin_contas_movimento
+   WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1'
+     AND nome_normalizado IN (public.fin_normalizar('BANCO DO BRASIL'),
+                              public.fin_normalizar('BRADESCO'),
+                              public.fin_normalizar('NUBANK'));
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    17,
+    CASE WHEN v_erro = 'nenhum'
+          AND (v_res->>'criados')::int = 3
+          AND (v_res->>'ja_existiam')::int = 1
+          AND (v_res->>'repetidos_no_arquivo')::int = 1
+          AND (v_res->>'vazios')::int = 3
+          AND v_no_banco = 3
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'IMPORTACAO',
+    'Lote ignora repetido no arquivo, ja existente e vazio; e o relatorio bate com a tabela',
+    format('erro=%s; retorno=%s; realmente no banco=%s (esperado 3)', v_erro, v_res::text, v_no_banco));
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 18 — A IMPORTAÇÃO NÃO CRIA A CATEGORIA DO SISTEMA (RN-30)
+--
+-- ⚠️ ESTE TESTE EXISTE PARA IMPEDIR UM DEFEITO DE EFEITO TARDIO. A categoria
+-- "TRANSFERÊNCIA ENTRE CONTAS" é criada pelo BANCO, com `is_sistema = true`, na
+-- primeira transferência da empresa. Se uma importação a criasse antes, como
+-- categoria comum, a primeira transferência tentaria inserir a dela e bateria
+-- no índice único — **a transferência falharia para sempre**, com um erro que
+-- não menciona importação nenhuma. O estrago apareceria dias depois do gesto
+-- que o causou.
+-- ===========================================================================
+DO $$
+DECLARE
+  v_res json; v_erro text := 'nenhum'; v_criou int; v_transf json;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+  BEGIN
+    v_res := public.fin_importar_identificadoras(
+      'aa000000-0000-0000-0000-0000000000a1', 'DESPESA',
+      ARRAY['Transferência entre contas','TRANSFERENCIA ENTRE CONTAS','Internet']);
+  EXCEPTION WHEN OTHERS THEN v_erro := SQLSTATE || ' ' || SQLERRM;
+  END;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  -- Nenhuma categoria COMUM com o nome reservado pode ter nascido.
+  SELECT count(*) INTO v_criou
+    FROM public.fin_contas_identificadoras
+   WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1'
+     AND nome_normalizado = public.fin_normalizar('TRANSFERENCIA ENTRE CONTAS')
+     AND is_sistema = false;
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    18,
+    CASE WHEN v_erro = 'nenhum'
+          AND (v_res->>'reservados')::int = 1
+          AND (v_res->>'criados')::int = 1
+          AND v_criou = 0
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-30',
+    'Importacao recusa o nome reservado da transferencia e nao cria categoria comum com ele',
+    format('erro=%s; retorno=%s; categorias comuns com o nome reservado=%s (tem de ser 0)',
+           v_erro, v_res::text, v_criou));
 END;
 $$;
 

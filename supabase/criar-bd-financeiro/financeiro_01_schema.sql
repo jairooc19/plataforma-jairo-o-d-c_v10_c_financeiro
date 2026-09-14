@@ -464,6 +464,243 @@ END;
 $$;
 
 -- ---------------------------------------------------------------------------
+-- 4.6-b IMPORTAR CADASTROS EM LOTE (13/09/2026 — a coluna "A" de um CSV/TSV)
+-- ---------------------------------------------------------------------------
+--
+-- ⚠️ POR QUE ISTO É UMA FUNÇÃO DE BANCO, E NÃO UM LAÇO NA TELA.
+-- A tela poderia chamar `fin_gravar_conta_movimento` uma vez por linha. Com um
+-- arquivo de 300 nomes isso são 300 idas e voltas à internet — lento, e pior:
+-- se a conexão cair na linha 180, metade entrou e ninguém sabe qual metade.
+-- Aqui é UMA chamada, e o banco devolve o relatório completo do que fez.
+--
+-- ⚠️ E POR QUE NÃO É "TUDO OU NADA".
+-- Importar 300 cadastros não é uma operação transacional única: cada nome é
+-- independente. Recusar as 300 porque 4 já existiam seria hostil. O desenho é
+-- **ignorar** o que não pode entrar e **dizer exatamente o que ignorou**.
+--
+-- ⚠️ SÃO TRÊS ESPÉCIES DE DUPLICATA, E AS TRÊS SÃO TRATADAS:
+--   1. o mesmo nome repetido DENTRO do arquivo   → entra uma vez só;
+--   2. o nome já cadastrado NO BANCO             → ignorado;
+--   3. o mesmo nome escrito diferente            → ver abaixo.
+--
+-- ⚠️ "ESCRITO DIFERENTE" TAMBÉM É DUPLICATA. A comparação usa
+-- `fin_normalizar` — a MESMA função que alimenta a coluna `nome_normalizado` e
+-- o índice único (RN-02). Ela tira acento, corta espaços das pontas e passa a
+-- maiúsculas. Então "Banco Itaú", " BANCO ITAU " e "banco itau" são o mesmo
+-- cadastro. Comparar por igualdade crua deixaria os três passarem pelo filtro e
+-- o índice único derrubaria a instrução inteira no fim, sem relatório nenhum.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.fin_importar_contas_movimento(
+  p_tenant_id uuid,
+  p_tipo      text,
+  p_nomes     text[]
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_recebidos   integer := COALESCE(array_length(p_nomes, 1), 0);
+  v_criados     text[]  := '{}';
+  v_existiam    text[]  := '{}';
+  v_unicos      integer := 0;
+BEGIN
+  IF NOT public.fin_pode(p_tenant_id, 'cm_gravar') THEN
+    RAISE EXCEPTION 'Sem permissao para gravar contas movimento.' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_tipo IS NULL OR p_tipo NOT IN ('CAIXA', 'BANCO', 'OUTRAS') THEN
+    RAISE EXCEPTION 'Tipo invalido para conta movimento: %. Use CAIXA, BANCO ou OUTRAS.', p_tipo
+      USING ERRCODE = '23514';
+  END IF;
+
+  -- ⚠️ TETO DE SEGURANÇA. Um arquivo colado por engano (um extrato inteiro, por
+  -- exemplo) travaria a transação e o navegador junto. 5.000 é generoso para
+  -- cadastro e pequeno para acidente.
+  IF v_recebidos > 5000 THEN
+    RAISE EXCEPTION 'Importacao limitada a 5000 linhas por vez (recebidas %).', v_recebidos
+      USING ERRCODE = '22023';
+  END IF;
+
+  IF v_recebidos = 0 THEN
+    RETURN json_build_object('success', true, 'recebidos', 0, 'criados', 0,
+                             'ja_existiam', 0, 'repetidos_no_arquivo', 0, 'vazios', 0,
+                             'nomes_criados', '[]'::json, 'nomes_ja_existiam', '[]'::json);
+  END IF;
+
+  -- Uma passagem só: limpa, tira repetidos internos (mantendo a PRIMEIRA
+  -- ocorrência, que é a ordem em que a pessoa vê na prévia), separa o que já
+  -- existe do que é novo, e insere os novos.
+  WITH bruto AS (
+    SELECT t.ord,
+           upper(btrim(t.n))          AS nome,
+           public.fin_normalizar(t.n) AS chave
+      FROM unnest(p_nomes) WITH ORDINALITY AS t(n, ord)
+  ),
+  validos AS (
+    SELECT * FROM bruto WHERE chave <> ''
+  ),
+  -- ⚠️ `DISTINCT ON` exige que o `ORDER BY` comece pela mesma expressão. O
+  -- `ord` em segundo lugar é o que garante "fica a primeira ocorrência".
+  unicos AS (
+    SELECT DISTINCT ON (chave) ord, nome, chave
+      FROM validos
+     ORDER BY chave, ord
+  ),
+  ja_existentes AS (
+    SELECT u.* FROM unicos u
+     WHERE EXISTS (SELECT 1 FROM public.fin_contas_movimento c
+                    WHERE c.tenant_id = p_tenant_id AND c.nome_normalizado = u.chave)
+  ),
+  novos AS (
+    SELECT u.* FROM unicos u
+     WHERE NOT EXISTS (SELECT 1 FROM public.fin_contas_movimento c
+                        WHERE c.tenant_id = p_tenant_id AND c.nome_normalizado = u.chave)
+  ),
+  inseridos AS (
+    INSERT INTO public.fin_contas_movimento
+           (tenant_id, nome, tipo, saldo_abertura_centavos, is_active, criado_por)
+    SELECT p_tenant_id, n.nome, p_tipo, 0, true, auth.uid()
+      FROM novos n
+    RETURNING nome
+  )
+  SELECT COALESCE((SELECT array_agg(nome ORDER BY nome) FROM inseridos), '{}'),
+         COALESCE((SELECT array_agg(nome ORDER BY nome) FROM ja_existentes), '{}'),
+         (SELECT count(*) FROM unicos)
+    INTO v_criados, v_existiam, v_unicos;
+
+  RETURN json_build_object(
+    'success', true,
+    'recebidos', v_recebidos,
+    'criados', COALESCE(array_length(v_criados, 1), 0),
+    'ja_existiam', COALESCE(array_length(v_existiam, 1), 0),
+    -- Repetidos no arquivo = linhas com conteúdo menos nomes distintos.
+    'repetidos_no_arquivo', GREATEST(
+        (SELECT count(*) FROM unnest(p_nomes) AS n WHERE public.fin_normalizar(n) <> '')::integer - v_unicos, 0),
+    'vazios', v_recebidos
+        - (SELECT count(*) FROM unnest(p_nomes) AS n WHERE public.fin_normalizar(n) <> '')::integer,
+    'nomes_criados', to_json(v_criados),
+    'nomes_ja_existiam', to_json(v_existiam)
+  );
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 4.6-c IMPORTAR CONTAS IDENTIFICADORAS EM LOTE
+-- ---------------------------------------------------------------------------
+--
+-- Gêmea da anterior, com UMA diferença que não é detalhe:
+--
+-- ⚠️ O NOME "TRANSFERÊNCIA ENTRE CONTAS" É RESERVADO E FICA DE FORA.
+-- Essa categoria é criada pelo próprio banco, com `is_sistema = true`, na
+-- primeira transferência da empresa (RN-30). Se uma importação a criasse antes,
+-- como categoria comum, a primeira transferência tentaria inserir a dela e
+-- bateria no índice único — **a transferência falharia para sempre**, com um
+-- erro que não diz nada sobre importação. Melhor recusar o nome aqui, onde a
+-- causa é visível, e contar isso no relatório.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.fin_importar_identificadoras(
+  p_tenant_id uuid,
+  p_tipo      text,
+  p_nomes     text[]
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_recebidos  integer := COALESCE(array_length(p_nomes, 1), 0);
+  v_criados    text[]  := '{}';
+  v_existiam   text[]  := '{}';
+  v_reservados text[]  := '{}';
+  v_unicos     integer := 0;
+  v_reservado  text    := public.fin_normalizar('TRANSFERENCIA ENTRE CONTAS');
+BEGIN
+  IF NOT public.fin_pode(p_tenant_id, 'ci_gravar') THEN
+    RAISE EXCEPTION 'Sem permissao para gravar contas identificadoras.' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_tipo IS NULL OR p_tipo NOT IN ('DESPESA', 'RECEITA', 'OUTRAS') THEN
+    RAISE EXCEPTION 'Tipo invalido para conta identificadora: %. Use DESPESA, RECEITA ou OUTRAS.', p_tipo
+      USING ERRCODE = '23514';
+  END IF;
+
+  IF v_recebidos > 5000 THEN
+    RAISE EXCEPTION 'Importacao limitada a 5000 linhas por vez (recebidas %).', v_recebidos
+      USING ERRCODE = '22023';
+  END IF;
+
+  IF v_recebidos = 0 THEN
+    RETURN json_build_object('success', true, 'recebidos', 0, 'criados', 0,
+                             'ja_existiam', 0, 'repetidos_no_arquivo', 0, 'vazios', 0,
+                             'reservados', 0,
+                             'nomes_criados', '[]'::json, 'nomes_ja_existiam', '[]'::json,
+                             'nomes_reservados', '[]'::json);
+  END IF;
+
+  WITH bruto AS (
+    SELECT t.ord,
+           upper(btrim(t.n))          AS nome,
+           public.fin_normalizar(t.n) AS chave
+      FROM unnest(p_nomes) WITH ORDINALITY AS t(n, ord)
+  ),
+  validos AS (
+    SELECT * FROM bruto WHERE chave <> ''
+  ),
+  unicos AS (
+    SELECT DISTINCT ON (chave) ord, nome, chave
+      FROM validos
+     ORDER BY chave, ord
+  ),
+  reservados AS (
+    SELECT u.* FROM unicos u WHERE u.chave = v_reservado
+  ),
+  candidatos AS (
+    SELECT u.* FROM unicos u WHERE u.chave <> v_reservado
+  ),
+  ja_existentes AS (
+    SELECT c.* FROM candidatos c
+     WHERE EXISTS (SELECT 1 FROM public.fin_contas_identificadoras x
+                    WHERE x.tenant_id = p_tenant_id AND x.nome_normalizado = c.chave)
+  ),
+  novos AS (
+    SELECT c.* FROM candidatos c
+     WHERE NOT EXISTS (SELECT 1 FROM public.fin_contas_identificadoras x
+                        WHERE x.tenant_id = p_tenant_id AND x.nome_normalizado = c.chave)
+  ),
+  inseridos AS (
+    INSERT INTO public.fin_contas_identificadoras
+           (tenant_id, nome, tipo, is_active, criado_por)
+    SELECT p_tenant_id, n.nome, p_tipo, true, auth.uid()
+      FROM novos n
+    RETURNING nome
+  )
+  SELECT COALESCE((SELECT array_agg(nome ORDER BY nome) FROM inseridos), '{}'),
+         COALESCE((SELECT array_agg(nome ORDER BY nome) FROM ja_existentes), '{}'),
+         COALESCE((SELECT array_agg(nome ORDER BY nome) FROM reservados), '{}'),
+         (SELECT count(*) FROM unicos)
+    INTO v_criados, v_existiam, v_reservados, v_unicos;
+
+  RETURN json_build_object(
+    'success', true,
+    'recebidos', v_recebidos,
+    'criados', COALESCE(array_length(v_criados, 1), 0),
+    'ja_existiam', COALESCE(array_length(v_existiam, 1), 0),
+    'reservados', COALESCE(array_length(v_reservados, 1), 0),
+    'repetidos_no_arquivo', GREATEST(
+        (SELECT count(*) FROM unnest(p_nomes) AS n WHERE public.fin_normalizar(n) <> '')::integer - v_unicos, 0),
+    'vazios', v_recebidos
+        - (SELECT count(*) FROM unnest(p_nomes) AS n WHERE public.fin_normalizar(n) <> '')::integer,
+    'nomes_criados', to_json(v_criados),
+    'nomes_ja_existiam', to_json(v_existiam),
+    'nomes_reservados', to_json(v_reservados)
+  );
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
 -- 4.7 GRAVAR LANÇAMENTO (RN-10, 11, 12, 15, 22, 24, 25, 29)
 -- ---------------------------------------------------------------------------
 --
@@ -1221,6 +1458,8 @@ REVOKE EXECUTE ON FUNCTION public.fin_buscar_contas_movimento(uuid, text)       
 REVOKE EXECUTE ON FUNCTION public.fin_buscar_identificadoras(uuid, text)                 FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_gravar_conta_movimento(uuid, uuid, text, text, bigint, boolean) FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_gravar_identificadora(uuid, uuid, text, text, boolean)          FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_importar_contas_movimento(uuid, text, text[])      FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_importar_identificadoras(uuid, text, text[])       FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_gravar_lancamento(uuid, uuid, uuid, uuid, date, integer, text, text, text, bigint, text) FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_excluir_lancamento(uuid, uuid)                     FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_transferir(uuid, uuid, uuid, date, bigint, text)   FROM PUBLIC, anon, authenticated;
@@ -1239,6 +1478,8 @@ GRANT EXECUTE ON FUNCTION public.fin_buscar_contas_movimento(uuid, text)        
 GRANT EXECUTE ON FUNCTION public.fin_buscar_identificadoras(uuid, text)                 TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_gravar_conta_movimento(uuid, uuid, text, text, bigint, boolean) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_gravar_identificadora(uuid, uuid, text, text, boolean)          TO authenticated;
+GRANT EXECUTE ON FUNCTION public.fin_importar_contas_movimento(uuid, text, text[])      TO authenticated;
+GRANT EXECUTE ON FUNCTION public.fin_importar_identificadoras(uuid, text, text[])       TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_gravar_lancamento(uuid, uuid, uuid, uuid, date, integer, text, text, text, bigint, text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_excluir_lancamento(uuid, uuid)                     TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_transferir(uuid, uuid, uuid, date, bigint, text)   TO authenticated;

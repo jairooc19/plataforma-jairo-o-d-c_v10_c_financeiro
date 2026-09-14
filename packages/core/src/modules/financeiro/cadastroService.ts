@@ -12,6 +12,7 @@
  */
 
 import { supabase } from '../../lib/supabase';
+import type { RelatorioDeImportacao } from './importacao';
 import type {
   ContaMovimento,
   ContaIdentificadora,
@@ -187,5 +188,55 @@ export const cadastroFinanceiroService = {
       .eq('tenant_id', tenantId)
       .eq('id', id);
     if (error) throw new Error(error.message);
+  },
+
+  /**
+   * 📥 IMPORTAÇÃO EM LOTE DE CONTAS MOVIMENTO (13/09/2026).
+   *
+   * ⚠️ UMA CHAMADA SÓ, E É DE PROPÓSITO. A alternativa seria um laço chamando
+   * `gravarContaMovimento` por nome: com 300 linhas, são 300 idas e voltas à
+   * internet — lento, e se a conexão cair na linha 180 metade entrou e ninguém
+   * sabe qual metade. A função `fin_importar_contas_movimento` faz tudo dentro
+   * do banco e devolve o relatório do que criou e do que ignorou.
+   *
+   * ⚠️ ELA NÃO É "TUDO OU NADA". Nomes repetidos ou já cadastrados são
+   * IGNORADOS, não recusados — e aparecem no relatório. Derrubar 300 cadastros
+   * porque 4 já existiam seria hostil, e é justamente o caso mais comum: a
+   * segunda importação do mesmo arquivo corrigido.
+   */
+  async importarContasMovimento(
+    tenantId: string,
+    tipo: TipoContaMovimento,
+    nomes: string[],
+  ): Promise<RelatorioDeImportacao> {
+    const { data, error } = await supabase.rpc('fin_importar_contas_movimento', {
+      p_tenant_id: tenantId,
+      p_tipo: tipo,
+      p_nomes: nomes,
+    });
+    if (error) throw new Error(error.message);
+    return data as RelatorioDeImportacao;
+  },
+
+  /**
+   * 📥 IMPORTAÇÃO EM LOTE DE CONTAS IDENTIFICADORAS.
+   *
+   * Gêmea da anterior, com um item a mais no relatório: `reservados`. O nome
+   * "TRANSFERÊNCIA ENTRE CONTAS" pertence ao sistema (RN-30) e nunca entra por
+   * importação — se entrasse como categoria comum, a primeira transferência da
+   * empresa falharia para sempre, com um erro que não menciona importação.
+   */
+  async importarIdentificadoras(
+    tenantId: string,
+    tipo: TipoContaIdentificadora,
+    nomes: string[],
+  ): Promise<RelatorioDeImportacao> {
+    const { data, error } = await supabase.rpc('fin_importar_identificadoras', {
+      p_tenant_id: tenantId,
+      p_tipo: tipo,
+      p_nomes: nomes,
+    });
+    if (error) throw new Error(error.message);
+    return data as RelatorioDeImportacao;
   },
 };

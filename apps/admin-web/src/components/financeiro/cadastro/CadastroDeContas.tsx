@@ -6,6 +6,8 @@ import { useEmpresaAtiva } from "@/components/financeiro/useEmpresaAtiva";
 import FormularioDeConta, { type SugestaoDeConta } from "./FormularioDeConta";
 import ListaDeContas, { type ItemDeCadastro } from "./ListaDeContas";
 import { abrirImpressao } from "@/components/financeiro/prepararImpressao";
+import IconeFin from "@/components/financeiro/IconeFin";
+import ImportarCadastros from "@/components/financeiro/importar/ImportarCadastros";
 import { formatarBRL } from "@jairo/core";
 
 /**
@@ -50,6 +52,19 @@ export default function CadastroDeContas({ variante }: { variante: "movimento" |
   const [gravando, setGravando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
+
+  const [importando, setImportando] = useState(false);
+  /**
+   * TODOS os nomes já cadastrados — inclusive os INATIVOS.
+   *
+   * ⚠️ POR QUE NÃO REUSAR A LISTA `itens` DA TELA. Ela está filtrada: por
+   * padrão mostra só os ativos. Um cadastro DESATIVADO continua ocupando o
+   * índice único do banco (RN-02), então ele é duplicata do mesmo jeito. Se a
+   * prévia usasse a lista visível, ela diria "novo" sobre um nome que o banco
+   * vai ignorar — e a pessoa marcaria 40 registros esperando 40, recebendo 37.
+   * O relatório final corrigiria, mas depois do susto.
+   */
+  const [nomesJaCadastrados, setNomesJaCadastrados] = useState<string[]>([]);
 
   const pesquisar = useCallback(async () => {
     if (!tenantId) return;
@@ -177,6 +192,21 @@ export default function CadastroDeContas({ variante }: { variante: "movimento" |
     }
   };
 
+  /** Abre a importação depois de buscar a lista COMPLETA (com os inativos). */
+  const abrirImportacao = async () => {
+    if (!tenantId) return;
+    setErro(null); setAviso(null);
+    try {
+      const todos = ehMovimento
+        ? await cadastroFinanceiroService.listarContasMovimento(tenantId, { incluirInativos: true })
+        : await cadastroFinanceiroService.listarIdentificadoras(tenantId, { incluirInativos: true });
+      setNomesJaCadastrados(todos.map((c) => c.nome));
+      setImportando(true);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "FALHA AO PREPARAR A IMPORTAÇÃO.");
+    }
+  };
+
   const imprimir = () => {
     const filtros: string[] = [];
     if (filtroTexto) filtros.push(`NOME CONTÉM "${filtroTexto}"`);
@@ -207,9 +237,28 @@ export default function CadastroDeContas({ variante }: { variante: "movimento" |
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-black uppercase tracking-tighter text-slate-800">
-        {ehMovimento ? "CADASTRO DE CONTAS MOVIMENTO" : "CADASTRO DE CONTAS IDENTIFICADORAS"}
-      </h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="flex items-center gap-2.5 text-2xl font-black uppercase tracking-tighter text-slate-800">
+          <IconeFin nome={ehMovimento ? "contaMovimento" : "contaIdentificadora"} tamanho={26} traco={1.75} />
+          {ehMovimento ? "CADASTRO DE CONTAS MOVIMENTO" : "CADASTRO DE CONTAS IDENTIFICADORAS"}
+        </h1>
+
+        {/* ⚠️ A IMPORTAÇÃO EXIGE A MESMA PERMISSÃO DE GRAVAR UM A UM. Não é uma
+            porta lateral: quem não pode criar um cadastro não pode criar 300 de
+            uma vez. O banco confere `fin_pode('cm_gravar'/'ci_gravar')` dentro
+            da própria função de importação — esconder o botão é conforto. */}
+        {pode(ehMovimento ? "cm_gravar" : "ci_gravar") && (
+          <button
+            type="button"
+            onClick={abrirImportacao}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-300
+                       hover:border-blue-400 text-xs font-black uppercase tracking-widest text-slate-700"
+          >
+            <IconeFin nome="importar" tamanho={15} />
+            IMPORTAR .CSV OU .TSV
+          </button>
+        )}
+      </div>
 
       {erro && <div className="bg-red-50 border border-red-200 rounded-2xl px-5 py-4 text-sm font-bold uppercase text-red-800">{erro}</div>}
       {aviso && <div className="bg-emerald-50 border border-emerald-200 rounded-2xl px-5 py-4 text-sm font-bold uppercase text-emerald-800">{aviso}</div>}
@@ -238,6 +287,17 @@ export default function CadastroDeContas({ variante }: { variante: "movimento" |
         onPesquisar={pesquisar} onEditar={editar} onExcluir={excluir}
         onAlternarAtivo={alternarAtivo} onImprimir={imprimir}
       />
+
+      {importando && tenantId && (
+        <ImportarCadastros
+          variante={variante}
+          tenantId={tenantId}
+          tiposDisponiveis={TIPOS[variante]}
+          nomesJaCadastrados={nomesJaCadastrados}
+          onFechar={() => setImportando(false)}
+          onImportou={pesquisar}
+        />
+      )}
     </div>
   );
 }

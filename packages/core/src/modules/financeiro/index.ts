@@ -11,6 +11,7 @@
 export * from './manifesto';
 export * from './tipos';
 export * from './cadastroService';
+export * from './importacao';
 export * from './lancamentoService';
 export * from './extratoService';
 export * from './permissaoService';

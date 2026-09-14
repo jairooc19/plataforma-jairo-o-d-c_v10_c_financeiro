@@ -3,7 +3,7 @@
 import {
   ArrowLeft, ArrowRightLeft, Ban, Banknote, CalendarCheck, ChartColumn,
   ChevronDown, ChevronRight, CircleAlert, CircleCheck, CirclePlus, Coins,
-  Download, Eye, FolderTree, Funnel, LayoutDashboard, ListChecks, Lock,
+  Download, Eye, FileUp, FolderTree, Funnel, LayoutDashboard, ListChecks, Lock,
   LockOpen, Menu, Pencil, PiggyBank, Plus, Printer, RefreshCw, Save, Search,
   Settings, Tags, Trash, Users, Wallet, X,
 } from "lucide-react";
@@ -74,6 +74,7 @@ const CATALOGO = {
   filtrar: Funnel,
   imprimir: Printer,
   exportar: Download,
+  importar: FileUp,
   recarregar: RefreshCw,
   ver: Eye,
 

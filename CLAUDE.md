@@ -7,6 +7,96 @@ Leia-o integralmente antes de tocar em qualquer arquivo.
 
 ## ⚠️ Histórico de Mudanças
 
+**2026-09-13 (noite) — v10: importar cadastros de um CSV/TSV pela coluna A**
+
+Terceira rodada do dia. **Exige rodar de novo SÓ o `financeiro_01_schema.sql`.**
+
+| Onde | O que entrou |
+|---|---|
+| `financeiro_01_schema.sql` 4.6-b/c | ✨ `fin_importar_contas_movimento` e `fin_importar_identificadoras` — o banco foi a **19 funções `fin_`** |
+| `teste_financeiro.sql` | ✨ Testes **17 e 18**; o teste 16 e o porteiro pararam de usar número fixo. Foi para **18 testes** |
+| ✨ `core/modules/financeiro/importacao.ts` | O leitor de CSV/TSV — função pura, sem React |
+| ✨ `core/modules/financeiro/importacao.test.ts` | **17 testes** do leitor; `npm test` foi de 19 para **36** |
+| `cadastroService` | ✨ `importarContasMovimento` e `importarIdentificadoras` |
+| ✨ `components/financeiro/importar/` | `lerArquivo.ts`, `useImportacao.ts`, `ImportarCadastros.tsx` |
+| `CadastroDeContas` | Botão IMPORTAR nas duas telas |
+
+⚠️ **A IMPORTAÇÃO É UMA FUNÇÃO DE BANCO, NÃO UM LAÇO NA TELA.** Um laço chamando
+`fin_gravar_conta_movimento` por linha faria 300 idas e voltas à internet num
+arquivo de 300 nomes — e, se a conexão caísse na linha 180, metade entraria sem
+ninguém saber qual metade. É uma chamada só, e o banco devolve o relatório.
+
+⚠️ **MAS NÃO É "TUDO OU NADA".** Importar 300 cadastros não é uma operação
+transacional única: cada nome é independente. Recusar as 300 porque 4 já
+existiam seria hostil — e esse é o caso MAIS comum (a segunda importação do
+mesmo arquivo corrigido). O desenho é **ignorar e dizer o que ignorou**.
+
+⚠️ **SÃO TRÊS ESPÉCIES DE DUPLICATA, E "ESCRITO DIFERENTE" É UMA DELAS.** O
+mesmo nome repetido no arquivo; o nome já cadastrado no banco; e o mesmo nome
+com acento/caixa/espaço diferentes. A comparação usa `fin_normalizar` — a MESMA
+função que alimenta `nome_normalizado` e o índice único (RN-02). Comparar por
+igualdade crua deixaria os três passarem pelo filtro e o índice único derrubaria
+a instrução inteira no fim, sem relatório nenhum.
+
+⚠️ **"TRANSFERÊNCIA ENTRE CONTAS" É RECUSADO NA IMPORTAÇÃO DE CATEGORIAS, E O
+MOTIVO É DE EFEITO TARDIO.** Essa categoria é criada pelo banco com
+`is_sistema = true` na primeira transferência da empresa (RN-30). Se uma
+importação a criasse antes como categoria comum, a primeira transferência
+tentaria inserir a dela e bateria no índice único — **a transferência falharia
+para sempre**, com um erro que não menciona importação. O estrago apareceria
+dias depois do gesto que o causou. Teste 18 cobre isso.
+
+⚠️ **`texto.split("\n").map(l => l.split(",")[0])` NÃO LÊ CSV.** Falha em quatro
+situações comuns: vírgula dentro de aspas (`"MERCADO SILVA, LTDA"`); quebra de
+linha dentro de aspas (CSV permite); **o Excel brasileiro usa ponto e vírgula**,
+porque a vírgula é o separador decimal aqui; e `""` dentro de um campo é uma
+aspa literal. O leitor percorre caractere a caractere, com estado.
+
+⚠️ **A DETECÇÃO DO SEPARADOR TAMBÉM PRECISA RESPEITAR ASPAS — e o teste pegou
+isso.** A primeira versão fazia `split('\n')[0]` para achar o separador. Num
+arquivo que começa com `"CONTA COM\nDUAS LINHAS",X`, aquele split cortava dentro
+das aspas e a "primeira linha" virava `"CONTA COM`, sem vírgula nenhuma: o
+separador saía como inexistente e a coluna A vinha com o resto grudado. Agora a
+contagem varre até 64 KB **ignorando o que está entre aspas**.
+
+⚠️ **O BOM DO EXCEL FAZ O PRIMEIRO REGISTRO ENTRAR DUPLICADO PARA SEMPRE.**
+Arquivo salvo como "CSV UTF-8" começa com o caractere invisível `U+FEFF`. Sem
+removê-lo, o primeiro nome vira `﻿CAIXA` — **idêntico a "CAIXA" na tela e
+outro texto para o banco**. Uma segunda importação criaria "CAIXA" ao lado, e
+ninguém veria a diferença olhando.
+
+⚠️ **O EXCEL EM PORTUGUÊS SALVA EM WINDOWS-1252, NÃO EM UTF-8.** Lido como
+UTF-8, "ÁGUA" vira "�GUA" — e a importação **funciona**, gravando o lixo sem
+erro nenhum. O leitor tenta UTF-8 primeiro e, se aparecer o caractere de
+substituição `�`, relê tudo como Windows-1252. ⚠️ **A ordem não pode ser
+invertida:** o Windows-1252 nunca falha (qualquer byte é válido nele), então
+seria ele a corromper um UTF-8 legítimo, em silêncio. Só o UTF-8 sabe dizer
+"estes bytes não são meus".
+
+⚠️ **A PRÉVIA USA A LISTA COM OS INATIVOS, NÃO A LISTA DA TELA.** A lista
+visível está filtrada (por padrão, só ativos), mas um cadastro DESATIVADO
+continua ocupando o índice único. Usando a lista visível, a prévia diria "novo"
+sobre um nome que o banco vai ignorar — a pessoa marcaria 40 e receberia 37.
+
+⚠️ **O RELATÓRIO FINAL É DO BANCO, NÃO A PRÉVIA REPETIDA.** A prévia é um
+palpite feito no navegador; entre conferir e gravar, outra pessoa pode ter
+cadastrado o mesmo nome na outra ponta. Mostrar a prévia como resultado seria
+mentir com confiança.
+
+⚠️ **TESTE COM NÚMERO MÁGICO ENVELHECE SOZINHO.** O teste 16 dizia "as 16
+funções" com o 16 escrito à mão; as duas funções novas o fizeram acusar
+"18 de 16" e **falhar com o código certo**. Agora o total é contado do catálogo.
+O pior efeito de um teste assim não é falhar — é ensinar quem lê a ignorar o
+vermelho.
+
+⚠️ **TESTE QUE DEPENDE DO ESTADO DEIXADO POR OUTRO TESTE QUEBRA QUANDO ALGUÉM
+INSERE UM TERCEIRO NO MEIO.** O teste 17 contava com o "BANCO ITAU" do teste 2 —
+e o teste 14, que roda entre os dois, aciona o botão de apagar os dados da
+empresa. O relatório voltou dizendo "criado", o que estava correto: não havia
+mais nada lá. Cada teste monta o que precisa.
+
+---
+
 **2026-09-13 (tarde) — v10: editar e excluir na linha, campo que se digita, e quem está logado**
 
 Segunda rodada do dia, nascida do teste dele no Vercel depois de o banco fechar
@@ -1417,7 +1507,7 @@ plataforma-jairo-o-d-c-v4/
 │   │   └── plataforma_02_seed.sql     → Hidratador: dados iniciais obrigatórios
 │   ├── criar-bd-financeiro/→ 🧩 MÓDULO: banco do Controle Financeiro (01 → 02; o 00 despluga)
 │   ├── testes/             → teste_rls.sql (16 travas da plataforma), teste_financeiro.sql
-│   │                         (16 travas do módulo), inventario.sql (confere o schema)
+│   │                         (18 travas do módulo), inventario.sql (confere o schema)
 │   │   └── ambiente-local/ → 🆕 sobe um PostgreSQL descartável e valida o SQL antes do Supabase
 │   ├── migrations/         → vazia; ler o README antes do primeiro dado real
 │   └── config.toml         → Configuração do Supabase CLI
@@ -1443,7 +1533,7 @@ Na **raiz do repositório**:
 ```bash
 npm install          # Instala as dependências de todos os workspaces
 npm run web          # Inicia o admin-web em desenvolvimento (porta 3000)
-npm test             # 19 testes do Core (node:test, sem dependências)
+npm test             # 36 testes do Core (node:test, sem dependências)
 npm run modulos:verificar   # 🆕 o verificador de LEGO (plataforma × módulos)
 npm run verificar    # testes + verificador + lint + build, em sequência
 ```
@@ -2264,6 +2354,14 @@ inclusive numa máquina limpa — foi por isso que a versão com bcrypt foi reve
 - ❌ Nunca abrir menu de linha com `position: absolute` dentro de tabela que rola — ele é recortado pelo `overflow`; usar `fixed` com `getBoundingClientRect`, e abrir para cima quando não couber embaixo
 - ❌ Nunca oferecer "EDITAR" numa perna de transferência — as duas pernas são amarradas (RN-23) e alterar uma deixa o saldo da outra conta errado para sempre; o caminho é excluir (o banco apaga as duas) e lançar de novo
 - ❌ Nunca filtrar no navegador uma lista que o banco já sabe buscar — a lista carregada é só a primeira página do cadastro, e a tela diria "nada encontrado" sobre algo que existe
+- ❌ Nunca ler CSV com `split('\n')` + `split(',')` — quebra com vírgula dentro de aspas, quebra de linha dentro de aspas, `""` literal, e com o ponto e vírgula que o Excel brasileiro usa; percorrer com estado é a única forma
+- ❌ Nunca detectar o separador de um CSV sem respeitar aspas — um campo com quebra de linha faz a "primeira linha" terminar no meio das aspas e o separador sai errado
+- ❌ Nunca esquecer de remover o BOM (`﻿`) de arquivo salvo pelo Excel — o primeiro registro fica visualmente idêntico e diferente para o banco, e entra duplicado para sempre
+- ❌ Nunca decodificar arquivo de planilha só como UTF-8 — o Excel em português salva em Windows-1252 e os acentos viram lixo **sem erro nenhum**; tente UTF-8 primeiro e caia para Windows-1252 se aparecer `�` (nunca o contrário: o Windows-1252 aceita qualquer byte e corromperia um UTF-8 válido em silêncio)
+- ❌ Nunca gravar lote chamando a função de um em um pelo TypeScript — uma função de banco que recebe o array faz uma viagem só e devolve o relatório; queda de conexão no meio de um laço deixa metade gravada sem ninguém saber qual
+- ❌ Nunca comparar duplicata de cadastro por igualdade de texto — a regra é `fin_normalizar` (sem acento, sem espaço, maiúsculas), a mesma do índice único; comparar cru deixa passar e o índice derruba a instrução inteira no fim
+- ❌ Nunca deixar um teste com número esperado escrito à mão quando ele pode ser contado do catálogo — ele falha com o código certo e ensina a ignorar o vermelho
+- ❌ Nunca escrever teste que dependa do estado deixado por outro teste do mesmo arquivo — inserir um terceiro no meio quebra o primeiro, apontando para o lugar errado
 - ❌ Nunca criar arquivo com múltiplas responsabilidades distintas
 - ❌ Nunca misturar lógica de plataforma com módulo, nem módulo com módulo
 - ❌ Nunca usar `toISOString()` para datas que precisam respeitar UTC-3
