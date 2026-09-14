@@ -41,7 +41,7 @@ cp apps/mobile-app/.env.example apps/mobile-app/.env
 > ⚠️ **`SUPABASE_SERVICE_ROLE_KEY` e `EXPO_PUBLIC_API_URL` deixaram de existir na
 > v10.** A chave mestra alimentava seis rotas HTTP sem autenticação; as operações
 > administrativas viraram funções no banco que conferem `is_superuser()`. Ver o
-> histórico do [`CLAUDE.md`](./CLAUDE.md).
+> [`HISTORICO.md`](./HISTORICO.md).
 
 ---
 
@@ -156,6 +156,7 @@ de solda e os roteiros de conectar/desconectar — é **[`MODULOS.md`](./MODULOS
 e `npm run modulos:verificar` confere as regras dele em segundos.
 
 Regras completas, convenções obrigatórias e lições aprendidas: **[`CLAUDE.md`](./CLAUDE.md)**.
+O que mudou em cada versão, e por quê: **[`HISTORICO.md`](./HISTORICO.md)**.
 Detalhes de rotas e proxy do Next.js 16: `apps/admin-web/AGENTS.md`.
 
 ---
