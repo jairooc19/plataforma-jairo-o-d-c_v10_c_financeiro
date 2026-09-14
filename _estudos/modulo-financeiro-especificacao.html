@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Especificação — Módulo Controle Financeiro</title>
+<title>Especificação — Módulo Controle Financeiro (v2 — construído)</title>
 <style>
   /* ============================================================
      CORES PRESERVADAS NA IMPRESSÃO (fora de @media print)
@@ -152,6 +152,18 @@
   .tag-nao { background-color: var(--fundo-vermelho); }
   .tag-dec { background-color: var(--fundo-azul); }
   .tag-pro { background-color: var(--fundo-roxo); }
+
+  /* Selos acrescentados em 13/09/2026, quando o documento deixou de ser
+     projeto e passou a registrar o que existe. */
+  .tag-feito {
+    background-color: #d9f0e3; border-color: var(--verde); color: var(--verde);
+  }
+  .tag-mudou {
+    background-color: var(--fundo-ambar); border-color: var(--ambar); color: var(--ambar);
+  }
+  body.print-bw .tag-feito, body.print-bw .tag-mudou {
+    background-color: #ffffff !important; border-color: #000000 !important; color: #000000 !important;
+  }
 
   /* ---------- Tabelas ---------- */
   .table-wrap { width: 100%; overflow-x: auto; margin: 12px 0; }
@@ -317,20 +329,22 @@
 <div class="page">
 
 <header class="doc-header">
-  <p class="eyebrow">Plataforma Jairo O D C · Módulo Controle Financeiro · Especificação v1 (rodada 2 do debate)</p>
+  <p class="eyebrow">Plataforma Jairo O D C · Módulo Controle Financeiro · Especificação v2 — CONSTRUÍDO</p>
   <h1>Módulo Controle Financeiro — Especificação Completa</h1>
-  <p class="meta"><strong>Situação:</strong> documento de projeto em debate. <strong>Nenhum arquivo de código foi criado ou alterado.</strong></p>
-  <p class="meta"><strong>Data:</strong> 12/09/2026 · <strong>Substitui</strong> a minuta original · <strong>Base:</strong> as 21 respostas do dono do projeto + as decisões do degrau 6</p>
+  <p class="meta"><strong>Situação:</strong> <span class="tag tag-feito">IMPLEMENTADO E EM USO</span> — o módulo está plugado, no ar, e validado no Supabase de produção.</p>
+  <p class="meta"><strong>Escrito em</strong> 12/09/2026 como projeto · <strong>Atualizado em</strong> 13/09/2026 com o que foi construído · <strong>Base:</strong> as 33 respostas do dono do projeto + quatro rodadas de teste dele no ambiente publicado</p>
+  <p class="meta"><strong>Placar no banco real:</strong> <code>teste_rls.sql</code> <strong>16/16</strong> · <code>teste_financeiro.sql</code> <strong>18/18</strong> · <code>npm test</code> <strong>36/36</strong></p>
   <div class="callout callout-ambar" style="margin-top:14px">
-    <span class="box-title">✅ O ponto que bloqueava a modelagem foi decidido</span>
-    <p style="margin-top:6px">O modelo de separação dos dados está resolvido: <strong>tabela única com isolamento por RLS, mais um botão "APAGAR TODOS OS DADOS DESTA EMPRESA"</strong> no Painel de Engenharia. A decisão foi tomada em 12/09/2026 <strong>depois de uma prova medida num PostgreSQL real</strong>, comparando os dois modelos — está na seção 6, com os números.</p>
-    <p><strong>A modelagem (seções 18 e 19) está liberada.</strong> Restam perguntas de detalhe, reunidas na seção 24.</p>
+    <span class="box-title">⚠️ Como este documento mudou de natureza</span>
+    <p style="margin-top:6px">Ele nasceu em 12/09/2026 como <strong>projeto</strong> — dizia o que <em>ia</em> ser feito, e trazia a frase "nenhum arquivo de código foi criado ou alterado". Isso deixou de ser verdade no dia seguinte.</p>
+    <p>Agora ele registra <strong>o que existe</strong>. O corpo original foi mantido, porque continua descrevendo bem o desenho; o que mudou na construção está marcado <span class="tag tag-mudou">MUDOU</span> no lugar onde mudou, e reunido na <a href="#s0">seção 0</a>. <strong>Nada foi apagado para fingir que o plano acertou de primeira</strong> — quatro coisas mudaram depois que você usou o sistema, e é isso que as seções marcadas contam.</p>
   </div>
 </header>
 
 <nav class="toc" aria-label="Sumário">
   <h2 style="border-bottom:0; padding-bottom:0; margin-bottom:10px;">Sumário</h2>
   <ol>
+    <li><a href="#s0"><strong>ESTADO DA CONSTRUÇÃO — o que existe hoje e o que mudou</strong></a></li>
     <li><a href="#s1">Como ler este documento</a></li>
     <li><a href="#s2">Visão geral: o que o módulo é (e o que não é)</a></li>
     <li><a href="#s3">Glossário — o vocabulário fixo</a></li>
@@ -358,6 +372,166 @@
   </ol>
 </nav>
 
+<section id="s0">
+  <h2>0. ESTADO DA CONSTRUÇÃO — o que existe hoje e o que mudou</h2>
+
+  <p>Esta seção é a única coisa neste documento escrita <strong>depois</strong> de o módulo existir. Se você tem
+  cinco minutos, leia só ela.</p>
+
+  <h3>0.1 As fases, e onde cada uma parou</h3>
+  <p>O corte em 6 fases da seção 22 foi aprovado em 12/09/2026. Situação real:</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Fase</th><th>Situação</th><th>Onde está</th></tr></thead>
+      <tbody>
+        <tr><td><strong>0 — Encaixe e banco</strong></td><td><span class="tag tag-feito">PRONTA</span></td>
+            <td>4 tabelas, <strong>19 funções</strong>, RLS, 9 gatilhos, as 3 soldas, <code>teste_financeiro.sql</code> com <strong>18 testes</strong></td></tr>
+        <tr><td><strong>1 — Cadastros</strong></td><td><span class="tag tag-feito">PRONTA</span></td>
+            <td>As duas telas, com busca, filtros cruzados, opções, impressão <strong>e importação de CSV/TSV</strong></td></tr>
+        <tr><td><strong>2 — Lançar e conferir</strong></td><td><span class="tag tag-feito">PRONTA</span></td>
+            <td>Novo Lançamento + Conferência da Conta lado a lado, com editar, excluir e imprimir</td></tr>
+        <tr><td><strong>3 — Consultar</strong></td><td><span class="tag tag-feito">PRONTA</span></td>
+            <td>Pesquisar com os 13 filtros, OPÇÕES por linha (editar/excluir), imprimir, exportar TSV</td></tr>
+        <tr><td><strong>4 — Controlar</strong></td><td><span class="tag tag-feito">PRONTA</span></td>
+            <td>Transferência, conciliação (CONFERIDO), fechamento de período por conta, e a tela das 17 permissões do Dependente dentro do módulo</td></tr>
+        <tr><td><strong>5 — Ver e planejar</strong></td><td><span class="tag tag-par">NÃO COMEÇOU</span></td>
+            <td>DINHEIRO DO PERÍODO, DASHBOARDS, ORÇAMENTO — os três abrem "EM DESENVOLVIMENTO", como você decidiu</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="highlight-box">
+    <span class="box-title">O que o módulo já faz, em uma frase</span>
+    <p style="margin-top:6px">Cadastrar contas e categorias (uma a uma ou importando um arquivo), lançar entradas e
+    saídas conferindo contra o extrato do banco ao lado, transferir entre contas, pesquisar com 13 filtros, marcar o
+    que já foi conferido, fechar o mês, imprimir e exportar — com o Proprietário controlando, permissão por
+    permissão, o que cada Dependente pode fazer.</p>
+  </div>
+
+  <h3>0.2 As quatro coisas que MUDARAM depois que você usou o sistema</h3>
+  <p>Nenhuma delas estava errada no papel. Todas apareceram no uso.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>O que este documento dizia</th><th>Como ficou</th><th>Por quê</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Tela principal com o menu abrindo <strong>5 opções</strong>, e o menu "aparece desabilitado com o motivo" para quem não tem permissão</td>
+          <td><strong>Painel lateral pela direita</strong>, com níveis que abrem <strong>ao clique</strong>. Item sem permissão <strong>não é desenhado</strong></td>
+          <td>Pedido seu em 13/09. E a proposta do "desabilitado com o motivo" foi <strong>revertida</strong>: com os subníveis abrindo e fechando, a lista já muda de tamanho de qualquer forma — o argumento original ("menu que muda de tamanho confunde o suporte") deixou de valer</td>
+        </tr>
+        <tr>
+          <td>A tela principal com atalhos para os cadastros e para a transferência</td>
+          <td><strong>Três botões centrais</strong>: DINHEIRO DO PERÍODO, NOVO LANÇAMENTO e PESQUISAR</td>
+          <td>Pedido seu: os cadastros já estão no menu OPÇÕES, e repetir um caminho não dá acesso novo — faz a pessoa se perguntar se os dois levam ao mesmo lugar</td>
+        </tr>
+        <tr>
+          <td>Transferência como <strong>tela 6</strong>, alcançável pelo menu</td>
+          <td>Existe <strong>só dentro de NOVO LANÇAMENTO</strong></td>
+          <td>Pedido seu, e conceitualmente mais certo: transferir <em>é</em> lançar — duas pernas de lançamento numa operação só (RN-23). Ela estava em <strong>dois</strong> lugares, e saiu dos dois</td>
+        </tr>
+        <tr>
+          <td>Conferência da Conta com 8 colunas, e um extrato somente de leitura</td>
+          <td>Ganhou as colunas <strong>USUÁRIO</strong> e <strong>AÇÕES</strong> (OPÇÕES → EDITAR / EXCLUIR), e o botão <strong>IMPRIMIR</strong></td>
+          <td>Pedido seu. O IMPRIMIR não estava escondido esperando registros: <strong>ele não existia</strong> — esquecimento da construção, que a sua pergunta encontrou</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>0.3 O que foi ACRESCENTADO e não estava neste documento</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>O que entrou</th><th>Quando e por quê</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Importar cadastros de .CSV / .TSV</strong>, lendo a coluna A, com prévia, marcar/desmarcar e sem duplicidade</td>
+            <td>13/09 — pedido seu. Duas funções de banco (<code>fin_importar_*</code>) e um leitor de arquivo testado com 17 casos</td></tr>
+        <tr><td><strong>Campo que se digita e se escolhe</strong> na Conta Identificadora do lançamento (4 sugestões do banco, em qualquer posição do nome)</td>
+            <td>13/09 — pedido seu. A função do banco já existia desde a fase 0 e a tela não a usava</td></tr>
+        <tr><td><strong>Editar lançamento</strong> a partir do extrato e da pesquisa</td>
+            <td>13/09 — pedido seu. O banco já sabia editar; faltava o caminho na tela</td></tr>
+        <tr><td><strong>O e-mail e o papel de quem está logado</strong> na faixa do módulo</td>
+            <td>13/09 — pedido seu, ao testar com duas contas</td></tr>
+        <tr><td><strong>36 ícones de linha</strong> em todos os botões do módulo</td>
+            <td>13/09 — pedido seu. O módulo não tinha ícone nenhum: só texto e dois emojis</td></tr>
+        <tr><td><strong>Link da plataforma para as permissões do módulo</strong></td>
+            <td>13/09 — você foi procurar as 17 permissões na tela de equipe da plataforma e não achou. Elas ficam na tela do módulo, e nada dizia isso</td></tr>
+        <tr><td>O <strong>histórico do movimento em linha própria</strong>, com contador de caracteres</td>
+            <td>13/09 — pedido seu. Ele aceita 200 caracteres e dividia a linha com o valor: sobravam menos de 30 visíveis</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>0.4 Dois defeitos sérios que o seu teste encontrou</h3>
+  <p>Os dois estão contados por inteiro nos relatórios de 13/09 em <code>_estudos/</code>. O resumo:</p>
+
+  <div class="callout callout-vermelho">
+    <span class="box-title">1. Uma linha da PLATAFORMA desligava o MÓDULO, em silêncio</span>
+    <p style="margin-top:6px">O <code>plataforma_01_schema.sql</code> tinha
+    <code>REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public</code>. "ALL FUNCTIONS" não quer dizer "as funções da
+    plataforma": quer dizer <strong>todas as do banco, inclusive as do módulo</strong>. Reaplicar só a plataforma —
+    gesto correto e recomendado — arrancava a permissão de executar as funções <code>fin_*</code>, e as linhas
+    seguintes devolviam só as da plataforma. <strong>Nada avisava:</strong> tabelas, dados e policies continuavam no
+    lugar, e o erro aparecia apenas na primeira gravação, parecendo defeito do módulo.</p>
+    <p><strong>Hoje:</strong> a plataforma revoga <strong>nome a nome</strong>, só do que ela própria criou. E existe
+    um teste (o 16) que acusaria o estrago no mesmo dia.</p>
+  </div>
+
+  <div class="callout callout-vermelho">
+    <span class="box-title">2. As 19 funções do módulo respondiam a quem não fez login</span>
+    <p style="margin-top:6px">No PostgreSQL, <strong>toda função nasce executável por todo mundo</strong>. O schema
+    escrevia só <code>GRANT ... TO authenticated</code>, que não tira nada de ninguém — a porta já estava aberta
+    antes do GRANT. A pior delas era a que <strong>apaga o financeiro inteiro de uma empresa</strong>, cujo
+    comentário dizia "não recebe GRANT": verdade, e irrelevante, porque "sem GRANT" significa "no padrão", e o
+    padrão é público.</p>
+    <p>Não houve vazamento — as funções conferem quem chama, por dentro, e para o anônimo isso é sempre nulo. Mas a
+    plataforma exige <strong>duas trancas</strong>, e uma estava só encostada. <strong>Medido:</strong> antes, o
+    anônimo alcançava 17 de 17; hoje, <strong>0</strong>.</p>
+  </div>
+
+  <h3>0.5 A lição que se repetiu quatro vezes</h3>
+  <div class="highlight-box">
+    <span class="box-title">Teste de trava sem o par do caminho feliz aprova um sistema trancado por fora</span>
+    <p style="margin-top:6px">Aconteceu com as permissões de módulo (os 14 testes provavam que o Dependente
+    <em>não</em> recebe módulo não contratado, e nenhum provava que alguém <em>recebe</em>), e de novo com os
+    privilégios das funções. <strong>Ao escrever uma recusa, escreva também o teste que prova que alguém passa.</strong></p>
+  </div>
+
+  <h3>0.6 O que NÃO está pronto</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Item</th><th>Situação</th></tr></thead>
+      <tbody>
+        <tr><td><strong>DINHEIRO DO PERÍODO</strong></td><td>Cartão grande no lugar definitivo, dizendo "EM DESENVOLVIMENTO". Os números que ele mostraria já existem no banco (<code>fin_extrato</code> devolve saldos prontos) — o trabalho é de tela</td></tr>
+        <tr><td><strong>DASHBOARDS</strong> e <strong>ORÇAMENTO</strong></td><td>Itens de menu que avisam "EM DESENVOLVIMENTO", como você decidiu (fase 5)</td></tr>
+        <tr><td>Um <code>inventario_financeiro.sql</code></td><td>A plataforma tem um; o módulo não. Responderia "o módulo está inteiro?" em um segundo, sem escrever no banco</td></tr>
+        <tr><td>Teste de banco para a <strong>edição</strong> de lançamento</td><td>Os 18 testes cobrem criar, excluir, transferir e conferir. A edição mexe com a reordenação do dia (RN-12) — é o tipo de coisa que passa com 3 linhas e falha com 30</td></tr>
+        <tr><td>O <code>apps/mobile-app</code></td><td>O módulo <strong>não</strong> tem telas no aplicativo, e o aplicativo não foi aberto em aparelho nem emulador. Adiado sem previsão; o foco é a web</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>0.7 Onde está cada parte, no repositório</h3>
+  <pre>apps/admin-web/src/app/dashboard/financeiro/     as 9 rotas (telas)
+apps/admin-web/src/components/financeiro/        os componentes do módulo
+packages/core/src/modules/financeiro/            regras, serviços, manifesto
+supabase/criar-bd-financeiro/                    o banco (4 tabelas, 19 funções)
+supabase/testes/teste_financeiro.sql             as travas do módulo (18 testes)</pre>
+  <p>Apagar essas cinco pastas desplugaria o módulo inteiro — é a regra de LEGO do projeto, e ela continua valendo:
+  o verificador (<code>npm run modulos:verificar</code>) confere isso a cada entrega e <strong>não acusou nenhuma
+  violação</strong>.</p>
+
+  <div class="callout callout-ambar">
+    <span class="box-title">Os relatórios de cada rodada</span>
+    <p style="margin-top:6px">Este documento é o <strong>retrato</strong>. A história de cada decisão, com as
+    medições e os erros do caminho, está em <code>_estudos/</code>:</p>
+    <ul style="margin-top:6px">
+      <li><code>correcoes-2026-09-13-permissoes-login-dependente-e-telas.html</code> — os dois defeitos de privilégio, o login do Dependente, os ícones, o menu, os três botões</li>
+      <li><code>correcoes-2026-09-13b-editar-excluir-busca-e-usuario.html</code> — editar/excluir na linha, o campo que se digita, a coluna USUÁRIO</li>
+      <li><code>correcoes-2026-09-13c-importar-csv-tsv.html</code> — a importação e as sete armadilhas de ler um arquivo de planilha</li>
+    </ul>
+  </div>
+</section>
+
 <section id="s1">
   <h2>1. Como ler este documento</h2>
   <p>Este documento tem <strong>dois leitores</strong> ao mesmo tempo, e foi escrito para os dois:</p>
@@ -374,6 +548,8 @@
         <tr><td><span class="tag tag-ok">DECIDIDO</span></td><td>Você já decidiu. Está registrado na seção 5 com a resposta original.</td></tr>
         <tr><td><span class="tag tag-pro">PROPOSTA</span></td><td>Detalhe que a sua decisão implica mas não citava — eu preenchi e marquei. Se discordar, é só dizer.</td></tr>
         <tr><td><span class="tag tag-par">PENDENTE</span></td><td>Ainda precisa da sua resposta. Reunidos na seção 24.</td></tr>
+        <tr><td><span class="tag tag-feito">IMPLEMENTADO</span></td><td><strong>Acrescentado em 13/09/2026.</strong> Existe no sistema e foi testado.</td></tr>
+        <tr><td><span class="tag tag-mudou">MUDOU</span></td><td><strong>Acrescentado em 13/09/2026.</strong> O que foi construído é diferente do que está escrito ali — o texto ao lado diz como ficou e por quê. O plano original fica visível de propósito: apagá-lo esconderia que a mudança existiu.</td></tr>
         <tr><td><code>RN-00</code></td><td>Regra de negócio numerada — a lista completa está na seção 17, e as telas apontam para ela.</td></tr>
         <tr><td><code>CM</code> / <code>CI</code> / <code>LC</code></td><td>Abreviações: Conta Movimento, Conta Identificadora, Lançamento.</td></tr>
       </tbody>
@@ -789,12 +965,27 @@ supabase/testes/</span><span class="m">teste_financeiro.sql</span><span class="p
       <tbody>
         <tr><td>1</td><td>Barra do topo</td><td>É a <strong>barra da plataforma</strong>, que já existe; o módulo apenas <strong>troca o título</strong> para "CONTROLE FINANCEIRO" (maiúsculas). Nenhuma segunda barra <span class="tag tag-ok">DECIDIDO</span></td></tr>
         <tr><td>2</td><td>Ícone de menu</td><td>Na barra do topo, <strong>à direita</strong>. Abre as 5 opções <span class="tag tag-ok">DECIDIDO</span></td></tr>
-        <tr><td>3</td><td>DINHEIRO DO PERÍODO</td><td><strong>Cartão grande, centralizado</strong>, no lugar definitivo, com o texto "EM DESENVOLVIMENTO". <strong>Sem números de exemplo.</strong> Ao clicar, abre modal "ESTA FUNÇÃO ESTÁ EM DESENVOLVIMENTO." <span class="tag tag-ok">DECIDIDO</span></td></tr>
-        <tr><td>4</td><td>Rodapé</td><td>O rodapé institucional da plataforma (© e versão) <span class="tag tag-ok">DECIDIDO</span></td></tr>
+        <tr><td>3</td><td>DINHEIRO DO PERÍODO</td><td><strong>Cartão grande, centralizado</strong>, no lugar definitivo, com o texto "EM DESENVOLVIMENTO". <strong>Sem números de exemplo.</strong> Ao clicar, abre modal "ESTA FUNÇÃO ESTÁ EM DESENVOLVIMENTO." <span class="tag tag-feito">IMPLEMENTADO</span></td></tr>
+        <tr><td>4</td><td>Rodapé</td><td>O rodapé institucional da plataforma (© e versão) <span class="tag tag-feito">IMPLEMENTADO</span></td></tr>
+        <tr><td>5</td><td>Quem está logado <span class="tag tag-feito">NOVO</span></td><td>Na barra do topo, à esquerda do botão OPÇÕES: <strong>o e-mail e o papel</strong> (PROPRIETÁRIO / DEPENDENTE). Pedido de 13/09, ao testar com duas contas — quem lança dinheiro precisa saber em nome de quem está lançando, porque o autor de cada lançamento é definitivo e vai para a auditoria</td></tr>
       </tbody>
     </table>
   </div>
   <p>Todos os elementos centralizados, um abaixo do outro, como a minuta pede.</p>
+
+  <div class="callout callout-ambar">
+    <span class="box-title"><span class="tag tag-mudou">MUDOU</span> São três botões centrais, e não os cinco atalhos que existiram na primeira versão</span>
+    <p style="margin-top:6px">Construída, a tela ganhou atalhos também para os dois cadastros e para a transferência
+    — cinco ao todo. Em 13/09 você pediu <strong>três</strong>:</p>
+    <pre style="margin-top:6px">DINHEIRO DO PERÍODO   (cartão grande, "EM DESENVOLVIMENTO")
+NOVO LANÇAMENTO
+PESQUISAR</pre>
+    <p><strong>O motivo é bom e vale registrar:</strong> os dois cadastros já estão no menu OPÇÕES, em CADASTROS.
+    Repetir um caminho na tela inicial não dá acesso novo — só faz a pessoa se perguntar se os dois levam ao mesmo
+    lugar. E a TRANSFERÊNCIA saiu daqui por outra razão, na seção 14.</p>
+    <p>Abaixo dos botões ficou uma linha discreta lembrando que cadastros, extrato e configurações estão no menu —
+    para a tela não parecer ter perdido funções.</p>
+  </div>
 
   <h3>9.2 O menu (5 opções)</h3>
   <pre>CADASTROS  ─┬─ CONTA MOVIMENTO          → tela 2
@@ -803,7 +994,44 @@ CONFIGURAÇÕES                            → "EM DESENVOLVIMENTO"
 DASHBOARDS                               → "EM DESENVOLVIMENTO"
 LANÇAMENTOS                              → tela 4
 ORÇAMENTO                                → "EM DESENVOLVIMENTO"</pre>
-  <p><span class="tag tag-pro">PROPOSTA</span> As opções que o membro não tiver permissão para usar <strong>aparecem desabilitadas com o motivo</strong> ("SEM PERMISSÃO"), em vez de sumirem. Motivo: um menu que muda de tamanho conforme a pessoa confunde quem dá suporte por telefone — "clique na terceira opção" deixa de funcionar.</p>
+
+  <div class="callout callout-ambar">
+    <span class="box-title"><span class="tag tag-mudou">MUDOU</span> O menu virou um painel lateral, com níveis que abrem ao clique</span>
+    <p style="margin-top:6px">Pedido de 13/09, em duas partes: <strong>o menu no lado direito</strong>, e
+    <strong>o subnível só aparecendo se o nível pai for clicado</strong>. A primeira versão era uma caixinha suspensa
+    presa ao botão, com os filhos de CADASTROS sempre à mostra.</p>
+    <p><strong>Por que virou painel e não continuou caixinha:</strong> com os níveis abrindo e fechando, a caixinha
+    cresceria e encolheria por cima do conteúdo, e com dois níveis abertos passaria do rodapé. O painel ocupa a
+    altura inteira, rola sozinho e não disputa espaço com a tela por baixo.</p>
+    <p>A árvore de hoje:</p>
+    <pre style="margin-top:6px">CADASTROS      (clique para abrir)
+   └ CONTA MOVIMENTO
+   └ CONTA IDENTIFICADORA
+LANÇAMENTOS    (clique para abrir)
+   └ NOVO LANÇAMENTO
+   └ PESQUISAR
+CONFIGURAÇÕES  (clique para abrir)
+   └ EQUIPE E PERMISSÕES
+DASHBOARDS     → avisa "EM DESENVOLVIMENTO"
+ORÇAMENTO      → avisa "EM DESENVOLVIMENTO"</pre>
+    <p><strong>Não há entrada "EXTRATO DA CONTA"</strong>, e não é esquecimento: o extrato não é uma tela separada —
+    é a coluna direita de NOVO LANÇAMENTO, chamada CONFERÊNCIA DA CONTA. Uma terceira tela de extrato criaria duas
+    respostas para a mesma pergunta.</p>
+  </div>
+
+  <div class="callout callout-vermelho">
+    <span class="box-title"><span class="tag tag-mudou">PROPOSTA REVERTIDA</span> Item sem permissão SOME, não fica desabilitado</span>
+    <p style="margin-top:6px">A proposta original desta seção era: <em>"as opções que o membro não tiver permissão
+    para usar aparecem desabilitadas com o motivo (SEM PERMISSÃO), em vez de sumirem — porque um menu que muda de
+    tamanho conforme a pessoa confunde quem dá suporte por telefone"</em>.</p>
+    <p><strong>Foi construído o contrário, e o argumento original deixou de valer sozinho:</strong> com os níveis
+    abrindo e fechando ao clique, <strong>a lista já muda de tamanho o tempo todo</strong>, para a mesma pessoa.
+    "Clique na terceira opção" não funcionaria de qualquer jeito. Sobrou só o custo de mostrar a alguém uma fileira
+    de portas que ele nunca vai poder abrir.</p>
+    <p>Hoje: item sem permissão não é desenhado; e um nível pai cujos filhos são todos proibidos <strong>some
+    inteiro</strong>, em vez de abrir vazio. <em>Se você preferir a proposta original, é uma linha de código — me
+    diga.</em></p>
+  </div>
 </section>
 
 <section id="s10">
@@ -892,7 +1120,84 @@ ORÇAMENTO                                → "EM DESENVOLVIMENTO"</pre>
   <div class="callout callout-ambar">
     <span class="box-title">Por que as duas telas são gêmeas de propósito</span>
     <p style="margin-top:6px">Mesma disposição, mesmos botões nos mesmos lugares, mesmas mensagens. Quem aprendeu uma, sabe a outra. No código, isso significa <strong>um componente compartilhado</strong> parametrizado pelo tipo de cadastro — metade do código e metade dos defeitos.</p>
+    <p><strong>A simetria se pagou de novo em 13/09:</strong> a importação de arquivo (seção 11.1) foi escrita uma
+    vez e apareceu nas duas telas, trocando só a lista de tipos.</p>
   </div>
+
+  <h3 id="s11-import">11.1 <span class="tag tag-feito">NOVO</span> Importar cadastros de um .CSV ou .TSV</h3>
+  <p>Pedido de 13/09/2026, para as <strong>duas</strong> telas de cadastro. Um botão <strong>IMPORTAR .CSV OU
+  .TSV</strong> no topo, que abre um assistente de quatro momentos.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Momento</th><th>O que acontece</th></tr></thead>
+      <tbody>
+        <tr><td><strong>1. Escolher</strong></td><td>O <strong>tipo</strong> (CAIXA/BANCO/OUTRAS ou DESPESA/RECEITA/OUTRAS) e o arquivo. O tipo escolhido vale para o arquivo inteiro</td></tr>
+        <tr><td><strong>2. Conferir</strong></td><td>A <strong>prévia</strong>: uma linha por registro, numerada pela linha do arquivo, com caixa de marcar e o motivo quando não pode entrar. Botões MARCAR TODOS e DESMARCAR TODOS</td></tr>
+        <tr><td><strong>3. Gravar</strong></td><td><strong>Uma única chamada</strong> ao banco, com a lista de nomes marcados</td></tr>
+        <tr><td><strong>4. Relatório</strong></td><td>O que o banco <em>realmente</em> fez: enviados, criados, já existiam, repetidos — com os nomes</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p><strong>Só a coluna A é lida</strong>, como você pediu. As demais colunas são atravessadas (respeitando aspas,
+  para saber onde a linha termina) e descartadas.</p>
+
+  <h4>"Não permitir gravar em duplicidade" — são três duplicidades</h4>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>A duplicidade</th><th>Exemplo</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Repetido <strong>dentro do arquivo</strong></td><td>"BRADESCO" nas linhas 2 e 17 — entra uma vez só</td></tr>
+        <tr><td>2</td><td><strong>Já cadastrado</strong> no banco</td><td>Inclusive se estiver <strong>inativo</strong>: ele continua ocupando o índice único</td></tr>
+        <tr><td>3</td><td>O mesmo nome <strong>escrito diferente</strong></td><td>"Banco Itaú" no arquivo × "BANCO ITAU" no banco</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>A terceira é a que escapa, e a que causaria o estrago maior: dois cadastros para o mesmo banco, um com os
+  lançamentos antigos e outro com os novos. A comparação usa <code>fin_normalizar</code> — <strong>a mesma função
+  que alimenta o índice único (RN-02)</strong> —, nos dois lados: na prévia e no banco. Se as duas regras
+  divergissem, a prévia diria "novo" e o banco ignoraria, sem explicação em lugar nenhum.</p>
+
+  <div class="highlight-box">
+    <span class="box-title">Ela ignora, não recusa — e isso é decisão de desenho</span>
+    <p style="margin-top:6px">Importar 300 cadastros não é <em>uma</em> operação: são 300 independentes. Recusar as
+    300 porque 4 já existiam seria hostil — e esse é justamente o <strong>caso mais comum</strong>: a segunda
+    importação do mesmo arquivo, depois de você corrigir alguma coisa nele.</p>
+  </div>
+
+  <div class="callout callout-vermelho">
+    <span class="box-title">Nas categorias, "TRANSFERÊNCIA ENTRE CONTAS" é recusado de propósito</span>
+    <p style="margin-top:6px">Essa categoria é criada <strong>pelo banco</strong>, marcada como do sistema, na
+    primeira transferência da empresa (RN-30). Se uma importação a criasse antes como categoria comum, a primeira
+    transferência bateria no índice único e <strong>falharia para sempre</strong> — com um erro que não menciona
+    importação nenhuma. O estrago apareceria dias depois do gesto que o causou. O teste 18 do banco garante que ela
+    nunca entra por aí.</p>
+  </div>
+
+  <h4>As sete armadilhas de ler um arquivo de planilha</h4>
+  <p>"Ler a primeira coluna" tem sete maneiras conhecidas de dar errado — e quase todas <strong>em silêncio</strong>:
+  o arquivo abre, os nomes aparecem, e um deles está corrompido. As sete estão tratadas, e cada uma tem teste:</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Armadilha</th><th>O que aconteceria</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Vírgula dentro do nome</td><td><code>"MERCADO SILVA, LTDA"</code> viraria <code>"MERCADO SILVA</code>, cortado</td></tr>
+        <tr><td>2</td><td><strong>O Excel brasileiro usa ponto e vírgula</strong></td><td><code>ALUGUEL;JANEIRO</code> entraria inteiro como nome da conta</td></tr>
+        <tr><td>3</td><td>Quebra de linha dentro de aspas</td><td>Um registro viraria dois</td></tr>
+        <tr><td>4</td><td><strong>O BOM invisível do "CSV UTF-8"</strong></td><td>O 1º nome fica <strong>idêntico na tela e diferente para o banco</strong> — entra duplicado para sempre</td></tr>
+        <tr><td>5</td><td><strong>O Excel BR salva em Windows-1252</strong></td><td>Lido como UTF-8, "ÁGUA" vira lixo — <strong>e grava sem erro nenhum</strong></td></tr>
+        <tr><td>6</td><td>O CRLF do Windows</td><td>Um caractere invisível grudado no fim de cada nome</td></tr>
+        <tr><td>7</td><td>Cabeçalho</td><td>"NOME" viraria uma conta. Há uma caixa opcional, e marcá-la <strong>refaz a prévia na hora</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>A faixa acima da prévia mostra <strong>o separador e a codificação detectados</strong>, para você conferir o que
+  o computador entendeu antes de gravar.</p>
+
+  <p><span class="tag tag-par">A CONFIRMAR POR VOCÊ</span> A detecção de Windows-1252 nunca foi exercitada com um
+  arquivo real do Excel — é o único caminho que não consigo simular daqui. Salve uma coluna com acentos no Excel,
+  importe, e confira se os acentos chegaram certos na prévia.</p>
 </section>
 
 <section id="s12">
@@ -911,13 +1216,36 @@ ORÇAMENTO                                → "EM DESENVOLVIMENTO"</pre>
         <tr><td>5</td><td><strong>TIPO DO MOVIMENTO</strong></td><td><code>ENTRADA</code> / <code>SAÍDA</code></td><td>Sim</td><td>É ele que dá o sinal ao valor</td></tr>
         <tr><td>6</td><td><strong>PROPRIEDADE</strong></td><td><code>PRÓPRIO</code> / <code>TERCEIROS</code></td><td>Sim</td><td>Classificação para os filtros e dashboards futuros (RN-18)</td></tr>
         <tr><td>7</td><td><strong>REGIME</strong></td><td><code>CAIXA</code> / <code>COMPETÊNCIA</code></td><td>Sim</td><td>Classificação gravada. <strong>O extrato mostra apenas CAIXA</strong> (RN-19)</td></tr>
-        <tr><td>8</td><td><strong>CONTA IDENTIFICADORA</strong></td><td>Lista alfabética das ativas</td><td>Sim</td><td>Só aceita existente. Tem <strong>"+ ADICIONAR NOVA"</strong> → modal (RN-09)</td></tr>
+        <tr><td>8</td><td><strong>CONTA IDENTIFICADORA</strong></td><td><span class="tag tag-mudou">MUDOU</span> Campo que se <strong>digita e se escolhe</strong> — ver 12.6</td><td>Sim</td><td>Só aceita existente. Tem <strong>"+ ADICIONAR NOVA"</strong> → modal (RN-09)</td></tr>
         <tr><td>9</td><td><strong>TIPO DA CONTA IDENTIFICADORA</strong></td><td>Somente leitura</td><td>Sim</td><td>Automático. <strong>Gravado no lançamento</strong> (RN-10). Dispara o aviso da RN-14 quando houver incoerência</td></tr>
         <tr><td>10</td><td><strong>VALOR DO LANÇAMENTO</strong></td><td>Financeiro</td><td>Sim</td><td><strong>Maior que zero</strong>, sempre (RN-15). Avisa se for fora do padrão da conta (RN-16)</td></tr>
-        <tr><td>11</td><td><strong>HISTÓRICO DO MOVIMENTO</strong></td><td>Texto até 200 caracteres</td><td><strong>Não</strong></td><td>Converte para MAIÚSCULAS <span class="tag tag-ok">DECIDIDO opcional</span></td></tr>
+        <tr><td>11</td><td><strong>HISTÓRICO DO MOVIMENTO</strong></td><td>Texto até 200 caracteres</td><td><strong>Não</strong></td><td>Converte para MAIÚSCULAS <span class="tag tag-ok">DECIDIDO opcional</span> · <span class="tag tag-mudou">MUDOU</span> ocupa a <strong>linha inteira, abaixo do VALOR</strong>, com contador — ver 12.7</td></tr>
         <tr><td>—</td><td><em>USUÁRIO</em></td><td>Automático</td><td>—</td><td>Quem criou. <strong>Não editável</strong>, nem na edição (RN-22)</td></tr>
       </tbody>
     </table>
+  </div>
+
+  <div class="callout callout-ambar">
+    <span class="box-title"><span class="tag tag-feito">NOVO</span> A porta da TRANSFERÊNCIA fica no topo deste formulário</span>
+    <p style="margin-top:6px">Desde 13/09, o botão <strong>TRANSFERÊNCIA ENTRE CONTAS</strong> aparece aqui — e
+    <strong>só aqui</strong> (ver seção 14). Transferir é um jeito de lançar.</p>
+  </div>
+
+  <div class="callout callout-ambar">
+    <span class="box-title"><span class="tag tag-feito">NOVO</span> Esta tela também EDITA</span>
+    <p style="margin-top:6px">Clicar em OPÇÕES → EDITAR numa linha do extrato ao lado carrega o lançamento
+    <strong>neste formulário</strong>. Vindo da tela PESQUISAR, chega-se aqui já preenchido. Nesse modo:</p>
+    <ul style="margin-top:6px">
+      <li>uma <strong>faixa âmbar</strong> avisa "ALTERANDO UM LANÇAMENTO EXISTENTE — GRAVAR SUBSTITUI O REGISTRO";</li>
+      <li>o título vira "EDITAR LANÇAMENTO" e o botão vira <strong>SALVAR ALTERAÇÕES</strong>, em laranja;</li>
+      <li>há um <strong>CANCELAR</strong> que devolve a tela ao modo "novo".</li>
+    </ul>
+    <p><strong>Por que a faixa não é enfeite:</strong> sem ela, quem clicou em EDITAR veria um formulário preenchido
+    e acharia que estava criando um lançamento novo — e o botão substituiria o antigo em silêncio.</p>
+    <p><strong>O registro completo é buscado no banco</strong>, e não montado a partir da linha da tela: o extrato
+    mostra entrada, saída e saldo já calculados, e não diz se o regime era CAIXA ou COMPETÊNCIA. Preencher com
+    palpite e gravar de volta corromperia o lançamento sem avisar.</p>
+    <p><strong>Transferência não oferece EDITAR</strong> — ver seção 14.4.</p>
   </div>
 
   <h3>12.2 O "+ ADICIONAR NOVA" (RN-09) <span class="tag tag-ok">DECIDIDO: MODAL</span></h3>
@@ -968,8 +1296,47 @@ ordem 4 — MERCADO                ← era 3</pre>
     <li>O formulário <strong>mantém</strong> CONTA MOVIMENTO e DATA (que repetem em série) e <strong>limpa</strong> os demais.</li>
     <li>A ORDEM é recalculada (a próxima livre).</li>
     <li>A <strong>coluna da direita se atualiza na hora</strong>, mostrando o lançamento recém-criado no extrato.</li>
-    <li>Botão <strong>"REPETIR ÚLTIMO"</strong> copia todos os campos do último lançamento para edição.</li>
+    <li>Botão <strong>"REPETIR ÚLTIMO"</strong> copia todos os campos do último lançamento para edição.
+      <span class="tag tag-par">NÃO CONSTRUÍDO</span> — os outros três itens estão feitos; este ficou de fora e
+      você não cobrou. Se quiser, é rápido.</li>
   </ul>
+  <p><strong>O extrato é recarregado sempre</strong>, e não só para mostrar a linha nova: se a ordem informada já
+  existia no dia, o banco deslocou as seguintes (RN-12) — outras linhas mudaram de posição.</p>
+
+  <h3 id="s12-busca">12.6 <span class="tag tag-feito">NOVO</span> A CONTA IDENTIFICADORA virou campo que se digita</h3>
+  <p>Pedido de 13/09: <em>"apresenta a lista mas quero também poder digitar, e ao digitar o primeiro caractere ir
+  apresentando os primeiros 4 registros existentes no banco, independente da posição do caractere no registro"</em>.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>O que você faz</th><th>O que acontece</th></tr></thead>
+      <tbody>
+        <tr><td>Clica sem digitar</td><td>A lista completa abre, como o campo antigo</td></tr>
+        <tr><td><strong>Digita 1 caractere</strong></td><td>Até <strong>4 sugestões vindas do banco</strong></td></tr>
+        <tr><td>Setas ↑ ↓ e Enter</td><td>Navega e escolhe sem tirar a mão do teclado <span class="tag tag-pro">bônus</span></td></tr>
+        <tr><td>Clica no ✕</td><td>Limpa a escolha e volta à lista completa <span class="tag tag-pro">bônus</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="highlight-box">
+    <span class="box-title">"Independente da posição" e "quem busca é o banco"</span>
+    <p style="margin-top:6px">Procurar "LUZ" acha <strong>"CONTA DE LUZ"</strong>, e não só o que começa com LUZ. E
+    ignora acento. <strong>A função que faz isso já existia desde a fase 0</strong> (a mesma da busca do cadastro) —
+    o que faltava era a tela usá-la.</p>
+    <p>Filtrar no navegador, em vez de perguntar ao banco, funcionaria <em>hoje</em> e mentiria amanhã: a lista
+    carregada é a primeira página do cadastro. Com 500 categorias, o item digitado poderia não estar na memória — e
+    o campo diria "nada encontrado" sobre algo que existe.</p>
+  </div>
+  <p><span class="tag tag-par">OFERECIDO, AGUARDANDO VOCÊ</span> O mesmo campo na <strong>CONTA MOVIMENTO</strong>
+  (deste formulário e da transferência). Você pediu só na identificadora, e eu não ampliei por conta própria — o
+  componente e a função de banco já existem.</p>
+
+  <h3 id="s12-hist">12.7 <span class="tag tag-mudou">MUDOU</span> O HISTÓRICO ocupa a linha inteira</h3>
+  <p>Construído, ele dividia a linha com o VALOR. Pedido de 13/09: mover para <strong>baixo do valor</strong>,
+  ocupando a largura toda.</p>
+  <p><strong>O problema era mensurável:</strong> o campo aceita 200 caracteres e, dividindo a linha, sobravam menos
+  de 30 visíveis por vez — quem escrevia um histórico longo digitava às cegas, com o texto rolando para fora. Um
+  campo de texto livre e um campo numérico curto não têm por que dividir a mesma linha.</p>
+  <p>Entrou junto um contador <code>0/200</code> abaixo do campo <span class="tag tag-pro">bônus</span>.</p>
 </section>
 
 <section id="s13">
@@ -1000,9 +1367,43 @@ ordem 4 — MERCADO                ← era 3</pre>
         <tr><td>SAÍDA</td><td>O valor, <strong>se</strong> for SAÍDA</td></tr>
         <tr><td>SALDO</td><td><strong>Recalculado a cada linha</strong></td></tr>
         <tr><td>HISTÓRICO DO MOVIMENTO</td><td>O texto</td></tr>
+        <tr><td>USUÁRIO <span class="tag tag-feito">NOVA — 13/09</span></td><td><strong>Quem lançou</strong> (o e-mail). Vazia nas linhas de SALDO INICIAL e TOTAIS, que são somas e não têm autor</td></tr>
         <tr><td>CONFERIDO <span class="tag tag-ok">bônus N1 aceito</span></td><td>Caixa de marcação; grava na hora (RN-20)</td></tr>
+        <tr><td>AÇÕES <span class="tag tag-feito">NOVA — 13/09</span></td><td>Botão <strong>OPÇÕES</strong> com <strong>EDITAR</strong> e <strong>EXCLUIR</strong>. Só nas linhas de lançamento</td></tr>
       </tbody>
     </table>
+  </div>
+
+  <div class="callout callout-ambar">
+    <span class="box-title"><span class="tag tag-mudou">MUDOU</span> A coluna USUÁRIO exigiu mexer no banco — e trouxe duas armadilhas</span>
+    <p style="margin-top:6px">A função <code>fin_extrato</code> devolvia dez colunas, e nenhuma dizia quem lançou.
+    O extrato não é uma listagem de lançamentos: é um <strong>cálculo</strong> feito pelo banco, que mistura três
+    espécies de linha e já entrega o saldo acumulado. A informação tinha de nascer lá.</p>
+    <p><strong>Armadilha 1 — <code>CREATE OR REPLACE</code> não muda as colunas de retorno de uma função.</strong>
+    Ele recusa com <em>"cannot change return type of existing function"</em>. Num banco novo passaria; no banco que
+    <em>já tem</em> o módulo — o seu — o arquivo pararia no meio, com metade aplicada. A correção é um
+    <code>DROP FUNCTION IF EXISTS</code> antes do <code>CREATE</code>. Derrubar função não toca em dado nenhum.</p>
+    <p><strong>Armadilha 2 — tem de ser <code>LEFT JOIN</code>, não <code>JOIN</code>.</strong> A tabela de usuários
+    tem regra de segurança que só deixa cada um ver o próprio perfil. Com <code>JOIN</code> simples, um Dependente
+    veria <strong>as linhas dos colegas sumirem do extrato</strong> — e extrato com linha faltando é pior que extrato
+    sem a coluna: o saldo deixaria de bater com a soma do que está visível.</p>
+  </div>
+
+  <div class="callout callout-ambar">
+    <span class="box-title"><span class="tag tag-feito">NOVO</span> O botão IMPRIMIR desta tela</span>
+    <p style="margin-top:6px">Em 13/09 você perguntou se o IMPRIMIR só apareceria depois de retornar registros. A
+    resposta honesta: <strong>ele não existia</strong>. A tela PESQUISAR tinha IMPRIMIR e EXPORTAR TSV; a Conferência
+    não tinha nenhum dos dois. Foi esquecimento da construção, e a sua pergunta o encontrou.</p>
+    <p>Hoje ele fica <strong>visível o tempo todo</strong> (para quem tem a permissão) e <strong>apagado</strong>
+    enquanto não há linhas, com uma dica ao passar o mouse. Botão que some confunde — a pessoa se pergunta se a
+    função existe; botão apagado ensina que ele existe e o que falta para usá-lo.</p>
+    <p>O relatório impresso leva as mesmas colunas da tela, <strong>USUÁRIO inclusive</strong>, e não recalcula nada.</p>
+  </div>
+
+  <div class="highlight-box">
+    <span class="box-title">Por que o menu OPÇÕES não aparece em SALDO INICIAL nem em TOTAIS</span>
+    <p style="margin-top:6px">Porque as duas são <strong>somas, não registros</strong>: não existe o que editar nem o
+    que excluir ali. Um menu naquelas linhas prometeria uma ação impossível.</p>
   </div>
 
   <h3>13.3 A primeira linha: SALDO INICIAL</h3>
@@ -1032,6 +1433,20 @@ SALDO:   saldo de abertura da conta
 
 <section id="s14">
   <h2>14. Tela 6 — Transferência entre contas <span class="tag tag-ok">DECIDIDO: SIM</span></h2>
+
+  <div class="callout callout-ambar">
+    <span class="box-title"><span class="tag tag-mudou">MUDOU</span> Ela existe, mas só se chega a ela por dentro de NOVO LANÇAMENTO</span>
+    <p style="margin-top:6px">Pedido de 13/09: <em>"a opção TRANSFERÊNCIA existir apenas dentro da opção NOVO
+    LANÇAMENTO"</em>. A tela continua igual; o que mudou foi de onde se chega até ela.</p>
+    <p><strong>Ela estava em DOIS lugares, não em um</strong> — na tela principal e na tela de escolha de
+    LANÇAMENTOS. Cumprir o pedido só no primeiro deixaria vivo um segundo caminho que ninguém mandou existir. Saiu
+    dos dois, e <strong>não</strong> foi para o menu OPÇÕES.</p>
+    <p><strong>E a decisão é boa tecnicamente:</strong> transferir <em>é</em> um jeito de lançar — o banco cria
+    <strong>duas pernas de lançamento</strong> numa operação só (RN-23). Num menu separado, ela sugeria ser outro
+    assunto. Agora está onde conceitualmente sempre pertenceu.</p>
+    <p>O botão VOLTAR <em>dentro</em> dela também mudou: devolvia para a lista de lançamentos, que não tem mais o
+    caminho de ida; agora devolve para NOVO LANÇAMENTO, de onde a pessoa veio.</p>
+  </div>
 
   <h3>14.1 O problema que ela resolve</h3>
   <p>Você tira R$ 500 do BANCO ITAÚ e põe na CARTEIRA. Sem esta tela, o usuário faria dois lançamentos soltos, e:</p>
@@ -1091,8 +1506,20 @@ As duas gravadas numa ÚNICA operação no banco: ou as duas existem, ou nenhuma
   </div>
   <p>É o caminho (a), confirmado em 12/09/2026. Ele entrega o que foi pedido — os campos <em>não aparecem na tela</em> — <strong>sem criar uma exceção na regra do extrato</strong>, que é onde as exceções costumam virar defeito: com regime <code>CAIXA</code> gravado, a transferência entra no extrato pela regra geral (RN-19), e o saldo continua batendo com o do banco.</p>
 
-  <h3>14.4 Excluir uma transferência</h3>
-  <p><span class="tag tag-pro">PROPOSTA</span> Excluir <strong>qualquer</strong> uma das pernas apaga as duas, com aviso: "ESTE LANÇAMENTO FAZ PARTE DE UMA TRANSFERÊNCIA. EXCLUIR VAI APAGAR AS DUAS PERNAS." Deixar apagar só uma perna produziria exatamente o descontrole que a tela existe para evitar.</p>
+  <h3>14.4 Excluir uma transferência — e por que ela NÃO se edita</h3>
+  <p><span class="tag tag-feito">IMPLEMENTADO</span> Excluir <strong>qualquer</strong> uma das pernas apaga as duas, com aviso: "ESTE LANÇAMENTO FAZ PARTE DE UMA TRANSFERÊNCIA. EXCLUIR VAI APAGAR AS DUAS PERNAS." Deixar apagar só uma perna produziria exatamente o descontrole que a tela existe para evitar.</p>
+
+  <div class="callout callout-vermelho">
+    <span class="box-title"><span class="tag tag-feito">DECISÃO DE 13/09</span> Uma perna de transferência não oferece EDITAR</span>
+    <p style="margin-top:6px">Quando a edição de lançamentos entrou (seção 12), esta pergunta apareceu: e se alguém
+    editar <em>uma</em> perna?</p>
+    <p><strong>Editar a saída de R$ 500 para R$ 700 deixaria a entrada em R$ 500.</strong> O saldo de uma das contas
+    ficaria errado <em>para sempre</em>, e nada acusaria — é o mesmo estrago que a exclusão de uma perna causaria,
+    pela mesma razão.</p>
+    <p>Por isso: nas duas telas (extrato e pesquisa), uma linha de transferência mostra <strong>EXCLUIR mas não
+    EDITAR</strong>; e, se alguém chegar pela URL, o formulário recusa com a explicação do caminho.
+    <strong>Para corrigir uma transferência: exclua (as duas somem juntas) e lance de novo.</strong></p>
+  </div>
 </section>
 
 <section id="s15">
@@ -1128,7 +1555,20 @@ As duas gravadas numa ÚNICA operação no banco: ou as duas existem, ou nenhuma
   </div>
 
   <h3>15.2 O resultado</h3>
-  <p>Lista com: DATA · CONTA MOVIMENTO · CONTA IDENTIFICADORA · TIPO · VALOR · HISTÓRICO · USUÁRIO · OPÇÕES (EDITAR / EXCLUIR).</p>
+  <p>Lista com: DATA · CONTA MOVIMENTO · CONTA IDENTIFICADORA · TIPO · VALOR · HISTÓRICO · USUÁRIO · OPÇÕES (EDITAR / EXCLUIR). <span class="tag tag-feito">IMPLEMENTADO</span></p>
+
+  <div class="callout callout-ambar">
+    <span class="box-title">O caminho até aqui: EXCLUIR era um botão solto, e EDITAR não existia</span>
+    <p style="margin-top:6px">A tela foi construída com <strong>EXCLUIR exposto direto na linha</strong> e sem
+    EDITAR. Em 13/09 você pediu o desenho que esta seção já descrevia: OPÇÕES com as duas ações dentro.</p>
+    <p><strong>E a razão de EXCLUIR sair de fora é concreta:</strong> um botão de apagar alinhado com o cursor que
+    rola a tabela é convite a clique acidental — e este apaga dinheiro lançado. Agora são duas etapas (abrir o menu,
+    escolher), mais a confirmação que mostra data, conta, categoria e valor antes de apagar.</p>
+    <p><strong>EDITAR leva para NOVO LANÇAMENTO</strong>, já preenchido (seção 12), em vez de abrir um segundo
+    formulário aqui. Duplicá-lo criaria duas telas capazes de gravar o mesmo registro — e no dia em que uma regra
+    mudasse, alguém corrigiria só uma delas.</p>
+    <p><strong>Transferência não mostra EDITAR</strong> — seção 14.4.</p>
+  </div>
   <p><span class="tag tag-pro">PROPOSTA</span> Acima da lista, uma <strong>faixa de totais</strong> do que está filtrado: total de ENTRADAS, total de SAÍDAS, diferença e quantidade de lançamentos. Numa tela de pesquisa financeira, essa linha costuma ser a informação mais consultada — e ela sai de graça, junto da mesma consulta.</p>
   <p><span class="tag tag-pro">PROPOSTA</span> <strong>Paginação:</strong> 50 lançamentos por página, com os totais sempre referentes ao filtro inteiro (não só à página visível). Sem paginação, um filtro amplo travaria a tela quando houver milhares de registros.</p>
 
@@ -1242,6 +1682,16 @@ ESTA AÇÃO NÃO PODE SER DESFEITA.
 <section id="s18">
   <h2>18. Modelo de dados</h2>
   <p>Quatro tabelas, todas com o prefixo <code>fin_</code>. <strong>Escrito no modelo "opção A" da seção 6</strong> — se você escolher a opção B ou C, esta seção muda conforme o item 6.6.</p>
+
+  <div class="highlight-box">
+    <span class="box-title"><span class="tag tag-feito">CONSTRUÍDO EXATAMENTE ASSIM</span></span>
+    <p style="margin-top:6px">As quatro tabelas foram criadas como esta seção descreve, na <strong>opção A</strong>
+    (tabela única com isolamento por RLS), que você escolheu em 12/09 depois da medição da seção 6. <strong>Nenhuma
+    coluna precisou ser repensada depois</strong> — o modelo aguentou tudo o que veio pela frente, inclusive a
+    edição de lançamentos e a importação em lote.</p>
+    <p>A única mudança de banco depois da construção foi <strong>acrescentar o autor ao retorno do extrato</strong>
+    (seção 13.2), que é função, não tabela: o dado já estava gravado em <code>criado_por</code> desde o começo.</p>
+  </div>
 
   <h3>18.1 <code>fin_contas_movimento</code></h3>
   <pre>id                      uuid PRIMARY KEY DEFAULT gen_random_uuid()
@@ -1364,8 +1814,36 @@ FOREIGN KEY (tenant_id, conta_movimento_id)
         <tr><td><code>fin_fechar_periodo(conta, data)</code> / <code>fin_reabrir_periodo(conta)</code></td><td>Define ou remove o corte <strong>de uma conta</strong>; com a conta em branco, aplica a todas numa transação</td><td>RN-24, 25</td></tr>
         <tr><td><code>fin_periodo_fechado(conta, data)</code></td><td>Responde se aquela data está fechada naquela conta — usada por todas as funções que gravam</td><td>RN-24</td></tr>
         <tr><td><code>fin_apagar_dados_da_empresa(tenant)</code></td><td>Apaga <strong>tudo</strong> do módulo naquela empresa, na ordem certa e numa transação; devolve quantos registros saíram de cada tabela</td><td>RN-28 — só o Desenvolvedor (seção 6.6)</td></tr>
+        <tr><td><code>fin_importar_contas_movimento(tenant, tipo, nomes[])</code> <span class="tag tag-feito">NOVA — 13/09</span></td><td>Importa um lote de nomes num único comando; ignora vazios, repetidos no lote e já cadastrados; devolve o relatório do que criou e do que ignorou</td><td>RN-01, 02, 25</td></tr>
+        <tr><td><code>fin_importar_identificadoras(tenant, tipo, nomes[])</code> <span class="tag tag-feito">NOVA — 13/09</span></td><td>Idem, mais a recusa do nome reservado da transferência</td><td>RN-01, 02, 25, 30</td></tr>
       </tbody>
     </table>
+  </div>
+  <p><strong>Construído: 19 funções</strong> (a especificação previa 14 na fase 0; o módulo cresceu com o uso).</p>
+
+  <div class="callout callout-vermelho">
+    <span class="box-title"><span class="tag tag-feito">APRENDIDO NA MARRA — 13/09</span> Toda função precisa do par REVOKE + GRANT, nessa ordem</span>
+    <p style="margin-top:6px">No PostgreSQL, <strong>toda função nasce executável por todo mundo</strong>
+    (<code>PUBLIC</code>), e os papéis <code>anon</code> e <code>authenticated</code> herdam de <code>PUBLIC</code>.
+    Escrever só <code>GRANT ... TO authenticated</code> <strong>não fecha nada</strong>: a porta já estava aberta
+    antes do GRANT.</p>
+    <pre style="margin-top:8px">REVOKE EXECUTE ON FUNCTION public.fin_x(...) FROM PUBLIC, anon, authenticated;
+GRANT  EXECUTE ON FUNCTION public.fin_x(...) TO authenticated;</pre>
+    <p>Sem o REVOKE, as 17 funções do módulo ficaram <strong>alcançáveis por quem não fez login</strong> de 12 a
+    13/09 — inclusive a que apaga o financeiro de uma empresa. Não houve vazamento (as funções conferem quem chama,
+    por dentro, e para o anônimo isso é nulo), mas a segunda tranca estava só encostada.</p>
+    <p><strong>E não adianta confiar no <code>ALTER DEFAULT PRIVILEGES</code> da plataforma:</strong> o comando
+    <code>ALTER DEFAULT PRIVILEGES … REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC</code> é aceito, não grava nada e
+    <strong>não faz efeito</strong> — ele só sabe subtrair de um privilégio que ele próprio concedeu antes.
+    Medido no PostgreSQL 18.</p>
+  </div>
+
+  <div class="callout callout-vermelho">
+    <span class="box-title"><span class="tag tag-feito">APRENDIDO NA MARRA — 13/09</span> A plataforma não pode revogar "de tudo"</span>
+    <p style="margin-top:6px">Quem escrever <code>REVOKE … ON ALL FUNCTIONS IN SCHEMA public</code> num arquivo da
+    <em>plataforma</em> desliga o módulo plugado <strong>em silêncio</strong>: "ALL FUNCTIONS" inclui as
+    <code>fin_*</code>. É a regra de LEGO aplicada a privilégios — <strong>a plataforma só mexe no que ela própria
+    criou, nome a nome</strong>.</p>
   </div>
 
   <h3>19.2 A RLS das quatro tabelas</h3>
@@ -1399,6 +1877,45 @@ USING ( check_is_tenant_member(tenant_id) OR check_is_tenant_owner(tenant_id) )
     <li>Apagar os dados de uma empresa não deixa resto e não toca na outra (RN-28).</li>
     <li>Gravar um lançamento da empresa A apontando para a conta da empresa B é recusado pelo banco (RN-29).</li>
   </ol>
+
+  <div class="highlight-box">
+    <span class="box-title"><span class="tag tag-feito">CONSTRUÍDO: 18 testes</span> — os 14 do mínimo, mais 4 que o uso exigiu</span>
+    <div class="table-wrap" style="margin-top:8px">
+      <table>
+        <thead><tr><th>#</th><th>Teste</th><th>Por que ele existe</th></tr></thead>
+        <tbody>
+          <tr><td>15</td><td>Nenhuma função <code>fin_*</code> responde ao papel <code>anon</code></td>
+              <td>A segunda tranca. Se alguém criar função nova sem o REVOKE, este acusa</td></tr>
+          <tr><td>16</td><td>O app alcança <strong>todas</strong> as funções de cliente</td>
+              <td><strong>O caminho feliz.</strong> Teria acusado, no mesmo dia, o REVOKE amplo da plataforma que desligou o módulo</td></tr>
+          <tr><td>17</td><td>A importação ignora repetido no arquivo, já existente e vazio — <strong>e o relatório bate com a tabela</strong></td>
+              <td>Relatório dizendo "criados: 6" com 5 no banco é pior que erro nenhum: a pessoa fecha a tela confiando</td></tr>
+          <tr><td>18</td><td>A importação recusa o nome reservado da transferência</td>
+              <td>Defeito de efeito tardio: quebraria a primeira transferência da empresa, dias depois</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><strong>A lição que se repetiu quatro vezes neste projeto:</strong> os 14 primeiros provavam apenas
+    <em>recusas</em>. Um sistema trancado por fora passa em todos os testes de trava. <strong>Ao escrever uma
+    recusa, escreva também o teste que prova que alguém passa.</strong></p>
+  </div>
+
+  <div class="callout callout-ambar">
+    <span class="box-title">Duas lições sobre escrever teste, aprendidas ao acrescentar os últimos</span>
+    <p style="margin-top:6px"><strong>1. Número esperado escrito à mão envelhece.</strong> O teste 16 dizia "as 16
+    funções", com o 16 fixo; as duas funções de importação o fizeram acusar "18 de 16" e <strong>falhar com o código
+    certo</strong>. O pior efeito não é falhar — é ensinar quem lê a ignorar o vermelho. Hoje o total é contado do
+    catálogo do banco.</p>
+    <p><strong>2. Teste que depende do estado deixado por outro teste quebra quando alguém insere um terceiro no
+    meio.</strong> O teste 17 aproveitava um cadastro criado no teste 2 — e o teste 14, que roda entre os dois,
+    apaga os dados da empresa. Ele falhou apontando para o lugar errado. Cada teste monta o que precisa.</p>
+  </div>
+
+  <p><strong>Porteiro no topo do arquivo <span class="tag tag-feito">NOVO</span>:</strong> se o módulo não estiver
+  instalado, ou se as funções estiverem sem permissão de execução, o arquivo para logo no começo com uma mensagem
+  que <strong>diz qual arquivo rodar</strong>. Motivo: quando um arquivo de teste estoura no meio, o
+  <code>SELECT</code> final nunca roda e <strong>nenhuma linha aparece</strong> — some inclusive o resultado dos
+  testes que já tinham passado.</p>
 </section>
 
 <section id="s20">
@@ -1485,6 +2002,18 @@ USING ( check_is_tenant_member(tenant_id) OR check_is_tenant_owner(tenant_id) )
 
 <section id="s22">
   <h2>22. Fases de entrega</h2>
+
+  <div class="highlight-box">
+    <span class="box-title"><span class="tag tag-feito">DAS 6 FASES, 5 ESTÃO PRONTAS</span></span>
+    <p style="margin-top:6px">O corte abaixo foi aprovado em 12/09/2026 e cumprido entre 12 e 13/09. <strong>As fases
+    0 a 4 estão construídas e em uso;</strong> só a fase 5 (DINHEIRO DO PERÍODO, DASHBOARDS, ORÇAMENTO) não começou —
+    e ela depende de haver dado dentro, como o próprio quadro já dizia. O detalhamento está na
+    <a href="#s0">seção 0.1</a>.</p>
+    <p><strong>Dois ajustes em relação ao plano abaixo:</strong> a fase 0 entregou <strong>16 funções</strong> (não
+    14), e hoje são <strong>19</strong>; e a <strong>importação de CSV/TSV</strong> entrou na fase 1 sem estar
+    prevista em lugar nenhum — foi pedida depois que você usou os cadastros.</p>
+  </div>
+
   <div class="table-wrap">
     <table>
       <thead><tr><th>Fase</th><th>Conteúdo</th><th>Ao final, o usuário consegue…</th></tr></thead>
@@ -1526,6 +2055,31 @@ USING ( check_is_tenant_member(tenant_id) OR check_is_tenant_owner(tenant_id) )
   <div class="callout callout-ambar">
     <span class="box-title">Um ajuste na fase 0, por causa da resposta 32</span>
     <p style="margin-top:6px">Como o botão de exclusão ficou <strong>genérico na plataforma</strong>, a fase 0 passa a incluir <strong>uma alteração no schema da plataforma</strong> (a coluna <code>funcao_limpeza</code> em <code>platform_modules</code> e a função que a usa) — e, portanto, <strong>recriar o banco</strong> antes de seguir. Ver a seção 24.1.</p>
+    <p><span class="tag tag-feito">CUMPRIDO</span> Foi feito assim, e o botão genérico está no Painel de Engenharia.
+    O teste 14 prova que ele apaga a empresa escolhida inteira e <strong>não toca na outra</strong>.</p>
+  </div>
+
+  <h3>22.1 <span class="tag tag-feito">NOVO</span> Como o módulo foi entregue, na prática</h3>
+  <p>Vale registrar, porque o ritmo real não foi o do quadro acima:</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Quando</th><th>O que entrou</th></tr></thead>
+      <tbody>
+        <tr><td><strong>12/09 — degrau 7</strong></td><td>As fases 0 a 4 de uma vez: banco, Core, as 9 telas. Em três commits</td></tr>
+        <tr><td><strong>12/09 — noite</strong></td><td>O "beco sem saída das duas chaves": o Proprietário contratava o módulo e o painel dizia "nenhum módulo disponível"</td></tr>
+        <tr><td><strong>13/09 — 1ª rodada</strong></td><td>Os dois defeitos de privilégio; o login do Dependente pelo Google; ícones; o menu lateral; os três botões</td></tr>
+        <tr><td><strong>13/09 — 2ª rodada</strong></td><td>Editar/excluir na linha; o campo que se digita; a coluna USUÁRIO; o histórico em linha própria; o link para as permissões</td></tr>
+        <tr><td><strong>13/09 — 3ª rodada</strong></td><td>A importação de CSV/TSV nos dois cadastros</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="highlight-box">
+    <span class="box-title">O que esse ritmo ensina</span>
+    <p style="margin-top:6px"><strong>Tudo o que mudou depois de 12/09 apareceu porque você USOU o sistema</strong>,
+    não porque alguém releu a especificação. Os dois defeitos mais graves — as funções sem permissão e o Dependente
+    sem porta de entrada — eram invisíveis no papel e óbvios na primeira tentativa real.</p>
+    <p>É o argumento a favor do ciclo curto que você adotou: enviar, publicar, testar, relatar. Uma especificação boa
+    encurta o caminho; ela não substitui o primeiro uso.</p>
   </div>
 </section>
 
@@ -1560,6 +2114,35 @@ USING ( check_is_tenant_member(tenant_id) OR check_is_tenant_owner(tenant_id) )
   <div class="highlight-box">
     <span class="box-title">✅ Não há mais perguntas em aberto</span>
     <p style="margin-top:6px">As 33 perguntas das três rodadas estão respondidas. <strong>A especificação está completa e pronta para a sua aprovação.</strong> Nada aqui foi preenchido por minha conta: onde havia dúvida, ela foi perguntada.</p>
+    <p><span class="tag tag-feito">13/09</span> <strong>As 33 viraram código, e todas foram exercitadas.</strong>
+    Nenhuma resposta precisou ser revista depois de construída — o que mudou foram detalhes de tela (seção 0.2),
+    nunca uma decisão de regra.</p>
+  </div>
+
+  <div class="callout callout-ambar">
+    <span class="box-title">O que está aberto AGORA (13/09/2026) — e depende de você</span>
+    <div class="table-wrap" style="margin-top:8px">
+      <table>
+        <thead><tr><th>Item</th><th>Por que está parado</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Testar a importação de um arquivo real do Excel</strong>, com acentos</td>
+              <td>É o único caminho que não consigo simular daqui. Se os acentos vierem com <code>�</code>, me avise</td></tr>
+          <tr><td>O mesmo <strong>campo que se digita na CONTA MOVIMENTO</strong></td>
+              <td>Você pediu só na identificadora; não ampliei por conta própria. O componente e a função já existem</td></tr>
+          <tr><td>Construir o <strong>DINHEIRO DO PERÍODO</strong></td>
+              <td>Fase 5. É o maior elemento da tela inicial e todo mundo clica nele primeiro. Os números já existem no banco</td></tr>
+          <tr><td>Um <strong>teste de banco para a EDIÇÃO</strong> de lançamento</td>
+              <td>A edição mexe com a reordenação do dia (RN-12): passa com 3 linhas e pode falhar com 30</td></tr>
+          <tr><td>Botão <strong>BAIXAR MODELO</strong> de importação; <strong>colar direto do Excel</strong>; importar o <strong>saldo de abertura</strong> na coluna B</td>
+              <td>Três ideias da última rodada. A de colar é a mais curta: o que o Excel põe na área de transferência já é TSV</td></tr>
+          <tr><td><strong>Etiqueta TRANSF no extrato</strong> e <strong>aviso de período fechado</strong> ao escolher a data</td>
+              <td>Dois ajustes pequenos de tela que evitam perguntas antes de elas existirem</td></tr>
+          <tr><td>Um <code>inventario_financeiro.sql</code></td>
+              <td>Responderia "o módulo está inteiro?" em um segundo, sem escrever no banco</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><strong>Nenhum deles bloqueia o uso do módulo.</strong> Ele está completo para o que foi especificado.</p>
   </div>
   <div class="table-wrap">
     <table>
