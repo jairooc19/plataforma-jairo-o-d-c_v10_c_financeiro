@@ -22,7 +22,7 @@
 -- as 5 pastas.
 --
 -- O QUE ESTE ARQUIVO CRIA
---   4 tabelas · 16 funções · 4 RLS ENABLE · 8 policies · 9 triggers
+--   4 tabelas · 20 funções · 4 RLS ENABLE · 8 policies · 9 triggers
 -- ===========================================================================
 
 
@@ -283,6 +283,70 @@ AS $$
     FROM public.fin_lancamentos l
    WHERE l.conta_movimento_id = p_conta_id
      AND l.data_movimento = p_data;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 4.3-b ABRIR ESPAÇO NUMA ORDEM JÁ OCUPADA (RN-12)
+-- ---------------------------------------------------------------------------
+-- A regra da RN-12 em UM lugar só: se a ordem pedida já existe naquela conta
+-- naquele dia, todos os de ordem igual ou maior descem um degrau, e a ordem
+-- pedida fica livre para quem está chegando.
+--
+-- ⚠️ ELA NASCEU EM 14/09/2026 PORQUE A TRANSFERÊNCIA PASSOU A INFORMAR ORDEM.
+-- Até aqui, a regra vivia dentro de `fin_gravar_lancamento`, e a transferência
+-- sempre jogava as duas pernas para o fim do dia. Com o pedido de informar a
+-- ordem nas DUAS contas, a mesma regra passaria a existir em TRÊS lugares — e a
+-- segunda cópia de qualquer regra é sempre a que esquece um detalhe (aqui, o
+-- detalhe mortal é o `id <> p_excluir_id`, sem o qual a edição empurraria a si
+-- mesma).
+--
+-- ⚠️ `p_excluir_id` É QUEM IMPEDE O REGISTRO DE SE EMPURRAR. Na EDIÇÃO, o
+-- próprio lançamento já está no dia: sem excluí-lo do deslocamento, ele ganharia
+-- +1 e depois receberia a ordem pedida, deixando um buraco atrás. Na criação e
+-- na transferência ele vem NULL, porque ainda não existe linha nenhuma.
+--
+-- ⚠️ NÃO HÁ ÍNDICE ÚNICO EM (conta, data, ordem), E É POR ISSO QUE O `UPDATE` EM
+-- BLOCO FUNCIONA. Com um índice único não adiado, subir 3→4 enquanto o 4 existe
+-- estouraria no meio da instrução. A ordem é uma preferência de exibição, não
+-- uma identidade — quem garante a unicidade é esta função.
+--
+-- ⚠️ ELA NÃO RECEBE GRANT E NÃO DEVE RECEBER. É chamada de dentro de funções
+-- `SECURITY DEFINER`, que a executam como dona do banco; exposta ao cliente,
+-- deixaria qualquer um embaralhar a ordem do extrato alheio sem passar por
+-- nenhuma checagem de permissão. O teste 16 a exclui por isso, como já exclui a
+-- `fin_apagar_dados_da_empresa`.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.fin_abrir_espaco_na_ordem(
+  p_conta_movimento_id uuid,
+  p_data  date,
+  p_ordem integer,
+  p_excluir_id uuid DEFAULT NULL
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF p_ordem IS NULL THEN
+    RETURN;                       -- sem ordem informada não há nada a deslocar
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.fin_lancamentos
+     WHERE conta_movimento_id = p_conta_movimento_id
+       AND data_movimento = p_data
+       AND ordem_extrato = p_ordem
+       AND (p_excluir_id IS NULL OR id <> p_excluir_id)
+  ) THEN
+    UPDATE public.fin_lancamentos
+       SET ordem_extrato = ordem_extrato + 1
+     WHERE conta_movimento_id = p_conta_movimento_id
+       AND data_movimento = p_data
+       AND ordem_extrato >= p_ordem
+       AND (p_excluir_id IS NULL OR id <> p_excluir_id);
+  END IF;
+END;
 $$;
 
 -- ---------------------------------------------------------------------------
@@ -802,24 +866,14 @@ BEGIN
   END IF;
 
   -- 4) A ordem (RN-11 e RN-12)
+  --    ⚠️ A REGRA MORA EM `fin_abrir_espaco_na_ordem`, E NÃO AQUI DENTRO, desde
+  --    14/09/2026: a transferência passou a informar ordem nas duas contas e
+  --    precisa exatamente do mesmo deslocamento. Uma segunda cópia da regra
+  --    seria a que esqueceria o `p_id` na exclusão — e o lançamento editado
+  --    empurraria a si mesmo, deixando um buraco atrás.
   v_ordem := p_ordem_extrato;
-  IF v_ordem IS NOT NULL THEN
-    -- Se a ordem já existe no dia, os seguintes descem um degrau.
-    IF EXISTS (
-      SELECT 1 FROM public.fin_lancamentos
-       WHERE conta_movimento_id = p_conta_movimento_id
-         AND data_movimento = p_data_movimento
-         AND ordem_extrato = v_ordem
-         AND (p_id IS NULL OR id <> p_id)
-    ) THEN
-      UPDATE public.fin_lancamentos
-         SET ordem_extrato = ordem_extrato + 1
-       WHERE conta_movimento_id = p_conta_movimento_id
-         AND data_movimento = p_data_movimento
-         AND ordem_extrato >= v_ordem
-         AND (p_id IS NULL OR id <> p_id);
-    END IF;
-  END IF;
+  PERFORM public.fin_abrir_espaco_na_ordem(
+            p_conta_movimento_id, p_data_movimento, v_ordem, p_id);
 
   -- 5) Grava
   IF p_id IS NULL THEN
@@ -919,13 +973,31 @@ $$;
 -- ---------------------------------------------------------------------------
 -- 4.9 TRANSFERÊNCIA ENTRE CONTAS (RN-23, 24, 25, 30, 31)
 -- ---------------------------------------------------------------------------
+-- ⚠️ O `DROP` ABAIXO NÃO É ZELO — SEM ELE O BANCO FICA COM DUAS TRANSFERÊNCIAS.
+-- Em 14/09/2026 a função ganhou dois parâmetros (as ordens das duas pernas).
+-- `CREATE OR REPLACE` só substitui quando a LISTA DE PARÂMETROS é idêntica; com
+-- uma lista diferente, o PostgreSQL entende que é outra função e cria uma
+-- SOBRECARGA. As duas passariam a existir: a velha continuaria com o `GRANT`
+-- que o arquivo já lhe deu e continuaria alcançável, jogando as pernas para o
+-- fim do dia, enquanto a nova respeitaria a ordem — e qual das duas responderia
+-- dependeria dos argumentos que o cliente mandasse. É o irmão do problema do
+-- `RETURNS TABLE` que o `fin_extrato` já documenta: derrubar função não toca em
+-- dado nenhum, e a assinatura do DROP são os PARÂMETROS ANTIGOS.
+DROP FUNCTION IF EXISTS public.fin_transferir(uuid, uuid, uuid, date, bigint, text);
+
 CREATE OR REPLACE FUNCTION public.fin_transferir(
   p_tenant_id uuid,
   p_conta_origem_id  uuid,
   p_conta_destino_id uuid,
   p_data date,
   p_valor_centavos bigint,
-  p_historico text DEFAULT NULL
+  p_historico text DEFAULT NULL,
+  -- ⚠️ AS DUAS ORDENS SÃO OPCIONAIS E NULAS POR PADRÃO (pedido de 14/09/2026).
+  -- Nulo mantém o comportamento de sempre: a perna vai para o fim do dia, pela
+  -- `fin_proxima_ordem`. Preenchido, ela entra na posição pedida e empurra as
+  -- seguintes — a mesma RN-12 do lançamento comum.
+  p_ordem_origem  integer DEFAULT NULL,
+  p_ordem_destino integer DEFAULT NULL
 )
 RETURNS json
 LANGUAGE plpgsql
@@ -938,6 +1010,8 @@ DECLARE
   v_hist      text;
   v_tipo_org  text;
   v_tipo_dst  text;
+  v_ordem_org integer;
+  v_ordem_dst integer;
 BEGIN
   IF NOT public.fin_pode(p_tenant_id, 'transferencia') THEN
     RAISE EXCEPTION 'Sem permissao para transferir entre contas.' USING ERRCODE = '42501';
@@ -949,6 +1023,12 @@ BEGIN
 
   IF p_valor_centavos IS NULL OR p_valor_centavos <= 0 THEN
     RAISE EXCEPTION 'O valor deve ser maior que zero.' USING ERRCODE = '23514';
+  END IF;
+
+  -- A ordem é posição no extrato: começa em 1 (RN-11).
+  IF (p_ordem_origem IS NOT NULL AND p_ordem_origem < 1)
+     OR (p_ordem_destino IS NOT NULL AND p_ordem_destino < 1) THEN
+    RAISE EXCEPTION 'A ordem no extrato deve ser maior que zero.' USING ERRCODE = '23514';
   END IF;
 
   -- RN-24 nas DUAS contas
@@ -980,6 +1060,15 @@ BEGIN
 
   v_hist := NULLIF(upper(btrim(COALESCE(p_historico, ''))), '');
 
+  -- ⚠️ AS DUAS CONTAS SÃO DIFERENTES (recusado logo acima), ENTÃO OS DOIS
+  -- DESLOCAMENTOS NÃO SE ATRAPALHAM. Fossem a mesma conta, abrir espaço para a
+  -- segunda perna empurraria a primeira, que acabara de ser inserida.
+  v_ordem_org := COALESCE(p_ordem_origem,  public.fin_proxima_ordem(p_conta_origem_id,  p_data));
+  v_ordem_dst := COALESCE(p_ordem_destino, public.fin_proxima_ordem(p_conta_destino_id, p_data));
+
+  PERFORM public.fin_abrir_espaco_na_ordem(p_conta_origem_id,  p_data, v_ordem_org);
+  PERFORM public.fin_abrir_espaco_na_ordem(p_conta_destino_id, p_data, v_ordem_dst);
+
   -- ⚠️ AS DUAS PERNAS NUMA TRANSAÇÃO SÓ. E com PROPRIO/CAIXA gravados pelo
   -- sistema (RN-31): a tela não pergunta, e com regime CAIXA a transferência
   -- entra no extrato pela regra geral (RN-19), mantendo o saldo batendo.
@@ -991,7 +1080,7 @@ BEGIN
   ) VALUES (
     p_tenant_id, p_conta_origem_id, v_categoria,
     v_tipo_org, 'OUTRAS',
-    p_data, public.fin_proxima_ordem(p_conta_origem_id, p_data),
+    p_data, v_ordem_org,
     'SAIDA', 'PROPRIO', 'CAIXA',
     p_valor_centavos, v_hist, v_transf, auth.uid()
   );
@@ -1004,12 +1093,14 @@ BEGIN
   ) VALUES (
     p_tenant_id, p_conta_destino_id, v_categoria,
     v_tipo_dst, 'OUTRAS',
-    p_data, public.fin_proxima_ordem(p_conta_destino_id, p_data),
+    p_data, v_ordem_dst,
     'ENTRADA', 'PROPRIO', 'CAIXA',
     p_valor_centavos, v_hist, v_transf, auth.uid()
   );
 
-  RETURN json_build_object('success', true, 'transferencia_id', v_transf, 'categoria_id', v_categoria);
+  RETURN json_build_object(
+    'success', true, 'transferencia_id', v_transf, 'categoria_id', v_categoria,
+    'ordem_origem', v_ordem_org, 'ordem_destino', v_ordem_dst);
 END;
 $$;
 
@@ -1480,7 +1571,9 @@ REVOKE EXECUTE ON FUNCTION public.fin_importar_contas_movimento(uuid, text, text
 REVOKE EXECUTE ON FUNCTION public.fin_importar_identificadoras(uuid, text, text[])       FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_gravar_lancamento(uuid, uuid, uuid, uuid, date, integer, text, text, text, bigint, text) FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_excluir_lancamento(uuid, uuid)                     FROM PUBLIC, anon, authenticated;
-REVOKE EXECUTE ON FUNCTION public.fin_transferir(uuid, uuid, uuid, date, bigint, text)   FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_transferir(uuid, uuid, uuid, date, bigint, text, integer, integer)
+                                                                                         FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_abrir_espaco_na_ordem(uuid, date, integer, uuid)   FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_marcar_conferido(uuid, uuid, boolean)              FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_fechar_periodo(uuid, uuid, date, text)             FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_reabrir_periodo(uuid, uuid)                        FROM PUBLIC, anon, authenticated;
@@ -1500,7 +1593,8 @@ GRANT EXECUTE ON FUNCTION public.fin_importar_contas_movimento(uuid, text, text[
 GRANT EXECUTE ON FUNCTION public.fin_importar_identificadoras(uuid, text, text[])       TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_gravar_lancamento(uuid, uuid, uuid, uuid, date, integer, text, text, text, bigint, text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_excluir_lancamento(uuid, uuid)                     TO authenticated;
-GRANT EXECUTE ON FUNCTION public.fin_transferir(uuid, uuid, uuid, date, bigint, text)   TO authenticated;
+GRANT EXECUTE ON FUNCTION public.fin_transferir(uuid, uuid, uuid, date, bigint, text, integer, integer)
+                                                                                        TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_marcar_conferido(uuid, uuid, boolean)              TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_fechar_periodo(uuid, uuid, date, text)             TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_reabrir_periodo(uuid, uuid)                        TO authenticated;

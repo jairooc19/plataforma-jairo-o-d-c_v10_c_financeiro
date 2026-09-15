@@ -66,7 +66,12 @@ DROP FUNCTION IF EXISTS public.fin_extrato(uuid, uuid, date, date) CASCADE;
 DROP FUNCTION IF EXISTS public.fin_reabrir_periodo(uuid, uuid) CASCADE;
 DROP FUNCTION IF EXISTS public.fin_fechar_periodo(uuid, uuid, date, text) CASCADE;
 DROP FUNCTION IF EXISTS public.fin_marcar_conferido(uuid, uuid, boolean) CASCADE;
+-- ⚠️ DUAS ASSINATURAS DE `fin_transferir`, DE PROPÓSITO. Em 14/09/2026 ela
+-- ganhou as duas ordens; um banco que ainda esteja na versão antiga tem a de 6
+-- parâmetros, e desplugar não pode deixar função órfã no `public`.
+DROP FUNCTION IF EXISTS public.fin_transferir(uuid, uuid, uuid, date, bigint, text, integer, integer) CASCADE;
 DROP FUNCTION IF EXISTS public.fin_transferir(uuid, uuid, uuid, date, bigint, text) CASCADE;
+DROP FUNCTION IF EXISTS public.fin_abrir_espaco_na_ordem(uuid, date, integer, uuid) CASCADE;
 DROP FUNCTION IF EXISTS public.fin_excluir_lancamento(uuid, uuid) CASCADE;
 DROP FUNCTION IF EXISTS public.fin_gravar_lancamento(uuid, uuid, uuid, uuid, date, integer, text, text, text, bigint, text) CASCADE;
 DROP FUNCTION IF EXISTS public.fin_gravar_identificadora(uuid, uuid, text, text, boolean) CASCADE;

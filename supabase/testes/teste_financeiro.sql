@@ -88,7 +88,7 @@ BEGIN
     INTO v_alcanca, v_esperado
     FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
    WHERE n.nspname = 'public' AND p.proname LIKE 'fin\_%'
-     AND p.proname <> 'fin_apagar_dados_da_empresa';
+     AND p.proname NOT IN ('fin_apagar_dados_da_empresa', 'fin_abrir_espaco_na_ordem');
 
   IF v_alcanca < v_esperado THEN
     RAISE EXCEPTION E'AS FUNCOES DO MODULO PERDERAM O GRANT DE EXECUCAO (o app alcanca % de %).\n'
@@ -603,8 +603,16 @@ $$;
 -- provava que alguém CONSEGUE. Um teste de trava que não tem o par do caminho
 -- feliz aprova um sistema trancado por fora.
 --
--- ⚠️ `fin_apagar_dados_da_empresa` FICA DE FORA DE PROPÓSITO: ela é chamada de
--- dentro de `admin_apagar_dados_do_modulo` e NÃO deve responder ao cliente.
+-- ⚠️ DUAS FUNÇÕES FICAM DE FORA DE PROPÓSITO, E AS DUAS SÃO INTERNAS:
+--   • `fin_apagar_dados_da_empresa` é chamada de dentro de
+--     `admin_apagar_dados_do_modulo` e NÃO deve responder ao cliente;
+--   • `fin_abrir_espaco_na_ordem` (14/09/2026) é chamada de dentro de
+--     `fin_gravar_lancamento` e `fin_transferir`. Exposta ao cliente, deixaria
+--     qualquer um embaralhar a ordem do extrato alheio sem passar por checagem
+--     de permissão nenhuma — ela não confere `fin_pode()`, porque quem a chama
+--     já conferiu.
+-- Função interna alcançada de dentro de uma `SECURITY DEFINER` não precisa de
+-- GRANT: ali quem executa é a dona do banco.
 --
 -- ⚠️ O TOTAL É CONTADO, NUNCA ESCRITO À MÃO. Este teste dizia "as 16 funções",
 -- com o 16 fixo. Em 13/09/2026 o módulo ganhou duas funções de importação e ele
@@ -622,7 +630,7 @@ BEGIN
     INTO v_alcanca, v_esperado, v_faltando
     FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
    WHERE n.nspname = 'public' AND p.proname LIKE 'fin\_%'
-     AND p.proname <> 'fin_apagar_dados_da_empresa';
+     AND p.proname NOT IN ('fin_apagar_dados_da_empresa', 'fin_abrir_espaco_na_ordem');
 
   INSERT INTO public.resultado_teste_financeiro VALUES (
     16, CASE WHEN v_alcanca = v_esperado AND v_esperado > 0 THEN 'PASSOU' ELSE 'FALHOU' END, 'CAMINHO FELIZ',
@@ -900,6 +908,115 @@ BEGIN
     'A busca por texto traz a ATIVA e nao traz a DESATIVADA, nas duas especies de cadastro',
     format('erro=%s; contas achadas=%s (esperado {ZORRO ATIVA}); categorias achadas=%s (esperado {ZORRO CATEGORIA ATIVA})',
            v_erro, v_cm_achados::text, v_ci_achados::text));
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 21 — A TRANSFERÊNCIA ENTRA NA ORDEM PEDIDA, NAS DUAS CONTAS (RN-12/23)
+--
+-- ⚠️ ATÉ 14/09/2026 A TRANSFERÊNCIA SÓ SABIA IR PARA O FIM DO DIA. As duas
+-- pernas usavam `fin_proxima_ordem` e não havia como colocá-las no meio do
+-- extrato — o que obrigava a lançar a transferência antes de tudo, ou a
+-- conviver com um extrato fora da ordem do papel do banco.
+--
+-- O QUE ESTE TESTE PROVA, DE UMA VEZ:
+--   1. a perna da ORIGEM entra na ordem pedida e empurra as seguintes DAQUELA
+--      conta;
+--   2. a perna do DESTINO faz o mesmo, na conta dela, com OUTRO número;
+--   3. as duas contas ficam com 1..4 — sem repetir e sem buraco;
+--   4. o deslocamento de uma conta NÃO tocou na outra (elas têm quantidades e
+--      posições diferentes de propósito, para que uma confusão entre elas
+--      apareça);
+--   5. com a ordem em BRANCO (NULL), a perna continua indo para o fim do dia —
+--      o comportamento antigo não se perdeu.
+--
+-- ⚠️ O TESTE MONTA O PRÓPRIO CENÁRIO, do zero, como o 19 e o 20.
+-- ===========================================================================
+DO $$
+DECLARE
+  v_org uuid; v_dst uuid; v_ci uuid; v_erro text := 'nenhum';
+  v_res json; v_res2 json;
+  v_ordens_org int[]; v_ordens_dst int[];
+  v_ordem_perna_org int; v_ordem_perna_dst int;
+  v_transf uuid; v_i int;
+  v_ultima_org int;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+  BEGIN
+    v_org := (public.fin_gravar_conta_movimento(
+               'aa000000-0000-0000-0000-0000000000a1', NULL, 'ORIGEM DO TESTE 21', 'BANCO', 0, true)->>'id')::uuid;
+    v_dst := (public.fin_gravar_conta_movimento(
+               'aa000000-0000-0000-0000-0000000000a1', NULL, 'DESTINO DO TESTE 21', 'CAIXA', 0, true)->>'id')::uuid;
+    v_ci  := (public.fin_gravar_identificadora(
+               'aa000000-0000-0000-0000-0000000000a1', NULL, 'CATEGORIA DO TESTE 21', 'DESPESA', true)->>'id')::uuid;
+
+    -- ORIGEM: três lançamentos no dia (ordens 1, 2, 3).
+    FOR v_i IN 1..3 LOOP
+      PERFORM public.fin_gravar_lancamento(
+        'aa000000-0000-0000-0000-0000000000a1', NULL, v_org, v_ci, DATE '2026-09-25',
+        v_i, 'SAIDA', 'PROPRIO', 'CAIXA', v_i * 100, 'ORIGEM ' || v_i);
+    END LOOP;
+
+    -- DESTINO: dois lançamentos no mesmo dia (ordens 1, 2). Quantidade
+    -- diferente de propósito: se as contas se confundirem, os números não batem.
+    FOR v_i IN 1..2 LOOP
+      PERFORM public.fin_gravar_lancamento(
+        'aa000000-0000-0000-0000-0000000000a1', NULL, v_dst, v_ci, DATE '2026-09-25',
+        v_i, 'ENTRADA', 'PROPRIO', 'CAIXA', v_i * 500, 'DESTINO ' || v_i);
+    END LOOP;
+
+    -- A TRANSFERÊNCIA: ordem 2 na origem, ordem 1 no destino.
+    v_res := public.fin_transferir(
+      'aa000000-0000-0000-0000-0000000000a1', v_org, v_dst, DATE '2026-09-25',
+      12345, 'TRANSFERENCIA DO TESTE 21', 2, 1);
+  EXCEPTION WHEN OTHERS THEN v_erro := SQLSTATE || ' ' || SQLERRM;
+  END;
+
+  v_transf := (v_res->>'transferencia_id')::uuid;
+
+  SELECT array_agg(ordem_extrato ORDER BY ordem_extrato) INTO v_ordens_org
+    FROM public.fin_lancamentos
+   WHERE conta_movimento_id = v_org AND data_movimento = DATE '2026-09-25';
+  SELECT array_agg(ordem_extrato ORDER BY ordem_extrato) INTO v_ordens_dst
+    FROM public.fin_lancamentos
+   WHERE conta_movimento_id = v_dst AND data_movimento = DATE '2026-09-25';
+
+  SELECT ordem_extrato INTO v_ordem_perna_org
+    FROM public.fin_lancamentos WHERE transferencia_id = v_transf AND conta_movimento_id = v_org;
+  SELECT ordem_extrato INTO v_ordem_perna_dst
+    FROM public.fin_lancamentos WHERE transferencia_id = v_transf AND conta_movimento_id = v_dst;
+
+  -- Segunda transferência, agora SEM informar ordem: tem de cair no fim do dia
+  -- da origem, que a esta altura já tem quatro linhas.
+  BEGIN
+    v_res2 := public.fin_transferir(
+      'aa000000-0000-0000-0000-0000000000a1', v_org, v_dst, DATE '2026-09-25',
+      999, 'SEM ORDEM', NULL, NULL);
+  EXCEPTION WHEN OTHERS THEN v_erro := v_erro || ' | 2a: ' || SQLSTATE || ' ' || SQLERRM;
+  END;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  SELECT ordem_extrato INTO v_ultima_org
+    FROM public.fin_lancamentos
+   WHERE transferencia_id = (v_res2->>'transferencia_id')::uuid AND conta_movimento_id = v_org;
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    21,
+    CASE WHEN v_erro = 'nenhum'
+          AND v_ordem_perna_org = 2
+          AND v_ordem_perna_dst = 1
+          AND v_ordens_org = ARRAY[1,2,3,4]
+          AND v_ordens_dst = ARRAY[1,2,3]
+          AND v_ultima_org = 5
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-12/RN-23',
+    'Transferencia entra na ordem pedida nas DUAS contas, desloca so a conta certa, e sem ordem vai para o fim',
+    format('erro=%s; perna origem na ordem %s (esperado 2); perna destino na %s (esperado 1); ordens origem=%s (esperado 1..4); ordens destino=%s (esperado 1..3); 2a transferencia sem ordem caiu na %s (esperado 5)',
+           v_erro, v_ordem_perna_org, v_ordem_perna_dst,
+           v_ordens_org::text, v_ordens_dst::text, v_ultima_org));
 END;
 $$;
 

@@ -17,6 +17,93 @@ todas foram pagas com um defeito em produção.
 
 ---
 
+**2026-09-14 (tarde) — v10: a transferência escolhe a posição nas duas contas**
+
+Segunda rodada do dia. **Exige rodar de novo SÓ o `financeiro_01_schema.sql`** —
+o mesmo arquivo que a rodada da manhã já pedia, então é uma execução só para as
+duas.
+
+| Onde | O que mudou |
+|---|---|
+| `financeiro_01_schema.sql` 4.3-b | ✨ `fin_abrir_espaco_na_ordem` — a RN-12 num lugar só; o banco foi a **20 funções `fin_`** |
+| `financeiro_01_schema.sql` 4.7 | `fin_gravar_lancamento` passou a CHAMAR o helper em vez de repetir a regra |
+| `financeiro_01_schema.sql` 4.9 | `fin_transferir` ganhou `p_ordem_origem` e `p_ordem_destino`, com `DROP` da assinatura antiga antes |
+| `financeiro_00_reset.sql` | Derruba as **duas** assinaturas de `fin_transferir` e o helper |
+| `teste_financeiro.sql` | ✨ Teste **21**; o porteiro e o teste 16 excluem a função interna. Foi para **21 testes** |
+| `lancamentoService.transferir` | Recebe `ordemOrigem`/`ordemDestino` e devolve em que ordem cada perna entrou |
+| `transferencia/page.tsx` | ✨ Os dois campos, com sugestão da próxima ordem livre em cada conta |
+
+⚠️ **ACRESCENTAR PARÂMETRO A UMA FUNÇÃO NÃO A SUBSTITUI — CRIA UMA SEGUNDA.**
+`CREATE OR REPLACE FUNCTION` só substitui quando a **lista de parâmetros** é
+idêntica; com uma lista diferente, o PostgreSQL entende que é outra função e
+cria uma **sobrecarga**. **Medido**, aplicando o schema novo sem o `DROP` sobre
+um banco que tinha a versão antiga: ficaram **duas** `fin_transferir`, a de 6 e
+a de 8 parâmetros, **e as duas com `EXECUTE` para `authenticated`** — a antiga
+continuaria respondendo, jogando as pernas para o fim do dia, e qual das duas
+atenderia dependeria dos argumentos enviados. Com o `DROP`, sobra **uma**. É o
+irmão do problema do `RETURNS TABLE` que o `fin_extrato` já documenta, e a
+assinatura do DROP são os **parâmetros antigos**.
+
+⚠️ **A REGRA DA ORDEM SAIU DE DENTRO DO `fin_gravar_lancamento`.** Com a
+transferência informando ordem nas duas contas, a mesma RN-12 passaria a existir
+em **três** lugares. A `fin_abrir_espaco_na_ordem` a guarda uma vez só — e o
+detalhe que uma cópia esqueceria é o `p_excluir_id`, sem o qual o lançamento
+editado empurraria a si mesmo e deixaria um buraco atrás.
+
+⚠️ **A FUNÇÃO INTERNA NÃO RECEBE `GRANT`, E O TESTE 16 PRECISOU SABER DISSO.**
+Ela é chamada de dentro de funções `SECURITY DEFINER`, que a executam como dona
+do banco — não precisa de privilégio para o cliente. Exposta ao `authenticated`,
+deixaria qualquer um embaralhar a ordem do extrato alheio **sem passar por
+checagem de permissão nenhuma**, porque ela não chama `fin_pode()`: quem a chama
+já conferiu. O teste 16 (e o porteiro do topo do arquivo) passaram a excluí-la,
+como já excluíam a `fin_apagar_dados_da_empresa`.
+
+⚠️ **AS DUAS CONTAS SÃO DIFERENTES, E É ISSO QUE FAZ OS DOIS DESLOCAMENTOS NÃO
+SE ATRAPALHAREM.** Se origem e destino fossem a mesma conta, abrir espaço para a
+segunda perna empurraria a primeira, recém-inserida. A função já recusava conta
+igual (`23514`) desde o degrau 7 — o que era uma regra de negócio virou também a
+garantia de correção da ordem.
+
+⚠️ **ORDEM EM BRANCO NÃO É ZERO: É "NO FIM DO DIA".** Os dois parâmetros nascem
+`NULL` e, nulos, a perna continua indo para a última posição pela
+`fin_proxima_ordem` — o comportamento de sempre. O teste 21 prova os dois
+caminhos na mesma execução, para que ninguém "conserte" o `COALESCE` achando que
+é sobra.
+
+⚠️ **O AVISO DA TELA REPETE A ORDEM QUE O BANCO GRAVOU, NÃO A QUE A TELA
+MANDOU.** A sugestão é lida quando se escolhe a conta e a data; entre ver o
+número e clicar em TRANSFERIR, outra pessoa pode ter lançado no mesmo dia. A
+função devolve `ordem_origem` e `ordem_destino`, e é isso que a mensagem mostra.
+É a mesma razão pela qual o relatório da importação vem do banco, e não da
+prévia.
+
+⚠️ **O TESTE 21 USA QUANTIDADES DIFERENTES NAS DUAS CONTAS DE PROPÓSITO.** Três
+lançamentos na origem e dois no destino, com a transferência pedindo a ordem 2 na
+origem e a 1 no destino. Com quantidades iguais e a mesma posição, uma confusão
+entre as contas passaria despercebida — os números bateriam por coincidência.
+
+⚠️ **O UPGRADE FOI ENSAIADO, E NÃO SÓ A INSTALAÇÃO LIMPA.** Montou-se um banco
+com o schema do commit anterior (o que está no Supabase hoje), aplicou-se o novo
+por cima e rodaram-se os testes: **21/21**. Instalação do zero: **21/21**.
+Plataforma: **16/16**. Ensaiar só a instalação limpa esconderia exatamente a
+armadilha da sobrecarga descrita acima, porque num banco vazio não há função
+antiga para sobrar.
+
+⚠️ **UM SUSTO QUE NÃO ERA DEFEITO, E VALE REGISTRAR.** Na primeira execução no
+banco de upgrade, 12 testes falharam com `42501 Sem permissao para gravar contas
+movimento`. Não era o código: era o `financeiro_02_seed.sql` que não tinha sido
+aplicado naquele banco, e sem a linha do módulo em `platform_modules` a
+`fin_pode()` nega tudo. **A mensagem de erro do módulo não diz isso** — ela fala
+de permissão, e a causa é o catálogo vazio. Quem vir esse erro numa instalação
+nova deve conferir o seed antes de procurar defeito na permissão.
+
+⚠️ **O QUE FOI E O QUE NÃO FOI TESTADO.** Validado aqui: `npm test` (44),
+`npm run modulos:verificar`, `tsc --noEmit`, `eslint`, `npm run build` (saída 0,
+20 rotas) e os dois arquivos SQL contra o PostgreSQL 18 local, nos dois caminhos
+(zero e upgrade). **A tela da transferência não foi aberta num navegador.**
+
+---
+
 **2026-09-14 — v10: o menu à esquerda, os atalhos de mês e a conta que se digita**
 
 Primeira rodada do dia, precedida de um estudo

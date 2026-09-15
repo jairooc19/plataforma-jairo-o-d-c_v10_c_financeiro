@@ -32,7 +32,7 @@ o guia de instruções; aquele é a memória.
 
 **Onde o projeto está** (14/09/2026): plataforma v10 com o módulo `financeiro` plugado,
 publicado na Vercel e validado no Supabase real — `teste_rls.sql` **16/16** e
-`teste_financeiro.sql` **20/20** (as duas travas novas, 19 e 20, ainda só foram
+`teste_financeiro.sql` **21/21** (as travas novas — 19, 20 e 21 — ainda só foram
 provadas no PostgreSQL local). Das 6 fases da especificação do módulo, 5 estão prontas;
 a fase 5 (DINHEIRO DO PERÍODO, DASHBOARDS, ORÇAMENTO) ainda avisa "EM DESENVOLVIMENTO".
 
@@ -92,7 +92,7 @@ plataforma-jairo-o-d-c-v4/
 │   │   └── plataforma_02_seed.sql     → Hidratador: dados iniciais obrigatórios
 │   ├── criar-bd-financeiro/→ 🧩 MÓDULO: banco do Controle Financeiro (01 → 02; o 00 despluga)
 │   ├── testes/             → teste_rls.sql (16 travas da plataforma), teste_financeiro.sql
-│   │                         (20 travas do módulo), inventario.sql (confere o schema)
+│   │                         (21 travas do módulo), inventario.sql (confere o schema)
 │   │   └── ambiente-local/ → 🆕 sobe um PostgreSQL descartável e valida o SQL antes do Supabase
 │   ├── migrations/         → vazia; ler o README antes do primeiro dado real
 │   └── config.toml         → Configuração do Supabase CLI
@@ -957,6 +957,11 @@ inclusive numa máquina limpa — foi por isso que a versão com bcrypt foi reve
 - ❌ Nunca estimar trabalho de módulo pela memória sem abrir o arquivo — `fin_buscar_contas_movimento` existia desde o degrau 7, com GRANT, e nunca tinha sido chamada
 - ❌ Nunca deixar dois campos de mesmo nome na mesma tela com comportamentos diferentes — um digitável e o outro não ensina uma coisa e cobra outra
 - ❌ Nunca entregar teste novo sem tê-lo visto FALHAR uma vez — reaplique o schema sem a correção e confirme que ele acusa; teste que nunca falhou é decoração
+- ❌ Nunca acrescentar parâmetro a uma função do banco com `CREATE OR REPLACE` sem derrubar a assinatura antiga — lista de parâmetros diferente não substitui, cria uma SOBRECARGA, e a versão velha continua com o GRANT que o arquivo lhe deu; medido em 14/09/2026, ficaram duas `fin_transferir` alcançáveis
+- ❌ Nunca ensaiar só a instalação limpa ao mudar assinatura de função — num banco vazio não há função antiga para sobrar, e é exatamente aí que a sobrecarga se esconde; monte um banco com o schema anterior e aplique o novo por cima
+- ❌ Nunca repetir a regra de deslocamento da ordem (RN-12) fora de `fin_abrir_espaco_na_ordem` — a cópia é a que esquece o `p_excluir_id`, e aí o lançamento editado empurra a si mesmo
+- ❌ Nunca conceder `GRANT` a função interna de módulo — chamada de dentro de uma `SECURITY DEFINER` ela não precisa, e exposta deixaria embaralhar o extrato alheio sem checagem de permissão; exclua-a do teste do caminho feliz, com o motivo escrito
+- ❌ Nunca ler `42501 Sem permissao` de um módulo como problema de permissão antes de conferir o seed — sem a linha do módulo em `platform_modules`, a `fin_pode()` nega tudo, e a mensagem não menciona catálogo nenhum
 - ❌ Nunca criar arquivo com múltiplas responsabilidades distintas
 - ❌ Nunca misturar lógica de plataforma com módulo, nem módulo com módulo
 - ❌ Nunca usar `toISOString()` para datas que precisam respeitar UTC-3

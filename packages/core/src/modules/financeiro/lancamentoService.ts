@@ -149,7 +149,17 @@ export const lancamentoService = {
     data: string;
     valorCentavos: number;
     historico?: string | null;
-  }): Promise<{ transferenciaId: string }> {
+    /**
+     * A posição de cada perna no extrato da sua conta (14/09/2026).
+     *
+     * ⚠️ NULO NÃO É ZERO: é "põe no fim do dia", que era o único comportamento
+     * possível até aqui. Informada, a ordem entra na posição pedida e o banco
+     * empurra as seguintes daquela conta naquela data (RN-12) — a mesma regra
+     * do lançamento comum, agora aplicada às DUAS contas de uma vez.
+     */
+    ordemOrigem?: number | null;
+    ordemDestino?: number | null;
+  }): Promise<{ transferenciaId: string; ordemOrigem: number; ordemDestino: number }> {
     const { data, error } = await supabase.rpc('fin_transferir', {
       p_tenant_id: params.tenantId,
       p_conta_origem_id: params.contaOrigemId,
@@ -157,9 +167,16 @@ export const lancamentoService = {
       p_data: params.data,
       p_valor_centavos: params.valorCentavos,
       p_historico: params.historico ?? null,
+      p_ordem_origem: params.ordemOrigem ?? null,
+      p_ordem_destino: params.ordemDestino ?? null,
     });
     if (error) throw new Error(error.message);
-    return { transferenciaId: (data as { transferencia_id: string }).transferencia_id };
+    const r = data as { transferencia_id: string; ordem_origem: number; ordem_destino: number };
+    return {
+      transferenciaId: r.transferencia_id,
+      ordemOrigem: r.ordem_origem,
+      ordemDestino: r.ordem_destino,
+    };
   },
 
   /** Marca ou desmarca a linha como conferida na conciliação (RN-20). */

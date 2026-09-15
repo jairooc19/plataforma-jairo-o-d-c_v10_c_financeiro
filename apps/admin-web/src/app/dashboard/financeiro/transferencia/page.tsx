@@ -33,6 +33,15 @@ export default function TransferenciaPage() {
   const [destino, setDestino] = useState("");
   const [data, setData] = useState("");
   const [valor, setValor] = useState(0);
+  /**
+   * As duas posições no extrato (pedido de 14/09/2026).
+   *
+   * ⚠️ SÃO DUAS, E NÃO UMA, PORQUE SÃO DOIS EXTRATOS. Cada perna cai numa conta
+   * diferente, e cada conta tem a própria numeração do dia — um campo só
+   * obrigaria a inventar qual das duas ele governa.
+   */
+  const [ordemOrigem, setOrdemOrigem] = useState<number | "">("");
+  const [ordemDestino, setOrdemDestino] = useState<number | "">("");
   const [historico, setHistorico] = useState("");
   const [gravando, setGravando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -46,17 +55,54 @@ export default function TransferenciaPage() {
     carregar();
   }, [tenantId]);
 
+  /**
+   * A ordem sugerida em cada conta: a próxima livre do dia (RN-11), igual ao
+   * que a tela NOVO LANÇAMENTO faz.
+   *
+   * ⚠️ A BUSCA VIVE DENTRO DO EFEITO E O ESTADO SÓ MUDA DEPOIS DO `await`
+   * (regra `react-hooks/set-state-in-effect`). Não se cala essa regra com
+   * `eslint-disable` neste projeto.
+   *
+   * ⚠️ A SUGESTÃO NÃO É GARANTIA. Entre ver o número e clicar em TRANSFERIR,
+   * outra pessoa pode ter lançado na mesma conta e no mesmo dia — por isso quem
+   * decide de verdade é o banco, que empurra as seguintes se a posição já
+   * estiver ocupada. O relatório de volta diz em que ordem cada perna entrou.
+   */
+  useEffect(() => {
+    const sugerir = async () => {
+      if (!origem || !data) return;
+      try { setOrdemOrigem(await lancamentoService.proximaOrdem(origem, data)); }
+      catch { /* sem sugestão o campo fica vazio, e vazio significa "no fim" */ }
+    };
+    sugerir();
+  }, [origem, data]);
+
+  useEffect(() => {
+    const sugerir = async () => {
+      if (!destino || !data) return;
+      try { setOrdemDestino(await lancamentoService.proximaOrdem(destino, data)); }
+      catch { /* idem */ }
+    };
+    sugerir();
+  }, [destino, data]);
+
   const transferir = async () => {
     if (!tenantId) return;
     setErro(null); setAviso(null);
     setGravando(true);
     try {
-      await lancamentoService.transferir({
+      const r = await lancamentoService.transferir({
         tenantId, contaOrigemId: origem, contaDestinoId: destino,
         data, valorCentavos: valor, historico: historico || null,
+        ordemOrigem: ordemOrigem === "" ? null : Number(ordemOrigem),
+        ordemDestino: ordemDestino === "" ? null : Number(ordemDestino),
       });
-      setAviso(`TRANSFERÊNCIA DE ${formatarBRL(valor)} REGISTRADA. AS DUAS PERNAS FORAM CRIADAS.`);
-      setValor(0); setHistorico("");
+      // ⚠️ O AVISO REPETE AS ORDENS QUE O BANCO GRAVOU, e não as que a tela
+      // enviou: com o campo em branco quem escolhe é o banco, e quem lança
+      // precisa saber onde a linha foi parar para conferir contra o extrato.
+      setAviso(`TRANSFERÊNCIA DE ${formatarBRL(valor)} REGISTRADA. AS DUAS PERNAS FORAM CRIADAS — `
+        + `ORDEM ${r.ordemOrigem} NA ORIGEM E ORDEM ${r.ordemDestino} NO DESTINO.`);
+      setValor(0); setHistorico(""); setOrdemOrigem(""); setOrdemDestino("");
     } catch (e) {
       setErro(e instanceof Error ? e.message : "FALHA AO TRANSFERIR.");
     } finally {
@@ -123,6 +169,24 @@ export default function TransferenciaPage() {
           </div>
         </div>
 
+        {/* ⚠️ AS DUAS ORDENS FICAM LOGO ABAIXO DA DATA, porque é a data que as
+            governa: a numeração é por conta E por dia. Mudou a data, os dois
+            números são sugeridos de novo. */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="t-ord-org" className={rotulo}>ORDEM NO EXTRATO — CONTA ORIGEM</label>
+            <input id="t-ord-org" type="number" min={1} value={ordemOrigem}
+                   onChange={(e) => setOrdemOrigem(e.target.value === "" ? "" : Number(e.target.value))}
+                   className={campo} placeholder="FIM DO DIA" />
+          </div>
+          <div>
+            <label htmlFor="t-ord-dst" className={rotulo}>ORDEM NO EXTRATO — CONTA DESTINO</label>
+            <input id="t-ord-dst" type="number" min={1} value={ordemDestino}
+                   onChange={(e) => setOrdemDestino(e.target.value === "" ? "" : Number(e.target.value))}
+                   className={campo} placeholder="FIM DO DIA" />
+          </div>
+        </div>
+
         <div>
           <label htmlFor="t-hist" className={rotulo}>HISTÓRICO</label>
           <input id="t-hist" type="text" maxLength={200} value={historico}
@@ -133,6 +197,9 @@ export default function TransferenciaPage() {
         <div className="bg-slate-50 rounded-xl p-4 text-[11px] font-bold uppercase text-slate-500 leading-relaxed">
           O SISTEMA VAI CRIAR DOIS LANÇAMENTOS: UMA SAÍDA NA ORIGEM E UMA ENTRADA NO DESTINO,
           COM A CATEGORIA &quot;TRANSFERÊNCIA ENTRE CONTAS&quot;. EXCLUIR UM DELES APAGA OS DOIS.
+          SE A ORDEM INFORMADA JÁ EXISTIR NAQUELA CONTA NAQUELE DIA, OS LANÇAMENTOS SEGUINTES
+          DESCEM UM DEGRAU — COMO EM &quot;NOVO LANÇAMENTO&quot;. EM BRANCO, A PERNA VAI PARA O
+          FIM DO DIA.
         </div>
 
         <div className="flex gap-3">
