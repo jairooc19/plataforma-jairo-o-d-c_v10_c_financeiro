@@ -14,3 +14,35 @@
     transform: translateY(-1px) scale(0.96) !important;
   }
 }
+/* ===========================================================================
+   ✨ animate-fade-in — A CLASSE QUE ESTAVA ESCRITA EM 10 TELAS E NÃO EXISTIA
+   ===========================================================================
+   Medido em 14/09/2026: `animate-fade-in` aparecia no painel de opções do
+   módulo financeiro, na Catraca, em cinco telas de autenticação, no menu
+   principal e nos ajustes globais — e não estava definida em lugar nenhum.
+
+   ⚠️ O TAILWIND 4 NÃO TRAZ ESTA ANIMAÇÃO DE FÁBRICA. Ele traz `spin`, `ping`,
+   `pulse` e `bounce`, e mais nenhuma. Uma classe utilitária inexistente não
+   quebra o build e não acusa nada: o navegador simplesmente ignora o nome, e
+   as dez telas apareciam secamente, de um quadro para o outro, enquanto o
+   código prometia um esmaecimento.
+
+   ⚠️ QUEM PREFERE NÃO ANIMAR DEVE APAGAR A CLASSE DAS DEZ TELAS, e não deixá-la
+   escrita sem definição: classe que não faz nada ensina quem lê o código a
+   duvidar do que está escrito.
+
+   `prefers-reduced-motion` respeita quem pediu menos movimento no sistema
+   operacional — a animação some, o conteúdo continua aparecendo.
+   =========================================================================== */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.18s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in { animation: none; }
+}

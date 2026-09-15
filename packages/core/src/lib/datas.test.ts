@@ -18,6 +18,13 @@ import {
   somarDias,
   diferencaEmDias,
   estaVencida,
+  primeiroDiaDoMes,
+  ultimoDiaDoMes,
+  mesInteiro,
+  deslocarMes,
+  mesAnterior,
+  mesSeguinte,
+  rotuloDoMes,
 } from './datas.ts';
 
 test('dataLocalISO usa o calendário local, não UTC', () => {
@@ -78,4 +85,81 @@ test('formatarDataHoraBR mostra o horário de Brasília', () => {
 
 test('hojeISO devolve uma data de calendário bem formada', () => {
   assert.match(hojeISO(), /^\d{4}-\d{2}-\d{2}$/);
+});
+
+// ===========================================================================
+// 📅 OS MESES INTEIROS (atalhos MÊS ATUAL / ANTERIOR / SEGUINTE)
+// ===========================================================================
+
+test('primeiroDiaDoMes e ultimoDiaDoMes acertam os meses de 28, 29, 30 e 31 dias', () => {
+  assert.equal(primeiroDiaDoMes('2026-09-14'), '2026-09-01');
+  assert.equal(ultimoDiaDoMes('2026-09-14'), '2026-09-30');  // setembro: 30
+  assert.equal(ultimoDiaDoMes('2026-08-01'), '2026-08-31');  // agosto: 31
+  assert.equal(ultimoDiaDoMes('2026-02-10'), '2026-02-28');  // fevereiro comum
+  assert.equal(ultimoDiaDoMes('2024-02-10'), '2024-02-29');  // fevereiro bissexto
+  assert.equal(ultimoDiaDoMes('2000-02-01'), '2000-02-29');  // 2000 é bissexto (divisível por 400)
+  assert.equal(ultimoDiaDoMes('1900-02-01'), '1900-02-28');  // 1900 NÃO é (divisível por 100)
+});
+
+test('mesAnterior NÃO transborda a partir de um dia 31 — a armadilha do setMonth', () => {
+  // ⚠️ ESTE É O TESTE QUE JUSTIFICA O ARQUIVO INTEIRO.
+  // `new Date(2026, 2, 31).setMonth(mes - 1)` devolveria 3 de MARÇO: o
+  // JavaScript tenta montar "31 de fevereiro" e transborda. Ancorando no dia 1,
+  // o mês anterior a março é fevereiro, como qualquer pessoa espera.
+  assert.deepEqual(mesAnterior('2026-03-31'), { de: '2026-02-01', ate: '2026-02-28' });
+  assert.deepEqual(mesAnterior('2026-05-31'), { de: '2026-04-01', ate: '2026-04-30' });
+  assert.deepEqual(mesAnterior('2026-07-31'), { de: '2026-06-01', ate: '2026-06-30' });
+  assert.deepEqual(mesAnterior('2024-03-30'), { de: '2024-02-01', ate: '2024-02-29' });
+});
+
+test('mesAnterior vira o ano ao passar de janeiro', () => {
+  assert.deepEqual(mesAnterior('2026-01-15'), { de: '2025-12-01', ate: '2025-12-31' });
+  assert.deepEqual(mesAnterior('2026-01-01'), { de: '2025-12-01', ate: '2025-12-31' });
+});
+
+test('mesSeguinte vira o ano ao passar de dezembro', () => {
+  assert.deepEqual(mesSeguinte('2025-12-20'), { de: '2026-01-01', ate: '2026-01-31' });
+  assert.deepEqual(mesSeguinte('2026-01-31'), { de: '2026-02-01', ate: '2026-02-28' });
+});
+
+test('cliques repetidos andam mês a mês, sem repetir nenhum', () => {
+  // É o uso real do botão: clicar quatro vezes a partir de setembro.
+  let periodo = mesInteiro('2026-09-14');
+  assert.deepEqual(periodo, { de: '2026-09-01', ate: '2026-09-30' });
+
+  const visitados: string[] = [];
+  for (let i = 0; i < 4; i++) {
+    periodo = mesAnterior(periodo.de);
+    visitados.push(periodo.de);
+  }
+  assert.deepEqual(visitados, ['2026-08-01', '2026-07-01', '2026-06-01', '2026-05-01']);
+  assert.equal(periodo.ate, '2026-05-31');
+
+  // E doze cliques a partir de janeiro descem um ano inteiro, sem emperrar.
+  let p = mesInteiro('2026-01-10');
+  for (let i = 0; i < 12; i++) p = mesAnterior(p.de);
+  assert.deepEqual(p, { de: '2025-01-01', ate: '2025-01-31' });
+});
+
+test('deslocarMes anda vários meses de uma vez, para os dois lados', () => {
+  assert.deepEqual(deslocarMes('2026-09-14', 0), { de: '2026-09-01', ate: '2026-09-30' });
+  assert.deepEqual(deslocarMes('2026-09-14', -9), { de: '2025-12-01', ate: '2025-12-31' });
+  assert.deepEqual(deslocarMes('2026-09-14', 5), { de: '2027-02-01', ate: '2027-02-28' });
+});
+
+test('rotuloDoMes escreve o mês por extenso, em português', () => {
+  assert.equal(rotuloDoMes('2026-09-14'), 'SETEMBRO / 2026');
+  assert.equal(rotuloDoMes('2026-01-01'), 'JANEIRO / 2026');
+  assert.equal(rotuloDoMes('2025-12-31'), 'DEZEMBRO / 2025');
+});
+
+test('sem argumento, os atalhos partem de hoje', () => {
+  // Não se pode fixar a data de hoje num teste, então a verificação é de
+  // coerência: o mês atual contém hoje, e o anterior termina na véspera dele.
+  const hoje = hojeISO();
+  const atual = mesInteiro();
+  assert.equal(atual.de, primeiroDiaDoMes(hoje));
+  assert.equal(atual.ate, ultimoDiaDoMes(hoje));
+  assert.equal(somarDias(mesAnterior().ate, 1), atual.de);
+  assert.equal(somarDias(atual.ate, 1), mesSeguinte().de);
 });

@@ -288,6 +288,22 @@ $$;
 -- ---------------------------------------------------------------------------
 -- 4.4 BUSCA DE CADASTROS — até 4 sugestões, em qualquer posição, sem acento
 -- ---------------------------------------------------------------------------
+-- ⚠️ SÓ CADASTROS ATIVOS (RN-06), E A FALTA DISSO ERA UM FURO REAL (14/09/2026).
+-- A RN-06 diz: "conta desativada some das listas de lançamento novo, mas
+-- continua no histórico e no extrato". As LISTAS da tela já respeitavam — elas
+-- consultam a tabela com `is_active = true`. Estas duas funções, não: sem o
+-- filtro, um cadastro desativado NÃO aparecia ao abrir a lista e APARECIA ao
+-- digitar o nome. E `fin_gravar_lancamento` confere existência, não situação —
+-- ou seja, dava para lançar numa conta desativada desde que se chegasse a ela
+-- digitando.
+--
+-- ⚠️ O `ORDER BY c.is_active DESC` FICA, e não é sobra: ele não custa nada e
+-- documenta a intenção de que ativo vem primeiro, caso um dia o filtro precise
+-- virar parâmetro (uma tela de MANUTENÇÃO de cadastros, por exemplo, quereria
+-- ver os dois).
+--
+-- ⚠️ O LANÇAMENTO ANTIGO NÃO É AFETADO. O extrato e a pesquisa leem a tabela
+-- direto; quem desativa uma conta continua vendo tudo o que ela já movimentou.
 CREATE OR REPLACE FUNCTION public.fin_buscar_contas_movimento(p_tenant_id uuid, p_texto text)
 RETURNS TABLE (id uuid, nome text, tipo text, is_active boolean)
 LANGUAGE plpgsql
@@ -304,6 +320,7 @@ BEGIN
     SELECT c.id, c.nome, c.tipo, c.is_active
       FROM public.fin_contas_movimento c
      WHERE c.tenant_id = p_tenant_id
+       AND c.is_active = true                                   -- RN-06
        AND c.nome_normalizado LIKE '%' || public.fin_normalizar(p_texto) || '%'
      ORDER BY c.is_active DESC, c.nome
      LIMIT 4;
@@ -326,6 +343,7 @@ BEGIN
     SELECT c.id, c.nome, c.tipo, c.is_active
       FROM public.fin_contas_identificadoras c
      WHERE c.tenant_id = p_tenant_id
+       AND c.is_active = true                                   -- RN-06
        AND c.nome_normalizado LIKE '%' || public.fin_normalizar(p_texto) || '%'
      ORDER BY c.is_active DESC, c.nome
      LIMIT 4;

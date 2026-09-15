@@ -1,0 +1,1371 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Estudo 14/09/2026 — Menu à esquerda, botões de mês e busca na Conta Movimento</title>
+<style>
+  /* ===================================================================
+     CORES EXATAS (print-color-adjust FORA do @media print, como pedido)
+     =================================================================== */
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+    box-sizing: border-box;
+  }
+
+  :root {
+    --azul: #2c5282;
+    --azul-claro: #f0f4f8;
+    --verde-claro: #f0f9f7;
+    --ambar-claro: #fef5e7;
+    --vermelho-claro: #fdf0ef;
+    --borda: #d8e0e8;
+    --texto: #000000;
+    --cinza: #5a6572;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    padding: 0 0 80px 0;
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.7;
+    color: var(--texto);
+    background-color: #ffffff;
+  }
+
+  .folha { max-width: 980px; margin: 0 auto; padding: 0 28px; }
+
+  /* ------------------------------ CABEÇALHO ------------------------- */
+  header.capa {
+    background-color: var(--azul-claro);
+    border-bottom: 3px solid var(--azul);
+    padding: 44px 0 34px 0;
+    margin-bottom: 36px;
+  }
+  header.capa h1 {
+    font-size: 30px; line-height: 1.25; margin: 0 0 10px 0;
+    color: var(--texto); letter-spacing: -0.5px;
+  }
+  header.capa .sub { font-size: 15px; color: var(--cinza); margin: 0 0 4px 0; }
+  .selo {
+    display: inline-block; background-color: var(--azul); color: #ffffff;
+    font-size: 11px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase;
+    padding: 5px 13px; border-radius: 4px; margin-bottom: 16px;
+  }
+
+  .prompt-literal {
+    background-color: #ffffff; border: 1px solid var(--borda); border-left: 5px solid var(--azul);
+    border-radius: 4px; padding: 20px 24px; margin-top: 26px;
+  }
+  .prompt-literal h2 {
+    font-size: 12px; text-transform: uppercase; letter-spacing: 2px;
+    color: var(--azul); margin: 0 0 12px 0; border: none; padding: 0;
+  }
+  .prompt-literal pre {
+    margin: 0; white-space: pre-wrap; word-wrap: break-word; background: none;
+    border: none; padding: 0;
+    font-family: "Consolas", "Courier New", monospace; font-size: 12.5px;
+    line-height: 1.6; color: var(--texto);
+  }
+
+  /* ------------------------------ SUMÁRIO --------------------------- */
+  .toc {
+    background-color: var(--azul-claro); border: 1px solid var(--borda);
+    border-radius: 6px; padding: 26px 30px; margin-bottom: 44px;
+  }
+  .toc h2 { margin-top: 0; border: none; padding: 0; font-size: 19px; }
+  .toc ol { margin: 0; padding-left: 22px; }
+  .toc ol ol { padding-left: 20px; margin: 4px 0 8px 0; }
+  .toc li { margin: 5px 0; font-size: 15px; }
+  .toc a { color: var(--texto); text-decoration: none; border-bottom: 1px dotted var(--cinza); }
+  .toc a:hover { color: var(--azul); border-bottom-color: var(--azul); }
+  .toc .nivel2 { font-size: 14px; color: var(--cinza); }
+
+  /* ------------------------------ TEXTO ----------------------------- */
+  section { margin-bottom: 46px; }
+  h2 {
+    font-size: 23px; margin: 0 0 18px 0; padding-bottom: 9px;
+    border-bottom: 2px solid var(--azul); color: var(--texto); letter-spacing: -0.3px;
+  }
+  h3 { font-size: 18px; margin: 30px 0 12px 0; color: var(--texto); }
+  h4 { font-size: 15.5px; margin: 22px 0 8px 0; color: var(--azul); text-transform: uppercase; letter-spacing: 0.6px; }
+  p { margin: 0 0 14px 0; }
+  ul, ol { margin: 0 0 16px 0; padding-left: 26px; }
+  li { margin: 7px 0; }
+  code {
+    font-family: "Consolas", "Courier New", monospace; font-size: 13.5px;
+    background-color: #eef2f6; padding: 2px 6px; border-radius: 3px; color: var(--texto);
+  }
+  pre {
+    background-color: #f7f9fb; border: 1px solid var(--borda); border-left: 4px solid var(--azul);
+    border-radius: 4px; padding: 16px 18px; overflow-x: auto;
+    font-family: "Consolas", "Courier New", monospace; font-size: 13px; line-height: 1.6;
+    color: var(--texto); margin: 0 0 18px 0;
+  }
+  pre code { background: none; padding: 0; font-size: 13px; }
+  strong { font-weight: 700; }
+
+  /* ------------------------------ CAIXAS ---------------------------- */
+  .caixa { border-radius: 5px; padding: 18px 22px; margin: 20px 0; border: 1px solid var(--borda); }
+  .caixa p:last-child, .caixa ul:last-child, .caixa ol:last-child, .caixa table:last-child { margin-bottom: 0; }
+  .caixa .titulo { font-weight: 700; display: block; margin-bottom: 8px; font-size: 15px; }
+
+  .destaque   { background-color: var(--azul-claro);   border-left: 5px solid var(--azul); }
+  .atencao    { background-color: var(--ambar-claro);  border-left: 5px solid #b7791f; }
+  .perigo     { background-color: var(--vermelho-claro); border-left: 5px solid #9b2c2c; }
+  .exemplo    { background-color: var(--verde-claro);  border-left: 5px solid #2f855a; }
+  .decisao    { background-color: #f6f2fa;             border-left: 5px solid #553c9a; }
+
+  /* ------------------------------ TABELAS --------------------------- */
+  table { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 14.5px; }
+  thead { background-color: var(--azul); }
+  thead th { color: #ffffff; text-align: left; padding: 11px 13px; font-weight: 700; font-size: 13.5px; }
+  tbody td { padding: 10px 13px; border-bottom: 1px solid var(--borda); vertical-align: top; }
+  tbody tr:nth-child(even) { background-color: #f7f9fb; }
+  .ok   { color: #22543d; font-weight: 700; }
+  .nao  { color: #9b2c2c; font-weight: 700; }
+  .meio { color: #975a16; font-weight: 700; }
+
+  .bonus-section { background-color: var(--verde-claro); border: 1px solid #b7ded2; border-radius: 6px; padding: 8px 26px 26px 26px; }
+  .bonus-section h2 { border-bottom-color: #2f855a; }
+
+  footer.rodape {
+    border-top: 1px solid var(--borda); margin-top: 50px; padding-top: 18px;
+    font-size: 13px; color: var(--cinza);
+  }
+
+  /* ===================================================================
+     BOTÃO DE IMPRESSÃO — fixo no canto superior direito
+     =================================================================== */
+  .print-container { position: fixed; top: 18px; right: 18px; z-index: 9999; font-family: inherit; }
+  .print-btn {
+    background-color: var(--azul); color: #ffffff; border: none; border-radius: 6px;
+    padding: 11px 18px; font-size: 13px; font-weight: 700; letter-spacing: 0.6px;
+    cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.22);
+  }
+  .print-btn:hover { background-color: #234069; }
+  .print-menu {
+    display: none; position: absolute; top: 46px; right: 0; min-width: 232px;
+    background-color: #ffffff; border: 1px solid var(--borda); border-radius: 6px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2); overflow: hidden;
+  }
+  .print-menu.aberto { display: block; }
+  .print-opt {
+    display: block; width: 100%; text-align: left; background: none; border: none;
+    padding: 13px 17px; font-size: 13.5px; color: var(--texto); cursor: pointer; font-family: inherit;
+  }
+  .print-opt:hover { background-color: var(--azul-claro); }
+  .print-opt + .print-opt { border-top: 1px solid var(--borda); }
+
+  /* ===================================================================
+     PRETO & BRANCO — a classe que reescreve TODAS as cores
+     =================================================================== */
+  body.print-bw, body.print-bw * {
+    color: #000000 !important;
+    background-color: #ffffff !important;
+    border-color: #000000 !important;
+    box-shadow: none !important;
+  }
+  body.print-bw header.capa { border-bottom: 3px solid #000000 !important; }
+  body.print-bw .toc,
+  body.print-bw .caixa,
+  body.print-bw .bonus-section,
+  body.print-bw .prompt-literal,
+  body.print-bw pre { background-color: #f4f4f4 !important; }
+  body.print-bw table thead,
+  body.print-bw table thead th { background-color: #333333 !important; color: #ffffff !important; }
+  body.print-bw tbody tr:nth-child(even) { background-color: #f4f4f4 !important; }
+  body.print-bw h2 { border-bottom: 2px solid #000000 !important; }
+  body.print-bw code { background-color: #ededed !important; }
+  body.print-bw .ok, body.print-bw .nao, body.print-bw .meio { color: #000000 !important; }
+
+  /* ===================================================================
+     IMPRESSÃO A4 — APENAS layout. Nenhuma cor é imposta aqui.
+     =================================================================== */
+  @media print {
+    @page { size: A4; margin: 0.5cm; }
+
+    .print-container { display: none !important; }
+
+    body { padding: 0; font-size: 11.5pt; }
+    .folha { max-width: 100%; padding: 0 0.4cm; }
+
+    header.capa { padding: 18px 0 14px 0; margin-bottom: 20px; }
+    header.capa h1 { font-size: 21pt; }
+
+    section { page-break-inside: avoid; margin-bottom: 26px; }
+    section h2 { page-break-inside: avoid; page-break-after: avoid; }
+    h3, h4 { page-break-after: avoid; page-break-inside: avoid; }
+    .toc, .caixa, .destaque, .atencao, .perigo, .exemplo, .decisao,
+    .bonus-section, .prompt-literal { page-break-inside: avoid; }
+    table, tr, thead, pre { page-break-inside: avoid; }
+    p, li { orphans: 3; widows: 3; }
+
+    a { text-decoration: none; }
+    .toc a { border-bottom-style: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="print-container">
+  <button id="printBtn" class="print-btn" type="button">IMPRIMIR &#9662;</button>
+  <div id="printMenu" class="print-menu">
+    <button class="print-opt" type="button" data-modo="cores">Cores (A4)</button>
+    <button class="print-opt" type="button" data-modo="pb">Preto &amp; Branco (A4)</button>
+  </div>
+</div>
+
+<header class="capa">
+  <div class="folha">
+    <span class="selo">Estudo · 14 de setembro de 2026 · antes de escrever código</span>
+    <h1>Três pedidos: o menu à esquerda, os botões de mês na Conferência da Conta<br>e a Conta Movimento que se digita</h1>
+    <p class="sub">Módulo <strong>CONTROLE FINANCEIRO</strong> · Plataforma Jairo O D C v10 · <code>apps/admin-web</code></p>
+    <p class="sub">Nenhuma linha do sistema foi alterada ainda. Este documento existe para você decidir <em>antes</em>.</p>
+
+    <div class="prompt-literal">
+      <h2>Transcrição literal do seu pedido</h2>
+      <pre>MOVE O MENU "OPÇÕES" PARA O LADO ESQUERDO DA TELA.
+
+EM "NOVO LANÇAMENTO" &gt; "CONFERÊNCIA DA CONTA" ADICIONAR BOTÃO MÊS ATUAL, AO CLICAR
+PREENCHE PERÍODO COM MÊS ATUAL, ADICIONAR BOTÃO "MÊS ANTERIOR" AO SER CLICAR VAI
+RETORNANDO PARA O MÊS ANTERIOR INICIALMENTE MÊS ANTERIOR AO DO PERÍODO JÁ DIGITADO
+OU DO MÊS ANTERIOR ATUAL SE PERÍODO ATUAL EM BRANCO, SE REPETIR CLIQUE VAI
+RETORNANDO MÊS A MÊS.
+
+EM "NOVO LANÇAMENTO" CAMPO "CONTA MOVIMENTO" ADICIONAR FUNÇÃO QUE PERMITE DIGITAR
+PARA PESQUISAR A CONTA AO DIGITAR PRIMEIRO CARACTERE APRESENTAR LISTA DOS 4
+PRIMEIROS REGISTROS EXISTENTES NO BANCO DE DADOS INDEPENDENTE DA POSIÇÃO DO
+CARACTER NO REGISTRO.</pre>
+    </div>
+  </div>
+</header>
+
+<div class="folha">
+
+<!-- ================================ SUMÁRIO ============================ -->
+<nav class="toc">
+  <h2>Sumário</h2>
+  <ol>
+    <li><a href="#s1">Como ler este estudo — o que é fato medido e o que é expectativa</a></li>
+    <li><a href="#s2">Panorama: os três pedidos lado a lado</a></li>
+    <li><a href="#s3">Pedido 1 — Mover o menu "OPÇÕES" para a esquerda</a>
+      <ol>
+        <li class="nivel2"><a href="#s3-1">O que existe hoje, exatamente</a></li>
+        <li class="nivel2"><a href="#s3-2">O que muda: três palavras e uma borda</a></li>
+        <li class="nivel2"><a href="#s3-3">A decisão que é sua: o botão vai junto?</a></li>
+        <li class="nivel2"><a href="#s3-4">Achado: a animação do painel não existe</a></li>
+      </ol>
+    </li>
+    <li><a href="#s4">Pedido 2 — Botões "MÊS ATUAL" e "MÊS ANTERIOR"</a>
+      <ol>
+        <li class="nivel2"><a href="#s4-1">O que existe hoje</a></li>
+        <li class="nivel2"><a href="#s4-2">O comportamento pedido, passo a passo</a></li>
+        <li class="nivel2"><a href="#s4-3">Tabela de exemplos, com datas reais</a></li>
+        <li class="nivel2"><a href="#s4-4">A ambiguidade do "período já digitado" — preciso da sua decisão</a></li>
+        <li class="nivel2"><a href="#s4-5">Armadilha 1: o mês que pula fevereiro</a></li>
+        <li class="nivel2"><a href="#s4-6">Armadilha 2: a data que volta um dia sozinha</a></li>
+        <li class="nivel2"><a href="#s4-7">Armadilha 3: duas mudanças, uma busca só (ou duas?)</a></li>
+        <li class="nivel2"><a href="#s4-8">Onde o código entra</a></li>
+      </ol>
+    </li>
+    <li><a href="#s5">Pedido 3 — "CONTA MOVIMENTO" que se digita</a>
+      <ol>
+        <li class="nivel2"><a href="#s5-1">A boa notícia, medida: as peças já existem</a></li>
+        <li class="nivel2"><a href="#s5-2">As evidências, arquivo por arquivo</a></li>
+        <li class="nivel2"><a href="#s5-3">O que realmente falta</a></li>
+        <li class="nivel2"><a href="#s5-4">Existe uma SEGUNDA "Conta Movimento" na mesma tela</a></li>
+        <li class="nivel2"><a href="#s5-5">Achado grave: a busca do banco devolve conta DESATIVADA (RN-06)</a></li>
+        <li class="nivel2"><a href="#s5-6">Achado: sem a permissão cm_ver, o campo mente</a></li>
+      </ol>
+    </li>
+    <li><a href="#s6">BÔNUS — oito sugestões que você não pediu</a></li>
+    <li><a href="#s7">Ordem de execução sugerida e como validar</a></li>
+    <li><a href="#s8">O que eu NÃO posso garantir</a></li>
+    <li><a href="#s9">O que preciso de você para começar</a></li>
+  </ol>
+</nav>
+
+<!-- ================================ SEÇÃO 1 ============================ -->
+<section id="s1">
+  <h2>1. Como ler este estudo — o que é fato medido e o que é expectativa</h2>
+
+  <p>Este documento tem duas naturezas de afirmação, e misturá-las seria desonesto. Por isso
+  elas ficam separadas o tempo todo:</p>
+
+  <table>
+    <thead>
+      <tr><th style="width:26%">Natureza</th><th>O que significa</th><th style="width:26%">Como aparece aqui</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>FATO MEDIDO</strong></td>
+        <td>Eu abri o arquivo e li a linha. Se eu disser "a função existe no banco", é porque
+            encontrei o <code>CREATE FUNCTION</code> dela e a linha do <code>GRANT</code>.</td>
+        <td>Vem com o caminho do arquivo e o número da linha</td>
+      </tr>
+      <tr>
+        <td><strong>EXPECTATIVA</strong></td>
+        <td>É o que eu espero que aconteça quando o código rodar. Não é mentira, mas também
+            não é prova: nada foi executado no seu navegador.</td>
+        <td>Vem escrito "expectativa", "deve" ou "espero"</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="caixa atencao">
+    <span class="titulo">Por que essa distinção importa tanto neste projeto</span>
+    <p>O histórico deste repositório tem pelo menos quatro casos em que algo "parecia certo na
+    leitura" e só falhou ao executar — o <code>fin_extrato</code>, com três erros de SQL
+    descobertos apenas rodando; o <code>REVOKE</code> que desligou o módulo em silêncio; o
+    ícone renomeado pelo <code>lucide-react</code> 1.x, que devolve <code>undefined</code> sem
+    acusar erro nenhum. Ler o código responde "o que está escrito"; só executar responde "o que
+    acontece".</p>
+  </div>
+
+  <p><strong>Uma observação sobre o vocabulário.</strong> Vou chamar de "tela" o navegador, de
+  "banco" o PostgreSQL do Supabase, e de "Core" a pasta <code>packages/core</code>, que é o
+  cérebro compartilhado pelos dois aplicativos. Quando eu disser que algo "não toca o banco",
+  significa que <strong>você não vai precisar rodar nenhum arquivo SQL no Supabase</strong> —
+  é a pergunta mais prática de todas, então ela aparece em toda seção.</p>
+</section>
+
+<!-- ================================ SEÇÃO 2 ============================ -->
+<section id="s2">
+  <h2>2. Panorama: os três pedidos lado a lado</h2>
+
+  <p>Antes do detalhe, o retrato geral. Os três pedidos são independentes — nenhum depende de
+  outro — e nenhum dos três exige rodar SQL:</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:23%">Pedido</th>
+        <th style="width:15%">Toca o banco?</th>
+        <th style="width:17%">Arquivos afetados</th>
+        <th style="width:13%">Risco</th>
+        <th>Por que esse risco</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>1. Menu à esquerda</strong></td>
+        <td class="ok">Não</td>
+        <td>2 arquivos</td>
+        <td class="ok">Muito baixo</td>
+        <td>É posição na tela. Se ficar ruim, volta trocando uma palavra.</td>
+      </tr>
+      <tr>
+        <td><strong>2. Botões de mês</strong></td>
+        <td class="ok">Não</td>
+        <td>3 a 4 arquivos</td>
+        <td class="meio">Médio</td>
+        <td>Cálculo de data é onde o JavaScript mais engana — ver as três armadilhas da seção 4.</td>
+      </tr>
+      <tr>
+        <td><strong>3. Conta Movimento digitável</strong></td>
+        <td class="ok">Não</td>
+        <td>2 a 3 arquivos</td>
+        <td class="ok">Baixo</td>
+        <td>A peça já existe e já roda em produção no campo da categoria, desde 13/09.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="caixa destaque">
+    <span class="titulo">A conclusão mais útil do estudo inteiro, em uma frase</span>
+    <p><strong>Nenhum dos três pedidos exige rodar arquivo SQL no Supabase.</strong> É só
+    enviar ao GitHub, esperar a Vercel construir e testar na tela. Isso vale para os três — e
+    é a diferença entre um dia de trabalho e vinte minutos de conferência.</p>
+  </div>
+</section>
+
+<!-- ================================ SEÇÃO 3 ============================ -->
+<section id="s3">
+  <h2>3. Pedido 1 — Mover o menu "OPÇÕES" para a esquerda</h2>
+
+  <h3 id="s3-1">3.1 O que existe hoje, exatamente</h3>
+
+  <p>Hoje a peça tem duas partes, e elas moram em arquivos diferentes:</p>
+
+  <table>
+    <thead>
+      <tr><th style="width:34%">Parte</th><th style="width:33%">Onde está</th><th>Como está</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>O botão OPÇÕES</strong><br>(o que você clica)</td>
+        <td><code>components/financeiro/MolduraFinanceiro.tsx</code><br>linhas 75 a 85</td>
+        <td>No canto <strong>direito</strong> da faixa do topo, ao lado do seu e-mail</td>
+      </tr>
+      <tr>
+        <td><strong>O painel</strong><br>(a lista que desliza)</td>
+        <td><code>components/financeiro/menu/PainelDeOpcoes.tsx</code><br>linha 76</td>
+        <td>Colado na borda <strong>direita</strong> da janela, altura inteira, com a
+            borda decorativa do lado esquerdo</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>A linha exata que decide o lado é esta:</p>
+
+<pre><code>className="fixed top-0 right-0 z-50 h-full w-[19rem] max-w-[85vw] bg-white border-l border-slate-200
+           shadow-2xl flex flex-col animate-fade-in"</code></pre>
+
+  <p>Traduzindo cada pedaço para português, porque é isso que explica por que a mudança é tão
+  pequena:</p>
+
+  <ul>
+    <li><code>fixed</code> — "não role com a página, fique preso na janela".</li>
+    <li><code>top-0 right-0</code> — "encoste no topo e na <strong>direita</strong>".</li>
+    <li><code>h-full</code> — "ocupe a altura inteira".</li>
+    <li><code>w-[19rem] max-w-[85vw]</code> — "tenha 19rem (cerca de 304 pixels) de largura,
+        mas nunca mais que 85% da largura da tela" — é o que impede o painel de cobrir tudo
+        numa janela estreita.</li>
+    <li><code>border-l</code> — "desenhe a linha cinza divisória do lado <strong>esquerdo</strong>",
+        que é o lado voltado para o conteúdo.</li>
+  </ul>
+
+  <h3 id="s3-2">3.2 O que muda: três palavras e uma borda</h3>
+
+  <table>
+    <thead>
+      <tr><th style="width:28%">Arquivo</th><th style="width:20%">Hoje</th><th style="width:20%">Depois</th><th>Por quê</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>PainelDeOpcoes.tsx</code> (76)</td>
+        <td><code>right-0</code></td>
+        <td><code>left-0</code></td>
+        <td>É literalmente isto que move o painel de lado</td>
+      </tr>
+      <tr>
+        <td><code>PainelDeOpcoes.tsx</code> (76)</td>
+        <td><code>border-l</code></td>
+        <td><code>border-r</code></td>
+        <td>A linha divisória tem de ficar do lado do conteúdo. Esquecer isso deixa uma
+            risca cinza colada na borda da janela, onde ninguém a vê, e o painel fica
+            sem separação visual do texto</td>
+      </tr>
+      <tr>
+        <td><code>MolduraFinanceiro.tsx</code> (73-74)</td>
+        <td colspan="2">Comentário dizendo "o painel entra pela direita"</td>
+        <td>Comentário que mente é pior que comentário nenhum: quem ler daqui a três meses
+            vai procurar um defeito que não existe</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="caixa exemplo">
+    <span class="titulo">Exemplo prático — o que você vai ver</span>
+    <p><strong>Antes:</strong> você clica em OPÇÕES (canto superior direito) e o painel branco
+    aparece grudado na borda <em>direita</em>. O conteúdo escurece atrás de uma cortina.</p>
+    <p><strong>Depois:</strong> o painel aparece grudado na borda <em>esquerda</em>, com a
+    mesma cortina, a mesma largura e os mesmos itens. Nada mais muda: os níveis continuam
+    abrindo ao clique, o item da tela atual continua destacado em azul, e clicar fora continua
+    fechando.</p>
+  </div>
+
+  <h3 id="s3-3">3.3 A decisão que é sua: o botão vai junto?</h3>
+
+  <div class="caixa decisao">
+    <span class="titulo">Preciso da sua resposta nesta</span>
+    <p>Seu pedido diz "move o <strong>menu</strong> para o lado esquerdo". O menu tem duas
+    partes — o <strong>botão</strong> e o <strong>painel</strong> —, e a frase não diz se o
+    botão vai junto. São três caminhos possíveis:</p>
+
+    <table>
+      <thead>
+        <tr><th style="width:8%">#</th><th style="width:28%">O quê</th><th>Como fica, na prática</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>A</strong></td>
+          <td><strong>Só o painel vai</strong><br>(leitura literal do pedido)</td>
+          <td>Você clica no canto <em>direito</em> e o painel abre no <em>esquerdo</em>.
+              Funciona perfeitamente, mas o olho acompanha o dedo: clicar num canto e a coisa
+              aparecer no outro dá um "salto" que cansa no uso diário.</td>
+        </tr>
+        <tr>
+          <td><strong>B</strong></td>
+          <td><strong>Painel e botão vão</strong><br><em>(minha recomendação)</em></td>
+          <td>O botão passa para a esquerda da faixa do topo — logo depois do botão PAINEL —
+              e o painel abre do mesmo lado. Clique e resultado no mesmo lugar. É o padrão da
+              maioria dos sistemas com menu lateral.</td>
+        </tr>
+        <tr>
+          <td><strong>C</strong></td>
+          <td>Painel à esquerda e botão <strong>flutuante</strong> na lateral</td>
+          <td>Um botão redondo colado na borda esquerda, meia altura. Chama mais atenção, mas
+              cobre conteúdo e destoa do resto do módulo, que não tem nada flutuante. Cito
+              para ser completo; não recomendo.</td>
+        </tr>
+      </tbody>
+    </table>
+    <p><strong>Se você não responder, eu faço a opção B</strong> e digo isso no relatório —
+    porque a A cria um desconforto que você notaria no terceiro dia e me pediria para mudar.</p>
+  </div>
+
+  <h3 id="s3-4">3.4 Achado: a animação do painel não existe (e nunca existiu)</h3>
+
+  <div class="caixa perigo">
+    <span class="titulo">Fato medido, não suposição</span>
+    <p>A linha do painel termina com a classe <code>animate-fade-in</code>, que dá a entender
+    que ele aparece com um esmaecimento suave. <strong>Essa classe não está definida em lugar
+    nenhum do projeto.</strong> Eu procurei:</p>
+    <ul>
+      <li>O arquivo <code>apps/admin-web/src/app/globals.css</code> tem <strong>15 linhas no
+      total</strong> e não contém nenhum <code>@keyframes</code>, nenhum <code>@theme</code>
+      e nenhuma menção a <code>fade-in</code>.</li>
+      <li>O Tailwind 4 traz de fábrica apenas quatro animações — <code>spin</code>,
+      <code>ping</code>, <code>pulse</code> e <code>bounce</code>. <code>fade-in</code> não é
+      uma delas.</li>
+      <li>A classe está escrita em <strong>10 lugares</strong> do <code>admin-web</code>: no
+      painel de opções, na Catraca, em cinco telas de autenticação, no menu principal e nos
+      ajustes globais.</li>
+    </ul>
+    <p><strong>Consequência real:</strong> nenhuma dessas dez telas anima coisa alguma. Elas
+    aparecem secamente, de um quadro para o outro. Não é um defeito que quebre nada — é uma
+    promessa escrita no código que o código não cumpre, e que faz qualquer pessoa (inclusive
+    eu, se não tivesse conferido) supor que a animação existe.</p>
+    <p><strong>Isto não faz parte do seu pedido.</strong> Está no bônus B2, com a correção, que
+    são cinco linhas de CSS num arquivo só.</p>
+  </div>
+
+  <p><strong>Resumo do pedido 1:</strong> não toca o banco, não toca o Core, não toca nenhuma
+  tela além da moldura do módulo. É a mudança mais barata das três — e é reversível trocando
+  <code>left-0</code> de volta por <code>right-0</code>.</p>
+</section>
+
+<!-- ================================ SEÇÃO 4 ============================ -->
+<section id="s4">
+  <h2>4. Pedido 2 — Botões "MÊS ATUAL" e "MÊS ANTERIOR"</h2>
+
+  <h3 id="s4-1">4.1 O que existe hoje</h3>
+
+  <p>Na tela <strong>NOVO LANÇAMENTO</strong>, a coluna da direita é a <strong>CONFERÊNCIA DA
+  CONTA</strong> (<code>components/financeiro/lancamento/PainelDeConferencia.tsx</code>). Ela
+  tem três campos, nesta ordem:</p>
+
+  <ol>
+    <li><strong>CONTA MOVIMENTO</strong> — uma lista suspensa (linhas 92 a 96)</li>
+    <li><strong>DATA INICIAL</strong> — um campo de data do navegador (linha 100)</li>
+    <li><strong>DATA FINAL</strong> — outro campo de data (linha 104)</li>
+  </ol>
+
+  <p>O extrato só aparece quando <strong>os três</strong> estão preenchidos — é a regra RN-17,
+  e ela está no cérebro da tela (<code>useNovoLancamento.ts</code>, linha 88):
+  <code>if (!tenantId || !contaExtrato || !de || !ate) { setLinhas([]); return; }</code>.
+  Enquanto faltar um, a tela mostra o recado "INFORME A CONTA, A DATA INICIAL E A DATA FINAL".</p>
+
+  <p>Hoje, para ver setembro, você digita duas datas à mão. Para ver agosto, digita outras
+  duas. É exatamente esse atrito que os botões eliminam.</p>
+
+  <h3 id="s4-2">4.2 O comportamento pedido, passo a passo</h3>
+
+  <p>Li seu pedido como três regras. Vou escrevê-las do jeito mais literal possível, para você
+  confirmar ou corrigir:</p>
+
+  <div class="caixa destaque">
+    <span class="titulo">Regra 1 — Botão "MÊS ATUAL"</span>
+    <p>Ao clicar, DATA INICIAL recebe o <strong>primeiro dia do mês corrente</strong> e DATA
+    FINAL recebe o <strong>último dia do mês corrente</strong>. Não importa o que estava lá
+    antes — este botão sempre leva ao mês de hoje. É o botão "me traga de volta".</p>
+  </div>
+
+  <div class="caixa destaque">
+    <span class="titulo">Regra 2 — Botão "MÊS ANTERIOR", primeiro clique</span>
+    <ul>
+      <li>Se o período <strong>está em branco</strong> → preenche o mês anterior ao de hoje.</li>
+      <li>Se o período <strong>já está preenchido</strong> → preenche o mês anterior ao do
+          período que está lá.</li>
+    </ul>
+  </div>
+
+  <div class="caixa destaque">
+    <span class="titulo">Regra 3 — Botão "MÊS ANTERIOR", cliques seguintes</span>
+    <p>Cada novo clique recua mais um mês, a partir do que está na tela. Clicando quatro vezes
+    seguidas a partir de setembro: agosto, julho, junho, maio. Não há limite — dá para chegar
+    a 2019 clicando bastante.</p>
+  </div>
+
+  <h3 id="s4-3">4.3 Tabela de exemplos, com datas reais</h3>
+
+  <p>Considerando que <strong>hoje é 14 de setembro de 2026</strong>:</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:14%">Ação</th>
+        <th style="width:24%">Como o período estava</th>
+        <th style="width:24%">Como fica</th>
+        <th>Observação</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>MÊS ATUAL</td>
+        <td>(vazio)</td>
+        <td><strong>01/09/2026 a 30/09/2026</strong></td>
+        <td>Setembro tem 30 dias — o último dia é calculado, nunca chutado como 30 ou 31</td>
+      </tr>
+      <tr>
+        <td>MÊS ATUAL</td>
+        <td>05/03/2026 a 12/03/2026</td>
+        <td><strong>01/09/2026 a 30/09/2026</strong></td>
+        <td>Sobrescreve sem perguntar — é o propósito do botão</td>
+      </tr>
+      <tr>
+        <td>MÊS ANTERIOR</td>
+        <td>(vazio)</td>
+        <td><strong>01/08/2026 a 31/08/2026</strong></td>
+        <td>Agosto, o mês anterior ao de hoje. Agosto tem 31 dias</td>
+      </tr>
+      <tr>
+        <td>MÊS ANTERIOR</td>
+        <td>01/09/2026 a 30/09/2026</td>
+        <td><strong>01/08/2026 a 31/08/2026</strong></td>
+        <td>Um passo atrás a partir do que estava na tela</td>
+      </tr>
+      <tr>
+        <td>MÊS ANTERIOR<br>(4º clique seguido)</td>
+        <td>01/09/2026 a 30/09/2026</td>
+        <td><strong>01/05/2026 a 31/05/2026</strong></td>
+        <td>Set → ago → jul → jun → mai</td>
+      </tr>
+      <tr>
+        <td>MÊS ANTERIOR</td>
+        <td>01/01/2026 a 31/01/2026</td>
+        <td><strong>01/12/2025 a 31/12/2025</strong></td>
+        <td><strong>Vira o ano sozinho.</strong> Janeiro menos um mês é dezembro do ano
+            anterior — e isso precisa estar num teste, não na esperança</td>
+      </tr>
+      <tr>
+        <td>MÊS ANTERIOR</td>
+        <td>10/09/2026 a 20/09/2026<br><em>(período parcial)</em></td>
+        <td><strong>01/08/2026 a 31/08/2026</strong></td>
+        <td>É o caso ambíguo. Ver 4.4, logo abaixo</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 id="s4-4">4.4 A ambiguidade do "período já digitado" — preciso da sua decisão</h3>
+
+  <p>Seu pedido diz "mês anterior ao do <strong>período já digitado</strong>". Isso é claro
+  quando o período é um mês inteiro. Mas e quando não é?</p>
+
+  <div class="caixa decisao">
+    <span class="titulo">O caso concreto</span>
+    <p>Suponha que você digitou <strong>10/09/2026 a 20/09/2026</strong> — onze dias no meio de
+    setembro — e clicou em MÊS ANTERIOR. Há duas leituras defensáveis:</p>
+
+    <table>
+      <thead>
+        <tr><th style="width:28%">Leitura</th><th style="width:24%">Resultado</th><th>Consequência</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>1. "Mês inteiro anterior"</strong><br><em>(minha recomendação)</em></td>
+          <td>01/08/2026 a 31/08/2026</td>
+          <td>O botão sempre entrega um mês fechado, do dia 1 ao último dia. É previsível:
+              clicar nele significa "quero ver um mês inteiro". O período parcial que você
+              tinha é descartado.</td>
+        </tr>
+        <tr>
+          <td><strong>2. "Deslocar um mês"</strong></td>
+          <td>10/08/2026 a 20/08/2026</td>
+          <td>Preserva a duração e os dias que você escolheu. Parece elegante, mas cria um
+              problema real: partindo de <strong>31/03</strong>, qual é o "31 de fevereiro"?
+              Não existe. Toda implementação precisa inventar uma regra (cair no dia 28? no 1º
+              de março?), e inventar regra de data é como se criam defeitos que aparecem uma
+              vez por ano.</td>
+        </tr>
+      </tbody>
+    </table>
+    <p><strong>Vou de leitura 1</strong>, a menos que você diga o contrário. O botão se chama
+    "MÊS ANTERIOR", não "onze dias antes" — e o nome do botão é a promessa que ele faz.</p>
+  </div>
+
+  <div class="caixa atencao">
+    <span class="titulo">E se só uma das duas datas estiver preenchida?</span>
+    <p>Caso real e fácil de acontecer: você digita a DATA INICIAL e é interrompido antes de
+    digitar a FINAL. Minha proposta: <strong>a referência é sempre a DATA INICIAL</strong>
+    quando ela existe; se só houver DATA FINAL, uso ela; se não houver nenhuma, uso hoje.
+    Assim o botão nunca fica sem resposta — e nunca precisa adivinhar.</p>
+  </div>
+
+  <h3 id="s4-5">4.5 Armadilha 1: o mês que pula fevereiro</h3>
+
+  <div class="caixa perigo">
+    <span class="titulo">O erro mais comum de todos, e ele é silencioso</span>
+    <p>A forma "óbvia" de voltar um mês em JavaScript é subtrair 1 do número do mês. Ela está
+    errada, e o erro só aparece em certos dias do mês:</p>
+<pre><code>// ❌ ERRADO — parece certo e funciona quase sempre
+const d = new Date(2026, 2, 31);   // 31 de MARÇO de 2026
+d.setMonth(d.getMonth() - 1);      // "um mês atrás"
+// resultado: 3 de MARÇO de 2026 (!!)</code></pre>
+    <p><strong>Por que isso acontece:</strong> o JavaScript tenta montar "31 de fevereiro".
+    Como fevereiro de 2026 tem 28 dias, ele transborda três dias para a frente e cai em 3 de
+    março. O programa não acusa nada — nenhum erro, nenhum aviso. Ele simplesmente devolve o
+    mês errado, e só nos dias 29, 30 e 31.</p>
+    <p><strong>Tradução para o seu uso:</strong> se o período na tela fosse 31/03/2026 a
+    31/03/2026 e o cálculo fosse feito assim, clicar em MÊS ANTERIOR mostraria <strong>março de
+    novo</strong>. Você clicaria outra vez, e outra, e nada mudaria — um defeito que parece "o
+    botão não funciona", quando na verdade ele está funcionando perfeitamente com a conta
+    errada.</p>
+    <p><strong>A correção:</strong> nunca calcular a partir do dia que está lá. Ancorar sempre
+    no <strong>dia 1</strong> do mês de referência, e só então perguntar qual é o último dia do
+    mês resultante:</p>
+<pre><code>// ✅ CERTO — ancorar no dia 1 elimina o transbordo
+const ref       = new Date(2026, 2, 1);   // 1º de março (dia 1, sempre)
+const anterior  = new Date(ref.getFullYear(), ref.getMonth() - 1, 1);       // 1º de fevereiro
+const ultimo    = new Date(anterior.getFullYear(), anterior.getMonth() + 1, 0);  // 28/02
+
+// O truque do "dia 0": o dia 0 do mês seguinte É o último dia deste mês.
+// Funciona para 28, 29 (bissexto), 30 e 31 sem nenhuma tabela de meses.</code></pre>
+    <p>E o <code>getMonth() - 1</code> quando o mês é janeiro (valor 0) vira −1, que o
+    JavaScript entende corretamente como dezembro do ano anterior. <strong>Essa parte ele
+    acerta sozinho</strong> — é o dia que ele erra, não o ano.</p>
+  </div>
+
+  <h3 id="s4-6">4.6 Armadilha 2: a data que volta um dia sozinha</h3>
+
+  <div class="caixa perigo">
+    <span class="titulo">Já documentada no projeto, e vale exatamente aqui</span>
+    <p>Os campos DATA INICIAL e DATA FINAL guardam texto no formato <code>"2026-09-01"</code>.
+    Para transformar esse texto em data e fazer contas, o caminho tentador é
+    <code>new Date("2026-09-01")</code>. <strong>Esse caminho está errado no Brasil.</strong></p>
+    <p>A especificação do JavaScript manda interpretar uma string só com data como
+    <strong>UTC</strong> — o fuso de Greenwich. Como Brasília está três horas atrás, a data
+    nasce às 21:00 do <strong>dia anterior</strong>. Na prática: você pede 1º de setembro e
+    recebe 31 de agosto.</p>
+    <p><strong>A boa notícia:</strong> este projeto já resolveu isso, e as funções estão
+    prontas em <code>packages/core/src/lib/datas.ts</code>:</p>
+    <ul>
+      <li><code>deDataISO("2026-09-01")</code> — lê o texto como meia-noite <strong>local</strong>,
+          montando a data com os três números separados;</li>
+      <li><code>dataLocalISO(data)</code> — faz o caminho de volta, sem passar por UTC;</li>
+      <li><code>hojeISO()</code> — a data de hoje, já no formato dos campos.</li>
+    </ul>
+    <p>O cabeçalho daquele arquivo dedica trinta linhas a explicar justamente esta armadilha.
+    Vou usar as três funções — <strong>não vou escrever cálculo de data novo por fora delas</strong>.</p>
+  </div>
+
+  <h3 id="s4-7">4.7 Armadilha 3: duas mudanças, uma busca só (ou duas?)</h3>
+
+  <p>Clicar num botão de mês muda <strong>duas</strong> coisas ao mesmo tempo: a data inicial e
+  a data final. E o extrato se recarrega sozinho sempre que uma delas muda — é o efeito da
+  linha 99 do <code>useNovoLancamento.ts</code>.</p>
+
+  <p>A pergunta natural: <strong>isso vai bater duas vezes no banco a cada clique?</strong></p>
+
+  <div class="caixa exemplo">
+    <span class="titulo">A resposta honesta, com a ressalva</span>
+    <p><strong>Expectativa:</strong> não. Desde o React 18 existe um comportamento chamado
+    <em>automatic batching</em>: várias mudanças de estado disparadas dentro do mesmo evento
+    (aqui, o clique) são agrupadas numa renderização só. Este projeto usa React 19.2.3, então o
+    agrupamento vale. Uma busca por clique.</p>
+    <p><strong>A ressalva honesta:</strong> isso é o comportamento documentado do React, não uma
+    medição minha neste projeto. Se na prática o extrato piscar duas vezes por clique, a
+    correção é conhecida e simples — trocar os dois estados separados por um objeto de período
+    único, de modo que só exista uma mudança. Eu <em>não</em> vou fazer isso de saída: seria
+    complicar a tela por um problema que provavelmente não existe.</p>
+  </div>
+
+  <h3 id="s4-8">4.8 Onde o código entra</h3>
+
+  <table>
+    <thead>
+      <tr><th style="width:38%">Arquivo</th><th style="width:18%">Situação</th><th>O que entra</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>packages/core/src/lib/datas.ts</code></td>
+        <td>Já existe</td>
+        <td>Três funções novas: <code>primeiroDiaDoMes</code>, <code>ultimoDiaDoMes</code> e
+            <code>mesAnterior</code>. Ficam no Core, e não na tela, porque cálculo de data é
+            regra — e porque a tela PESQUISAR vai querer as mesmas (bônus B1)</td>
+      </tr>
+      <tr>
+        <td><code>packages/core/src/lib/datas.test.ts</code></td>
+        <td class="meio">Provavelmente novo</td>
+        <td>Os testes das três funções: 31/03, janeiro virando dezembro, fevereiro bissexto.
+            São os casos que a leitura não pega — e o <code>npm test</code> já roda sem
+            dependência nenhuma neste projeto</td>
+      </tr>
+      <tr>
+        <td><code>lancamento/useNovoLancamento.ts</code></td>
+        <td>Já existe</td>
+        <td>Duas funções curtas — <code>irParaMesAtual()</code> e <code>irParaMesAnterior()</code>
+            — expostas junto do resto de <code>conferencia</code></td>
+      </tr>
+      <tr>
+        <td><code>lancamento/PainelDeConferencia.tsx</code></td>
+        <td>Já existe</td>
+        <td>Os dois botões, logo abaixo dos campos de data</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p><strong>Toca o banco?</strong> Não. Nenhum arquivo SQL, nenhuma função nova no PostgreSQL,
+  nenhum <code>GRANT</code>. O <code>fin_extrato</code> já recebe duas datas e não se importa
+  com quem as escolheu.</p>
+
+  <div class="caixa atencao">
+    <span class="titulo">Um detalhe de desenho que vale decidir agora</span>
+    <p>Onde colocar os botões? Minha proposta: <strong>numa linha própria, logo abaixo dos dois
+    campos de data</strong>, pequenos e discretos — como atalhos, que é o que são. Pôr ao lado
+    do IMPRIMIR os afastaria das datas que eles controlam; pôr acima empurraria os campos para
+    baixo, e a coluna já é alta. Se preferir de outro jeito, é só dizer.</p>
+  </div>
+</section>
+
+<!-- ================================ SEÇÃO 5 ============================ -->
+<section id="s5">
+  <h2>5. Pedido 3 — "CONTA MOVIMENTO" que se digita</h2>
+
+  <h3 id="s5-1">5.1 A boa notícia, medida: as peças já existem</h3>
+
+  <p>Este pedido é quase idêntico ao que você fez em 13/09 para o campo CONTA IDENTIFICADORA
+  (a categoria). Naquele dia foram construídas as peças — e <strong>duas delas já nasceram
+  prontas para a conta movimento também</strong>. Isto não é impressão: é o que os arquivos
+  dizem.</p>
+
+  <table>
+    <thead>
+      <tr><th style="width:8%">Peça</th><th style="width:30%">O quê</th><th style="width:14%">Existe?</th><th>Onde</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td>A função de busca <strong>no banco</strong></td>
+        <td class="ok">SIM</td>
+        <td><code>fin_buscar_contas_movimento</code> — <code>financeiro_01_schema.sql</code>, linha 291</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>A <strong>permissão</strong> de executá-la</td>
+        <td class="ok">SIM</td>
+        <td><code>REVOKE</code> na linha 1457 e <code>GRANT … TO authenticated</code> na
+            linha 1477 — o par completo que o projeto exige</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>O <strong>serviço</strong> que chama a função</td>
+        <td class="ok">SIM</td>
+        <td><code>cadastroFinanceiroService.sugerirContasMovimento</code> —
+            <code>cadastroService.ts</code>, linha 72</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>O <strong>campo</strong> na tela</td>
+        <td class="ok">SIM</td>
+        <td><code>SelecaoComBusca.tsx</code> — genérico, já usado pela categoria</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td>A <strong>ligação</strong> entre os quatro</td>
+        <td class="nao">NÃO</td>
+        <td>É só isto que falta</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="caixa exemplo">
+    <span class="titulo">Por que isso é tão bom</span>
+    <p>Significa que <strong>você não precisa rodar nada no Supabase</strong> para este pedido.
+    A função já está lá, já tem permissão, e nunca foi chamada por ninguém — é uma tomada
+    instalada esperando o aparelho. O trabalho é de tela apenas.</p>
+  </div>
+
+  <h3 id="s5-2">5.2 As evidências, arquivo por arquivo</h3>
+
+  <p>A função do banco, como ela realmente está escrita (linhas 291 a 311 do schema do módulo):</p>
+
+<pre><code>CREATE OR REPLACE FUNCTION public.fin_buscar_contas_movimento(p_tenant_id uuid, p_texto text)
+RETURNS TABLE (id uuid, nome text, tipo text, is_active boolean)
+...
+  IF NOT public.fin_pode(p_tenant_id, 'cm_ver') THEN
+    RAISE EXCEPTION 'Sem permissao para ver contas movimento.' USING ERRCODE = '42501';
+  END IF;
+
+  RETURN QUERY
+    SELECT c.id, c.nome, c.tipo, c.is_active
+      FROM public.fin_contas_movimento c
+     WHERE c.tenant_id = p_tenant_id
+       AND c.nome_normalizado LIKE '%' || public.fin_normalizar(p_texto) || '%'
+     ORDER BY c.is_active DESC, c.nome
+     LIMIT 4;</code></pre>
+
+  <p>Três coisas nessa consulta atendem ao seu pedido ao pé da letra:</p>
+
+  <ul>
+    <li><strong><code>LIMIT 4</code></strong> — exatamente os "4 primeiros registros" que você
+    pediu. Já estava assim.</li>
+    <li><strong><code>LIKE '%texto%'</code></strong> — o <code>%</code> dos <em>dois</em> lados
+    é o que significa "independente da posição do caractere". Com <code>%</code> só no fim,
+    digitar "LUZ" acharia "LUZ ELÉTRICA" mas nunca "CONTA DE LUZ". Com os dois, acha os dois.</li>
+    <li><strong><code>fin_normalizar</code></strong> — a mesma função que gera a coluna
+    <code>nome_normalizado</code> e alimenta o índice único. Ela tira acento, apara espaços e
+    põe em maiúsculas. Resultado prático: digitar <code>agua</code> acha <strong>ÁGUA</strong>,
+    e digitar <code>itau</code> acha <strong>BANCO ITAÚ</strong>.</li>
+  </ul>
+
+  <h3 id="s5-3">5.3 O que realmente falta</h3>
+
+  <p>Na minha lista de pendências eu tinha anotado "~4 linhas". Relendo o código de perto,
+  <strong>isso estava otimista</strong> — são três mudanças pequenas, não uma:</p>
+
+  <table>
+    <thead>
+      <tr><th style="width:36%">Onde</th><th>O que entra</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>useNovoLancamento.ts</code><br>(ao lado da linha 129)</td>
+        <td>Uma função irmã da <code>sugerirIdentificadoras</code> que já existe, chamando
+            <code>sugerirContasMovimento</code>. São 4 linhas — essas sim</td>
+      </tr>
+      <tr>
+        <td><code>FormularioDeLancamento.tsx</code><br>(linhas 111 a 115)</td>
+        <td>Trocar o <code>&lt;select&gt;</code> pelo <code>&lt;SelecaoComBusca&gt;</code>. O
+            componente já está importado no arquivo, na linha 7 — não precisa nem de import novo</td>
+      </tr>
+      <tr>
+        <td><code>FormularioDeLancamento.tsx</code><br>(linha 102)</td>
+        <td>O <code>&lt;label htmlFor="l-conta"&gt;</code> precisa apontar para o id novo do
+            campo, senão clicar no rótulo deixa de levar o cursor até ele — detalhe de
+            acessibilidade que some do olhar e some dos testes</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="caixa exemplo">
+    <span class="titulo">Um ganho de brinde que vem junto</span>
+    <p>O <code>SelecaoComBusca</code> mostra, em cinza ao lado de cada sugestão, o campo
+    <code>tipo</code> de cada registro. Para as contas movimento, o tipo é o que estiver no
+    cadastro (CAIXA, BANCO, e assim por diante). Ou seja: ao digitar "C", a lista já mostra
+    qual é caixa e qual é banco, sem você precisar lembrar. No <code>&lt;select&gt;</code> de
+    hoje aparece só o nome.</p>
+  </div>
+
+  <h3 id="s5-4">5.4 Existe uma SEGUNDA "Conta Movimento" na mesma tela</h3>
+
+  <div class="caixa decisao">
+    <span class="titulo">Preciso da sua resposta nesta também</span>
+    <p>A tela NOVO LANÇAMENTO tem <strong>dois</strong> campos chamados CONTA MOVIMENTO, e eles
+    fazem coisas diferentes:</p>
+    <table>
+      <thead>
+        <tr><th style="width:26%">Qual</th><th style="width:30%">Onde</th><th>Para que serve</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>O do formulário</strong><br>(coluna esquerda)</td>
+          <td><code>FormularioDeLancamento.tsx</code>, linha 111</td>
+          <td>Em que conta o dinheiro entra ou sai. <strong>É este que você pediu.</strong></td>
+        </tr>
+        <tr>
+          <td><strong>O da conferência</strong><br>(coluna direita)</td>
+          <td><code>PainelDeConferencia.tsx</code>, linha 92</td>
+          <td>De qual conta você quer ver o extrato ao lado</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>Seu pedido cita só "EM NOVO LANÇAMENTO CAMPO CONTA MOVIMENTO", o que aponta para o
+    primeiro. <strong>Minha recomendação é mudar os dois</strong>, e o motivo é concreto: se só
+    um mudar, a mesma tela passa a ter dois campos com o mesmo nome e comportamentos diferentes
+    — num você digita, no outro não. Isso é pior do que os dois serem antigos, porque ensina
+    uma coisa e cobra outra.</p>
+    <p>O custo de incluir o segundo é <strong>quatro linhas</strong>: o componente e a função de
+    busca já estarão prontos por causa do primeiro.</p>
+  </div>
+
+  <h3 id="s5-5">5.5 Achado grave: a busca do banco devolve conta DESATIVADA</h3>
+
+  <div class="caixa perigo">
+    <span class="titulo">Fato medido — e este já está no ar desde 13/09, no campo da categoria</span>
+    <p>Comparei três coisas, e elas não combinam entre si:</p>
+    <ol>
+      <li><strong>A regra do módulo (RN-06),</strong> escrita na sua especificação: <em>"Conta
+      desativada some das listas de lançamento novo, mas continua no histórico e no extrato."</em></li>
+      <li><strong>A lista suspensa de hoje respeita isso.</strong> O
+      <code>useNovoLancamento.ts</code> chama <code>listarContasMovimento(tenantId)</code> sem
+      pedir inativos, e o serviço filtra:
+      <code>if (!filtro.incluirInativos) q = q.eq('is_active', true)</code>.</li>
+      <li><strong>A função de busca do banco NÃO filtra.</strong> A consulta que copiei acima
+      não tem nenhuma condição sobre <code>is_active</code> — ela apenas ordena com
+      <code>is_active DESC</code>, o que joga as inativas para o fim da lista de 4, mas as
+      mantém lá.</li>
+    </ol>
+    <p><strong>O que isso produz na prática:</strong> uma conta que você desativou <em>não
+    aparece</em> quando você abre a lista, mas <em>aparece</em> quando você digita o nome dela.
+    E eu fui conferir se o banco recusaria um lançamento nessa conta: <strong>ele não
+    recusa.</strong> A função <code>fin_gravar_lancamento</code> verifica se a conta existe e é
+    da sua empresa (linhas 66 a 74 do corpo dela), mas não verifica se está ativa.</p>
+    <p><strong>Ou seja:</strong> é possível lançar dinheiro numa conta desativada, desde que
+    você chegue até ela digitando. Isso contraria a RN-06.</p>
+    <p><strong>E o mais importante para você saber:</strong> isto <strong>não é</strong> um
+    defeito que este pedido vai criar. Ele já existe hoje, em produção, no campo CONTA
+    IDENTIFICADORA — porque a <code>fin_buscar_identificadoras</code> tem exatamente o mesmo
+    desenho. O pedido 3 apenas <em>estende</em> o comportamento para a conta movimento.</p>
+    <p><strong>São três correções possíveis</strong>, e a escolha é sua (detalhe no bônus B6):
+    filtrar no banco, filtrar na tela, ou mostrar a inativa com uma etiqueta e impedir a
+    escolha. Nenhuma delas atrasa o pedido 3 — dá para entregar o pedido e tratar isto em
+    seguida.</p>
+  </div>
+
+  <h3 id="s5-6">5.6 Achado: sem a permissão <code>cm_ver</code>, o campo mente</h3>
+
+  <div class="caixa atencao">
+    <span class="titulo">Consequência de um <code>catch</code> silencioso</span>
+    <p>A função do banco começa recusando quem não tem a permissão <code>cm_ver</code>, com o
+    erro <code>42501</code>. Do outro lado, o <code>SelecaoComBusca.tsx</code> (linhas 125 a 127)
+    trata qualquer falha assim:</p>
+<pre><code>} catch {
+  if (meuTurno !== buscaAtual.current) return;
+  setSugestoes([]);        // ← a lista fica vazia, e ninguém fica sabendo por quê
+}</code></pre>
+    <p><strong>O efeito:</strong> um dependente sem a permissão <code>cm_ver</code> digitaria
+    "BANCO" e leria <em>"NENHUM REGISTRO ENCONTRADO"</em> — uma frase que afirma algo falso
+    sobre o cadastro da empresa. A verdade seria "você não tem permissão para ver as contas".</p>
+    <p><strong>Quão provável é isso na prática?</strong> Baixa, mas não nula: quem chega a essa
+    tela precisa de <code>lc_criar</code>, e é plausível que o proprietário libere
+    <code>lc_criar</code> sem <code>cm_ver</code> — são 17 permissões independentes. E vale
+    notar que o problema já existe hoje no campo da categoria, com <code>ci_ver</code>.</p>
+    <p><strong>Correção sugerida:</strong> distinguir o erro de permissão dos demais e mostrar a
+    mensagem que o banco já manda. Está no bônus, não no caminho crítico.</p>
+  </div>
+</section>
+
+<!-- ================================ SEÇÃO 6 ============================ -->
+<section id="s6" class="bonus-section">
+  <h2>6. BÔNUS — oito sugestões que você não pediu</h2>
+
+  <p>Tudo aqui nasceu de ler o código para atender aos três pedidos. Nada disto bloqueia nada, e
+  nada será feito sem você mandar. Ordenei por relevância que <em>eu</em> atribuo.</p>
+
+  <h3>B1 · Os mesmos botões de mês na tela PESQUISAR</h3>
+  <p>A tela <code>lancamentos/pesquisar/page.tsx</code> tem os mesmos dois campos de data (linha
+  195 em diante) e o mesmo atrito. Se os botões forem construídos como um componente pequeno —
+  algo como <code>AtalhosDeMes.tsx</code> — em vez de código solto dentro do painel de
+  conferência, colocá-los na PESQUISAR depois custa <strong>uma linha</strong>.
+  <strong>Recomendo fazer assim desde o início</strong>, mesmo que você só queira na Conferência
+  hoje: é a diferença entre reaproveitar e reescrever.</p>
+
+  <h3>B2 · A animação que não existe, em 10 telas</h3>
+  <p>Detalhado em 3.4: <code>animate-fade-in</code> aparece em dez lugares e não está definida
+  em canto nenhum. A correção são cinco linhas no <code>globals.css</code>:</p>
+<pre><code>@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+.animate-fade-in { animation: fade-in 0.18s ease-out; }</code></pre>
+  <p>Efeito: as telas de login, a Catraca, o painel de opções e os ajustes globais passam a
+  aparecer suavemente, como o código sempre prometeu. A alternativa honesta é a oposta — apagar
+  a classe dos dez lugares. Prefiro definir: o custo é o mesmo e o resultado é melhor.</p>
+
+  <h3>B3 · A tecla Esc não fecha o painel de opções</h3>
+  <p>Conferido: o <code>PainelDeOpcoes.tsx</code> fecha no botão X e no clique da cortina, mas
+  <strong>não escuta o teclado</strong>. Em todo painel lateral que se preze, Esc fecha — é
+  reflexo de quem usa computador o dia inteiro. São seis linhas de <code>useEffect</code>. Já
+  que vamos mexer nesse arquivo para movê-lo de lado, é o momento barato de incluir.</p>
+
+  <h3>B4 · O botão "MÊS SEGUINTE", que é o par que falta</h3>
+  <p>Você pediu MÊS ATUAL e MÊS ANTERIOR. Repare no que acontece quando alguém clica cinco vezes
+  em MÊS ANTERIOR e percebe que foi longe demais: <strong>não há como voltar um passo</strong> —
+  só saltar de volta para o mês atual e recomeçar a descida. Um terceiro botão resolve, e o
+  código dele é o mesmo do MÊS ANTERIOR com o sinal trocado. <strong>Sugiro incluir.</strong> Se
+  preferir manter só os dois que pediu, também é defensável — menos botão é menos tela.</p>
+
+  <h3>B5 · Um rótulo dizendo qual mês está carregado</h3>
+  <p>Depois de quatro cliques, qual mês está na tela? Hoje a resposta está nas duas datas, e ler
+  "01/05/2026" e "31/05/2026" exige um instante de tradução. Um texto discreto ao lado dos
+  botões — <strong>MAIO / 2026</strong> — elimina esse instante. Custa uma linha, e usa o
+  <code>Intl</code> que o <code>datas.ts</code> já emprega.</p>
+
+  <h3>B6 · Fechar o furo da RN-06 nas duas funções de busca</h3>
+  <p>O achado de 5.5. Três caminhos, com o custo real de cada um:</p>
+  <table>
+    <thead>
+      <tr><th style="width:26%">Caminho</th><th style="width:22%">Custo</th><th>Efeito e ressalva</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>1. Filtrar no banco</strong><br><em>(mais correto)</em></td>
+        <td class="meio">2 linhas de SQL<br><strong>+ você rodar o schema</strong></td>
+        <td>Acrescentar <code>AND c.is_active = true</code> às duas funções de busca. Fecha para
+            sempre, para qualquer tela que venha a usá-las. <strong>Exige rodar de novo o
+            <code>financeiro_01_schema.sql</code> no Supabase</strong> — é o único item deste
+            estudo inteiro que pede isso</td>
+      </tr>
+      <tr>
+        <td><strong>2. Filtrar na tela</strong></td>
+        <td class="ok">1 linha, sem SQL</td>
+        <td>Descartar as inativas ao receber as sugestões. Resolve hoje, e some no dia em que
+            outra tela chamar a mesma função sem lembrar do filtro</td>
+      </tr>
+      <tr>
+        <td><strong>3. Mostrar com etiqueta</strong></td>
+        <td class="ok">Poucas linhas</td>
+        <td>Deixar aparecer, marcada como <strong>INATIVA</strong> e não clicável. É o mais
+            informativo — explica em vez de esconder — mas contraria a letra da RN-06, que diz
+            "some das listas"</td>
+      </tr>
+    </tbody>
+  </table>
+  <p><strong>Minha recomendação: o caminho 1</strong>, agrupado com outras correções de banco
+  para você rodar o schema uma vez só. Enquanto isso não acontece, nada quebra — o furo existe
+  desde 13/09 e você não esbarrou nele.</p>
+
+  <h3>B7 · O teste 19, da edição de lançamento</h3>
+  <p>Já estava na sua lista de pendências e continua valendo: a edição mexe com a reordenação do
+  extrato (RN-12), que passa com três linhas no dia e pode falhar com trinta. É o tipo de coisa
+  que só um teste com volume pega.</p>
+
+  <h3>B8 · Sobre mover o menu: o que você vai sentir no terceiro dia</h3>
+  <p>Observação de uso, não de código, e é honesta nas duas direções. Menu lateral à
+  <strong>esquerda</strong> é o padrão da maioria dos sistemas administrativos — é onde a leitura
+  ocidental começa, e onde o olho procura navegação. Menu à <strong>direita</strong> é o padrão
+  em celular, onde o polegar alcança. Como este módulo é bloqueado no celular por decisão sua,
+  <strong>a esquerda é a escolha mais coerente com o uso real</strong>. Só vale saber que o
+  painel vai nascer do mesmo lado do botão PAINEL (voltar), que já está à esquerda; se os dois
+  competirem visualmente, o ajuste é de espaçamento, não de lado.</p>
+</section>
+
+<!-- ================================ SEÇÃO 7 ============================ -->
+<section id="s7">
+  <h2>7. Ordem de execução sugerida e como validar</h2>
+
+  <p>Os três pedidos são independentes, então a ordem é livre. Eu sugiro esta, do mais barato ao
+  mais delicado — assim, se algo der errado no meio, o que já entrou está no ar:</p>
+
+  <table>
+    <thead>
+      <tr><th style="width:8%">Passo</th><th style="width:34%">O quê</th><th>Por que nesta posição</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>1º</strong></td>
+        <td>Menu para a esquerda (mais o Esc fechando, se você aprovar o B3)</td>
+        <td>Duas palavras. Se ficar estranho, você vê na hora e desfaz</td>
+      </tr>
+      <tr>
+        <td><strong>2º</strong></td>
+        <td>Conta Movimento digitável, nos dois campos</td>
+        <td>A peça já existe e já roda; é montagem, não invenção</td>
+      </tr>
+      <tr>
+        <td><strong>3º</strong></td>
+        <td>Botões de mês, com os testes das três armadilhas</td>
+        <td>É o único com cálculo novo. Merece ficar por último, com calma e com teste</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>O que eu rodo antes de enviar (é minha responsabilidade, não sua)</h3>
+  <ul>
+    <li><code>npm test</code> — hoje são 36 testes; os novos de data entram aqui</li>
+    <li><code>npm run modulos:verificar</code> — confere que nenhuma linha de plataforma passou
+        a citar o nome do módulo</li>
+    <li><code>tsc --noEmit</code> e <code>eslint</code> nos dois apps</li>
+    <li><code>npm run build</code> do <code>admin-web</code>, com as 9 rotas do módulo listadas</li>
+  </ul>
+
+  <h3>O que só você consegue validar</h3>
+  <ol>
+    <li>Abrir OPÇÕES e confirmar que o painel abre do lado que você quer, <strong>e que a
+        cortina continua fechando ao clique fora</strong> — esse é o comportamento que mais
+        quebra quando se mexe em painel.</li>
+    <li>Clicar MÊS ATUAL e conferir que veio 01/09 a 30/09, e que o extrato recarregou.</li>
+    <li>Clicar MÊS ANTERIOR várias vezes seguidas e conferir que ele anda mês a mês <strong>sem
+        repetir nenhum</strong> — se repetir, é exatamente a armadilha 4.5.</li>
+    <li>Digitar uma letra no campo CONTA MOVIMENTO e conferir que aparecem até 4 nomes,
+        <strong>com a letra em qualquer posição</strong> — digite uma letra do meio de um nome
+        para provar isso de verdade.</li>
+    <li>Digitar um nome <strong>com acento, sem digitar o acento</strong> (por exemplo
+        <code>itau</code> para achar BANCO ITAÚ). É o teste que prova que a busca é do banco e
+        não da tela.</li>
+  </ol>
+</section>
+
+<!-- ================================ SEÇÃO 8 ============================ -->
+<section id="s8">
+  <h2>8. O que eu NÃO posso garantir</h2>
+
+  <div class="caixa perigo">
+    <span class="titulo">Os limites deste estudo, ditos sem rodeio</span>
+    <ul>
+      <li><strong>Nada foi executado.</strong> Não abri o sistema, não cliquei em botão nenhum,
+      não rodei o <code>npm run build</code> para este estudo. Tudo aqui vem de leitura de
+      arquivo. O que eu chamei de "fato medido" é fato sobre <em>o que está escrito</em>.</li>
+      <li><strong>Não tenho acesso ao seu Supabase.</strong> Quando eu digo que
+      <code>fin_buscar_contas_movimento</code> existe, estou afirmando que ela está no arquivo
+      <code>financeiro_01_schema.sql</code> deste repositório. Se a versão que está no seu banco
+      for mais antiga que a do arquivo, ela pode não estar lá. Você rodou esse schema em 13/09 e
+      os 18 testes passaram, então a probabilidade é alta — mas é inferência, não medição.</li>
+      <li><strong>Não sei como vai ficar visualmente.</strong> Posso descrever a mudança, não
+      vê-la. Se o botão à esquerda brigar com o botão PAINEL, isso só aparece na tela.</li>
+      <li><strong>O agrupamento de estados do React é comportamento documentado, não medido
+      aqui</strong> (seção 4.7).</li>
+      <li><strong>Os números de linha envelhecem.</strong> Eles valem para o commit
+      <code>65b7a85</code>, de hoje. Qualquer edição posterior os desloca — o nome do arquivo e
+      o da função continuam válidos, o número não.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================================ SEÇÃO 9 ============================ -->
+<section id="s9">
+  <h2>9. O que preciso de você para começar</h2>
+
+  <p>Quatro decisões e uma autorização. As quatro têm resposta padrão, então você pode
+  simplesmente dizer "pode fazer" e eu sigo pelas recomendadas:</p>
+
+  <table>
+    <thead>
+      <tr><th style="width:8%">#</th><th style="width:40%">Pergunta</th><th>Se você não responder, eu faço…</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>1</strong></td>
+        <td>O <strong>botão</strong> OPÇÕES vai para a esquerda junto com o painel? (seção 3.3)</td>
+        <td><strong>Sim, vai junto</strong> — opção B</td>
+      </tr>
+      <tr>
+        <td><strong>2</strong></td>
+        <td>MÊS ANTERIOR com período parcial na tela: mês inteiro, ou deslocar os mesmos dias?
+            (seção 4.4)</td>
+        <td><strong>Mês inteiro</strong>, do dia 1 ao último dia</td>
+      </tr>
+      <tr>
+        <td><strong>3</strong></td>
+        <td>A busca digitada entra também no campo CONTA MOVIMENTO <strong>da Conferência</strong>?
+            (seção 5.4)</td>
+        <td><strong>Sim, nos dois</strong> — custa 4 linhas a mais</td>
+      </tr>
+      <tr>
+        <td><strong>4</strong></td>
+        <td>Algum bônus entra junto? (seção 6)</td>
+        <td><strong>Nenhum</strong> — faço só os três pedidos, e o B1 apenas como forma de
+            organizar o código, sem criar tela nova</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="caixa destaque">
+    <span class="titulo">E uma última confirmação, porque ela muda o seu dia</span>
+    <p>Nenhum dos três pedidos exige rodar SQL no Supabase. O seu ciclo é o de sempre:
+    <strong>eu envio ao GitHub → a Vercel constrói → você abre o sistema e testa.</strong> Nada
+    de SQL Editor, nada de recriar banco, nada de risco para os dados.</p>
+  </div>
+</section>
+
+<footer class="rodape">
+  <p><strong>Estudo produzido em 14 de setembro de 2026</strong>, sobre o commit
+  <code>65b7a85</code> do repositório <code>plataforma-jairo-o-d-c_v10_c_financeiro</code>,
+  branch <code>master</code>.</p>
+  <p>Nenhum arquivo do sistema foi criado ou alterado para produzir este documento — apenas este
+  HTML, na pasta <code>_estudos/</code>. Plataforma Jairo O D C v10 · Módulo Controle
+  Financeiro.</p>
+</footer>
+
+</div><!-- /folha -->
+
+<script>
+(function () {
+  "use strict";
+
+  function iniciar() {
+    var container = document.querySelector('.print-container');
+    var botao     = document.getElementById('printBtn');
+    var menu      = document.getElementById('printMenu');
+
+    if (!container || !botao || !menu) {
+      console.error('✖ Menu de impressão: elementos não encontrados.');
+      return;
+    }
+
+    /* Abre e fecha o menu. O stopPropagation impede que este mesmo clique
+       suba até o document e feche o menu que acabou de abrir. */
+    botao.addEventListener('click', function (event) {
+      event.stopPropagation();
+      menu.classList.toggle('aberto');
+    });
+
+    /* O menu inteiro segura os eventos, para que passear com o mouse entre as
+       duas opções — e clicar nelas — nunca feche o menu por engano. */
+    menu.addEventListener('click',     function (event) { event.stopPropagation(); });
+    menu.addEventListener('mousedown', function (event) { event.stopPropagation(); });
+    menu.addEventListener('mouseover', function (event) { event.stopPropagation(); });
+    menu.addEventListener('mousemove', function (event) { event.stopPropagation(); });
+
+    /* Fecha SOMENTE quando o clique cai fora do container (nem botão, nem menu). */
+    document.addEventListener('click', function (event) {
+      if (!container.contains(event.target)) {
+        menu.classList.remove('aberto');
+      }
+    });
+
+    /* Esc também fecha — conveniência de teclado. */
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') { menu.classList.remove('aberto'); }
+    });
+
+    /* ----------------------------------------------------------------
+       CORES (A4): remove a classe .print-bw, espera 100ms o navegador
+       repintar, e só então chama a impressão.
+       ---------------------------------------------------------------- */
+    function imprimirEmCores() {
+      menu.classList.remove('aberto');
+      document.body.classList.remove('print-bw');
+      setTimeout(function () {
+        window.print();
+      }, 100);
+    }
+
+    /* ----------------------------------------------------------------
+       PRETO & BRANCO (A4): adiciona .print-bw, espera 100ms o navegador
+       aplicar os estilos, imprime, e depois devolve a tela às cores.
+       ---------------------------------------------------------------- */
+    function imprimirEmPretoEBranco() {
+      menu.classList.remove('aberto');
+      document.body.classList.add('print-bw');
+      setTimeout(function () {
+        window.print();
+        setTimeout(function () {
+          document.body.classList.remove('print-bw');
+        }, 100);
+      }, 100);
+    }
+
+    var opcoes = menu.querySelectorAll('.print-opt');
+    for (var i = 0; i < opcoes.length; i++) {
+      opcoes[i].addEventListener('click', function (event) {
+        event.stopPropagation();
+        if (this.getAttribute('data-modo') === 'pb') {
+          imprimirEmPretoEBranco();
+        } else {
+          imprimirEmCores();
+        }
+      });
+    }
+
+    console.log('✔ Estudo 14/09/2026 carregado. Menu de impressão pronto: Cores (A4) e Preto & Branco (A4).');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', iniciar);
+  } else {
+    iniciar();
+  }
+})();
+</script>
+
+</body>
+</html>

@@ -11,6 +11,7 @@ import { useEmpresaAtiva } from "@/components/financeiro/useEmpresaAtiva";
 import { baixarTSV } from "@/components/financeiro/exportarTSV";
 import { abrirImpressao } from "@/components/financeiro/prepararImpressao";
 import IconeFin from "@/components/financeiro/IconeFin";
+import AtalhosDeMes from "@/components/financeiro/AtalhosDeMes";
 import MenuDeLinha, { type AcaoDeLinha } from "@/components/financeiro/MenuDeLinha";
 
 /**
@@ -195,6 +196,18 @@ export default function PesquisarLancamentosPage() {
             <input id="p-de" type="date" value={de} onChange={(e) => setDe(e.target.value)} className={campo} />
             <label htmlFor="p-ate" className={`${rot} mt-2`}>ATÉ</label>
             <input id="p-ate" type="date" value={ate} onChange={(e) => setAte(e.target.value)} className={campo} />
+            {/* ⚠️ OS MESMOS ATALHOS DA CONFERÊNCIA DA CONTA, PELO MESMO
+                COMPONENTE (14/09/2026). Esta tela tem os mesmos dois campos de
+                data e o mesmo atrito; uma segunda cópia do cálculo é sempre a
+                que esquece um detalhe — aqui custou uma linha. */}
+            <div className="mt-2">
+              <AtalhosDeMes
+                id="p-atalhos"
+                de={de}
+                ate={ate}
+                aoEscolher={(periodo) => { setDe(periodo.de); setAte(periodo.ate); }}
+              />
+            </div>
           </div>
           <div>
             <label htmlFor="p-vde" className={rot}>VALOR — DE</label>

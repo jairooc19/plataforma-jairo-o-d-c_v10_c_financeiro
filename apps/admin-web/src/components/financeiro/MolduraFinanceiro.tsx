@@ -11,7 +11,7 @@ import type { PermissaoFinanceiro } from "@jairo/core";
  * 🧭 A MOLDURA DO MÓDULO CONTROLE FINANCEIRO (PJODC v10)
  * Local: apps/admin-web/src/components/financeiro/MolduraFinanceiro.tsx
  *
- * A faixa do topo com o título do módulo e o botão OPÇÕES à direita, o painel
+ * A faixa do topo com o botão OPÇÕES à esquerda e o título do módulo, o painel
  * lateral do menu e o rodapé. Nada de negócio mora aqui.
  *
  * ⚠️ ESTE ARQUIVO É DO MÓDULO. Se o módulo for desplugado, ele some com a pasta
@@ -29,6 +29,24 @@ export default function MolduraFinanceiro({ children }: { children: React.ReactN
       <header className="sticky top-0 z-30 bg-white border-b border-slate-200">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4 min-w-0">
+            {/* ⚠️ O BOTÃO FICA À ESQUERDA E O PAINEL ENTRA PELA ESQUERDA
+                (pedido de 14/09/2026; até 13/09 os dois ficavam à direita).
+                Os dois trocaram de lado JUNTOS: clicar num canto e o painel
+                abrir no outro funciona, mas o olho acompanha o dedo, e esse
+                salto cansa no uso diário. Ele é o primeiro elemento da faixa
+                justamente para nascer na mesma borda de onde o painel desliza. */}
+            <button
+              type="button"
+              onClick={() => setMenuAberto(true)}
+              aria-haspopup="menu"
+              aria-expanded={menuAberto}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 text-white
+                         text-xs font-black uppercase tracking-widest hover:bg-slate-700 shrink-0"
+            >
+              <IconeFin nome="menu" tamanho={16} />
+              OPÇÕES
+            </button>
+
             <button
               type="button"
               onClick={() => router.push("/dashboard")}
@@ -70,19 +88,6 @@ export default function MolduraFinanceiro({ children }: { children: React.ReactN
               </div>
             )}
 
-            {/* ⚠️ O BOTÃO FICA À DIREITA E O PAINEL ENTRA PELA DIREITA (pedido de
-                13/09/2026). Antes era uma caixinha suspensa presa ao botão. */}
-            <button
-              type="button"
-              onClick={() => setMenuAberto(true)}
-              aria-haspopup="menu"
-              aria-expanded={menuAberto}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 text-white
-                         text-xs font-black uppercase tracking-widest hover:bg-slate-700"
-            >
-              <IconeFin nome="menu" tamanho={16} />
-              OPÇÕES
-            </button>
           </div>
         </div>
       </header>

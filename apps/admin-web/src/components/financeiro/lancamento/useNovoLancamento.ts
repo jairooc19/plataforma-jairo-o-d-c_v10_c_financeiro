@@ -131,6 +131,34 @@ export function useNovoLancamento() {
     return cadastroFinanceiroService.sugerirIdentificadoras(tenantId, texto);
   }, [tenantId]);
 
+  /**
+   * As até 4 sugestões da CONTA MOVIMENTO (pedido de 14/09/2026).
+   *
+   * ⚠️ A FUNÇÃO DO BANCO JÁ EXISTIA E NUNCA TINHA SIDO CHAMADA POR NINGUÉM.
+   * `fin_buscar_contas_movimento` nasceu no degrau 7, com `LIKE '%texto%'` sobre
+   * `nome_normalizado` e `LIMIT 4`, e com o par REVOKE+GRANT no lugar — era uma
+   * tomada instalada esperando o aparelho. Este pedido só ligou o fio.
+   */
+  const sugerirContasMovimento = useCallback(async (texto: string) => {
+    if (!tenantId) return [];
+    return cadastroFinanceiroService.sugerirContasMovimento(tenantId, texto);
+  }, [tenantId]);
+
+  /**
+   * Preenche as duas datas da conferência de uma vez (atalhos de mês).
+   *
+   * ⚠️ AS DUAS MUDANÇAS SÃO DO MESMO EVENTO, E ISSO IMPORTA. O React agrupa as
+   * mudanças de estado disparadas dentro do mesmo clique numa renderização só
+   * (automatic batching, React 18+), então o efeito que recarrega o extrato roda
+   * UMA vez — e não uma por data. Se algum dia a lista piscar duas vezes por
+   * clique, a correção é juntar `de` e `ate` num objeto único de período, não
+   * remendar o efeito.
+   */
+  const definirPeriodo = useCallback((periodo: { de: string; ate: string }) => {
+    setDe(periodo.de);
+    setAte(periodo.ate);
+  }, []);
+
   const limparFormulario = useCallback(() => {
     setEditandoId(null);
     setCategoriaId(""); setValor(0); setHistorico(""); setOrdem("");
@@ -292,9 +320,13 @@ export function useNovoLancamento() {
       ordem, setOrdem, tipoMov, setTipoMov, propriedade, setPropriedade,
       regime, setRegime, valor, setValor, historico, setHistorico, saldoDaConta,
     },
-    conferencia: { contaExtrato, setContaExtrato, de, setDe, ate, setAte, linhas, carregandoExtrato },
+    conferencia: {
+      contaExtrato, setContaExtrato, de, setDe, ate, setAte,
+      linhas, carregandoExtrato, definirPeriodo,
+    },
     modal, setModal, gravando, erro, aviso, gravadosNaSessao,
-    editandoId, editar, excluir, limparFormulario, sugerirIdentificadoras,
+    editandoId, editar, excluir, limparFormulario,
+    sugerirIdentificadoras, sugerirContasMovimento,
     gravar, conferir, aoGravarCadastro,
   };
 }

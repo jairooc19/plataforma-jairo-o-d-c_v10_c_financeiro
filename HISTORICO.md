@@ -17,6 +17,124 @@ todas foram pagas com um defeito em produção.
 
 ---
 
+**2026-09-14 — v10: o menu à esquerda, os atalhos de mês e a conta que se digita**
+
+Primeira rodada do dia, precedida de um estudo
+(`_estudos/estudo-2026-09-14-tres-pedidos.html`) e autorizada com os bônus.
+**Exige rodar de novo SÓ o `financeiro_01_schema.sql`** — e só por causa do
+bônus B6; os três pedidos, sozinhos, não tocariam o banco.
+
+| Onde | O que mudou |
+|---|---|
+| `lib/datas.ts` | ✨ `primeiroDiaDoMes`, `ultimoDiaDoMes`, `mesInteiro`, `deslocarMes`, `mesAnterior`, `mesSeguinte`, `rotuloDoMes` e o tipo `PeriodoDoMes` |
+| `lib/datas.test.ts` | ✨ 8 testes novos; `npm test` foi de 36 para **44** |
+| ✨ `components/financeiro/AtalhosDeMes.tsx` | Os três botões de mês + o rótulo do mês carregado |
+| `PainelDeConferencia` | Os atalhos de mês; o `<select>` de CONTA MOVIMENTO virou campo que se digita |
+| `FormularioDeLancamento` | O `<select>` de CONTA MOVIMENTO virou campo que se digita |
+| `useNovoLancamento` | ✨ `sugerirContasMovimento` e `definirPeriodo` |
+| `lancamentos/pesquisar` | Os mesmos atalhos, pelo mesmo componente (uma linha) |
+| `PainelDeOpcoes` | `right-0`→`left-0`, `border-l`→`border-r`, ✨ Esc fecha |
+| `MolduraFinanceiro` | O botão OPÇÕES foi para a **esquerda**, junto com o painel |
+| `IconeFin` | ✨ `mesAnterior`, `mesSeguinte`, `calendario` |
+| `globals.css` | ✨ `@keyframes fade-in` — a classe que 10 telas usavam e **não existia** |
+| `financeiro_01_schema.sql` 4.4 | As duas funções de busca passaram a filtrar `is_active = true` (RN-06) |
+| `teste_financeiro.sql` | ✨ Testes **19 e 20**; foi de 18 para **20 testes** |
+
+⚠️ **`animate-fade-in` ESTAVA ESCRITA EM 10 TELAS E NÃO EXISTIA EM LUGAR
+NENHUM.** Medido ao mover o painel de opções: o `globals.css` tinha **15 linhas**
+e nenhum `@keyframes`; o Tailwind 4 traz de fábrica só `spin`, `ping`, `pulse` e
+`bounce`. Classe utilitária inexistente **não quebra o build e não acusa nada** —
+o navegador ignora o nome. As dez telas (painel do módulo, Catraca, cinco telas
+de autenticação, menu principal, ajustes globais) apareciam secamente, enquanto
+o código prometia um esmaecimento. Agora a animação existe, com
+`prefers-reduced-motion` respeitado. **Classe que não faz nada é pior que classe
+nenhuma: ensina quem lê a duvidar do que está escrito.**
+
+⚠️ **A BUSCA POR TEXTO DEVOLVIA CADASTRO DESATIVADO — E ISSO CONTRARIAVA A
+RN-06, EM PRODUÇÃO, DESDE 13/09.** A regra diz "conta desativada some das listas
+de lançamento novo". As **listas** já respeitavam (`listarContasMovimento`
+filtra `is_active = true`); as funções `fin_buscar_*`, não. Resultado: o cadastro
+desativado **não aparecia ao abrir a lista e aparecia ao digitar o nome**. Pior:
+`fin_gravar_lancamento` confere existência, não situação — dava para lançar numa
+conta desativada, bastando chegar a ela digitando. Provado no PostgreSQL local:
+sem o filtro, o teste 20 devolve `{"ZORRO ATIVA","ZORRO INATIVA"}` e **falha**;
+com o filtro, passa. O `ORDER BY c.is_active DESC` ficou de propósito, para o dia
+em que o filtro virar parâmetro.
+
+⚠️ **`setMonth(getMonth() - 1)` NÃO VOLTA UM MÊS — ELE PULA.** `new Date(2026, 2,
+31)` com `setMonth(-1)` devolve **3 de março**: o JavaScript tenta montar "31 de
+fevereiro", não encontra, e transborda três dias para a frente. Nenhum erro é
+levantado. Num botão "MÊS ANTERIOR" isso significa que, a partir de um dia 31,
+clicar não sai do lugar — e o defeito parece "o botão não funciona". Todo cálculo
+de mês em `lib/datas.ts` **ancora no dia 1**, e o último dia vem do `dia 0 do mês
+seguinte` (`new Date(ano, mes + 1, 0)`), que acerta 28, 29, 30 e 31 sem tabela
+escrita à mão. O teste que prova isso é o primeiro do bloco novo.
+
+⚠️ **O CÁLCULO DE MÊS MORA NO CORE, NÃO NA TELA.** Se morasse no
+`PainelDeConferencia`, não haveria como testá-lo sem abrir um navegador — e os
+casos que importam (31/03, janeiro virando dezembro, fevereiro bissexto, 1900
+não sendo bissexto) são exatamente os que ninguém exercita clicando.
+
+⚠️ **O BOTÃO DE MÊS PARTE DO QUE ESTÁ NA TELA, NÃO DE HOJE.** É isso que faz o
+clique repetido andar mês a mês. Partindo sempre de hoje, o segundo clique
+devolveria o mesmo mês do primeiro, para sempre. E a referência é a DATA INICIAL,
+com a DATA FINAL como rede: quem digita uma e é interrompido não deve receber um
+salto que não pediu.
+
+⚠️ **COM PERÍODO PARCIAL, O ATALHO ENTREGA O MÊS INTEIRO** (decisão do dono do
+projeto, 14/09/2026). Estando 10/09 a 20/09 na tela, MÊS ANTERIOR devolve 01/08 a
+31/08 — não 10/08 a 20/08. Deslocar os mesmos dias exigiria inventar uma resposta
+para "31 de fevereiro", e regra de data inventada é defeito que aparece uma vez
+por ano.
+
+⚠️ **OS ATALHOS NASCERAM COMPONENTE, E NÃO CÓDIGO SOLTO NA CONFERÊNCIA.** A tela
+PESQUISAR tem os mesmos dois campos de data e o mesmo atrito; escritos como
+componente, colocá-los lá custou **uma linha**. A segunda cópia de qualquer coisa
+é sempre a que esquece um detalhe — o projeto já documenta isso para os menus de
+linha.
+
+⚠️ **A FUNÇÃO DE BUSCA DA CONTA MOVIMENTO JÁ EXISTIA E NUNCA TINHA SIDO CHAMADA.**
+`fin_buscar_contas_movimento` nasceu no degrau 7, com `LIKE '%texto%'` sobre
+`nome_normalizado`, `LIMIT 4` e o par REVOKE+GRANT no lugar — era uma tomada
+instalada esperando o aparelho. O pedido de 13/09 ligou só a da categoria. **Ao
+estimar trabalho, abrir o arquivo vale mais que confiar na memória:** a estimativa
+anotada era "~4 linhas" e o trabalho real foram três mudanças pequenas, em dois
+arquivos.
+
+⚠️ **OS DOIS CAMPOS "CONTA MOVIMENTO" DA TELA MUDARAM JUNTOS.** O pedido citava o
+do formulário; o da CONFERÊNCIA ficou igual por decisão explícita. Com um só
+digitável, a mesma tela teria dois campos de mesmo nome e comportamentos
+diferentes — pior que os dois serem antigos, porque ensina uma coisa e cobra
+outra.
+
+⚠️ **O BOTÃO OPÇÕES FOI PARA A ESQUERDA JUNTO COM O PAINEL.** Mover só o painel
+era a leitura literal do pedido e funcionaria; mas o olho acompanha o dedo, e
+clicar num canto para a coisa aparecer no outro cansa em uso diário. **E trocar
+`right-0` por `left-0` não basta: a borda também vira** (`border-l` → `border-r`),
+senão a linha divisória fica colada na borda da janela, onde ninguém a vê.
+
+⚠️ **O `useEffect` DO ESC FICA ACIMA DO `if (!aberto) return null`.** As regras
+dos hooks proíbem chamar `useEffect` depois de um retorno antecipado — a
+quantidade de hooks tem de ser a mesma em toda renderização. Quem decide é o `if`
+DENTRO do efeito, não a posição dele. A primeira tentativa foi partir o corpo do
+componente em uma função declarada após o `return`: funciona em JavaScript e é
+ilegível — foi descartada.
+
+⚠️ **O SQL FOI EXECUTADO ANTES DE SER ENTREGUE, INCLUSIVE O TESTE NEGATIVO.**
+PostgreSQL 18 local e descartável, com o Supabase falso: plataforma **16/16** e
+módulo **20/20**. E, para provar que o teste 20 não é decorativo, o schema foi
+reaplicado SEM o filtro novo: o teste falhou, nomeando a conta inativa que
+apareceu. Teste que nunca se viu falhar não é teste — é decoração.
+
+⚠️ **O QUE FOI E O QUE NÃO FOI TESTADO.** Validado aqui: `npm test` (44),
+`npm run modulos:verificar` (sem violação), `tsc --noEmit` e `eslint` limpos,
+`npm run build` com as 9 rotas do módulo, e os dois arquivos SQL contra o
+PostgreSQL local. **Nada foi aberto num navegador** — a posição do menu, o
+comportamento dos botões e o campo de busca só se provam na tela, e isso é do
+dono do projeto.
+
+---
+
 **2026-09-13 (noite) — v10: importar cadastros de um CSV/TSV pela coluna A**
 
 Terceira rodada do dia. **Exige rodar de novo SÓ o `financeiro_01_schema.sql`.**

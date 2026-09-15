@@ -130,3 +130,89 @@ export function diferencaEmDias(a: DataISO, b: DataISO): number {
 export function estaVencida(vencimento: DataISO, referencia: DataISO = hojeISO()): boolean {
   return diferencaEmDias(referencia, vencimento) < 0;
 }
+
+// ===========================================================================
+// 📅 MESES INTEIROS — os atalhos "MÊS ATUAL", "MÊS ANTERIOR" e "MÊS SEGUINTE"
+// ===========================================================================
+//
+// ⚠️ TODO CÁLCULO DE MÊS AQUI ANCORA NO DIA 1, E ISSO NÃO É ESTILO — É A
+// CORREÇÃO DE UM ERRO QUE NÃO ACUSA NADA.
+//
+// A forma "óbvia" de voltar um mês é subtrair 1 do mês da data que se tem:
+//
+//   const d = new Date(2026, 2, 31);   // 31 de MARÇO
+//   d.setMonth(d.getMonth() - 1);      // "um mês atrás"
+//   // resultado: 3 de MARÇO (!) — o JavaScript tenta montar "31 de fevereiro",
+//   // não encontra, e transborda três dias para a frente.
+//
+// Nenhum erro é levantado. Num botão "MÊS ANTERIOR", isso significa que, a
+// partir de um dia 31, clicar não sai do lugar — e o defeito parece "o botão
+// não funciona", quando a conta é que está errada. Ancorar no dia 1 elimina o
+// transbordo, porque todo mês tem dia 1.
+//
+// ⚠️ O ÚLTIMO DIA VEM DO "DIA 0 DO MÊS SEGUINTE". `new Date(ano, mes + 1, 0)` é
+// o último dia deste mês, e acerta 28, 29 (bissexto), 30 e 31 sem nenhuma
+// tabela escrita à mão — que é a outra forma clássica de errar fevereiro.
+
+/** Um mês inteiro, do primeiro ao último dia — o que os campos DE/ATÉ esperam. */
+export interface PeriodoDoMes {
+  de: DataISO;
+  ate: DataISO;
+}
+
+/** "2026-09-14" → "2026-09-01". */
+export function primeiroDiaDoMes(iso: DataISO = hojeISO()): DataISO {
+  const data = deDataISO(iso);
+  return dataLocalISO(new Date(data.getFullYear(), data.getMonth(), 1));
+}
+
+/** "2026-02-10" → "2026-02-28"; em ano bissexto, "2024-02-10" → "2024-02-29". */
+export function ultimoDiaDoMes(iso: DataISO = hojeISO()): DataISO {
+  const data = deDataISO(iso);
+  return dataLocalISO(new Date(data.getFullYear(), data.getMonth() + 1, 0));
+}
+
+/**
+ * O mês INTEIRO em que a data cai. Sem argumento, o mês de hoje.
+ *
+ * É o que responde ao botão "MÊS ATUAL": não importa o que havia nos campos,
+ * o resultado é sempre do dia 1 ao último dia.
+ */
+export function mesInteiro(iso: DataISO = hojeISO()): PeriodoDoMes {
+  return { de: primeiroDiaDoMes(iso), ate: ultimoDiaDoMes(iso) };
+}
+
+/**
+ * Anda `passos` meses a partir do mês de `iso` e devolve o mês inteiro.
+ *
+ * Negativo anda para trás. Janeiro − 1 vira dezembro do ano anterior: o mês −1
+ * é entendido corretamente pelo `Date`, e o ano acompanha sozinho.
+ */
+export function deslocarMes(iso: DataISO = hojeISO(), passos = 0): PeriodoDoMes {
+  const data = deDataISO(iso);
+  // Dia 1 SEMPRE — ver a explicação no topo deste bloco.
+  const alvo = new Date(data.getFullYear(), data.getMonth() + passos, 1);
+  return mesInteiro(dataLocalISO(alvo));
+}
+
+/** O mês anterior ao da data informada, inteiro. Sem argumento, o mês passado. */
+export function mesAnterior(iso: DataISO = hojeISO()): PeriodoDoMes {
+  return deslocarMes(iso, -1);
+}
+
+/** O mês seguinte ao da data informada, inteiro. */
+export function mesSeguinte(iso: DataISO = hojeISO()): PeriodoDoMes {
+  return deslocarMes(iso, 1);
+}
+
+/**
+ * "2026-09-14" → "SETEMBRO / 2026".
+ *
+ * Quem lê "01/05/2026 a 31/05/2026" precisa de um instante para traduzir. O
+ * rótulo poupa esse instante depois do quarto clique no botão de mês.
+ */
+export function rotuloDoMes(iso: DataISO = hojeISO()): string {
+  const data = deDataISO(iso);
+  const mes = new Intl.DateTimeFormat('pt-BR', { month: 'long' }).format(data);
+  return `${mes.toUpperCase()} / ${data.getFullYear()}`;
+}

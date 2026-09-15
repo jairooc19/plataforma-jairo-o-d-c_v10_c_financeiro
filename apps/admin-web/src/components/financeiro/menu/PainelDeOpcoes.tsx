@@ -1,19 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import IconeFin from "../IconeFin";
 import { OPCOES, type ItemDeMenu } from "./opcoes";
 
 /**
- * 📋 O MENU "OPÇÕES" — PAINEL QUE ENTRA PELA DIREITA (PJODC v10)
+ * 📋 O MENU "OPÇÕES" — PAINEL QUE ENTRA PELA ESQUERDA (PJODC v10)
  * Local: apps/admin-web/src/components/financeiro/menu/PainelDeOpcoes.tsx
  *
  * Pedido do dono do projeto em 13/09/2026, em duas partes:
- *   1. o menu fica no LADO DIREITO da tela;
+ *   1. o menu fica num LADO da tela (era o direito);
  *   2. a lista tem NÍVEL e SUBNÍVEL, e o subnível só aparece se o nível pai for
  *      clicado.
+ *
+ * ⚠️ EM 14/09/2026 ELE MUDOU PARA A ESQUERDA, E O BOTÃO FOI JUNTO. Mover só o
+ * painel deixaria o clique num canto e o resultado no outro — funciona, mas o
+ * olho acompanha o dedo, e esse salto cansa no uso diário. Quem abre o painel é
+ * o botão da `MolduraFinanceiro`, que por isso também trocou de lado.
+ *
+ * ⚠️ TROCAR `right-0` POR `left-0` NÃO BASTA: A BORDA TAMBÉM VIRA. A linha
+ * cinza divisória precisa ficar do lado voltado para o conteúdo — com
+ * `border-l` num painel à esquerda, ela fica colada na borda da janela, onde
+ * ninguém a vê, e o painel perde a separação visual do texto.
  *
  * ⚠️ POR QUE UM PAINEL LATERAL E NÃO A CAIXINHA SUSPENSA DE ANTES. A caixinha
  * abria colada ao botão e tinha altura livre: com os níveis abrindo e fechando,
@@ -53,6 +63,26 @@ export default function PainelDeOpcoes({
       atuais.includes(rotulo) ? atuais.filter((r) => r !== rotulo) : [...atuais, rotulo],
     );
 
+  /**
+   * ⌨️ A TECLA ESC FECHA O PAINEL (14/09/2026).
+   *
+   * ⚠️ O EFEITO FICA ACIMA DO `if (!aberto) return null` DE PROPÓSITO. As regras
+   * dos hooks do React proíbem chamar `useEffect` depois de um retorno
+   * antecipado — a quantidade de hooks tem de ser a mesma em toda renderização.
+   * Por isso quem decide é o `if` DENTRO do efeito, e não a posição dele.
+   *
+   * ⚠️ E ELE ESCUTA `keydown`, NÃO `keyup`. Com `keyup`, segurar a tecla não
+   * fecharia nada até soltar, e o Esc de quem digita rápido se perderia.
+   */
+  useEffect(() => {
+    if (!aberto) return;
+    const noTeclado = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onFechar();
+    };
+    document.addEventListener("keydown", noTeclado);
+    return () => document.removeEventListener("keydown", noTeclado);
+  }, [aberto, onFechar]);
+
   /** Um item só entra na tela se o usuário puder usá-lo. */
   const permitido = (item: ItemDeMenu) => !item.exige || pode(item.exige);
 
@@ -73,7 +103,7 @@ export default function PainelDeOpcoes({
 
       <nav
         aria-label="OPÇÕES DO CONTROLE FINANCEIRO"
-        className="fixed top-0 right-0 z-50 h-full w-[19rem] max-w-[85vw] bg-white border-l border-slate-200
+        className="fixed top-0 left-0 z-50 h-full w-[19rem] max-w-[85vw] bg-white border-r border-slate-200
                    shadow-2xl flex flex-col animate-fade-in"
         onClick={(e) => e.stopPropagation()}
       >

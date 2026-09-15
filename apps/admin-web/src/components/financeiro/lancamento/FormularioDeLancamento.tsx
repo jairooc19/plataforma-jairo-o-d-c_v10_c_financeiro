@@ -108,11 +108,23 @@ export default function FormularioDeLancamento({
               </button>
             )}
           </div>
-          <select id="l-conta" value={f.contaId} onChange={(e) => f.setContaId(e.target.value)}
-                  className={`${campo} uppercase font-bold`}>
-            <option value="">SELECIONE</option>
-            {contas.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-          </select>
+          {/* ⚠️ CAMPO QUE SE DIGITA **E** SE ESCOLHE (14/09/2026). Era um
+              `<select>` puro. Agora, ao digitar o primeiro caractere, o BANCO
+              devolve até 4 sugestões, casando o texto em qualquer posição do
+              nome e ignorando acento (`fin_buscar_contas_movimento`). Clicar
+              sem digitar continua abrindo a lista completa, como antes.
+
+              ⚠️ QUEM BUSCA É O BANCO, NÃO ESTA TELA. A lista `contas` é só a
+              primeira página do cadastro: numa empresa com 300 contas, filtrar
+              no navegador diria "nada encontrado" sobre algo que existe. */}
+          <SelecaoComBusca
+            id="l-conta"
+            valor={f.contaId}
+            opcoes={contas}
+            aoEscolher={f.setContaId}
+            aoBuscar={m.sugerirContasMovimento}
+            placeholder="DIGITE PARA PROCURAR OU CLIQUE PARA VER A LISTA"
+          />
           <div className="flex justify-between mt-1.5">
             <span className="text-[11px] font-bold uppercase text-slate-400">
               TIPO: {contaEscolhida?.tipo ?? "—"}

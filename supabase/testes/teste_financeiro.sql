@@ -753,6 +753,157 @@ END;
 $$;
 
 
+-- ===========================================================================
+-- TESTE 19 — EDITAR UM LANÇAMENTO MOVENDO A ORDEM, COM VOLUME (RN-12, RN-22)
+--
+-- ⚠️ O TESTE 8 JÁ COBRIA A ORDEM, MAS SÓ NA CRIAÇÃO E COM TRÊS LINHAS. A
+-- edição é outro caminho dentro da mesma função: ela precisa deslocar os
+-- vizinhos E se excluir do deslocamento, senão empurraria a si mesma. Com três
+-- linhas, um erro de um degrau passa despercebido; com dez, ele aparece.
+--
+-- ⚠️ O TESTE MONTA O PRÓPRIO CENÁRIO, do zero. Depender do que outro teste
+-- deixou foi o que quebrou o teste 17 em 13/09 — o teste 14, que roda no meio,
+-- aciona o botão de apagar os dados da empresa.
+--
+-- O QUE SE PROVA AQUI:
+--   1. as dez ordens continuam sendo exatamente 1..10 — sem repetir e sem buraco;
+--   2. o lançamento editado ficou na ordem pedida (3);
+--   3. quem estava na 3 desceu para a 4;
+--   4. `criado_por` NÃO mudou na edição (RN-22).
+-- ===========================================================================
+DO $$
+DECLARE
+  v_cm uuid; v_ci uuid; v_erro text := 'nenhum';
+  v_ordens int[]; v_alvo uuid; v_ordem_alvo int; v_ordem_vizinho int;
+  v_vizinho uuid; v_criador_antes uuid; v_criador_depois uuid;
+  v_i int;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+  BEGIN
+    v_cm := (public.fin_gravar_conta_movimento(
+               'aa000000-0000-0000-0000-0000000000a1', NULL, 'CONTA DO TESTE 19', 'BANCO', 0, true)->>'id')::uuid;
+    v_ci := (public.fin_gravar_identificadora(
+               'aa000000-0000-0000-0000-0000000000a1', NULL, 'CATEGORIA DO TESTE 19', 'DESPESA', true)->>'id')::uuid;
+
+    -- Dez lançamentos no mesmo dia, ordens 1 a 10.
+    FOR v_i IN 1..10 LOOP
+      PERFORM public.fin_gravar_lancamento(
+        'aa000000-0000-0000-0000-0000000000a1', NULL, v_cm, v_ci, DATE '2026-09-20',
+        v_i, 'SAIDA', 'PROPRIO', 'CAIXA', v_i * 100, 'LINHA ' || v_i);
+    END LOOP;
+  EXCEPTION WHEN OTHERS THEN v_erro := SQLSTATE || ' ' || SQLERRM;
+  END;
+
+  -- O alvo é o ÚLTIMO (ordem 10); o vizinho é quem ocupa a ordem 3 hoje.
+  SELECT id, criado_por INTO v_alvo, v_criador_antes
+    FROM public.fin_lancamentos
+   WHERE conta_movimento_id = v_cm AND data_movimento = DATE '2026-09-20' AND ordem_extrato = 10;
+  SELECT id INTO v_vizinho
+    FROM public.fin_lancamentos
+   WHERE conta_movimento_id = v_cm AND data_movimento = DATE '2026-09-20' AND ordem_extrato = 3;
+
+  BEGIN
+    -- A EDIÇÃO: o mesmo lançamento, agora pedindo a ordem 3 e outro valor.
+    SET LOCAL ROLE authenticated;
+    PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+    PERFORM public.fin_gravar_lancamento(
+      'aa000000-0000-0000-0000-0000000000a1', v_alvo, v_cm, v_ci, DATE '2026-09-20',
+      3, 'SAIDA', 'PROPRIO', 'CAIXA', 777, 'LINHA 10 EDITADA');
+  EXCEPTION WHEN OTHERS THEN v_erro := SQLSTATE || ' ' || SQLERRM;
+  END;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  SELECT array_agg(ordem_extrato ORDER BY ordem_extrato) INTO v_ordens
+    FROM public.fin_lancamentos
+   WHERE conta_movimento_id = v_cm AND data_movimento = DATE '2026-09-20';
+
+  SELECT ordem_extrato, criado_por INTO v_ordem_alvo, v_criador_depois
+    FROM public.fin_lancamentos WHERE id = v_alvo;
+  SELECT ordem_extrato INTO v_ordem_vizinho
+    FROM public.fin_lancamentos WHERE id = v_vizinho;
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    19,
+    CASE WHEN v_erro = 'nenhum'
+          AND v_ordens = ARRAY[1,2,3,4,5,6,7,8,9,10]
+          AND v_ordem_alvo = 3
+          AND v_ordem_vizinho = 4
+          AND v_criador_depois = v_criador_antes
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-12/RN-22',
+    'Editar movendo a ordem desloca os vizinhos, nao duplica nem deixa buraco, e nao troca o autor',
+    format('erro=%s; ordens=%s (esperado 1..10); editado na ordem %s (esperado 3); vizinho na %s (esperado 4); autor preservado=%s',
+           v_erro, v_ordens::text, v_ordem_alvo, v_ordem_vizinho, (v_criador_depois = v_criador_antes)));
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 20 — A BUSCA POR TEXTO NÃO DEVOLVE CADASTRO DESATIVADO (RN-06)
+--
+-- ⚠️ ESTE TESTE NASCEU DE UM FURO REAL, ENCONTRADO EM 14/09/2026. A RN-06 diz
+-- que conta desativada some das listas de lançamento novo. As LISTAS já
+-- respeitavam; as funções de BUSCA, não — então o cadastro desativado não
+-- aparecia ao abrir a lista e aparecia ao digitar o nome. E como
+-- `fin_gravar_lancamento` confere existência e não situação, dava para lançar
+-- numa conta desativada desde que se chegasse a ela digitando.
+--
+-- ⚠️ É TAMBÉM O PAR DO CAMINHO FELIZ: não basta provar que a inativa some, é
+-- preciso provar que a ATIVA continua aparecendo. Uma trava que escondesse tudo
+-- passaria num teste que só olhasse para a recusa — a lição que já se repetiu
+-- quatro vezes neste projeto.
+-- ===========================================================================
+DO $$
+DECLARE
+  v_inativa uuid; v_ci_inativa uuid;
+  v_erro text := 'nenhum';
+  v_cm_achados text[]; v_ci_achados text[];
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+  BEGIN
+    PERFORM public.fin_gravar_conta_movimento(
+      'aa000000-0000-0000-0000-0000000000a1', NULL, 'ZORRO ATIVA', 'BANCO', 0, true);
+    v_inativa := (public.fin_gravar_conta_movimento(
+      'aa000000-0000-0000-0000-0000000000a1', NULL, 'ZORRO INATIVA', 'BANCO', 0, true)->>'id')::uuid;
+    -- Desativa a segunda DEPOIS de criada, como se faz pela tela.
+    PERFORM public.fin_gravar_conta_movimento(
+      'aa000000-0000-0000-0000-0000000000a1', v_inativa, 'ZORRO INATIVA', 'BANCO', 0, false);
+
+    PERFORM public.fin_gravar_identificadora(
+      'aa000000-0000-0000-0000-0000000000a1', NULL, 'ZORRO CATEGORIA ATIVA', 'DESPESA', true);
+    v_ci_inativa := (public.fin_gravar_identificadora(
+      'aa000000-0000-0000-0000-0000000000a1', NULL, 'ZORRO CATEGORIA INATIVA', 'DESPESA', true)->>'id')::uuid;
+    PERFORM public.fin_gravar_identificadora(
+      'aa000000-0000-0000-0000-0000000000a1', v_ci_inativa, 'ZORRO CATEGORIA INATIVA', 'DESPESA', false);
+
+    -- A busca que a tela faz ao digitar. "zorro" minúsculo de propósito:
+    -- `fin_normalizar` tem de dar conta da caixa e do acento.
+    SELECT array_agg(nome ORDER BY nome) INTO v_cm_achados
+      FROM public.fin_buscar_contas_movimento('aa000000-0000-0000-0000-0000000000a1', 'zorro');
+    SELECT array_agg(nome ORDER BY nome) INTO v_ci_achados
+      FROM public.fin_buscar_identificadoras('aa000000-0000-0000-0000-0000000000a1', 'zorro');
+  EXCEPTION WHEN OTHERS THEN v_erro := SQLSTATE || ' ' || SQLERRM;
+  END;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    20,
+    CASE WHEN v_erro = 'nenhum'
+          AND v_cm_achados = ARRAY['ZORRO ATIVA']
+          AND v_ci_achados = ARRAY['ZORRO CATEGORIA ATIVA']
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-06',
+    'A busca por texto traz a ATIVA e nao traz a DESATIVADA, nas duas especies de cadastro',
+    format('erro=%s; contas achadas=%s (esperado {ZORRO ATIVA}); categorias achadas=%s (esperado {ZORRO CATEGORIA ATIVA})',
+           v_erro, v_cm_achados::text, v_ci_achados::text));
+END;
+$$;
+
+
 -- ---------------------------------------------------------------------------
 -- LIMPEZA FINAL
 -- ---------------------------------------------------------------------------

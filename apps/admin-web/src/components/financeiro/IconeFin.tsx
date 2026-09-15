@@ -1,8 +1,9 @@
 "use client";
 
 import {
-  ArrowLeft, ArrowRightLeft, Ban, Banknote, CalendarCheck, ChartColumn,
-  ChevronDown, ChevronRight, CircleAlert, CircleCheck, CirclePlus, Coins,
+  ArrowLeft, ArrowRightLeft, Ban, Banknote, CalendarCheck, CalendarDays,
+  ChartColumn, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, CircleCheck,
+  CirclePlus, Coins,
   Download, Eye, FileUp, FolderTree, Funnel, LayoutDashboard, ListChecks, Lock,
   LockOpen, Menu, Pencil, PiggyBank, Plus, Printer, RefreshCw, Save, Search,
   Settings, Tags, Trash, Users, Wallet, X,
@@ -49,6 +50,9 @@ const CATALOGO = {
   voltar: ArrowLeft,
   abrirNivel: ChevronRight,
   fecharNivel: ChevronDown,
+  mesAnterior: ChevronLeft,
+  mesSeguinte: ChevronRight,
+  calendario: CalendarDays,
 
   // os assuntos do módulo
   cadastros: FolderTree,

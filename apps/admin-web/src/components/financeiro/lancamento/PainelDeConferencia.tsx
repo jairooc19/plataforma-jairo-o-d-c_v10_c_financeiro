@@ -1,8 +1,10 @@
 "use client";
 
 import { formatarBRL, formatarDataBR } from "@jairo/core";
+import AtalhosDeMes from "../AtalhosDeMes";
 import ExtratoDaConta from "../ExtratoDaConta";
 import IconeFin from "../IconeFin";
+import SelecaoComBusca from "../SelecaoComBusca";
 import { abrirImpressao } from "../prepararImpressao";
 import type { useNovoLancamento } from "./useNovoLancamento";
 
@@ -86,14 +88,22 @@ export default function PainelDeConferencia({
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
         <div className="sm:col-span-3">
+          {/* ⚠️ CAMPO QUE SE DIGITA **E** SE ESCOLHE (14/09/2026). Este é o
+              SEGUNDO campo CONTA MOVIMENTO da tela — o primeiro está no
+              formulário, à esquerda. Os dois mudaram juntos de propósito: com
+              um só digitável, a mesma tela teria dois campos de mesmo nome e
+              comportamentos diferentes, o que ensina uma coisa e cobra outra. */}
           <label htmlFor="e-conta" className={rotulo}>CONTA MOVIMENTO</label>
-          <select id="e-conta" value={c.contaExtrato} onChange={(e) => c.setContaExtrato(e.target.value)}
-                  className={`${campo} uppercase font-bold`}>
-            <option value="">SELECIONE</option>
-            {contas.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}
-          </select>
+          <SelecaoComBusca
+            id="e-conta"
+            valor={c.contaExtrato}
+            opcoes={contas}
+            aoEscolher={c.setContaExtrato}
+            aoBuscar={m.sugerirContasMovimento}
+            placeholder="DIGITE PARA PROCURAR OU CLIQUE PARA VER A LISTA"
+          />
         </div>
         <div className="sm:col-span-1">
           <label htmlFor="e-de" className={rotulo}>DATA INICIAL</label>
@@ -103,6 +113,13 @@ export default function PainelDeConferencia({
           <label htmlFor="e-ate" className={rotulo}>DATA FINAL</label>
           <input id="e-ate" type="date" value={c.ate} onChange={(e) => c.setAte(e.target.value)} className={campo} />
         </div>
+      </div>
+
+      {/* ⚠️ OS ATALHOS FICAM LOGO ABAIXO DAS DATAS QUE ELES CONTROLAM. Ao lado
+          do botão IMPRIMIR eles ficariam longe do que mudam; acima dos campos,
+          empurrariam para baixo uma coluna que já é alta. */}
+      <div className="mb-5">
+        <AtalhosDeMes id="e-atalhos" de={c.de} ate={c.ate} aoEscolher={c.definirPeriodo} />
       </div>
 
       {/* ⚠️ AS PERMISSÕES AQUI SÓ DESENHAM O MENU. Quem recusa de verdade é

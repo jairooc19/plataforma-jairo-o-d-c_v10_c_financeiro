@@ -32,7 +32,8 @@ o guia de instruções; aquele é a memória.
 
 **Onde o projeto está** (14/09/2026): plataforma v10 com o módulo `financeiro` plugado,
 publicado na Vercel e validado no Supabase real — `teste_rls.sql` **16/16** e
-`teste_financeiro.sql` **18/18**. Das 6 fases da especificação do módulo, 5 estão prontas;
+`teste_financeiro.sql` **20/20** (as duas travas novas, 19 e 20, ainda só foram
+provadas no PostgreSQL local). Das 6 fases da especificação do módulo, 5 estão prontas;
 a fase 5 (DINHEIRO DO PERÍODO, DASHBOARDS, ORÇAMENTO) ainda avisa "EM DESENVOLVIMENTO".
 
 ---
@@ -91,7 +92,7 @@ plataforma-jairo-o-d-c-v4/
 │   │   └── plataforma_02_seed.sql     → Hidratador: dados iniciais obrigatórios
 │   ├── criar-bd-financeiro/→ 🧩 MÓDULO: banco do Controle Financeiro (01 → 02; o 00 despluga)
 │   ├── testes/             → teste_rls.sql (16 travas da plataforma), teste_financeiro.sql
-│   │                         (18 travas do módulo), inventario.sql (confere o schema)
+│   │                         (20 travas do módulo), inventario.sql (confere o schema)
 │   │   └── ambiente-local/ → 🆕 sobe um PostgreSQL descartável e valida o SQL antes do Supabase
 │   ├── migrations/         → vazia; ler o README antes do primeiro dado real
 │   └── config.toml         → Configuração do Supabase CLI
@@ -118,7 +119,7 @@ Na **raiz do repositório**:
 ```bash
 npm install          # Instala as dependências de todos os workspaces
 npm run web          # Inicia o admin-web em desenvolvimento (porta 3000)
-npm test             # 36 testes do Core (node:test, sem dependências)
+npm test             # 44 testes do Core (node:test, sem dependências)
 npm run modulos:verificar   # 🆕 o verificador de LEGO (plataforma × módulos)
 npm run verificar    # testes + verificador + lint + build, em sequência
 ```
@@ -947,6 +948,15 @@ inclusive numa máquina limpa — foi por isso que a versão com bcrypt foi reve
 - ❌ Nunca comparar duplicata de cadastro por igualdade de texto — a regra é `fin_normalizar` (sem acento, sem espaço, maiúsculas), a mesma do índice único; comparar cru deixa passar e o índice derruba a instrução inteira no fim
 - ❌ Nunca deixar um teste com número esperado escrito à mão quando ele pode ser contado do catálogo — ele falha com o código certo e ensina a ignorar o vermelho
 - ❌ Nunca escrever teste que dependa do estado deixado por outro teste do mesmo arquivo — inserir um terceiro no meio quebra o primeiro, apontando para o lugar errado
+- ❌ Nunca voltar um mês com `setMonth(getMonth() - 1)` a partir do dia que se tem — em 31/03 isso devolve 3 de MARÇO, sem erro nenhum, e o botão "mês anterior" parece não funcionar; ancore no dia 1 e pegue o último dia com `new Date(ano, mes + 1, 0)`
+- ❌ Nunca escrever cálculo de data dentro de um componente de tela — no Core ele é testável pelo `npm test`; na tela, só clicando
+- ❌ Nunca fazer um atalho de período partir de hoje quando há data na tela — o clique repetido devolveria sempre o mesmo mês
+- ❌ Nunca usar uma classe utilitária do Tailwind sem conferir que ela existe — `animate-fade-in` esteve escrita em 10 telas sem definição nenhuma, e classe inexistente não quebra o build nem acusa nada; o Tailwind 4 traz de fábrica só `spin`, `ping`, `pulse` e `bounce`
+- ❌ Nunca deixar uma função de busca do módulo devolver cadastro desativado — a RN-06 manda o inativo sumir das listas de lançamento novo, e sem o filtro ele some da lista e reaparece ao digitar
+- ❌ Nunca chamar `useEffect` depois de um `return` antecipado num componente — a contagem de hooks tem de ser igual em toda renderização; ponha o `if` DENTRO do efeito
+- ❌ Nunca estimar trabalho de módulo pela memória sem abrir o arquivo — `fin_buscar_contas_movimento` existia desde o degrau 7, com GRANT, e nunca tinha sido chamada
+- ❌ Nunca deixar dois campos de mesmo nome na mesma tela com comportamentos diferentes — um digitável e o outro não ensina uma coisa e cobra outra
+- ❌ Nunca entregar teste novo sem tê-lo visto FALHAR uma vez — reaplique o schema sem a correção e confirme que ele acusa; teste que nunca falhou é decoração
 - ❌ Nunca criar arquivo com múltiplas responsabilidades distintas
 - ❌ Nunca misturar lógica de plataforma com módulo, nem módulo com módulo
 - ❌ Nunca usar `toISOString()` para datas que precisam respeitar UTC-3
