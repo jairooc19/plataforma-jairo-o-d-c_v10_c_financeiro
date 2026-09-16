@@ -25,10 +25,20 @@ import MenuDeLinha, { type AcaoDeLinha } from "./MenuDeLinha";
  * ⚠️ O MENU SÓ APARECE NAS LINHAS DE LANÇAMENTO. "SALDO INICIAL" e "TOTAIS DO
  * PERÍODO" são somas, não registros: não existe o que editar nem o que excluir
  * ali. Um menu naquelas linhas prometeria uma ação impossível.
+ *
+ * ⚠️ 16/09/2026 — A LINHA INTEIRA ABRIU. Clicar num lançamento mostra a ficha
+ * completa dele (`DetalheDoLancamento`). Vale a MESMA regra do menu: só as
+ * linhas de LANÇAMENTO respondem — "SALDO INICIAL" e "TOTAIS" não têm ficha.
+ *
+ * ⚠️ A CÉLULA "OK" E A "AÇÕES" CORTAM A PROPAGAÇÃO, E ISSO NÃO É ENFEITE. Sem
+ * o `stopPropagation`, marcar um lançamento como conferido — ou abrir o menu
+ * de ações — escalaria até a `<tr>` e abriria a janela de detalhe por cima do
+ * que a pessoa quis fazer. O clique é um só; quem estiver mais perto fica com
+ * ele.
  */
 export default function ExtratoDaConta({
   linhas, carregando, mensagem, podeConciliar, onConferir, onEditar, onExcluir,
-  podeEditar = false, podeExcluir = false,
+  podeEditar = false, podeExcluir = false, onAbrirDetalhe,
 }: {
   linhas: LinhaDoExtrato[];
   carregando: boolean;
@@ -39,6 +49,8 @@ export default function ExtratoDaConta({
   onExcluir?: (lancamentoId: string) => void;
   podeEditar?: boolean;
   podeExcluir?: boolean;
+  /** Clique na linha: abre a ficha completa do lançamento (16/09/2026). */
+  onAbrirDetalhe?: (lancamentoId: string) => void;
 }) {
   if (mensagem) {
     return (
@@ -87,10 +99,19 @@ export default function ExtratoDaConta({
         <tbody>
           {linhas.map((l, i) => {
             const ehResumo = l.linha_tipo !== "LANCAMENTO";
+            const abrir = !ehResumo && l.lancamento_id && onAbrirDetalhe
+              ? () => onAbrirDetalhe(l.lancamento_id!)
+              : undefined;
             return (
               <tr
                 key={l.lancamento_id ?? `${l.linha_tipo}-${i}`}
-                className={ehResumo ? "bg-slate-50 font-black" : "hover:bg-blue-50/40"}
+                onClick={abrir}
+                onKeyDown={abrir ? (e) => { if (e.key === "Enter") abrir(); } : undefined}
+                tabIndex={abrir ? 0 : undefined}
+                title={abrir ? "VER TODAS AS INFORMAÇÕES DESTE LANÇAMENTO" : undefined}
+                className={ehResumo
+                  ? "bg-slate-50 font-black"
+                  : `hover:bg-blue-50/40 ${abrir ? "cursor-pointer" : ""}`}
               >
                 <td className="px-2 py-2 whitespace-nowrap border-b border-slate-100">{formatarDataBR(l.data_movimento)}</td>
                 <td className="px-2 py-2 text-center border-b border-slate-100">{l.ordem_extrato ?? ""}</td>
@@ -115,7 +136,8 @@ export default function ExtratoDaConta({
                   {l.usuario ?? ""}
                 </td>
                 {podeConciliar && (
-                  <td className="px-2 py-2 text-center border-b border-slate-100">
+                  <td className="px-2 py-2 text-center border-b border-slate-100"
+                      onClick={(e) => e.stopPropagation()}>
                     {l.linha_tipo === "LANCAMENTO" && l.lancamento_id && (
                       <input
                         type="checkbox"
@@ -128,7 +150,8 @@ export default function ExtratoDaConta({
                   </td>
                 )}
                 {temMenu && (
-                  <td className="px-2 py-2 text-right border-b border-slate-100 whitespace-nowrap">
+                  <td className="px-2 py-2 text-right border-b border-slate-100 whitespace-nowrap"
+                      onClick={(e) => e.stopPropagation()}>
                     {l.linha_tipo === "LANCAMENTO" && l.lancamento_id && (
                       <MenuDeLinha acoes={acoesDaLinha(l)} />
                     )}

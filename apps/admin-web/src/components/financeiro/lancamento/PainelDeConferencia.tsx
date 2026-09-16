@@ -1,11 +1,13 @@
 "use client";
 
+import { useCallback, useState } from "react";
 import { formatarBRL, formatarDataBR } from "@jairo/core";
 import AtalhosDeMes from "../AtalhosDeMes";
 import ExtratoDaConta from "../ExtratoDaConta";
 import IconeFin from "../IconeFin";
 import SelecaoComBusca from "../SelecaoComBusca";
 import { abrirImpressao } from "../prepararImpressao";
+import DetalheDoLancamento from "./DetalheDoLancamento";
 import type { useNovoLancamento } from "./useNovoLancamento";
 
 /**
@@ -30,7 +32,21 @@ export default function PainelDeConferencia({
   m: ReturnType<typeof useNovoLancamento>;
 }) {
   const { conferencia: c, contas, contaDoExtrato } = m;
-  const { pode, nomeEmpresa } = m.ctx;
+  const { pode, nomeEmpresa, tenantId } = m.ctx;
+
+  /**
+   * Qual lançamento está com a ficha aberta (16/09/2026).
+   *
+   * ⚠️ O ESTADO É DAQUI, E NÃO DO `useNovoLancamento`. Abrir uma ficha não
+   * muda o lançamento em digitação, não mexe no extrato e não sobrevive a
+   * trocar de tela — é estado de exibição desta coluna. No hook, ele apareceria
+   * para o formulário da esquerda, que nada tem a ver com isso.
+   */
+  const [detalheId, setDetalheId] = useState<string | null>(null);
+
+  /** Estável de propósito: é dependência do efeito que escuta o Esc. Recriada a
+      cada renderização, aquele efeito se desmontaria e remontaria à toa. */
+  const fecharDetalhe = useCallback(() => setDetalheId(null), []);
 
   const rotulo = "block text-[11px] font-black uppercase tracking-widest text-slate-500 mb-1.5";
   const campo = "w-full px-3 py-2.5 rounded-xl border border-slate-300 focus:border-blue-500 focus:outline-none";
@@ -140,6 +156,13 @@ export default function PainelDeConferencia({
         podeExcluir={pode("lc_excluir_todos") || pode("lc_excluir_proprios")}
         onEditar={m.editar}
         onExcluir={m.excluir}
+        onAbrirDetalhe={setDetalheId}
+      />
+
+      <DetalheDoLancamento
+        tenantId={tenantId}
+        lancamentoId={detalheId}
+        onFechar={fecharDetalhe}
       />
     </section>
   );

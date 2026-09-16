@@ -332,9 +332,9 @@
   <p class="eyebrow">Plataforma Jairo O D C · Módulo Controle Financeiro · Especificação v3 — CONSTRUÍDO · DEGRAU 06 FECHADO</p>
   <h1>Módulo Controle Financeiro — Especificação Completa</h1>
   <p class="meta"><strong>Situação:</strong> <span class="tag tag-feito">IMPLEMENTADO E EM USO</span> — o módulo está plugado, no ar, e validado no Supabase de produção.</p>
-  <p class="meta"><strong>Escrito em</strong> 12/09/2026 como projeto · <strong>Atualizado em</strong> 14/09/2026, no fechamento do <strong>degrau 06</strong> · <strong>Base:</strong> as 33 respostas do dono do projeto + seis rodadas de teste dele no ambiente publicado</p>
+  <p class="meta"><strong>Escrito em</strong> 12/09/2026 como projeto · <strong>Atualizado em</strong> 16/09/2026, com o placar fechado no banco real · <strong>Base:</strong> as 33 respostas do dono do projeto + seis rodadas de teste dele no ambiente publicado</p>
   <p class="meta"><strong>Placar:</strong> <code>teste_rls.sql</code> <strong>16/16</strong> · <code>teste_financeiro.sql</code> <strong>21/21</strong> · <code>npm test</code> <strong>44/44</strong></p>
-  <p class="meta" style="font-size:13px"><strong>⚠️ Onde cada placar foi medido:</strong> no <strong>Supabase de produção</strong>, por você, em 13/09: 16/16 e 18/18 (os testes que existiam então). As travas <strong>19, 20 e 21</strong>, criadas em 14/09, rodaram num <strong>PostgreSQL 18 local e descartável</strong> — do zero e também simulando o <em>upgrade</em> do banco anterior. Elas ainda <strong>não</strong> foram executadas no banco real.</p>
+  <p class="meta" style="font-size:13px"><strong>⚠️ Onde cada placar foi medido:</strong> <strong>tudo no Supabase de produção, por você</strong> — 16/16 e 18/18 em 13/09, e o arquivo inteiro em <strong>16/09: 21/21</strong>, já com as travas <strong>19, 20 e 21</strong> criadas em 14/09. Antes de chegarem ao seu banco, elas passaram num <strong>PostgreSQL 18 local e descartável</strong>, do zero e também simulando o <em>upgrade</em> do banco anterior. <strong>Nenhum número desta página é estimativa.</strong></p>
   <div class="callout callout-ambar" style="margin-top:14px">
     <span class="box-title">⚠️ Como este documento mudou de natureza</span>
     <p style="margin-top:6px">Ele nasceu em 12/09/2026 como <strong>projeto</strong> — dizia o que <em>ia</em> ser feito, e trazia a frase "nenhum arquivo de código foi criado ou alterado". Isso deixou de ser verdade no dia seguinte.</p>
@@ -552,8 +552,6 @@
         <tr><td><strong>DASHBOARDS</strong> e <strong>ORÇAMENTO</strong></td><td>Itens de menu que avisam "EM DESENVOLVIMENTO", como você decidiu (fase 5)</td></tr>
         <tr><td>Um <code>inventario_financeiro.sql</code></td><td>A plataforma tem um; o módulo não. Responderia "o módulo está inteiro?" em um segundo, sem escrever no banco</td></tr>
         <tr><td>Um <code>supabase/LEIA-ME-ORDEM.md</code></td><td>Hoje são cinco arquivos SQL em duas pastas, e a ordem certa está espalhada por três documentos</td></tr>
-        <tr><td>Rodar as travas <strong>19, 20 e 21</strong> no banco real</td><td>Elas passaram no PostgreSQL local, do zero <strong>e</strong> simulando o upgrade. No Supabase de produção, ainda não — depende de você reaplicar o <code>financeiro_01_schema.sql</code> e colar o arquivo de testes</td></tr>
-        <tr><td>A <strong>conta desativada no filtro da Conferência</strong></td><td><strong>Divergência encontrada em 14/09, e não corrigida de propósito.</strong> Esta especificação diz (13.1) que ali a lista traz <em>todas</em> as contas, inclusive inativas, porque elas têm histórico. <strong>O código lista só as ativas.</strong> Ou seja: hoje não se consegue ver o extrato de uma conta desativada por essa tela — só pela PESQUISAR, que inclui inativas. Corrigir é separar as duas listas (uma para lançar, outra para consultar); é mudança pequena, mas é decisão sua, porque esbarra na RN-06</td></tr>
         <tr><td>O <code>apps/mobile-app</code></td><td>O módulo <strong>não</strong> tem telas no aplicativo, e o aplicativo não foi aberto em aparelho nem emulador. Adiado sem previsão; o foco é a web</td></tr>
       </tbody>
     </table>
@@ -1402,7 +1400,7 @@ ordem 4 — MERCADO                ← era 3</pre>
     <table>
       <thead><tr><th>Campo</th><th>Especificação</th></tr></thead>
       <tbody>
-        <tr><td><strong>CONTA MOVIMENTO</strong></td><td><span class="tag tag-mudou">MUDOU</span> Campo que se <strong>digita e se escolhe</strong> (14/09), igual ao do lançamento. Uma conta por vez.<br><strong>⚠️ Divergência conhecida:</strong> este documento sempre disse "todas as contas, inclusive inativas, porque elas têm histórico" — <strong>o código lista só as ativas</strong>. Ver 0.6</td></tr>
+        <tr><td><strong>CONTA MOVIMENTO</strong></td><td><span class="tag tag-mudou">MUDOU</span> Campo que se <strong>digita e se escolhe</strong> (14/09), igual ao do lançamento. Uma conta por vez.<br><strong>Lista <u>somente as contas ATIVAS</u></strong> <span class="tag tag-ok">DECIDIDO — 16/09</span>, exatamente como o campo do lançamento. Para ver o extrato de uma conta <strong>desativada</strong>, o caminho é a tela <strong>PESQUISAR</strong>, que inclui as inativas. Ver 13.7</td></tr>
         <tr><td><strong>DATA INICIAL</strong> e <strong>DATA FINAL</strong></td><td>Ambas começam em branco. <strong>O extrato só é exibido quando as duas forem válidas</strong> (RN-17) <span class="tag tag-ok">DECIDIDO</span></td></tr>
         <tr><td><strong>ATALHOS DE MÊS</strong> <span class="tag tag-feito">NOVO — 14/09</span></td><td>Três botões abaixo das datas: <strong>MÊS ANTERIOR</strong>, <strong>MÊS ATUAL</strong> e <strong>MÊS SEGUINTE</strong>, com o mês carregado escrito ao lado ("MAIO / 2026"). Ver 13.6</td></tr>
       </tbody>
@@ -1508,6 +1506,71 @@ SALDO:   saldo de abertura da conta
     <p style="margin-top:6px">O saldo de cada linha é "tudo que veio antes, mais esta linha". O PostgreSQL faz isso com uma <strong>função de janela</strong>:</p>
     <pre>SUM(valor_com_sinal) OVER (ORDER BY data, ordem, criado_em)</pre>
     <p>Uma passagem, ordenado, sem trazer nada para a memória do servidor de aplicação. E como o número sai do banco, <strong>a tela, o relatório impresso e o TSV exportado mostram exatamente o mesmo saldo</strong> — porque os três chamam a mesma função. Se a conta morasse na tela, cada consumidor teria a sua cópia da lógica, e o dia em que uma fosse corrigida e a outra não, você veria dois saldos para o mesmo mês.</p>
+  </div>
+
+  <h3>13.7 A conta desativada não aparece no filtro <span class="tag tag-ok">DECIDIDO — 16/09</span></h3>
+  <p>O campo <strong>CONTA MOVIMENTO</strong> desta tela lista <strong>somente as contas ativas</strong>. Uma conta
+  desativada some do filtro, e o extrato dela passa a ser consultado pela tela <strong>PESQUISAR</strong>, que
+  inclui as inativas.</p>
+  <div class="callout callout-ambar">
+    <span class="box-title">⚠️ Este parágrafo já disse o contrário — e a mudança foi no documento, não no código</span>
+    <p style="margin-top:6px">Até 15/09/2026 esta seção afirmava que o filtro traria <em>todas</em> as contas,
+    inclusive as inativas, "porque elas têm histórico". <strong>O código nunca fez isso</strong>: desde o primeiro
+    dia ele usa a mesma busca do campo de lançamento, e essa busca obedece à <strong>RN-06</strong> — cadastro
+    desativado não aparece em lista de escolha. A divergência foi encontrada em 14/09 e apresentada a você; em
+    16/09 você decidiu: <strong>"ajustar para refletir o código real"</strong>.</p>
+    <p><strong>Por que a decisão é boa, e não só o caminho mais curto:</strong> os dois campos chamados CONTA
+    MOVIMENTO vivem na <em>mesma tela</em> — um no formulário, à esquerda, outro no filtro, à direita. Fazer um
+    listar contas que o outro recusa seria a armadilha que este projeto já pagou uma vez: <strong>dois campos de
+    mesmo nome com comportamentos diferentes ensinam uma coisa e cobram outra</strong>. Quem enxergasse BANCO ANTIGO
+    no filtro tentaria lançar nele em seguida.</p>
+    <p><strong>O que se perde, dito sem maquiagem:</strong> hoje o extrato de uma conta desativada não se alcança
+    por esta tela. Ele não sumiu — está na PESQUISAR, com todos os filtros e a impressão. Se um dia isso incomodar,
+    o conserto é separar as duas listas (uma para lançar, outra para consultar), e continua sendo decisão sua.</p>
+  </div>
+
+  <h3>13.8 Clicar na linha abre a ficha do lançamento <span class="tag tag-feito">NOVO — 16/09</span></h3>
+  <p>Pedido seu: <em>"ao clicar em algum registro retornado da pesquisa no banco de dados, apresentar todas as
+  informações do registro"</em>. Clicar em qualquer linha de <strong>lançamento</strong> do extrato abre uma
+  <strong>janela sobreposta</strong> com os <strong>17 campos</strong> do registro — inclusive os que não cabem
+  na tabela.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>O extrato já mostrava</th><th>A ficha acrescenta</th></tr></thead>
+      <tbody>
+        <tr><td>DATA · ORDEM · CONTA IDENTIFICADORA · ENTRADA · SAÍDA · SALDO · HISTÓRICO · USUÁRIO</td>
+            <td><strong>CONTA MOVIMENTO</strong> e o <strong>TIPO gravado</strong> das duas contas (RN-10) ·
+            <strong>PROPRIEDADE</strong> · <strong>REGIME</strong> · <strong>CONFERIDO</strong> ·
+            <strong>TRANSFERÊNCIA</strong> (e o aviso da RN-23) · <strong>LANÇADO EM</strong> ·
+            <strong>ÚLTIMA ALTERAÇÃO</strong> · <strong>IDENTIFICADOR</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p><strong>Só as linhas de LANÇAMENTO respondem ao clique.</strong> "SALDO INICIAL" e "TOTAIS DO PERÍODO" são
+  somas, não registros — não existe ficha para elas, e prometer uma seria mentir. Fecha no <strong>X</strong>,
+  no <strong>Esc</strong> ou clicando fora.</p>
+  <p><strong>A janela só LÊ.</strong> Editar, excluir e marcar conferido continuam onde sempre estiveram — o menu
+  <strong>AÇÕES</strong> e a caixa <strong>OK</strong> da própria linha. Uma janela que também alterasse precisaria
+  repetir aqui as permissões e as recusas que o banco já aplica, e seria a segunda cópia de uma regra única.</p>
+  <div class="callout callout-ambar">
+    <span class="box-title">⚠️ A armadilha que este clique trouxe: a linha já tinha dois donos</span>
+    <p style="margin-top:6px">A linha do extrato <strong>já respondia a dois cliques</strong> antes deste: a caixa
+    <strong>OK</strong>, que marca conferido, e o botão do menu <strong>AÇÕES</strong>. Um clique numa página não
+    para onde foi dado — ele <em>sobe</em> pelos elementos que o contêm. Sem cortar essa subida, marcar um
+    lançamento como conferido abriria a ficha <strong>por cima</strong> da ação pretendida, e o menu de ações
+    nasceria já enterrado sob a janela. As duas células agora interrompem a subida: <strong>quem estiver mais
+    perto do dedo fica com o clique</strong>.</p>
+    <p>É o mesmo tipo de defeito que o projeto pagou no degrau 3 com <code>mousedown</code> e <code>click</code>
+    nos menus flutuantes — e, como lá, <strong>não quebra nada, não acusa erro e só aparece no dedo de quem usa</strong>.</p>
+  </div>
+  <div class="example-box">
+    <span class="box-title">Por que a ficha busca de novo no banco em vez de usar a linha que já está na tela</span>
+    <p style="margin-top:6px">A <code>fin_extrato</code> devolve <strong>dez campos</strong>, escolhidos para somar
+    um saldo. Ela não diz a PROPRIEDADE, o REGIME, o TIPO gravado das contas nem se a linha é perna de
+    transferência — e montar a ficha com o que a linha tem seria <strong>adivinhar</strong>. Alargar a função do
+    banco para caber tudo faria <em>toda</em> abertura do extrato carregar campos que quase ninguém abre. A ficha
+    faz uma leitura <strong>sob demanda, de uma linha só</strong>, quando você clica: <strong>nada mudou no
+    banco</strong> por causa deste recurso.</p>
   </div>
 </section>
 

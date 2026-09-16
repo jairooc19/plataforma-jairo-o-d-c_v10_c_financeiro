@@ -40,8 +40,32 @@ export interface FiltroDeLancamentos {
 export interface LancamentoNaLista extends Lancamento {
   conta_movimento?: { nome: string } | null;
   conta_identificadora?: { nome: string } | null;
-  usuario?: { email: string } | null;
+  usuario?: { email: string; full_name?: string | null } | null;
 }
+
+/**
+ * As colunas do lançamento com os NOMES já resolvidos, para o PostgREST.
+ *
+ * ⚠️ ELA É UMA CONSTANTE, E NÃO DUAS CÓPIAS, DE PROPÓSITO. `pesquisar` e
+ * `detalhar` pedem exatamente o mesmo registro — uma em lista, outra sozinho.
+ * Com duas listas escritas à mão, o dia em que uma coluna nova entrasse só numa
+ * delas, a tela de detalhe mostraria um campo vazio sem erro nenhum.
+ *
+ * ⚠️ OS TRÊS ÚLTIMOS SÃO EMBUTIDOS (`!fk`), NÃO `JOIN`. O PostgREST resolve
+ * cada um como relação à parte: se a RLS de `users` esconder o autor, vem
+ * `usuario: null` — a LINHA continua. Um `JOIN` de verdade faria o lançamento
+ * inteiro sumir da lista, que é a armadilha já documentada em `fin_extrato`.
+ */
+const COLUNAS_COM_NOMES = `
+  id, tenant_id, conta_movimento_id, conta_identificadora_id,
+  tipo_conta_movimento, tipo_conta_identificadora,
+  data_movimento, ordem_extrato, tipo_movimento, propriedade, regime,
+  valor_centavos, historico, conferido, transferencia_id, criado_por,
+  created_at, updated_at,
+  conta_movimento:fin_contas_movimento!fin_lanc_conta_movimento_fk ( nome ),
+  conta_identificadora:fin_contas_identificadoras!fin_lanc_conta_identificadora_fk ( nome ),
+  usuario:users!criado_por ( email, full_name )
+`;
 
 export const lancamentoService = {
   /**
@@ -201,15 +225,7 @@ export const lancamentoService = {
 
     let q = supabase
       .from('fin_lancamentos')
-      .select(`
-        id, tenant_id, conta_movimento_id, conta_identificadora_id,
-        tipo_conta_movimento, tipo_conta_identificadora,
-        data_movimento, ordem_extrato, tipo_movimento, propriedade, regime,
-        valor_centavos, historico, conferido, transferencia_id, criado_por, created_at,
-        conta_movimento:fin_contas_movimento!fin_lanc_conta_movimento_fk ( nome ),
-        conta_identificadora:fin_contas_identificadoras!fin_lanc_conta_identificadora_fk ( nome ),
-        usuario:users!criado_por ( email )
-      `)
+      .select(COLUNAS_COM_NOMES)
       .eq('tenant_id', tenantId);
 
     if (filtro.contasMovimento?.length)        q = q.in('conta_movimento_id', filtro.contasMovimento);
@@ -237,5 +253,37 @@ export const lancamentoService = {
     const { data, error } = await q;
     if (error) throw new Error(error.message);
     return (data ?? []) as unknown as LancamentoNaLista[];
+  },
+
+  /**
+   * Um lançamento inteiro, com os nomes resolvidos — para a janela de DETALHE
+   * da CONFERÊNCIA DA CONTA (pedido de 16/09/2026).
+   *
+   * ⚠️ NÃO DÁ PARA MONTAR ISTO COM O QUE A LINHA DO EXTRATO JÁ TEM. A
+   * `fin_extrato` devolve dez campos pensados para somar um saldo — data,
+   * ordem, entrada, saída, saldo, histórico, autor. Ela não diz a PROPRIEDADE,
+   * o REGIME, o TIPO gravado das duas contas nem se a linha é perna de
+   * transferência. Alargar o `RETURNS TABLE` dela para servir a esta janela
+   * custaria um `DROP FUNCTION` e faria toda a tela do extrato carregar campos
+   * que 99% das vezes ninguém abre. Uma leitura sob demanda, de uma linha só,
+   * é mais barata e não mexe no banco.
+   *
+   * ⚠️ LEITURA DIRETA NA TABELA, e pode ser: a RLS já limita à empresa de quem
+   * pergunta — o mesmo caminho do `buscarPorId` e do `pesquisar`. Só a ESCRITA
+   * precisa passar por função do banco.
+   *
+   * Devolve `null` quando não existe (ou quando a RLS o esconde), para a tela
+   * avisar em vez de desenhar uma janela de campos vazios.
+   */
+  async detalhar(tenantId: string, id: string): Promise<LancamentoNaLista | null> {
+    const { data, error } = await supabase
+      .from('fin_lancamentos')
+      .select(COLUNAS_COM_NOMES)
+      .eq('tenant_id', tenantId)
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    return (data as unknown as LancamentoNaLista) ?? null;
   },
 };

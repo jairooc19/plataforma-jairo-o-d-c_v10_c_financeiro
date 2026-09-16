@@ -73,6 +73,14 @@ export interface Lancamento {
   transferencia_id: string | null;
   criado_por: string;
   created_at?: string;
+  /**
+   * Carimbo do gatilho `set_updated_at_fin_lanc`.
+   *
+   * ⚠️ NÃO significa "foi editado". Marcar como CONFERIDO também é um
+   * UPDATE na linha, e o gatilho carimba igual. Quem mostrar este campo tem de
+   * chamá-lo de ÚLTIMA ALTERAÇÃO, nunca de "editado em".
+   */
+  updated_at?: string;
 }
 
 /** O que se manda ao banco para criar ou editar um lançamento. */

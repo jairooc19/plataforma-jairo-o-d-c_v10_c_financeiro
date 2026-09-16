@@ -17,6 +17,66 @@ todas foram pagas com um defeito em produção.
 
 ---
 
+**2026-09-16 — v10: o placar fechou no banco real, e a linha do extrato abriu**
+
+Dia de duas naturezas: uma conferência que faltava e um recurso novo pequeno.
+
+**1) As travas 19, 20 e 21 rodaram no Supabase de produção: `teste_financeiro.sql`
+21/21.** Era a única pendência técnica aberta desde 14/09 — elas tinham passado num
+PostgreSQL 18 local (do zero **e** simulando o upgrade), mas nunca no banco dele. O
+resultado #16 é o que mais importa da tabela: **"alcança 18 de 18, sem EXECUTE: —"**.
+Nenhuma função ficou para trás no upgrade, e o #15 confirma **0 funções abertas ao
+anônimo**. A especificação deixou de dizer "medido no local" e passou a dizer, com
+data, **onde cada número foi medido**.
+
+**2) A "divergência da conta desativada" foi resolvida NO DOCUMENTO, não no código.**
+A especificação dizia, desde 12/09, que o filtro CONTA MOVIMENTO da CONFERÊNCIA traria
+também as contas inativas, "porque elas têm histórico". **O código nunca fez isso** —
+ele usa a mesma busca do campo de lançamento, que obedece à RN-06. Apresentada a
+escolha, o dono do projeto decidiu: *"ajustar para refletir o código real"*. Virou a
+seção **13.7**, com o que se perde escrito sem maquiagem (o extrato de conta
+desativada só pela PESQUISAR).
+
+> ⚠️ **O motivo técnico de a decisão ser boa, e não só a mais curta:** os dois campos
+> chamados CONTA MOVIMENTO vivem na **mesma tela** — um no formulário, outro no filtro.
+> Fazer um listar o que o outro recusa é a armadilha que este projeto já pagou em
+> 14/09 com o campo digitável: **dois campos de mesmo nome e comportamentos
+> diferentes ensinam uma coisa e cobram outra**.
+
+**3) Clicar numa linha do extrato abre a ficha completa do lançamento** (pedido dele,
+do dia). Quatro arquivos, **nenhuma mudança no banco**: `detalhar()` no
+`lancamentoService`, o hook `useDetalheDoLancamento`, a janela `DetalheDoLancamento` e
+o clique na `<tr>` do `ExtratoDaConta`. A ficha **só lê** — editar, excluir e conferir
+continuam no menu AÇÕES e na caixa OK da linha, que já têm as recusas do banco atrás
+deles.
+
+> ⚠️ **A ARMADILHA DO DIA: A LINHA JÁ TINHA DOIS DONOS.** A `<tr>` do extrato já
+> respondia a dois cliques — a caixa **OK** (conferido) e o botão do menu **AÇÕES**.
+> Um clique **sobe** pelos elementos que o contêm; sem `stopPropagation` nessas duas
+> células, marcar um lançamento como conferido abriria a ficha **por cima** da ação, e
+> o menu nasceria enterrado sob a janela. **Não quebra build, não acusa erro e só
+> aparece no dedo de quem usa** — primo do defeito `mousedown`×`click` do degrau 3.
+
+> ⚠️ **A ficha busca de novo no banco, e não reaproveita a linha da tela.** A
+> `fin_extrato` devolve dez campos feitos para somar saldo: não traz PROPRIEDADE,
+> REGIME, o TIPO gravado das contas nem a marca de transferência. Montar a ficha com o
+> que a linha tem seria **adivinhar**; alargar o `RETURNS TABLE` faria toda abertura do
+> extrato carregar campos que quase ninguém abre. Uma leitura sob demanda, de uma linha
+> só, custa menos e **não mexe no banco**.
+
+> ⚠️ **O `.html` da especificação é CRLF; os `.ts`/`.tsx` são LF.** Um script de
+> edição em Python que lê o HTML em modo texto **sem `newline=''`** troca as 2.431
+> quebras de linha do arquivo em silêncio — o `git diff` do dia acusou **2.429
+> inserções e 2.431 remoções** para uma alteração de quatro trechos. Foi revertido
+> antes do commit, mas o diff teria escondido a mudança real dentro do ruído.
+
+**Placar ao fim do dia:** `npm test` **44/44** · `teste_financeiro.sql` **21/21 (banco
+real)** · `teste_rls.sql` **16/16** · verificador de LEGO sem violação · build
+compilando. **Fase 5 (DINHEIRO DO PERÍODO, DASHBOARDS, ORÇAMENTO) adiada por ele, sem
+previsão.**
+
+---
+
 **2026-09-14 (tarde) — v10: a transferência escolhe a posição nas duas contas**
 
 Segunda rodada do dia. **Exige rodar de novo SÓ o `financeiro_01_schema.sql`** —

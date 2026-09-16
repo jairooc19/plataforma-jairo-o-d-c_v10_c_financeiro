@@ -30,10 +30,10 @@ defeito em produção.
 pode entrar aqui é a **regra** que a mudança gerou, na seção de proibições. Este arquivo é
 o guia de instruções; aquele é a memória.
 
-**Onde o projeto está** (14/09/2026): plataforma v10 com o módulo `financeiro` plugado,
+**Onde o projeto está** (16/09/2026): plataforma v10 com o módulo `financeiro` plugado,
 publicado na Vercel e validado no Supabase real — `teste_rls.sql` **16/16** e
-`teste_financeiro.sql` **21/21** (as travas novas — 19, 20 e 21 — ainda só foram
-provadas no PostgreSQL local). Das 6 fases da especificação do módulo, 5 estão prontas;
+`teste_financeiro.sql` **21/21**, este último rodado por inteiro no banco de produção em
+16/09, já com as travas 19, 20 e 21. Das 6 fases da especificação do módulo, 5 estão prontas;
 a fase 5 (DINHEIRO DO PERÍODO, DASHBOARDS, ORÇAMENTO) ainda avisa "EM DESENVOLVIMENTO".
 
 ---
@@ -962,6 +962,9 @@ inclusive numa máquina limpa — foi por isso que a versão com bcrypt foi reve
 - ❌ Nunca repetir a regra de deslocamento da ordem (RN-12) fora de `fin_abrir_espaco_na_ordem` — a cópia é a que esquece o `p_excluir_id`, e aí o lançamento editado empurra a si mesmo
 - ❌ Nunca conceder `GRANT` a função interna de módulo — chamada de dentro de uma `SECURITY DEFINER` ela não precisa, e exposta deixaria embaralhar o extrato alheio sem checagem de permissão; exclua-a do teste do caminho feliz, com o motivo escrito
 - ❌ Nunca ler `42501 Sem permissao` de um módulo como problema de permissão antes de conferir o seed — sem a linha do módulo em `platform_modules`, a `fin_pode()` nega tudo, e a mensagem não menciona catálogo nenhum
+- ❌ Nunca tornar clicável a linha de uma tabela sem cortar a propagação (`stopPropagation`) nas células que JÁ têm ação própria — a caixa de conferir e o botão do menu sobem o clique até a `<tr>`, e a ação pedida some sob a janela que abriu por cima; não quebra build, não acusa erro e só aparece no dedo de quem usa
+- ❌ Nunca montar uma ficha de detalhe com os campos que a linha da lista já tem — a função do extrato devolve o recorte que serve para somar saldo, não o registro inteiro; busque por `id`, sob demanda, em vez de alargar o `RETURNS TABLE` e fazer toda a lista carregar o que quase ninguém abre
+- ❌ Nunca editar os `.html` de `_estudos/` com script que leia em modo texto sem `newline=''` — eles são **CRLF** (os `.ts`/`.tsx` são LF), e a leitura em modo texto reescreve as ~2.400 quebras de linha em silêncio: o diff de uma alteração de quatro trechos vira 2.400 linhas e esconde a mudança real
 - ❌ Nunca criar arquivo com múltiplas responsabilidades distintas
 - ❌ Nunca misturar lógica de plataforma com módulo, nem módulo com módulo
 - ❌ Nunca usar `toISOString()` para datas que precisam respeitar UTC-3
