@@ -17,6 +17,70 @@ todas foram pagas com um defeito em produção.
 
 ---
 
+**2026-09-16 (tarde) — v10: a ordem que voltou, e o inventário do módulo**
+
+Dois pedidos dele, e um defeito mais grave achado no caminho do primeiro.
+
+**1) A ORDEM NO EXTRATO volta sozinha depois de gravar.** Pedido dele: lançando em
+série, a tela mantém conta e data, mas o campo ORDEM vinha em branco. Agora ele traz
+o próximo número do dia — 4, 5, 6 — sem ninguém digitar.
+
+> ⚠️ **DUAS FUNÇÕES CERTAS, SOZINHAS, PRODUZINDO UM DEFEITO JUNTAS.** A sugestão de
+> ordem nasceu presa a `[contaId, data]` — "quando a conta ou a data mudarem". E o
+> bônus N2 existe justamente para **não** mudar conta nem data após gravar, que é o
+> que permite lançar em série. Uma esperava a outra: nada mudava, o efeito não rodava,
+> e o campo ficava em branco **exatamente no caso em que mais se lança seguido**. A
+> correção é um contador que só cresce — o jeito de dizer "pergunte de novo, mesmo que
+> nada tenha mudado".
+
+> ⚠️ **O DEFEITO VIZINHO, ACHADO NO MESMO CAMPO, E PIOR QUE O PEDIDO.** Ao abrir um
+> lançamento para EDITAR, a tela preenchia a ordem REAL do registro — e a sugestão
+> disparava logo atrás e **sobrescrevia esse número pela próxima livre**. Gravar em
+> seguida **MOVIA o lançamento para o fim do dia**, empurrando os vizinhos (RN-12), sem
+> aviso nenhum. **Só aparecia quando o lançamento era de outra conta ou de outra data**
+> — o caso de quem chega pela tela PESQUISAR. Estava lá desde o degrau 7.
+
+> ⚠️ **A GUARDA VAI NO EFEITO, NUNCA DENTRO DA BUSCA.** Uma checagem de `editandoId`
+> feita dentro da função `async` leria o valor ANTIGO do fecho quando `limparFormulario`
+> zera o modo de edição — e pularia a sugestão justamente ao gravar uma edição.
+
+**2) Nasceu o `supabase/testes/inventario_financeiro.sql`** (ele autorizou depois de eu
+explicar o que era). Uma tabela de **15 linhas**, um SELECT só, **sem escrever nada** —
+pode rodar em produção. Responde "as peças estão todas lá?", que é outra pergunta da
+do `teste_financeiro.sql` ("as regras funcionam?").
+
+> **Provado nos dois sentidos, num PostgreSQL 18 local:** 15/15 OK num banco montado do
+> zero **e**, com sete defeitos injetados de propósito (a sobrecarga de `fin_transferir`,
+> o seed apagado, função interna com GRANT, porta aberta ao anônimo, RLS desligado,
+> policy sem `TO`, chave estrangeira simples entre tabelas do módulo), **os sete foram
+> pegos**, com as linhas DETALHE nomeando cada culpado.
+
+> ⚠️ **ACHADO DE BRINDE, E ELE VALE POR SI:** a sobrecarga injetada apareceu **também**
+> como aberta ao anônimo. O motivo é a regra que já estava escrita e agora tem prova:
+> **função nova nasce executável por PUBLIC, e o `GRANT` sozinho não fecha isso** — só o
+> `REVOKE … FROM PUBLIC` fecha. Uma sobrecarga esquecida não é só lixo: pode ser porta.
+
+> ⚠️ **`has_function_privilege('anon', …)` ESTOURA SE O PAPEL NÃO EXISTIR**, e leva junto
+> o resultado das linhas que já tinham passado. O arquivo lê privilégio por `aclexplode`
+> com `JOIN` em `pg_roles` — devolve "ninguém" em vez de morrer — e trata `proacl IS
+> NULL` explicitamente como ABERTA A PUBLIC.
+
+> ⚠️ **SEIS NÚMEROS DELE SÃO ESCRITOS À MÃO, E ESTÁ CERTO QUE SEJAM.** Tabelas (4),
+> funções (20), policies (4), triggers (8), índices (16) e alcance do app (18) são a
+> AFIRMAÇÃO do schema; deduzi-los do catalágo seria perguntar ao banco se ele concorda
+> consigo mesmo, e a resposta seria sempre sim. As outras nove linhas esperam ZERO, e o
+> zero não envelhece. **Objeto novo no schema = atualizar o número no mesmo commit**, ou
+> o inventário vira decoração que ensina a ignorar o vermelho.
+
+> ⚠️ **ARMADILHA DE FERRAMENTA, NÃO DE CÓDIGO:** um script de edição em Python que abre o
+> arquivo com `open(caminho, "w")` **trunca antes de codificar**. Um `\ud83d\udd01` escrito
+> como par substituto fez a codificação falhar **depois** do truncamento, e o
+> `useNovoLancamento.ts` ficou com **zero byte**. Recuperado com `git checkout` porque
+> estava commitado. A partir daqui: montar o texto, `.encode('utf-8')`, só então abrir
+> em `"wb"`.
+
+---
+
 **2026-09-16 — v10: o placar fechou no banco real, e a linha do extrato abriu**
 
 Dia de duas naturezas: uma conferência que faltava e um recurso novo pequeno.

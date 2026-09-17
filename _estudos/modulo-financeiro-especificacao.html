@@ -550,7 +550,6 @@
       <tbody>
         <tr><td><strong>DINHEIRO DO PERÍODO</strong></td><td>Cartão grande no lugar definitivo, dizendo "EM DESENVOLVIMENTO". Os números que ele mostraria já existem no banco (<code>fin_extrato</code> devolve saldos prontos) — o trabalho é de tela</td></tr>
         <tr><td><strong>DASHBOARDS</strong> e <strong>ORÇAMENTO</strong></td><td>Itens de menu que avisam "EM DESENVOLVIMENTO", como você decidiu (fase 5)</td></tr>
-        <tr><td>Um <code>inventario_financeiro.sql</code></td><td>A plataforma tem um; o módulo não. Responderia "o módulo está inteiro?" em um segundo, sem escrever no banco</td></tr>
         <tr><td>Um <code>supabase/LEIA-ME-ORDEM.md</code></td><td>Hoje são cinco arquivos SQL em duas pastas, e a ordem certa está espalhada por três documentos</td></tr>
         <tr><td>O <code>apps/mobile-app</code></td><td>O módulo <strong>não</strong> tem telas no aplicativo, e o aplicativo não foi aberto em aparelho nem emulador. Adiado sem previsão; o foco é a web</td></tr>
       </tbody>
@@ -1311,6 +1310,7 @@ ORÇAMENTO      → avisa "EM DESENVOLVIMENTO"</pre>
 
   <h3>12.3 A ordem no extrato (RN-11 e RN-12) <span class="tag tag-ok">DECIDIDO</span></h3>
   <p><strong>Sugestão automática:</strong> assim que a CONTA MOVIMENTO e a DATA estiverem preenchidas, o sistema propõe a próxima ordem livre daquele dia naquela conta. Se já existem 2 lançamentos em 05/09, sugere <strong>3</strong>. O usuário pode apagar (fica em branco) ou digitar outro número.</p>
+  <p><span class="tag tag-feito">CORRIGIDO — 16/09</span> <strong>E ela volta depois de cada gravada.</strong> Lançando em série na mesma conta e no mesmo dia, a ordem agora reaparece já no próximo número — 4, 5, 6 — sem ninguém digitar nada. Ver <strong>12.8</strong>.</p>
   <div class="example-box">
     <span class="box-title">O que acontece se ele digitar uma ordem já usada</span>
     <p style="margin-top:6px">Suponha que em 05/09 já existam:</p>
@@ -1345,7 +1345,7 @@ ordem 4 — MERCADO                ← era 3</pre>
 
   <h3>12.5 Depois de gravar <span class="tag tag-ok">bônus N2 aceito</span></h3>
   <ul>
-    <li>O formulário <strong>mantém</strong> CONTA MOVIMENTO e DATA (que repetem em série) e <strong>limpa</strong> os demais.</li>
+    <li>O formulário <strong>mantém</strong> CONTA MOVIMENTO e DATA (que repetem em série), <strong>limpa</strong> os demais e <strong>já sugere a próxima ORDEM do dia</strong> <span class="tag tag-feito">16/09</span>.</li>
     <li>A ORDEM é recalculada (a próxima livre).</li>
     <li>A <strong>coluna da direita se atualiza na hora</strong>, mostrando o lançamento recém-criado no extrato.</li>
     <li>Botão <strong>"REPETIR ÚLTIMO"</strong> copia todos os campos do último lançamento para edição.
@@ -1389,6 +1389,34 @@ ordem 4 — MERCADO                ← era 3</pre>
   de 30 visíveis por vez — quem escrevia um histórico longo digitava às cegas, com o texto rolando para fora. Um
   campo de texto livre e um campo numérico curto não têm por que dividir a mesma linha.</p>
   <p>Entrou junto um contador <code>0/200</code> abaixo do campo <span class="tag tag-pro">bônus</span>.</p>
+
+  <h3>12.8 A ORDEM volta sozinha depois de gravar <span class="tag tag-feito">CORRIGIDO — 16/09</span></h3>
+  <p>Pedido seu: <em>"após gravar, o sistema mantém na tela mesma conta movimento, mesma data, etc., mas o campo
+  ORDEM NO EXTRATO vem em branco — quero que ele apresente o próximo da sequência na mesma data"</em>.</p>
+  <p>Agora ele apresenta. Lançando em série na mesma conta e no mesmo dia, a ordem reaparece já no próximo
+  número — <strong>4, 5, 6</strong> — sem ninguém digitar nada.</p>
+  <div class="callout callout-ambar">
+    <span class="box-title">⚠️ Por que ele vinha em branco: o bônus N2 e a sugestão se atrapalhavam</span>
+    <p style="margin-top:6px">A sugestão de ordem sempre existiu, mas presa a uma condição: <strong>"quando a
+    conta ou a data mudarem"</strong>. E o bônus N2 (12.5) existe justamente para <strong>não</strong> mudar
+    conta nem data depois de gravar — é o que permite lançar em série. Uma esperava a outra: nada mudava, a
+    sugestão não rodava, e o campo ficava em branco exatamente no caso em que você mais lança seguido.</p>
+    <p><strong>Duas funções certas, sozinhas, produzindo um defeito juntas.</strong> A correção foi dar à tela um
+    jeito de dizer "pergunte de novo, mesmo que nada tenha mudado".</p>
+  </div>
+  <div class="callout callout-ambar">
+    <span class="box-title">⚠️ O defeito VIZINHO, achado no mesmo campo — e mais grave que o pedido</span>
+    <p style="margin-top:6px">Ao abrir um lançamento para <strong>EDITAR</strong>, a tela preenchia a ordem REAL do
+    registro — e a sugestão disparava logo atrás e <strong>sobrescrevia esse número pela próxima livre</strong>.
+    Gravar em seguida <strong>MOVIA o lançamento para o fim do dia</strong>, sem aviso nenhum, empurrando os
+    vizinhos (RN-12). O extrato ficava numa ordem que ninguém pediu.</p>
+    <p><strong>Ele só aparecia quando o lançamento aberto era de OUTRA conta ou de OUTRA data</strong> — o caso
+    de quem chega pela tela <strong>PESQUISAR</strong>. Editando algo da mesma conta e do mesmo dia que já estava
+    no formulário, nada mudava e a sugestão não disparava. É o tipo de defeito que se esconde do teste rápido e
+    espera o uso real.</p>
+    <p>Agora a sugestão <strong>não roda enquanto se edita</strong>: ordem de registro existente é dado, não
+    palpite.</p>
+  </div>
 </section>
 
 <section id="s13">
@@ -2323,8 +2351,6 @@ USING ( check_is_tenant_member(tenant_id) OR check_is_tenant_owner(tenant_id) )
               <td>Três ideias da última rodada. A de colar é a mais curta: o que o Excel põe na área de transferência já é TSV</td></tr>
           <tr><td><strong>Etiqueta TRANSF no extrato</strong> e <strong>aviso de período fechado</strong> ao escolher a data</td>
               <td>Dois ajustes pequenos de tela que evitam perguntas antes de elas existirem</td></tr>
-          <tr><td>Um <code>inventario_financeiro.sql</code></td>
-              <td>Responderia "o módulo está inteiro?" em um segundo, sem escrever no banco</td></tr>
         </tbody>
       </table>
     </div>

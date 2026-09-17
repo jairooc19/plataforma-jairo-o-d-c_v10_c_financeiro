@@ -55,6 +55,21 @@ export function useNovoLancamento() {
   const [historico, setHistorico] = useState("");
   const [saldoDaConta, setSaldoDaConta] = useState<number | null>(null);
 
+  /**
+   * 🔁 O GATILHO DA SUGESTÃO DE ORDEM (16/09/2026).
+   *
+   * ⚠️ ELE EXISTE PORQUE "GRAVAR" NÃO MUDA A CONTA NEM A DATA. A sugestão
+   * nasceu presa a `[contaId, data]`, e depois de gravar a tela mantém as duas
+   * de propósito (bônus N2, para lançar em série). Resultado: nada mudava, o
+   * efeito não rodava, e o campo ORDEM ficava em branco até a pessoa trocar a
+   * data — justamente no caso em que ela mais lança seguido.
+   *
+   * Um número que só cresce é o jeito de dizer "pergunte de novo, mesmo que
+   * nada tenha mudado". Somado à mesma renderização do `limparFormulario`, o
+   * efeito roda UMA vez.
+   */
+  const [gatilhoDaSugestao, setGatilhoDaSugestao] = useState(0);
+
   // --- conferência
   const [contaExtrato, setContaExtrato] = useState("");
   const [de, setDe] = useState("");
@@ -111,15 +126,31 @@ export function useNovoLancamento() {
     ler();
   }, [tenantId, contaId]);
 
-  /** A ordem sugerida: a próxima livre do dia naquela conta (RN-11). */
+  /**
+   * A ordem sugerida: a próxima livre do dia naquela conta (RN-11).
+   *
+   * ⚠️ NÃO SUGERE ENQUANTO SE EDITA, e essa guarda conserta um defeito que
+   * estava aqui desde o degrau 7: ao abrir um lançamento existente, `editar`
+   * preenche conta, data e a ordem REAL do registro — mas conta e data
+   * mudaram, o efeito disparava logo atrás e **sobrescrevia a ordem real pela
+   * próxima livre**. Gravar em seguida MOVIA o lançamento para o fim do dia,
+   * sem aviso nenhum. Só aparecia quando o lançamento aberto era de outra conta
+   * ou de outra data — o caso de quem chega pela tela PESQUISAR.
+   *
+   * ⚠️ A GUARDA FICA NO EFEITO, NÃO DENTRO DA BUSCA. Quando `limparFormulario`
+   * zera o `editandoId` e pede a sugestão na mesma renderização, uma checagem
+   * feita lá dentro leria o valor ANTIGO do fecho (ainda preenchido) e pularia
+   * a sugestão — exatamente no caminho de gravar uma edição.
+   */
   useEffect(() => {
+    if (editandoId) return;
     const sugerir = async () => {
       if (!contaId || !data) return;
       try { setOrdem(await lancamentoService.proximaOrdem(contaId, data)); }
       catch { /* sem sugestão, o campo fica em branco — é permitido */ }
     };
     sugerir();
-  }, [contaId, data]);
+  }, [contaId, data, editandoId, gatilhoDaSugestao]);
 
   const categoriaEscolhida = categorias.find((c) => c.id === categoriaId);
   const contaEscolhida = contas.find((c) => c.id === contaId);
@@ -159,9 +190,18 @@ export function useNovoLancamento() {
     setAte(periodo.ate);
   }, []);
 
+  /**
+   * Devolve o formulário ao estado de "lançamento novo", mantendo conta e data.
+   *
+   * ⚠️ O `setGatilhoDaSugestao` E O `setEditandoId(null)` CAEM NA MESMA
+   * RENDERIZAÇÃO, e isso importa: o efeito da sugestão roda uma vez só, já
+   * sabendo que a edição acabou. Em renderizações separadas, seriam duas idas
+   * ao banco para responder a mesma pergunta.
+   */
   const limparFormulario = useCallback(() => {
     setEditandoId(null);
     setCategoriaId(""); setValor(0); setHistorico(""); setOrdem("");
+    setGatilhoDaSugestao((n) => n + 1);
   }, []);
 
   /**

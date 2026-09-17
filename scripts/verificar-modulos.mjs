@@ -150,6 +150,11 @@ function territorioDoModulo(id) {
     `packages/core/src/modules/${id}/`,
     `supabase/criar-bd-${id}/`,
     `supabase/testes/teste_${id}.sql`,
+    // 16/09/2026: o inventário do módulo — irmão do `inventario.sql` da
+    // plataforma. Ele CITA o id do módulo de propósito (a linha de
+    // `platform_modules` é metade do que ele confere), então precisa estar no
+    // território — como o `teste_${id}.sql` sempre esteve, e pelo mesmo motivo.
+    `supabase/testes/inventario_${id}.sql`,
     `_estudos/${id}/`,
   ];
 }

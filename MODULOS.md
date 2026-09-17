@@ -56,7 +56,8 @@ apps/admin-web/src/app/dashboard/financeiro/     as telas (9 rotas)
 apps/admin-web/src/components/financeiro/        os componentes
 packages/core/src/modules/financeiro/            regras de negócio + manifesto
 supabase/criar-bd-financeiro/                    o banco (4 tabelas, 20 funções)
-supabase/testes/teste_financeiro.sql             as travas do módulo (18 testes)
+supabase/testes/teste_financeiro.sql             as travas do módulo (21 testes)
+supabase/testes/inventario_financeiro.sql        o inventário do módulo (15 linhas, só lê)
 ```
 
 E a documentação dele, que também é do módulo:
@@ -126,6 +127,8 @@ packages/core/src/modules/<nome>/            3. regras de negócio + manifesto.t
 supabase/criar-bd-<nome>/                    4. o banco  (<nome>_00_reset /
                                                 _01_schema / _02_seed)
 supabase/testes/teste_<nome>.sql             5. as travas do módulo
+supabase/testes/inventario_<nome>.sql        (opcional) o inventário: "as peças
+                                             estão todas lá?" — só lê o catálogo
 _estudos/<nome>/                             (opcional) a documentação dele
 ```
 

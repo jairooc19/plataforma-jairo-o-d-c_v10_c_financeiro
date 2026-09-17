@@ -92,7 +92,8 @@ plataforma-jairo-o-d-c-v4/
 │   │   └── plataforma_02_seed.sql     → Hidratador: dados iniciais obrigatórios
 │   ├── criar-bd-financeiro/→ 🧩 MÓDULO: banco do Controle Financeiro (01 → 02; o 00 despluga)
 │   ├── testes/             → teste_rls.sql (16 travas da plataforma), teste_financeiro.sql
-│   │                         (21 travas do módulo), inventario.sql (confere o schema)
+│   │                         (21 travas do módulo), inventario.sql e inventario_financeiro.sql
+│   │                         (conferem o schema da plataforma e o do módulo: 15 linhas, só leem)
 │   │   └── ambiente-local/ → 🆕 sobe um PostgreSQL descartável e valida o SQL antes do Supabase
 │   ├── migrations/         → vazia; ler o README antes do primeiro dado real
 │   └── config.toml         → Configuração do Supabase CLI
@@ -962,6 +963,10 @@ inclusive numa máquina limpa — foi por isso que a versão com bcrypt foi reve
 - ❌ Nunca repetir a regra de deslocamento da ordem (RN-12) fora de `fin_abrir_espaco_na_ordem` — a cópia é a que esquece o `p_excluir_id`, e aí o lançamento editado empurra a si mesmo
 - ❌ Nunca conceder `GRANT` a função interna de módulo — chamada de dentro de uma `SECURITY DEFINER` ela não precisa, e exposta deixaria embaralhar o extrato alheio sem checagem de permissão; exclua-a do teste do caminho feliz, com o motivo escrito
 - ❌ Nunca ler `42501 Sem permissao` de um módulo como problema de permissão antes de conferir o seed — sem a linha do módulo em `platform_modules`, a `fin_pode()` nega tudo, e a mensagem não menciona catálogo nenhum
+- ❌ Nunca prender uma sugestão de campo só ao que MUDA quando a tela foi feita para NÃO mudar — o bônus N2 mantém conta e data após gravar, e a sugestão de ordem, presa a `[contaId, data]`, nunca mais rodava; um contador que só cresce é o jeito de dizer "pergunte de novo, mesmo que nada tenha mudado"
+- ❌ Nunca deixar uma sugestão automática rodar durante a EDIÇÃO de um registro — ela sobrescreve o dado real pelo palpite e a gravada seguinte move o registro sem avisar; a guarda vai no EFEITO, nunca dentro da busca, senão ela lê o valor antigo do fecho quando `limparFormulario` zera o modo de edição
+- ❌ Nunca conferir privilégio de função com `has_function_privilege('anon', …)` num arquivo de diagnóstico — ele ESTOURA se o papel não existir e derruba o arquivo inteiro; use `aclexplode` com `JOIN` em `pg_roles`, e trate `proacl IS NULL` como ABERTA A PUBLIC
+- ❌ Nunca gravar arquivo com `open(caminho, "w")` em script de edição — ele TRUNCA antes de codificar, e um caractere que a codificação recusa deixa o arquivo com ZERO byte; monte o texto inteiro, chame `.encode('utf-8')` e só então abra em `"wb"`
 - ❌ Nunca tornar clicável a linha de uma tabela sem cortar a propagação (`stopPropagation`) nas células que JÁ têm ação própria — a caixa de conferir e o botão do menu sobem o clique até a `<tr>`, e a ação pedida some sob a janela que abriu por cima; não quebra build, não acusa erro e só aparece no dedo de quem usa
 - ❌ Nunca montar uma ficha de detalhe com os campos que a linha da lista já tem — a função do extrato devolve o recorte que serve para somar saldo, não o registro inteiro; busque por `id`, sob demanda, em vez de alargar o `RETURNS TABLE` e fazer toda a lista carregar o que quase ninguém abre
 - ❌ Nunca editar os `.html` de `_estudos/` com script que leia em modo texto sem `newline=''` — eles são **CRLF** (os `.ts`/`.tsx` são LF), e a leitura em modo texto reescreve as ~2.400 quebras de linha em silêncio: o diff de uma alteração de quatro trechos vira 2.400 linhas e esconde a mudança real
