@@ -108,6 +108,16 @@ export const manutencaoFinanceiroService = {
     contaMovimentoId?: string | null;
     dataInicial: string;
     dataFinal: string;
+    /**
+     * Os lançamentos marcados na lista. `null`/ausente = o período inteiro.
+     *
+     * ⚠️ `[]` E `null` SÃO COISAS DIFERENTES, E CONFUNDI-LOS APAGARIA O MÊS.
+     * `[]` quer dizer "desmarquei tudo" (nada sai); `null` quer dizer "não
+     * estou escolhendo, leve o período". Por isso o `?? null` abaixo é feito
+     * só sobre `undefined` — um array vazio atravessa inteiro até o banco,
+     * que o trata explicitamente.
+     */
+    ids?: string[] | null;
   }): Promise<RelatorioDeExclusao> {
     const { data, error } = await supabase.rpc('fin_excluir_lancamentos_por_periodo', {
       p_tenant_id: params.tenantId,
@@ -115,6 +125,7 @@ export const manutencaoFinanceiroService = {
       p_data_inicial: params.dataInicial,
       p_data_final: params.dataFinal,
       p_simular: true,
+      p_ids: params.ids === undefined ? null : params.ids,
     });
     if (error) throw new Error(error.message);
     return paraRelatorio(data as RetornoBrutoDeExclusao);
@@ -136,6 +147,8 @@ export const manutencaoFinanceiroService = {
     contaMovimentoId?: string | null;
     dataInicial: string;
     dataFinal: string;
+    /** Os marcados. `null`/ausente = o período inteiro. Ver a nota em `simular`. */
+    ids?: string[] | null;
   }): Promise<RelatorioDeExclusao> {
     const { data, error } = await supabase.rpc('fin_excluir_lancamentos_por_periodo', {
       p_tenant_id: params.tenantId,
@@ -143,6 +156,7 @@ export const manutencaoFinanceiroService = {
       p_data_inicial: params.dataInicial,
       p_data_final: params.dataFinal,
       p_simular: false,
+      p_ids: params.ids === undefined ? null : params.ids,
     });
     if (error) throw new Error(error.message);
     return paraRelatorio(data as RetornoBrutoDeExclusao);
@@ -187,6 +201,40 @@ export const manutencaoFinanceiroService = {
       restaurados: r.restaurados,
       jaExistia: r.ja_existia,
       eraTransferencia: r.era_transferencia,
+    };
+  },
+
+  /**
+   * Apaga a lixeira — **de vez**.
+   *
+   * ⚠️ ESTE É O ÚNICO PONTO DO MÓDULO ONDE INFORMAÇÃO SOME PARA SEMPRE. Todas
+   * as outras operações apagam DADO, e o dado apagado deixa rastro na trilha de
+   * auditoria (é dele que a lixeira vive). Esta apaga **o rastro**: depois dela
+   * não há como restaurar o lançamento nem como saber que ele existiu.
+   *
+   * Por isso a tela tem de simular primeiro e mostrar `restauraveis` — quantos
+   * lançamentos deixarão de poder voltar.
+   *
+   * `auditIds` nulo = a lixeira inteira da empresa; array = só os escolhidos.
+   */
+  async limparLixeira(params: {
+    tenantId: string;
+    auditIds?: number[] | null;
+    simular: boolean;
+  }): Promise<{ linhas: number; restauraveis: number; apagados: number; simulacao: boolean }> {
+    const { data, error } = await supabase.rpc('fin_limpar_lixeira', {
+      p_tenant_id: params.tenantId,
+      // Mesma regra do `p_ids`: `[]` é "nenhum", `null` é "tudo".
+      p_audit_ids: params.auditIds === undefined ? null : params.auditIds,
+      p_simular: params.simular,
+    });
+    if (error) throw new Error(error.message);
+    const r = data as { linhas: number; restauraveis: number; apagados: number; simulacao: boolean };
+    return {
+      linhas: r.linhas,
+      restauraveis: r.restauraveis,
+      apagados: r.apagados,
+      simulacao: r.simulacao,
     };
   },
 

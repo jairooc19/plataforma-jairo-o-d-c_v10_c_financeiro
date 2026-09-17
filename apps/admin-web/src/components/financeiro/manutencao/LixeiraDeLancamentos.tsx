@@ -43,11 +43,19 @@ export default function LixeiraDeLancamentos({
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
 
+  /** Quais linhas da lixeira estão marcadas para a limpeza definitiva. */
+  const [marcados, setMarcados] = useState<Set<number>>(new Set());
+
   const carregar = useCallback(async () => {
     if (!tenantId) return;
     setCarregando(true); setErro(null);
     try {
       setItens(await manutencaoFinanceiroService.listarExcluidos(tenantId, { limite: 200 }));
+      // ⚠️ A SELEÇÃO ZERA A CADA RELEITURA, e isso é deliberado. Os `audit_id`
+      // marcados podem ter deixado de existir (uma limpeza, outra aba), e uma
+      // marca apontando para linha que já saiu faria o botão prometer um número
+      // que o banco não vai encontrar.
+      setMarcados(new Set());
     } catch (e) {
       setErro(e instanceof Error ? e.message : "FALHA AO LER A LIXEIRA.");
     } finally {
@@ -91,6 +99,68 @@ export default function LixeiraDeLancamentos({
     }
   };
 
+  const alternar = (auditId: number) => {
+    setMarcados((atual) => {
+      const novo = new Set(atual);
+      if (novo.has(auditId)) novo.delete(auditId); else novo.add(auditId);
+      return novo;
+    });
+  };
+
+  /**
+   * ⚠️ A LIMPEZA DEFINITIVA — O ÚNICO PONTO DO MÓDULO ONDE INFORMAÇÃO SOME DE VEZ.
+   *
+   * Pedido do dono do projeto em 17/09/2026 (2ª rodada). Tudo o mais no módulo
+   * apaga DADO, e o dado apagado deixa rastro na trilha de auditoria — é dele
+   * que esta lixeira vive. Isto apaga **o rastro**: depois, não há como
+   * restaurar o lançamento nem como saber que ele existiu.
+   *
+   * ⚠️ POR ISSO ELA SIMULA ANTES, SEMPRE. O banco devolve `restauraveis`: quantos
+   * daqueles lançamentos ainda poderiam voltar. É esse número que a confirmação
+   * mostra — "3 linhas, das quais 3 ainda dariam para restaurar" pesa muito mais
+   * do que "limpar a lixeira?".
+   *
+   * @param tudo `true` = a lixeira INTEIRA da empresa (não só os 30 dias que a
+   *             lista mostra). A confirmação diz isso em voz alta, porque é
+   *             justamente a diferença que enganaria.
+   */
+  const limpar = async (tudo: boolean) => {
+    if (!tenantId) return;
+    const ids = tudo ? null : Array.from(marcados);
+    if (!tudo && ids!.length === 0) return;
+
+    setErro(null); setAviso(null);
+    try {
+      const previa = await manutencaoFinanceiroService.limparLixeira({
+        tenantId, auditIds: ids, simular: true,
+      });
+
+      if (previa.linhas === 0) {
+        setAviso("NÃO HÁ NADA PARA LIMPAR.");
+        return;
+      }
+
+      const texto =
+        (tudo
+          ? `LIMPAR A LIXEIRA INTEIRA DESTA EMPRESA?\n\n⚠️ ISTO ALCANÇA TODAS AS EXCLUSÕES JÁ REGISTRADAS — INCLUSIVE AS MAIS ANTIGAS QUE OS 30 DIAS MOSTRADOS NA LISTA.\n\n`
+          : `EXCLUIR DEFINITIVAMENTE ${previa.linhas} REGISTRO(S) DA LIXEIRA?\n\n`) +
+        `${previa.linhas} REGISTRO(S) DE EXCLUSÃO SERÃO APAGADOS.\n` +
+        `${previa.restauraveis} DELES AINDA PODERIA(M) SER RESTAURADO(S) — E DEIXARÁ(ÃO) DE PODER.\n\n` +
+        `⚠️ ESTA É A ÚNICA OPERAÇÃO DO SISTEMA QUE NÃO TEM VOLTA:\n` +
+        `DEPOIS DELA, NÃO HÁ COMO RECUPERAR ESSES LANÇAMENTOS NEM SABER QUE EXISTIRAM.`;
+
+      if (!window.confirm(texto)) return;
+
+      const r = await manutencaoFinanceiroService.limparLixeira({
+        tenantId, auditIds: ids, simular: false,
+      });
+      setAviso(`${r.apagados} REGISTRO(S) APAGADO(S) DEFINITIVAMENTE DA LIXEIRA.`);
+      await carregar();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "FALHA AO LIMPAR A LIXEIRA.");
+    }
+  };
+
   return (
     <section className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
       <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-slate-400 mb-2">
@@ -109,18 +179,53 @@ export default function LixeiraDeLancamentos({
       ) : itens.length === 0 ? (
         <p className="text-sm text-slate-400 font-bold uppercase">NENHUMA EXCLUSÃO NOS ÚLTIMOS 30 DIAS.</p>
       ) : (
+        <>
+        {/* ---------- A LIMPEZA DEFINITIVA ---------- */}
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          <button type="button" onClick={() => limpar(false)} disabled={marcados.size === 0}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-300 text-[10px] font-black uppercase tracking-widest text-red-700 hover:bg-red-50 disabled:opacity-35">
+            <IconeFin nome="excluir" tamanho={13} />
+            EXCLUIR DEFINITIVAMENTE OS MARCADOS
+          </button>
+          <button type="button" onClick={() => limpar(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 text-white text-[10px] font-black uppercase tracking-widest">
+            <IconeFin nome="excluir" tamanho={13} />
+            LIMPAR TODA A LIXEIRA
+          </button>
+          <span className="ml-auto text-[11px] font-black uppercase tracking-widest text-slate-500">
+            {marcados.size} DE {itens.length} MARCADO(S)
+          </span>
+        </div>
+        <p className="text-[11px] font-bold uppercase text-red-700 mb-4">
+          ⚠️ LIMPAR NÃO É O MESMO QUE EXCLUIR: É A ÚNICA AÇÃO DO SISTEMA SEM VOLTA. DEPOIS
+          DELA NÃO HÁ COMO RESTAURAR O LANÇAMENTO NEM SABER QUE ELE EXISTIU.
+        </p>
+
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
               <tr className="text-left">
-                {["EXCLUÍDO EM","QUEM","DATA","CONTA","IDENTIFICADORA","VALOR","HISTÓRICO",""].map((c) => (
-                  <th key={c} className="px-2 py-2 font-black uppercase tracking-widest text-slate-400 border-b border-slate-200 whitespace-nowrap">{c}</th>
+                {["","EXCLUÍDO EM","QUEM","DATA","CONTA","IDENTIFICADORA","VALOR","HISTÓRICO",""].map((c, n) => (
+                  <th key={c || `v${n}`} className="px-2 py-2 font-black uppercase tracking-widest text-slate-400 border-b border-slate-200 whitespace-nowrap">{c}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {itens.map((i) => (
                 <tr key={i.audit_id} className={i.ja_restaurado ? "opacity-45" : "hover:bg-blue-50/40"}>
+                  {/*
+                    ⚠️ AQUI A LINHA **NÃO** É CLICÁVEL, ao contrário da lista de
+                    exclusão. Nesta tabela a linha já tem uma ação própria e
+                    muito diferente (RESTAURAR), e uma linha que faz duas coisas
+                    opostas — trazer de volta e marcar para apagar de vez — é a
+                    receita do clique errado. Aqui a caixa é a caixa.
+                  */}
+                  <td className="px-2 py-2 border-b border-slate-100">
+                    <input type="checkbox" checked={marcados.has(i.audit_id)}
+                           onChange={() => alternar(i.audit_id)}
+                           aria-label={`MARCAR PARA EXCLUIR DEFINITIVAMENTE A EXCLUSÃO DE ${formatarDataBR(i.data_movimento)}`}
+                           className="w-4 h-4" />
+                  </td>
                   <td className="px-2 py-2 border-b border-slate-100 whitespace-nowrap">{formatarDataHoraBR(i.excluido_em)}</td>
                   <td className="px-2 py-2 border-b border-slate-100 text-slate-500">{i.excluido_por}</td>
                   <td className="px-2 py-2 border-b border-slate-100 whitespace-nowrap">{formatarDataBR(i.data_movimento)}</td>
@@ -149,6 +254,7 @@ export default function LixeiraDeLancamentos({
             </tbody>
           </table>
         </div>
+        </>
       )}
     </section>
   );

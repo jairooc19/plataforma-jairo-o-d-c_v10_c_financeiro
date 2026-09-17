@@ -1054,12 +1054,36 @@ $$;
 -- próprios receberia uma exclusão PARCIAL do período (algumas linhas saem,
 -- outras não, conforme quem lançou). Um mês meio apagado é pior que um mês
 -- inteiro: o saldo fica numa posição que ninguém pediu.
+-- ===========================================================================
+-- ⚠️ 6. O `DROP` ABAIXO É OBRIGATÓRIO — 17/09/2026 (2ª rodada)
+-- ===========================================================================
+-- A função ganhou o parâmetro `p_ids`, para a tela poder marcar e desmarcar
+-- registro a registro. `CREATE OR REPLACE` **só substitui quando a lista de
+-- parâmetros é idêntica**: com uma lista diferente, o PostgreSQL cria uma
+-- SOBRECARGA e as DUAS passam a existir — a velha continuando com o `GRANT`
+-- que este arquivo já lhe deu, e apagando o PERÍODO INTEIRO quando chamada.
+--
+-- É o mesmo defeito medido na `fin_transferir` (14/09) e na
+-- `fin_periodo_fechado` (17/09, primeira rodada). A assinatura dentro do DROP
+-- são os PARÂMETROS ANTIGOS.
+DROP FUNCTION IF EXISTS public.fin_excluir_lancamentos_por_periodo(uuid, uuid, date, date, boolean);
+
 CREATE OR REPLACE FUNCTION public.fin_excluir_lancamentos_por_periodo(
   p_tenant_id          uuid,
   p_conta_movimento_id uuid,                   -- null = todas as contas
   p_data_inicial       date,
   p_data_final         date,
-  p_simular            boolean DEFAULT true    -- ⚠️ padrão SEGURO: não apaga
+  p_simular            boolean DEFAULT true,   -- ⚠️ padrão SEGURO: não apaga
+  -- ⚠️ `p_ids` NÃO SUBSTITUI O FILTRO — ELE SE SOMA A ELE (17/09/2026).
+  --
+  -- Quando vem preenchido, o conjunto é a INTERSEÇÃO: "estes ids, E dentro do
+  -- período/conta informados". Confiar só nos ids deixaria uma chamada forjada
+  -- apagar qualquer lançamento da empresa, de qualquer data, driblando a
+  -- conferência de período que a tela mostrou. O filtro continua sendo a
+  -- fronteira; os ids apenas escolhem dentro dela.
+  --
+  -- `NULL` = o período inteiro, que é o comportamento de antes desta mudança.
+  p_ids                uuid[]  DEFAULT NULL
 )
 RETURNS json
 LANGUAGE plpgsql
@@ -1106,7 +1130,22 @@ BEGIN
     FROM public.fin_lancamentos l
    WHERE l.tenant_id = p_tenant_id
      AND (p_conta_movimento_id IS NULL OR l.conta_movimento_id = p_conta_movimento_id)
-     AND l.data_movimento BETWEEN p_data_inicial AND p_data_final;
+     AND l.data_movimento BETWEEN p_data_inicial AND p_data_final
+     -- A interseção com o que a tela marcou (ver o comentário do parâmetro).
+     AND (p_ids IS NULL OR l.id = ANY(p_ids));
+
+  -- ⚠️ ARRAY VAZIO NÃO É O MESMO QUE NULO, E CONFUNDI-LOS APAGARIA O MÊS.
+  -- `p_ids = '{}'` significa "a pessoa desmarcou tudo" — nada deve sair. Se
+  -- isso caísse no caminho do `NULL` ("o período inteiro"), desmarcar todos os
+  -- registros e confirmar apagaria justamente tudo. Aqui o vazio já vem
+  -- naturalmente de `id = ANY('{}')`, que não casa com nada; esta checagem
+  -- existe para que a intenção fique escrita, e não dependa de sutileza.
+  IF p_ids IS NOT NULL AND cardinality(p_ids) = 0 THEN
+    RETURN json_build_object(
+      'success', true, 'simulacao', p_simular,
+      'lancamentos', 0, 'fora_do_filtro', 0, 'transferencias', 0,
+      'contas', '[]'::jsonb, 'apagados', 0);
+  END IF;
 
   v_ids_no_filtro := COALESCE(v_ids_no_filtro, ARRAY[]::uuid[]);
 
@@ -1430,6 +1469,94 @@ BEGIN
     'ja_existia', v_ja,
     'era_transferencia', v_transf IS NOT NULL
   );
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 4.8-c-bis LIMPAR A LIXEIRA — 17/09/2026 (2ª rodada)
+-- ---------------------------------------------------------------------------
+--
+-- ===========================================================================
+-- ⚠️ LEIA ISTO ANTES DE MEXER: ESTA FUNÇÃO APAGA TRILHA DE AUDITORIA
+-- ===========================================================================
+-- Ela é diferente de todas as outras do módulo. As demais apagam DADO, e o
+-- dado apagado deixa rastro. Esta apaga **o rastro** — e depois dela não há
+-- como restaurar o lançamento nem como saber que ele existiu.
+--
+-- É o que o dono do projeto pediu ("excluir definitivamente / limpar
+-- lixeira"), e é uma necessidade real: sem isso a lixeira cresce para sempre.
+-- Mas a consequência precisa estar escrita aqui e dita na tela: **isto é o
+-- único ponto do módulo onde informação some de vez.**
+--
+-- ===========================================================================
+-- ⚠️ POR QUE UM MÓDULO PODE APAGAR LINHAS DE UMA TABELA DA PLATAFORMA
+-- ===========================================================================
+-- `audit_log` é da PLATAFORMA, e a regra R5 do `MODULOS.md` proíbe um módulo de
+-- alterar estrutura alheia. Aqui não há alteração de estrutura: são LINHAS que
+-- o próprio módulo gerou, reconhecidas por `tabela = 'fin_lancamentos'`. O
+-- `financeiro_00_reset.sql` já faz o mesmo (`DELETE ... WHERE tabela LIKE
+-- 'fin\_%'`), pelo mesmo motivo: limpeza é responsabilidade de quem sujou.
+--
+-- ⚠️ O FILTRO `tabela = 'fin_lancamentos'` NÃO É OPCIONAL. Sem ele, um erro de
+-- WHERE apagaria a auditoria de `users`, de `tenants` e de todo o resto — de
+-- todas as empresas. Os quatro filtros são os mesmos da `fin_listar_exclusoes`,
+-- pela mesma razão: `SECURITY DEFINER` desliga a RLS lá dentro.
+CREATE OR REPLACE FUNCTION public.fin_limpar_lixeira(
+  p_tenant_id uuid,
+  -- `NULL` = toda a lixeira da empresa. Array = só as linhas escolhidas.
+  p_audit_ids bigint[] DEFAULT NULL,
+  p_simular   boolean  DEFAULT true    -- ⚠️ padrão SEGURO, como na exclusão
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_total      integer := 0;
+  v_restauraveis integer := 0;
+  v_apagados   integer := 0;
+BEGIN
+  IF NOT public.fin_pode(p_tenant_id, 'lc_excluir_lote') THEN
+    RAISE EXCEPTION 'Sem permissao para limpar a lixeira.' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_audit_ids IS NOT NULL AND cardinality(p_audit_ids) = 0 THEN
+    RETURN json_build_object('success', true, 'simulacao', p_simular,
+                             'linhas', 0, 'restauraveis', 0, 'apagados', 0);
+  END IF;
+
+  -- Quantas linhas, e quantas delas ainda dariam para restaurar. O segundo
+  -- número é o que a tela precisa gritar: são os lançamentos que deixarão de
+  -- existir em definitivo.
+  SELECT count(*),
+         count(*) FILTER (
+           WHERE NOT EXISTS (SELECT 1 FROM public.fin_lancamentos l
+                              WHERE l.id = (a.dados_antes->>'id')::uuid
+                                AND l.tenant_id = p_tenant_id))
+    INTO v_total, v_restauraveis
+    FROM public.audit_log a
+   WHERE a.tabela   = 'fin_lancamentos'
+     AND a.operacao = 'DELETE'
+     AND a.dados_antes->>'tenant_id' = p_tenant_id::text
+     AND (p_audit_ids IS NULL OR a.id = ANY(p_audit_ids));
+
+  IF p_simular THEN
+    RETURN json_build_object('success', true, 'simulacao', true,
+                             'linhas', v_total, 'restauraveis', v_restauraveis,
+                             'apagados', 0);
+  END IF;
+
+  DELETE FROM public.audit_log a
+   WHERE a.tabela   = 'fin_lancamentos'
+     AND a.operacao = 'DELETE'
+     AND a.dados_antes->>'tenant_id' = p_tenant_id::text
+     AND (p_audit_ids IS NULL OR a.id = ANY(p_audit_ids));
+  GET DIAGNOSTICS v_apagados = ROW_COUNT;
+
+  RETURN json_build_object('success', true, 'simulacao', false,
+                           'linhas', v_total, 'restauraveis', v_restauraveis,
+                           'apagados', v_apagados);
 END;
 $$;
 
@@ -2089,7 +2216,8 @@ REVOKE EXECUTE ON FUNCTION public.fin_importar_identificadoras(uuid, text, text[
 REVOKE EXECUTE ON FUNCTION public.fin_gravar_lancamento(uuid, uuid, uuid, uuid, date, integer, text, text, text, bigint, text) FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_excluir_lancamento(uuid, uuid)                     FROM PUBLIC, anon, authenticated;
 -- 17/09/2026 — exclusão em lote, lixeira e histórico de fechamentos.
-REVOKE EXECUTE ON FUNCTION public.fin_excluir_lancamentos_por_periodo(uuid, uuid, date, date, boolean) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_excluir_lancamentos_por_periodo(uuid, uuid, date, date, boolean, uuid[]) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_limpar_lixeira(uuid, bigint[], boolean)          FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_listar_exclusoes(uuid, timestamptz, integer)        FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_restaurar_lancamento(uuid, bigint)                  FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_historico_fechamentos(uuid, integer)                FROM PUBLIC, anon, authenticated;
@@ -2117,7 +2245,8 @@ GRANT EXECUTE ON FUNCTION public.fin_gravar_lancamento(uuid, uuid, uuid, uuid, d
 GRANT EXECUTE ON FUNCTION public.fin_excluir_lancamento(uuid, uuid)                     TO authenticated;
 -- 17/09/2026 — cada uma confere a permissão por dentro (`fin_pode`); o GRANT
 -- só diz "pode chamar", nunca "pode fazer".
-GRANT EXECUTE ON FUNCTION public.fin_excluir_lancamentos_por_periodo(uuid, uuid, date, date, boolean) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.fin_excluir_lancamentos_por_periodo(uuid, uuid, date, date, boolean, uuid[]) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.fin_limpar_lixeira(uuid, bigint[], boolean)          TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_listar_exclusoes(uuid, timestamptz, integer)        TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_restaurar_lancamento(uuid, bigint)                  TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_historico_fechamentos(uuid, integer)                TO authenticated;

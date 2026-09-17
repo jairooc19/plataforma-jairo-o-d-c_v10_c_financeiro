@@ -31,8 +31,8 @@
 -- MUDE-OS JUNTO.
 -- ---------------------------------------------------------------------------
 --
--- São as linhas 1 a 5, a 9 e a 16: tabelas (4), funções (24), policies (4),
--- triggers (8), índices (16), funções alcançáveis pelo app (22) e chaves para a
+-- São as linhas 1 a 5, a 9 e a 16: tabelas (4), funções (25), policies (4),
+-- triggers (8), índices (16), funções alcançáveis pelo app (23) e chaves para a
 -- plataforma (8) — mais a LISTA DE ASSINATURAS da linha 17, que entrou em
 -- 17/09/2026. **Eles não podem ser deduzidos do catálogo** — deduzi-los
 -- seria perguntar ao banco se o banco
@@ -200,7 +200,7 @@ assinaturas_esperadas (nome, args) AS (
   ('fin_buscar_contas_movimento', 'p_tenant_id uuid, p_texto text'),
   ('fin_buscar_identificadoras', 'p_tenant_id uuid, p_texto text'),
   ('fin_excluir_lancamento', 'p_tenant_id uuid, p_id uuid'),
-  ('fin_excluir_lancamentos_por_periodo', 'p_tenant_id uuid, p_conta_movimento_id uuid, p_data_inicial date, p_data_final date, p_simular boolean'),
+  ('fin_excluir_lancamentos_por_periodo', 'p_tenant_id uuid, p_conta_movimento_id uuid, p_data_inicial date, p_data_final date, p_simular boolean, p_ids uuid[]'),
   ('fin_extrato', 'p_tenant_id uuid, p_conta_movimento_id uuid, p_data_inicial date, p_data_final date'),
   ('fin_fechar_periodo', 'p_tenant_id uuid, p_conta_movimento_id uuid, p_fechado_ate date, p_observacao text'),
   ('fin_gravar_conta_movimento', 'p_tenant_id uuid, p_id uuid, p_nome text, p_tipo text, p_saldo_abertura_centavos bigint, p_is_active boolean'),
@@ -209,6 +209,7 @@ assinaturas_esperadas (nome, args) AS (
   ('fin_historico_fechamentos', 'p_tenant_id uuid, p_limite integer'),
   ('fin_importar_contas_movimento', 'p_tenant_id uuid, p_tipo text, p_nomes text[]'),
   ('fin_importar_identificadoras', 'p_tenant_id uuid, p_tipo text, p_nomes text[]'),
+  ('fin_limpar_lixeira', 'p_tenant_id uuid, p_audit_ids bigint[], p_simular boolean'),
   ('fin_listar_exclusoes', 'p_tenant_id uuid, p_desde timestamp with time zone, p_limite integer'),
   ('fin_marcar_conferido', 'p_tenant_id uuid, p_id uuid, p_conferido boolean'),
   ('fin_normalizar', 'p_texto text'),
@@ -227,7 +228,7 @@ placar AS (
          '4' AS esperado, (SELECT count(*)::text FROM tabelas) AS encontrado
   UNION ALL
   SELECT 2, 'CONTAGEM', 'Funcoes do modulo (fin_*)',
-         '24', (SELECT count(*)::text FROM funcoes)
+         '25', (SELECT count(*)::text FROM funcoes)
   UNION ALL
   SELECT 3, 'CONTAGEM', 'Policies de RLS nas tabelas do modulo',
          '4', (SELECT count(*)::text FROM politicas)
@@ -249,7 +250,7 @@ placar AS (
          '0', (SELECT count(*)::text FROM alcance WHERE por_anon OR por_public)
   UNION ALL
   SELECT 9, 'CAMINHO FELIZ', 'Funcoes de cliente alcancaveis pelo app (authenticated)',
-         '22', (SELECT count(*)::text FROM alcance WHERE por_app)
+         '23', (SELECT count(*)::text FROM alcance WHERE por_app)
   UNION ALL
   SELECT 10, 'PORTA INTERNA', 'Funcoes internas que receberam GRANT indevido',
          '0', (SELECT count(*)::text FROM alcance a JOIN internas i USING (proname) WHERE a.por_app)

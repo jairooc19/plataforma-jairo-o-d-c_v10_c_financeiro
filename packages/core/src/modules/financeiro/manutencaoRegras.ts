@@ -45,6 +45,19 @@ export interface FiltroDeExclusao {
   contaMovimentoId: string | null;
   dataInicial: string;
   dataFinal: string;
+  /**
+   * Os lançamentos MARCADOS na lista (17/09/2026, 2ª rodada).
+   *
+   * ⚠️ ELE FAZ PARTE DA IDENTIDADE DA PERGUNTA, e não é um detalhe de tela.
+   * Marcar ou desmarcar uma caixa depois de conferir muda o número tanto quanto
+   * trocar a data mudaria — e o botão continuaria pedindo o número velho. Por
+   * isso ele entra no `mesmoFiltro`, junto com a conta e o período.
+   *
+   * ⚠️ `null` E `[]` SÃO DIFERENTES: `null` = "não estou escolhendo, leve o
+   * período inteiro"; `[]` = "desmarquei tudo, não leve nada". Tratá-los como
+   * iguais faria DESMARCAR TODOS apagar o mês.
+   */
+  idsSelecionados: string[] | null;
 }
 
 /** Uma simulação e o filtro exato com que ela foi feita. */
@@ -53,12 +66,22 @@ export interface SimulacaoFeita {
   relatorio: RelatorioDeExclusao;
 }
 
+/** As duas listas de marcados são a mesma escolha? A ordem não importa. */
+function mesmaSelecao(a: string[] | null, b: string[] | null): boolean {
+  // `null` só é igual a `null` — nunca a um array, nem mesmo ao vazio.
+  if (a === null || b === null) return a === b;
+  if (a.length !== b.length) return false;
+  const conjunto = new Set(a);
+  return b.every((id) => conjunto.has(id));
+}
+
 /** Duas filtragens são a mesma pergunta? */
 export function mesmoFiltro(a: FiltroDeExclusao, b: FiltroDeExclusao): boolean {
   return (
     (a.contaMovimentoId ?? null) === (b.contaMovimentoId ?? null) &&
     a.dataInicial === b.dataInicial &&
-    a.dataFinal === b.dataFinal
+    a.dataFinal === b.dataFinal &&
+    mesmaSelecao(a.idsSelecionados ?? null, b.idsSelecionados ?? null)
   );
 }
 
@@ -68,6 +91,7 @@ export type MotivoDeBloqueio =
   | 'DATAS_INVERTIDAS'
   | 'SEM_SIMULACAO'
   | 'SIMULACAO_VENCIDA'
+  | 'NADA_MARCADO'
   | 'NADA_A_EXCLUIR'
   | 'CONFIRMACAO_NAO_CONFERE';
 
@@ -83,7 +107,8 @@ const AVISO: Record<MotivoDeBloqueio, string> = {
   DATAS_INVERTIDAS: 'A DATA FINAL NÃO PODE SER ANTERIOR À DATA INICIAL.',
   SEM_SIMULACAO: 'CLIQUE EM "CONFERIR O QUE SERÁ EXCLUÍDO" ANTES.',
   SIMULACAO_VENCIDA:
-    'OS FILTROS MUDARAM DEPOIS DA CONFERÊNCIA. CONFIRA DE NOVO ANTES DE EXCLUIR.',
+    'OS FILTROS OU OS MARCADOS MUDARAM DEPOIS DA CONFERÊNCIA. CONFIRA DE NOVO ANTES DE EXCLUIR.',
+  NADA_MARCADO: 'NENHUM LANÇAMENTO MARCADO. MARQUE AO MENOS UM PARA EXCLUIR.',
   NADA_A_EXCLUIR: 'NENHUM LANÇAMENTO NESTE PERÍODO.',
   CONFIRMACAO_NAO_CONFERE: 'DIGITE O NÚMERO EXATO DE LANÇAMENTOS PARA CONFIRMAR.',
 };
@@ -114,6 +139,15 @@ export function avaliarExclusao(entrada: {
 
   if (!filtroAtual.dataInicial || !filtroAtual.dataFinal) return bloquear('SEM_DATAS');
   if (filtroAtual.dataFinal < filtroAtual.dataInicial) return bloquear('DATAS_INVERTIDAS');
+
+  // ⚠️ ANTES DA SIMULAÇÃO, e de propósito: desmarcar tudo é um estado que a
+  // pessoa alcança sozinha na lista, e a resposta certa é "marque alguma
+  // coisa" — não "confira de novo". Mandá-la conferir uma seleção vazia seria
+  // fazê-la clicar para receber um zero que já se sabia.
+  if (filtroAtual.idsSelecionados !== null && filtroAtual.idsSelecionados.length === 0) {
+    return bloquear('NADA_MARCADO');
+  }
+
   if (!simulacao) return bloquear('SEM_SIMULACAO');
   if (!mesmoFiltro(simulacao.filtro, filtroAtual)) return bloquear('SIMULACAO_VENCIDA');
   if (simulacao.relatorio.lancamentos === 0) return bloquear('NADA_A_EXCLUIR');

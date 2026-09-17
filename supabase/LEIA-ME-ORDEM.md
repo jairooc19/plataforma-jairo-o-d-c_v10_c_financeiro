@@ -23,10 +23,10 @@ documentos, e para achá-la era preciso já saber onde procurar.
 | `criar-bd/plataforma_01_schema.sql` | Construtor da plataforma: 7 tabelas, 27 funções, 12 policies, 15 triggers |
 | `criar-bd/plataforma_02_seed.sql` | Hidratador: cores, título e e-mails de admin (linha `id = 1`) |
 | `criar-bd-financeiro/financeiro_00_reset.sql` | 🔴 **Desplugador do módulo.** Apaga os lançamentos de todas as empresas. **Tem trava de intenção desde 17/09/2026: é preciso trocar `NAO CONFIRMO` por `CONFIRMO` na seção 0** |
-| `criar-bd-financeiro/financeiro_01_schema.sql` | Banco do módulo: 4 tabelas, 24 funções, 4 policies, 8 triggers |
+| `criar-bd-financeiro/financeiro_01_schema.sql` | Banco do módulo: 4 tabelas, 25 funções, 4 policies, 8 triggers |
 | `criar-bd-financeiro/financeiro_02_seed.sql` | Grava o módulo no catálogo — **sem ele o módulo não existe para a plataforma** |
 | `testes/teste_rls.sql` | 16 travas da plataforma. **Escreve no banco** |
-| `testes/teste_financeiro.sql` | 29 travas do módulo. **Escreve no banco** |
+| `testes/teste_financeiro.sql` | 34 travas do módulo. **Escreve no banco** |
 | `testes/inventario.sql` | Confere o schema da plataforma. Só lê |
 | `testes/inventario_financeiro.sql` | Confere o schema do módulo (17 linhas, com a conferência de assinatura). Só lê |
 
@@ -195,7 +195,7 @@ Dois pares de arquivos, com propósitos diferentes. **Rode sempre os dois tipos.
 | `testes/inventario.sql` | *"as peças da plataforma estão lá?"* | Não | todas OK |
 | `testes/inventario_financeiro.sql` | *"as peças do módulo estão lá?"* | Não | **17 linhas OK** |
 | `testes/teste_rls.sql` | *"as regras da plataforma funcionam?"* | **Sim** | **16/16 PASSOU** |
-| `testes/teste_financeiro.sql` | *"as regras do módulo funcionam?"* | **Sim** | **29/29 PASSOU** |
+| `testes/teste_financeiro.sql` | *"as regras do módulo funcionam?"* | **Sim** | **34/34 PASSOU** |
 
 **Comece pelos inventários.** Eles não escrevem nada e levam um segundo; se uma
 peça estiver faltando, os testes falhariam por um motivo que a mensagem deles

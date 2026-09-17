@@ -32,7 +32,7 @@ o guia de instruções; aquele é a memória.
 
 **Onde o projeto está** (16/09/2026): plataforma v10 com o módulo `financeiro` plugado,
 publicado na Vercel e validado no Supabase real — `teste_rls.sql` **16/16** e
-`teste_financeiro.sql` **29/29**, este último rodado por inteiro no banco de produção em
+`teste_financeiro.sql` **34/34**, este último rodado por inteiro no banco de produção em
 16/09, já com as travas 19, 20 e 21. Das 6 fases da especificação do módulo, 5 estão prontas;
 a fase 5 (DINHEIRO DO PERÍODO, DASHBOARDS, ORÇAMENTO) ainda avisa "EM DESENVOLVIMENTO".
 
@@ -98,7 +98,7 @@ plataforma-jairo-o-d-c-v10/
 │   │   └── plataforma_02_seed.sql     → Hidratador: dados iniciais obrigatórios
 │   ├── criar-bd-financeiro/→ 🧩 MÓDULO: banco do Controle Financeiro (01 → 02; o 00 despluga)
 │   ├── testes/             → teste_rls.sql (16 travas da plataforma), teste_financeiro.sql
-│   │                         (29 travas do módulo), inventario.sql e inventario_financeiro.sql
+│   │                         (34 travas do módulo), inventario.sql e inventario_financeiro.sql
 │   │                         (conferem o schema da plataforma e o do módulo: 15 linhas, só leem)
 │   │   └── ambiente-local/ → 🆕 sobe um PostgreSQL descartável e valida o SQL antes do Supabase
 │   ├── migrations/         → vazia; ler o README antes do primeiro dado real
@@ -1030,6 +1030,12 @@ inclusive numa máquina limpa — foi por isso que a versão com bcrypt foi reve
 - ❌ Nunca montar uma ficha de detalhe com os campos que a linha da lista já tem — a função do extrato devolve o recorte que serve para somar saldo, não o registro inteiro; busque por `id`, sob demanda, em vez de alargar o `RETURNS TABLE` e fazer toda a lista carregar o que quase ninguém abre
 - ❌ Nunca editar **o próprio `CLAUDE.md`** (nem o `HISTORICO.md`) com script Python em modo texto — os dois são **CRLF**, e `open(...).read()` + `"\n".join(...)` reescreve as ~1.100 quebras de linha em silêncio: em 17/09/2026 isso transformou um diff de **84 linhas** em **1.349**, escondendo a alteração real. Antes de editar por script, **meça**: `python -c "print(b'\r\n' in open('CLAUDE.md','rb').read())"`. Em arquivo CRLF, use a ferramenta de edição ou leia/escreva em binário
 - ❌ Nunca editar os `.html` de `_estudos/` com script que leia em modo texto sem `newline=''` — eles são **CRLF** (os `.ts`/`.tsx` são LF), e a leitura em modo texto reescreve as ~2.400 quebras de linha em silêncio: o diff de uma alteração de quatro trechos vira 2.400 linhas e esconde a mudança real
+- ❌ Nunca tratar `[]` e `NULL` como a mesma coisa num parâmetro de SELEÇÃO — `NULL` quer dizer "não estou escolhendo, leve tudo" e `[]` quer dizer "desmarquei tudo, não leve nada"; confundi-los faz o botão DESMARCAR TODOS apagar o mês inteiro, que é o contrário exato do que a pessoa pediu (vale no SQL, no serviço do Core e na tela — os três têm trava para isso)
+- ❌ Nunca deixar um parâmetro que RESTRINGE uma operação destrutiva (uma lista de ids) SUBSTITUIR o filtro em vez de se somar a ele — os ids escolhem DENTRO da fronteira, nunca a dispensam; valendo sozinhos, uma chamada forjada apagaria qualquer registro da empresa, de qualquer data, driblando a conferência de período que a tela mostrou (trava 32 do `teste_financeiro.sql`)
+- ❌ Nunca deixar a seleção por registro fora da identidade da simulação — marcar ou desmarcar uma caixa depois de conferir deixa o botão pedindo o número velho, exatamente como trocar a data deixaria; a seleção entra no `mesmoFiltro`, comparada sem depender da ordem
+- ❌ Nunca listar registros para uma escolha destrutiva sem TETO explícito e sem avisar quando a lista foi cortada — o `pesquisar` do Core pagina (50 por padrão), e um período com 300 lançamentos mostraria 50: a pessoa marcaria as 50 achando que marcou o mês, e o número da conferência viria 300; ao bater no teto, RECUSE seguir em vez de trabalhar sobre um recorte em silêncio
+- ❌ Nunca tornar a linha clicável numa tabela cuja linha já tem uma ação de sentido OPOSTO — na lixeira a linha oferece RESTAURAR e a caixa marca para APAGAR DE VEZ; linha que faz as duas coisas é receita de clique errado (na lista de exclusão, onde os dois gestos querem o mesmo, a linha inteira alterna e o `<input>` é `readOnly`, para o clique não contar duas vezes)
+- ❌ Nunca escrever função que apague linhas de `audit_log` sem o filtro `tabela = '<prefixo>_...'` — sem ele, um WHERE errado leva a auditoria de `users`, de `tenants` e de todas as empresas; e lembre que apagar trilha é o ÚNICO ponto onde informação some de vez, então simule e mostre quantos registros deixarão de poder ser restaurados
 - ❌ Nunca pôr o `BEGIN;` DEPOIS do porteiro que ele deveria proteger — o cliente que ignora erro imprime a recusa e **segue para a instrução seguinte**, que passa a ser o próprio `BEGIN;`: a transação abre DEPOIS do erro e o estrago acontece inteiro; medido em 17/09/2026 no `financeiro_00_reset.sql`, onde as 4 tabelas do módulo caíram com a trava fechada
 - ❌ Nunca usar `CREATE TEMP TABLE` dentro de função `SECURITY DEFINER` — o PostgreSQL procura relações em `pg_temp` ANTES do `search_path` declarado, então quem chama pode criar uma tabela temporária com aquele nome na sessão dele e a função passa a trabalhar sobre ela; use variável (`uuid[]`, `jsonb[]` + `unnest`), que não existe fora da função
 - ❌ Nunca dar `DEFAULT false` (ou nenhum default) ao parâmetro que decide se uma função destrutiva APAGA — o padrão tem de ser SIMULAR, para que esquecer o argumento seja inofensivo; o caminho seguro precisa ser o caminho preguiçoso

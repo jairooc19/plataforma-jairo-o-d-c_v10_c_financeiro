@@ -17,6 +17,81 @@ todas foram pagas com um defeito em produção.
 
 ---
 
+**2026-09-17 (terceira rodada) — v10: marcar registro a registro, reabrir todas as contas e limpar a lixeira**
+
+Ele testou as telas da rodada anterior e pediu três coisas, todas nascidas do uso real:
+reabrir o período de **todas** as contas de uma vez, **listar os lançamentos com caixa de
+marcar** na exclusão por período, e **excluir definitivamente** (limpar a lixeira).
+
+> 🎁 **REABRIR TODAS NÃO EXIGIU UMA LINHA DE SQL.** A `fin_reabrir_periodo` aceita
+> `conta_movimento_id` nulo como "todas as contas desta empresa" **desde o degrau 7** — era
+> capacidade instalada e INALCANÇÁVEL, porque a tela só a chamava conta por conta. É o
+> segundo achado desse tipo em dois dias, depois da lixeira: o banco já sabia fazer,
+> faltava a porta. Vale procurar por outras.
+
+**A LISTAGEM COM CAIXAS mudou a função do banco**, e por isso veio com o ritual completo:
+`fin_excluir_lancamentos_por_periodo` ganhou `p_ids uuid[]`, com `DROP FUNCTION` da
+assinatura antiga **antes** do `CREATE` — a terceira vez que esse cuidado aparece (depois da
+`fin_transferir` em 14/09 e da `fin_periodo_fechado` na 1ª rodada de hoje). Sem o DROP,
+sobreviveria uma segunda função que apaga o **período inteiro** sem olhar o que a tela
+marcou, e com o GRANT que o arquivo lhe deu.
+
+> ⚠️ **`[]` E `NULL` NÃO PODEM SER A MESMA COISA — É O DEFEITO MAIS GRAVE QUE ESTA TELA
+> PODERIA TER.** `NULL` em `p_ids` quer dizer "não estou escolhendo, leve o período";
+> `'{}'` quer dizer "desmarquei tudo, não leve nada". Se os dois caíssem no mesmo caminho,
+> clicar em **DESMARCAR TODOS** e confirmar apagaria justamente o mês inteiro — o contrário
+> exato do pedido. A distinção está travada em três camadas: no SQL (trava 31), no serviço
+> do Core (`params.ids === undefined ? null : params.ids`, nunca `?? null`) e na regra de
+> tela (`mesmaSelecao` trata `null` como igual só a `null`).
+
+> ⚠️ **`p_ids` SE SOMA AO FILTRO, NÃO O SUBSTITUI.** O conjunto é a INTERSEÇÃO: "estes ids,
+> E dentro do período/conta informados". Se os ids valessem sozinhos, uma chamada forjada
+> apagaria qualquer lançamento da empresa, de qualquer data, driblando a conferência de
+> período que a tela mostrou. Trava 32.
+
+> ⚠️ **A LISTAGEM PRECISOU DE TETO, E O MOTIVO É O `pesquisar` PAGINAR EM 50.** Sem teto
+> explícito, um período com 300 lançamentos mostraria 50 — e a pessoa marcaria as 50
+> achando que marcou o mês, enquanto a conferência devolveria 300. O teto é 500, e **ao
+> batê-lo a tela RECUSA seguir** e pede um período menor, em vez de trabalhar sobre um
+> recorte em silêncio.
+
+**A tela ficou de QUATRO passos:** listar → marcar → conferir → digitar o número e excluir.
+Listar e conferir são separados de propósito: se a listagem já disparasse a conferência,
+cada clique numa caixa invalidaria o número e marcar cinco registros custaria cinco
+conferências.
+
+**LIMPAR A LIXEIRA é a única operação do módulo que apaga informação de vez**, e está
+escrito assim no código e na tela. Tudo o mais apaga DADO, e o dado apagado deixa rastro na
+auditoria — é dele que a lixeira vive. Esta apaga **o rastro**. Por isso ela simula antes e
+devolve `restauraveis`: quantos lançamentos deixarão de poder voltar. A confirmação mostra
+esse número, e avisa que "limpar tudo" alcança **todas** as exclusões já registradas, não
+só os 30 dias que a lista mostra.
+
+> ⚠️ **NA LIXEIRA A LINHA NÃO É CLICÁVEL — e na lista de exclusão é.** Não é inconsistência:
+> na lixeira a linha já tem uma ação de sentido OPOSTO (RESTAURAR) e a caixa marca para
+> apagar de vez; linha que faz as duas coisas é receita de clique errado. Na lista de
+> exclusão os dois gestos querem o MESMO, então a linha inteira alterna e o `<input>` é
+> `readOnly` — senão o clique contaria duas vezes e pareceria não funcionar.
+
+**Correção registrada:** a entrada da 2ª rodada dizia que `fin_periodo_fechado` "era a única
+função do módulo sem filtro de empresa". **Errado** — `fin_proxima_ordem` também não filtra
+(alcançável, gravidade baixa: devolve só o próximo número de ordem) e
+`fin_abrir_espaco_na_ordem` também não (sem GRANT, chamada só de dentro). Corrigido no item
+4 daquela entrada.
+
+**As 5 travas novas (30 a 34) foram todas vistas FALHAR**, sabotando uma a uma a proteção
+que cada uma guarda. E um teste antigo apanhou uma mudança minha: ao reescrever o aviso de
+"simulação vencida" para citar também os marcados, a asserção `/FILTROS MUDARAM/` quebrou —
+corrigi o teste, não a mensagem.
+
+**Placar:** `npm test` **69/69** (eram 63) · `teste_financeiro.sql` **34/34** (eram 29) ·
+`teste_rls.sql` **16/16** · `inventario_financeiro.sql` **17/17** · `inventario.sql`
+**4/4** · verificador de LEGO sem violação · lint e build limpos · **caminho de atualização
+ensaiado a partir do schema publicado** (24 → 25 funções, sem sobrecarga, nada aberto ao
+`anon`).
+
+---
+
 **2026-09-17 (segunda rodada) — v10: exclusão em lote, a LIXEIRA que já existia sem ninguém saber, e os sete bônus**
 
 Ele autorizou tudo do estudo da manhã, **menos o pedido A** — e pela razão certa:
@@ -61,7 +136,13 @@ e os 7 bônus.
 2. **`lc_excluir_lote`** — a 18ª permissão.
 3. **Trava de intenção no `financeiro_00_reset.sql`** — ele apagava os lançamentos de
    TODAS as empresas sem trava nenhuma.
-4. **`fin_periodo_fechado` ganhou `p_tenant_id`** — era a única função do módulo sem
+4. **`fin_periodo_fechado` ganhou `p_tenant_id`** — ⚠️ **CORREÇÃO (17/09, 2ª rodada):
+   esta entrada dizia "era a ÚNICA função do módulo sem filtro de empresa", e isso
+   estava ERRADO.** Descobri conferindo o retrato do banco publicado. Faltam ainda
+   `fin_proxima_ordem` (tem GRANT, alcançável; gravidade BAIXA — só devolve o próximo
+   número de ordem, e exige adivinhar um UUID) e `fin_abrir_espaco_na_ordem` (sem
+   GRANT, só chamada de dentro de outra `SECURITY DEFINER` que já validou o tenant —
+   gravidade nenhuma). A `fin_normalizar` não tem tenant a filtrar. Era a única sem
    filtro de empresa.
 5. **Conferência de ASSINATURA no inventário do módulo** (linha 17).
 6. **Histórico de fechamentos** — `fin_fechamentos` tem UMA linha por conta, então reabrir

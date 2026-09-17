@@ -149,6 +149,39 @@ export default function DependentesPage() {
     }
   };
 
+  /**
+   * Reabre o período de TODAS as contas de uma vez (17/09/2026, 2ª rodada).
+   *
+   * ⚠️ NÃO FOI PRECISO TOCAR NO BANCO. A `fin_reabrir_periodo` já aceita
+   * `conta_movimento_id` nulo como "todas as contas desta empresa" desde o
+   * degrau 7 — era capacidade instalada e INALCANÇÁVEL, porque a tela só a
+   * chamava conta por conta. É o mesmo tipo de achado da lixeira: o banco já
+   * sabia fazer, faltava a porta.
+   *
+   * ⚠️ A CONFIRMAÇÃO DIZ O NÚMERO, e não um "tem certeza?". "Reabrir 4 contas"
+   * é uma frase que faz a pessoa conferir; a outra é clicada no automático.
+   */
+  const reabrirTodas = async () => {
+    if (!tenantId || fechamentos.length === 0) return;
+    const texto =
+      `REABRIR O PERÍODO DE TODAS AS ${fechamentos.length} CONTA(S) FECHADA(S)?\n\n` +
+      fechamentos
+        .map((f) => `• ${contas.find((c) => c.id === f.conta_movimento_id)?.nome ?? "CONTA"}`)
+        .join("\n") +
+      `\n\nTODOS OS LANÇAMENTOS DESSES PERÍODOS VOLTARÃO A ACEITAR ALTERAÇÃO E EXCLUSÃO.`;
+    if (!window.confirm(texto)) return;
+
+    setErro(null); setAviso(null);
+    try {
+      // `null` = todas as contas. A função do banco resolve numa transação só.
+      const r = await extratoService.reabrirPeriodo(tenantId, null);
+      setAviso(`PERÍODO REABERTO EM ${r.contasReabertas} CONTA(S).`);
+      await carregar();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "FALHA AO REABRIR TODAS.");
+    }
+  };
+
   if (carregandoContexto) {
     return <div className="flex justify-center py-20"><div className="w-10 h-10 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin" /></div>;
   }
@@ -256,8 +289,27 @@ export default function DependentesPage() {
             FECHAR PERÍODO
           </button>
 
+          {/*
+            ⚠️ O BOTÃO DE REABRIR TODAS FICA ACIMA DA LISTA, E LONGE DOS
+            INDIVIDUAIS. Encostado no "REABRIR" de uma linha, ele seria clicado
+            no lugar dele — e a diferença entre os dois é "uma conta" e "todas".
+            O individual continua onde estava, em cada linha.
+          */}
+          {fechamentos.length > 1 && (
+            <div className="mt-6 flex items-center justify-between gap-4 border border-slate-200 rounded-2xl px-4 py-3">
+              <p className="text-[11px] font-bold uppercase text-slate-500">
+                {fechamentos.length} CONTA(S) COM PERÍODO FECHADO
+              </p>
+              <button type="button" onClick={reabrirTodas}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-blue-300 text-[10px] font-black uppercase tracking-widest text-blue-700 hover:bg-blue-50">
+                <IconeFin nome="aberto" tamanho={13} />
+                REABRIR TODAS AS CONTAS
+              </button>
+            </div>
+          )}
+
           {fechamentos.length > 0 && (
-            <ul className="mt-6 divide-y divide-slate-100">
+            <ul className="mt-4 divide-y divide-slate-100">
               {fechamentos.map((f) => {
                 const conta = contas.find((c) => c.id === f.conta_movimento_id);
                 return (

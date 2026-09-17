@@ -31,6 +31,7 @@ const filtro = (over: Partial<FiltroDeExclusao> = {}): FiltroDeExclusao => ({
   contaMovimentoId: 'conta-1',
   dataInicial: '2026-09-01',
   dataFinal: '2026-09-30',
+  idsSelecionados: null,
   ...over,
 });
 
@@ -104,7 +105,9 @@ test('mexer no filtro DEPOIS de conferir invalida a conferencia', () => {
 
   assert.equal(v.podeExcluir, false);
   assert.equal(v.motivo, 'SIMULACAO_VENCIDA');
-  assert.match(v.aviso ?? '', /FILTROS MUDARAM/);
+  // O aviso passou a citar tambem os MARCADOS em 17/09/2026 (2a rodada), porque
+  // mexer nas caixas invalida a conferencia pelo mesmo motivo que mexer na data.
+  assert.match(v.aviso ?? '', /MUDARAM DEPOIS DA CONFER/);
 });
 
 test('trocar so a CONTA tambem invalida a conferencia', () => {
@@ -166,11 +169,83 @@ test('tudo certo libera o botao', () => {
 test('mesmoFiltro trata null e undefined como a mesma coisa (TODAS as contas)', () => {
   assert.equal(
     mesmoFiltro(
-      { contaMovimentoId: null, dataInicial: '2026-09-01', dataFinal: '2026-09-30' },
-      { contaMovimentoId: null, dataInicial: '2026-09-01', dataFinal: '2026-09-30' },
+      { contaMovimentoId: null, dataInicial: '2026-09-01', dataFinal: '2026-09-30', idsSelecionados: null },
+      { contaMovimentoId: null, dataInicial: '2026-09-01', dataFinal: '2026-09-30', idsSelecionados: null },
     ),
     true,
   );
+});
+
+// ---------------------------------------------------------------------------
+// A SELECAO POR REGISTRO (17/09/2026, 2a rodada)
+// ---------------------------------------------------------------------------
+
+/**
+ * ⚠️ `null` e `[]` NAO PODEM SER A MESMA COISA.
+ *
+ * `null` = "nao estou escolhendo, leve o periodo inteiro".
+ * `[]`   = "desmarquei tudo, nao leve nada".
+ *
+ * Se os dois fossem iguais, DESMARCAR TODOS e confirmar apagaria justamente o
+ * mes inteiro - o contrario exato do que a pessoa pediu.
+ */
+test('selecao vazia NAO e o mesmo que selecao ausente', () => {
+  assert.equal(
+    mesmoFiltro(filtro({ idsSelecionados: null }), filtro({ idsSelecionados: [] })),
+    false,
+  );
+});
+
+test('desmarcar tudo bloqueia o botao com o motivo certo', () => {
+  const v = avaliarExclusao({
+    filtroAtual: filtro({ idsSelecionados: [] }),
+    simulacao: null,
+    textoDigitado: '',
+  });
+  assert.equal(v.podeExcluir, false);
+  assert.equal(v.motivo, 'NADA_MARCADO');
+  assert.match(v.aviso ?? '', /MARQUE AO MENOS UM/);
+});
+
+test('a ordem dos marcados nao muda a identidade da selecao', () => {
+  assert.equal(
+    mesmoFiltro(filtro({ idsSelecionados: ['a', 'b', 'c'] }),
+                filtro({ idsSelecionados: ['c', 'a', 'b'] })),
+    true,
+  );
+});
+
+/**
+ * ⭐ A trava irma da "simulacao vencida": conferir, e DEPOIS mexer nas
+ * caixas. O numero na confirmacao passaria a nao ter relacao com o que esta
+ * marcado na tela.
+ */
+test('marcar ou desmarcar DEPOIS de conferir invalida a conferencia', () => {
+  const v = avaliarExclusao({
+    filtroAtual: filtro({ idsSelecionados: ['a', 'b'] }),
+    simulacao: simulacao(filtro({ idsSelecionados: ['a', 'b', 'c'] })),
+    textoDigitado: '137',
+  });
+  assert.equal(v.podeExcluir, false);
+  assert.equal(v.motivo, 'SIMULACAO_VENCIDA');
+});
+
+test('selecao identica mantem a conferencia valida', () => {
+  const v = avaliarExclusao({
+    filtroAtual: filtro({ idsSelecionados: ['a', 'b'] }),
+    simulacao: simulacao(filtro({ idsSelecionados: ['b', 'a'] })),
+    textoDigitado: '137',
+  });
+  assert.equal(v.podeExcluir, true);
+});
+
+test('trocar um marcado por outro, mantendo a quantidade, invalida a conferencia', () => {
+  const v = avaliarExclusao({
+    filtroAtual: filtro({ idsSelecionados: ['a', 'z'] }),
+    simulacao: simulacao(filtro({ idsSelecionados: ['a', 'b'] })),
+    textoDigitado: '137',
+  });
+  assert.equal(v.motivo, 'SIMULACAO_VENCIDA');
 });
 
 // ---------------------------------------------------------------------------

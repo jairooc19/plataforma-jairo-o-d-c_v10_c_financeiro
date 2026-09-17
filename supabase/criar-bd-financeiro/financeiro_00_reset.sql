@@ -178,9 +178,17 @@ DROP FUNCTION IF EXISTS public.fin_periodo_fechado(uuid, date)       CASCADE;
 DROP FUNCTION IF EXISTS public.fin_periodo_fechado(uuid, uuid, date) CASCADE;
 
 -- 17/09/2026 — exclusão em lote, lixeira e histórico de fechamentos.
-DROP FUNCTION IF EXISTS public.fin_excluir_lancamentos_por_periodo(uuid, uuid, date, date, boolean) CASCADE;
+--
+-- ⚠️ AS DUAS ASSINATURAS DA EXCLUSÃO EM LOTE, PELO MESMO MOTIVO DA
+-- `fin_periodo_fechado` LOGO ACIMA: na 2ª rodada de 17/09 ela ganhou o
+-- parâmetro `p_ids`, e um banco pode ter qualquer uma das duas dependendo de
+-- quando o schema foi aplicado. Derrubar só uma deixaria viva justamente a
+-- versão que apaga o PERÍODO INTEIRO sem olhar o que a tela marcou.
+DROP FUNCTION IF EXISTS public.fin_excluir_lancamentos_por_periodo(uuid, uuid, date, date, boolean)         CASCADE;
+DROP FUNCTION IF EXISTS public.fin_excluir_lancamentos_por_periodo(uuid, uuid, date, date, boolean, uuid[]) CASCADE;
 DROP FUNCTION IF EXISTS public.fin_listar_exclusoes(uuid, timestamptz, integer) CASCADE;
 DROP FUNCTION IF EXISTS public.fin_restaurar_lancamento(uuid, bigint)           CASCADE;
+DROP FUNCTION IF EXISTS public.fin_limpar_lixeira(uuid, bigint[], boolean)      CASCADE;
 DROP FUNCTION IF EXISTS public.fin_historico_fechamentos(uuid, integer)         CASCADE;
 
 DROP FUNCTION IF EXISTS public.fin_pode(uuid, text) CASCADE;
