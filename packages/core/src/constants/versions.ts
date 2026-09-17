@@ -5,7 +5,7 @@
  */
 
 // Versão do Frontend Administrativo (Web)
-export const WEB_VERSION = "v10 - 2026-09-17-01";
+export const WEB_VERSION = "v10 - 2026-09-17-02";
 
 // Versão do Aplicativo Mobile (Android/iOS)
 export const APP_VERSION = "v10 - 2026-09-17-01";
