@@ -14,4 +14,6 @@ export * from './cadastroService';
 export * from './importacao';
 export * from './lancamentoService';
 export * from './extratoService';
+export * from './manutencaoService';
+export * from './manutencaoRegras';
 export * from './permissaoService';

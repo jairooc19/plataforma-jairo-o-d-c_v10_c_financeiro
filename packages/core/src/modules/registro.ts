@@ -11,17 +11,25 @@
  * a entrada na lista). DESCONECTAR = apagar ou comentar essas duas linhas.
  * Nada mais no código da plataforma precisa saber que o módulo existe.
  *
- * Hoje a lista está VAZIA, e isso está certo: nenhum módulo foi criado. A
- * plataforma funciona inteira assim — essa é a prova de que ela não depende de
- * nenhuma peça (regra R9 do `MODULOS.md`).
+ * ---------------------------------------------------------------------------
+ * O QUE ESTÁ PLUGADO HOJE (17/09/2026): UM MÓDULO — `financeiro`
+ * ---------------------------------------------------------------------------
+ * ⚠️ ESTE COMENTÁRIO DIZIA "Hoje a lista está VAZIA" ATÉ 17/09/2026 — e o
+ * código logo abaixo já importava e registrava o `MANIFESTO_FINANCEIRO`. Quem
+ * lesse só o comentário concluiria que a plataforma está sem peça nenhuma e
+ * que as duas linhas de solda ainda precisavam ser escritas.
  *
- * ---------------------------------------------------------------------------
- * COMO FICA QUANDO O PRIMEIRO MÓDULO CHEGAR
- * ---------------------------------------------------------------------------
- *   import { MANIFESTO_FINANCEIRO } from './financeiro/manifesto';   // ← solda
+ * A prova da regra R9 do `MODULOS.md` (a plataforma não depende de nenhuma
+ * peça) continua valendo, mas agora ela se faz APAGANDO as duas linhas de
+ * solda — não observando uma lista vazia.
+ *
+ * Como as duas linhas de solda se parecem, para conectar o próximo módulo:
+ *
+ *   import { MANIFESTO_XXXXX } from './xxxxx/manifesto';   // ← solda 1
  *
  *   export const MODULOS_INSTALADOS: ManifestoDeModulo[] = [
- *     MANIFESTO_FINANCEIRO,                                          // ← solda
+ *     MANIFESTO_FINANCEIRO,
+ *     MANIFESTO_XXXXX,                                     // ← solda 2
  *   ];
  *
  * ---------------------------------------------------------------------------

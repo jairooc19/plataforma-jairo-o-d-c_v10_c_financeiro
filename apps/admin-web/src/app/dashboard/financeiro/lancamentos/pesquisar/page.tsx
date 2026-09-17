@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   cadastroFinanceiroService, lancamentoService, permissaoFinanceiroService,
-  formatarBRL, formatarDataBR, paraCentavos,
+  formatarBRL, formatarDataBR, paraCentavos, linhaAbreFicha,
   type ContaMovimento, type ContaIdentificadora,
 } from "@jairo/core";
 import { useEmpresaAtiva } from "@/components/financeiro/useEmpresaAtiva";
@@ -13,6 +13,7 @@ import { abrirImpressao } from "@/components/financeiro/prepararImpressao";
 import IconeFin from "@/components/financeiro/IconeFin";
 import AtalhosDeMes from "@/components/financeiro/AtalhosDeMes";
 import MenuDeLinha, { type AcaoDeLinha } from "@/components/financeiro/MenuDeLinha";
+import DetalheDoLancamento from "@/components/financeiro/lancamento/DetalheDoLancamento";
 
 /**
  * 🔎 TELA: PESQUISAR LANÇAMENTOS (PJODC v10)
@@ -51,6 +52,17 @@ export default function PesquisarLancamentosPage() {
   const [linhas, setLinhas] = useState<Awaited<ReturnType<typeof lancamentoService.pesquisar>>>([]);
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+
+  /**
+   * Qual lançamento está com a ficha aberta (17/09/2026).
+   *
+   * ⚠️ GUARDA O `id`, E NÃO A LINHA. A janela busca o registro inteiro pelo id,
+   * porque a linha da lista é um recorte: ela não traz PROPRIEDADE, REGIME, os
+   * tipos gravados das duas contas nem as datas de criação. Guardar a linha
+   * encheria a ficha de campos em branco — e é a mesma razão pela qual o
+   * extrato faz assim desde 16/09.
+   */
+  const [detalheId, setDetalheId] = useState<string | null>(null);
 
   useEffect(() => {
     const carregar = async () => {
@@ -340,8 +352,23 @@ export default function PesquisarLancamentosPage() {
               </tr>
             </thead>
             <tbody>
-              {linhas.map((l) => (
-                <tr key={l.id} className="hover:bg-blue-50/40">
+              {linhas.map((l) => {
+                /**
+                 * ⚠️ 17/09/2026 — A LINHA INTEIRA ABRE A FICHA, como já
+                 * acontecia no extrato da CONFERÊNCIA DA CONTA. Quem decide se
+                 * a linha abre é `linhaAbreFicha`, do Core, e não um `if`
+                 * escrito aqui: as duas telas fazem a MESMA pergunta, e a
+                 * resposta tem teste (`manutencaoRegras.test.ts`). Duas cópias
+                 * do critério seriam duas chances de ele divergir.
+                 */
+                const abrir = linhaAbreFicha(l) ? () => setDetalheId(l.id) : undefined;
+                return (
+                <tr key={l.id}
+                    onClick={abrir}
+                    onKeyDown={abrir ? (e) => { if (e.key === "Enter") abrir(); } : undefined}
+                    tabIndex={abrir ? 0 : undefined}
+                    title={abrir ? "VER TODAS AS INFORMAÇÕES DESTE LANÇAMENTO" : undefined}
+                    className={`hover:bg-blue-50/40 ${abrir ? "cursor-pointer" : ""}`}>
                   <td className="px-2 py-2 border-b border-slate-100 whitespace-nowrap">{formatarDataBR(l.data_movimento)}</td>
                   <td className="px-2 py-2 border-b border-slate-100 uppercase">{l.conta_movimento?.nome}</td>
                   <td className="px-2 py-2 border-b border-slate-100 uppercase">
@@ -360,15 +387,31 @@ export default function PesquisarLancamentosPage() {
                       rola a tabela, é convite a clique acidental — e este
                       apaga dinheiro lançado. Duas etapas: abrir o menu, depois
                       escolher; e ainda há a confirmação do navegador. */}
-                  <td className="px-2 py-2 border-b border-slate-100 text-right whitespace-nowrap">
+                  {/* ⚠️ ESTA CÉLULA CORTA A PROPAGAÇÃO DO CLIQUE, E NÃO É
+                      ENFEITE (17/09/2026). Com a linha inteira clicável, o
+                      clique em "OPÇÕES" subiria até a `<tr>` e a ficha abriria
+                      POR CIMA do menu — a ação que a pessoa pediu sumiria atrás
+                      de uma janela que ela não pediu. O clique é um só; quem
+                      está mais perto fica com ele. Não quebra build, não acusa
+                      erro, e só aparece no dedo de quem usa. */}
+                  <td className="px-2 py-2 border-b border-slate-100 text-right whitespace-nowrap"
+                      onClick={(e) => e.stopPropagation()}>
                     <MenuDeLinha acoes={acoesDoLancamento(l)} />
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         )}
       </section>
+
+      {/* A ficha completa do lançamento — a mesma janela do extrato. */}
+      <DetalheDoLancamento
+        tenantId={tenantId}
+        lancamentoId={detalheId}
+        onFechar={() => setDetalheId(null)}
+      />
     </div>
   );
 }

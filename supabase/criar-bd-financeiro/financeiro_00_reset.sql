@@ -26,6 +26,81 @@
 
 
 -- ===========================================================================
+-- 0. 🚧 A TRAVA DE INTENÇÃO — 17/09/2026
+-- ===========================================================================
+--
+-- 📖 POR QUE ISTO EXISTE
+-- ---------------------------------------------------------------------------
+-- Em 17/09/2026 o `plataforma_00_reset.sql` ganhou um porteiro que o impede de
+-- rodar na hora errada. Olhando para o outro lado da simetria, este arquivo —
+-- que apaga **os lançamentos de TODAS as empresas** — não tinha trava nenhuma:
+-- era colar e executar.
+--
+-- ⚠️ E A DIFERENÇA ENTRE OS DOIS PORTEIROS É IMPORTANTE. Lá, o arquivo tinha
+-- como PERGUNTAR AO BANCO se era seguro seguir (havia módulo instalado?). Aqui
+-- não há o que perguntar: apagar tudo é exatamente o que este arquivo faz de
+-- certo. A única pergunta é se a PESSOA quis isso — e essa o banco não sabe
+-- responder.
+--
+-- Por isso aqui a trava é de INTENÇÃO, não de estado: ela exige um gesto
+-- deliberado que não acontece por engano ao colar o arquivo errado no painel.
+--
+-- 🔓 COMO DESTRAVAR
+-- ---------------------------------------------------------------------------
+-- Apague a palavra `NAO` da linha marcada abaixo, deixando só `CONFIRMO`.
+-- São 3 caracteres — o suficiente para exigir que alguém leia, e pouco o
+-- bastante para não atrapalhar quem realmente quer desplugar o módulo.
+--
+-- ⚠️ NUNCA deixe o arquivo commitado com a linha já destravada. O valor dela
+-- está inteiro em ela vir travada por padrão: um arquivo que chega destravado
+-- ao próximo leitor é um arquivo sem trava.
+--
+-- ===========================================================================
+-- ⚠️ O `BEGIN;` VEM ANTES DA TRAVA, E NÃO DEPOIS — ISSO FOI APRENDIDO ERRANDO
+-- ===========================================================================
+-- Na primeira versão desta seção (17/09/2026) o `BEGIN;` estava DEPOIS do bloco
+-- que recusa. O ensaio mostrou o buraco na hora: com `psql -f` **sem**
+-- `ON_ERROR_STOP`, a trava recusava, o psql imprimia o erro e **seguia para a
+-- instrução seguinte** — que era justamente o `BEGIN;`. A transação abria
+-- DEPOIS do erro, e tudo era apagado com a recusa já rolada para fora da tela.
+-- Medido: as 4 tabelas do módulo caíram com a trava fechada.
+--
+-- Com o `BEGIN;` aqui em cima, a exceção da trava aborta uma transação JÁ
+-- ABERTA, e toda instrução seguinte é recusada pelo PostgreSQL com "current
+-- transaction is aborted". Nada é apagado, em cliente nenhum.
+BEGIN;
+
+DO $trava$
+DECLARE
+  -- 👇 TROQUE 'NAO CONFIRMO' POR 'CONFIRMO' PARA LIBERAR ESTE RESET 👇
+  v_confirmacao text := 'NAO CONFIRMO';
+  v_lancamentos bigint := 0;
+  v_empresas    bigint := 0;
+BEGIN
+  IF v_confirmacao <> 'CONFIRMO' THEN
+    -- Mostra o TAMANHO do estrago antes de recusar. Um número concreto
+    -- ("4.312 lançamentos de 3 empresas") faz pensar; "isto é destrutivo",
+    -- não.
+    IF to_regclass('public.fin_lancamentos') IS NOT NULL THEN
+      EXECUTE 'SELECT count(*), count(DISTINCT tenant_id) FROM public.fin_lancamentos'
+         INTO v_lancamentos, v_empresas;
+    END IF;
+
+    RAISE EXCEPTION
+      'RESET DO MODULO RECUSADO: a trava de intencao esta fechada. Este arquivo apagaria % lancamento(s) de % empresa(s), de TODAS as empresas, sem desfazer.',
+      v_lancamentos, v_empresas
+      USING
+        ERRCODE = 'P0001',
+        DETAIL  = 'Para apagar os dados de UMA empresa apenas, use o botao do Painel de Engenharia (fin_apagar_dados_da_empresa) - nao este arquivo.',
+        HINT    = 'Se e isto mesmo que voce quer: na secao 0 deste arquivo, troque a linha v_confirmacao := ''NAO CONFIRMO'' por ''CONFIRMO'' e rode de novo.';
+  END IF;
+
+  RAISE NOTICE 'TRAVA LIBERADA: seguindo com o reset do modulo.';
+END
+$trava$;
+
+
+-- ===========================================================================
 -- 1. O RASTRO DO MÓDULO NA PLATAFORMA
 -- ===========================================================================
 
@@ -75,11 +150,39 @@ DROP FUNCTION IF EXISTS public.fin_abrir_espaco_na_ordem(uuid, date, integer, uu
 DROP FUNCTION IF EXISTS public.fin_excluir_lancamento(uuid, uuid) CASCADE;
 DROP FUNCTION IF EXISTS public.fin_gravar_lancamento(uuid, uuid, uuid, uuid, date, integer, text, text, text, bigint, text) CASCADE;
 DROP FUNCTION IF EXISTS public.fin_gravar_identificadora(uuid, uuid, text, text, boolean) CASCADE;
+
+-- ⚠️ AS DUAS DE IMPORTAÇÃO FALTAVAM AQUI DESDE 13/09/2026 — defeito encontrado
+-- em 17/09 ao ensaiar o reset num banco de verdade, e não lendo o arquivo.
+-- Elas nasceram no degrau da importação de CSV e ninguém as acrescentou à lista
+-- de baixa. O reset dizia "pronto" deixando DUAS funções `fin_*` vivas no
+-- `public` — um módulo "desplugado" que ainda tinha código instalado.
+--
+-- É a prova de que lista de nomes escrita à mão precisa de uma CONFERÊNCIA
+-- automática: a do fim deste arquivo (contar funções `fin_*` e esperar zero) é
+-- o que transforma esse esquecimento em erro visível.
+DROP FUNCTION IF EXISTS public.fin_importar_contas_movimento(uuid, text, text[]) CASCADE;
+DROP FUNCTION IF EXISTS public.fin_importar_identificadoras(uuid, text, text[])  CASCADE;
 DROP FUNCTION IF EXISTS public.fin_gravar_conta_movimento(uuid, uuid, text, text, bigint, boolean) CASCADE;
 DROP FUNCTION IF EXISTS public.fin_buscar_identificadoras(uuid, text) CASCADE;
 DROP FUNCTION IF EXISTS public.fin_buscar_contas_movimento(uuid, text) CASCADE;
 DROP FUNCTION IF EXISTS public.fin_proxima_ordem(uuid, date) CASCADE;
-DROP FUNCTION IF EXISTS public.fin_periodo_fechado(uuid, date) CASCADE;
+
+-- ⚠️ AS DUAS ASSINATURAS DE `fin_periodo_fechado`, E ISSO NÃO É REDUNDÂNCIA.
+-- Em 17/09/2026 ela ganhou o `p_tenant_id` e passou de `(uuid, date)` para
+-- `(uuid, uuid, date)`. Um banco pode ter QUALQUER uma das duas, dependendo de
+-- quando o schema foi aplicado pela última vez. `DROP FUNCTION` identifica a
+-- função pelos PARÂMETROS: derrubar só uma deixaria a outra viva, e o reset
+-- diria "pronto" com meia função de pé — que é justamente o que a conferência
+-- do fim deste arquivo acusaria, sem dizer por quê.
+DROP FUNCTION IF EXISTS public.fin_periodo_fechado(uuid, date)       CASCADE;
+DROP FUNCTION IF EXISTS public.fin_periodo_fechado(uuid, uuid, date) CASCADE;
+
+-- 17/09/2026 — exclusão em lote, lixeira e histórico de fechamentos.
+DROP FUNCTION IF EXISTS public.fin_excluir_lancamentos_por_periodo(uuid, uuid, date, date, boolean) CASCADE;
+DROP FUNCTION IF EXISTS public.fin_listar_exclusoes(uuid, timestamptz, integer) CASCADE;
+DROP FUNCTION IF EXISTS public.fin_restaurar_lancamento(uuid, bigint)           CASCADE;
+DROP FUNCTION IF EXISTS public.fin_historico_fechamentos(uuid, integer)         CASCADE;
+
 DROP FUNCTION IF EXISTS public.fin_pode(uuid, text) CASCADE;
 
 -- ⚠️ `fin_normalizar` por último: as colunas geradas das tabelas dependiam
@@ -88,7 +191,32 @@ DROP FUNCTION IF EXISTS public.fin_normalizar(text) CASCADE;
 
 
 -- ===========================================================================
--- CONFERÊNCIA — as três devem devolver ZERO
+-- 4. 🧽 A TRILHA DE AUDITORIA DO MÓDULO
+-- ===========================================================================
+--
+-- ⚠️ ISTO ENTROU EM 17/09/2026, JUNTO COM A LIXEIRA. A partir do momento em que
+-- `audit_log` passou a ser LIDA pelo módulo (a lixeira restaura a partir dela),
+-- deixar as linhas `fin_*` para trás passou a ter consequência: um módulo
+-- desplugado e replugado mostraria, na lixeira, exclusões de uma encarnação
+-- anterior — apontando para contas que não existem mais.
+--
+-- ⚠️ E ELE APAGA **SÓ AS LINHAS DO MÓDULO**, nunca a tabela. A `audit_log` é da
+-- PLATAFORMA: dar `DROP` nela, ou limpá-la inteira, seria um módulo destruindo
+-- estrutura alheia — exatamente o que a regra R5 do `MODULOS.md` proíbe. O
+-- filtro `tabela LIKE 'fin\_%'` é o que mantém a limpeza dentro do próprio
+-- território.
+DELETE FROM public.audit_log WHERE tabela LIKE 'fin\_%';
+
+
+-- ===========================================================================
+-- 5. ✅ FECHAMENTO DA TRANSAÇÃO ABERTA NA SEÇÃO 0
+-- ===========================================================================
+-- ⚠️ ESTE `COMMIT;` É O PAR DO `BEGIN;` DA SEÇÃO 0 — NÃO O REMOVA.
+COMMIT;
+
+
+-- ===========================================================================
+-- CONFERÊNCIA — as quatro devem devolver ZERO
 -- ===========================================================================
 --   SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
 --    WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relname LIKE 'fin_%';
@@ -97,4 +225,6 @@ DROP FUNCTION IF EXISTS public.fin_normalizar(text) CASCADE;
 --    WHERE n.nspname = 'public' AND p.proname LIKE 'fin_%';
 --
 --   SELECT count(*) FROM public.platform_modules WHERE id = 'financeiro';
+--
+--   SELECT count(*) FROM public.audit_log WHERE tabela LIKE 'fin\_%';
 -- ===========================================================================

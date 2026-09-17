@@ -32,7 +32,7 @@ o guia de instruções; aquele é a memória.
 
 **Onde o projeto está** (16/09/2026): plataforma v10 com o módulo `financeiro` plugado,
 publicado na Vercel e validado no Supabase real — `teste_rls.sql` **16/16** e
-`teste_financeiro.sql` **21/21**, este último rodado por inteiro no banco de produção em
+`teste_financeiro.sql` **29/29**, este último rodado por inteiro no banco de produção em
 16/09, já com as travas 19, 20 e 21. Das 6 fases da especificação do módulo, 5 estão prontas;
 a fase 5 (DINHEIRO DO PERÍODO, DASHBOARDS, ORÇAMENTO) ainda avisa "EM DESENVOLVIMENTO".
 
@@ -76,10 +76,16 @@ Nunca misture código de plataforma com código de módulo, nem código de um m�
 
 ## Estrutura do Monorepo
 
-Nome do projeto: `plataforma-jairo-o-d-c-v4` (npm workspaces)
+Nome do projeto: `plataforma-jairo-o-d-c-v10` (npm workspaces)
+
+> ⚠️ **ERA `-v4` ATÉ 17/09/2026**, com o projeto na v10 — sete versões de defasagem
+> no nome. A troca foi feita **pelo npm**, não à mão: `package.json` alterado e
+> depois `npm install --package-lock-only`, que regravou as duas linhas de `name`
+> do `package-lock.json`. **Editar o lockfile à mão é o que não se faz** — nome fora
+> de sincronia com o `package.json` é justamente o que o `npm ci` da Vercel recusa.
 
 ```
-plataforma-jairo-o-d-c-v4/
+plataforma-jairo-o-d-c-v10/
 ├── apps/
 │   ├── admin-web/          → Dashboard Web (Next.js 16.2.2)
 │   └── mobile-app/         → App Mobile (Expo 57 / React Native 0.86.3)
@@ -92,7 +98,7 @@ plataforma-jairo-o-d-c-v4/
 │   │   └── plataforma_02_seed.sql     → Hidratador: dados iniciais obrigatórios
 │   ├── criar-bd-financeiro/→ 🧩 MÓDULO: banco do Controle Financeiro (01 → 02; o 00 despluga)
 │   ├── testes/             → teste_rls.sql (16 travas da plataforma), teste_financeiro.sql
-│   │                         (21 travas do módulo), inventario.sql e inventario_financeiro.sql
+│   │                         (29 travas do módulo), inventario.sql e inventario_financeiro.sql
 │   │                         (conferem o schema da plataforma e o do módulo: 15 linhas, só leem)
 │   │   └── ambiente-local/ → 🆕 sobe um PostgreSQL descartável e valida o SQL antes do Supabase
 │   ├── migrations/         → vazia; ler o README antes do primeiro dado real
@@ -144,9 +150,14 @@ npm run verificar    # testes + verificador + lint + build, em sequência
 
 > `packages/core` **não tem script de build** e não precisa de um: é consumido como
 > TypeScript cru via `transpilePackages: ["@jairo/core"]` no `next.config.ts` e via
-> `metro.config.js` no mobile. O `package.json` da raiz ainda declara um script de build
-> do core que aponta para um alvo inexistente no `@jairo/core` — ele falha ao ser executado
-> e não deve ser usado.
+> `metro.config.js` no mobile.
+>
+> ⚠️ **CORRIGIDO EM 17/09/2026:** este parágrafo dizia que o `package.json` da raiz
+> "ainda declara um script de build do core que aponta para um alvo inexistente".
+> **Não declara mais.** Os seis scripts da raiz são exatamente os listados acima
+> (`web`, `build:web`, `lint:web`, `test`, `modulos:verificar`, `verificar`) — não
+> existe `build:core` nem nada parecido. A frase antiga mandava procurar um defeito
+> que não está lá.
 
 Em **apps/admin-web**:
 ```bash
@@ -162,7 +173,24 @@ npm run android      # Build Android
 npm run ios          # Build iOS
 ```
 
-Não há scripts de teste em nenhum pacote.
+### Testes — existem, e a frase antiga dizia o contrário
+
+⚠️ **CORRIGIDO EM 17/09/2026. Esta linha dizia "Não há scripts de teste em nenhum
+pacote" — e era a divergência mais perigosa do arquivo**, porque ensinava que não
+existe rede de proteção e convidava a entregar código sem rodar nada.
+
+**A verdade:** a **raiz** tem `npm test`, e ele roda **44 testes** de verdade:
+
+```bash
+npm test     # node --test "packages/core/**/*.test.ts"  → 44 testes, sem dependência externa
+```
+
+Os arquivos de teste vivem **dentro do `packages/core`**, ao lado do que eles testam
+(padrão `*.test.ts`). Os **apps** (`admin-web` e `mobile-app`) é que não têm script de
+teste próprio — e é só isso que a frase antiga poderia ter querido dizer.
+
+⚠️ **Rodar `npm test` antes de entregar é obrigação de quem escreve o código**, nunca
+tarefa do dono do projeto (ver o aviso do ciclo dele acima).
 
 ---
 
@@ -290,10 +318,17 @@ supabase/criar-bd/
 ├── plataforma_00_reset.sql    → O Demolidor  — TRUNCATE auth.users/identities + DROP das 7 tabelas,
 │                                               das funções e dos triggers do CORE
 ├── plataforma_01_schema.sql   → O Construtor — schema consolidado v10: 2 extensões, 7 tabelas,
-│                                               7 RLS ENABLE, 1 seed, 25 funções, 12 policies,
+│                                               7 RLS ENABLE, 1 seed, 27 funções, 12 policies,
 │                                               15 triggers
 └── plataforma_02_seed.sql     → O Hidratador — dados iniciais obrigatórios (linha `id = 1` de
                                                 `global_settings`), idempotente via DO UPDATE SET
+```
+
+⚠️ **ESTE NÚMERO DE FUNÇÕES JÁ MENTIU** (dizia 25 até 17/09/2026, quando eram 27).
+Número escrito à mão envelhece em silêncio. **Conte antes de citar:**
+
+```bash
+grep -c "^CREATE OR REPLACE FUNCTION\|^CREATE FUNCTION" supabase/criar-bd/plataforma_01_schema.sql
 ```
 
 **Como executar** (SQL Editor do Supabase — colar cada arquivo inteiro, na ordem):
@@ -404,17 +439,29 @@ src/app/
 │   ├── logout/route.ts             → limpa os cookies de sessão (metade servidor do logout)
 │   └── complete-profile/page.tsx   → endereço da tela de completar cadastro
 ├── mobile-blocked/page.tsx         → destino do redirecionamento de user agent móvel
+├── privacidade/page.tsx            → política de privacidade (pública, exigida pelo Google OAuth)
 └── dashboard/
     ├── page.tsx                    → orquestrador: lobby, dashboard dev ou operacional
     ├── settings/page.tsx
-    └── tenants/
-        ├── page.tsx
-        └── actions.ts
+    ├── modulos/page.tsx            → Desenvolvedor: contratar/descontratar módulo por empresa
+    └── tenants/page.tsx
 ```
 
+> ⚠️ **AS DUAS ÚLTIMAS LINHAS FORAM CORRIGIDAS EM 17/09/2026.** Esta listagem
+> anunciava um `dashboard/tenants/actions.ts` que **não existe** — e omitia
+> `dashboard/modulos/page.tsx` e `privacidade/page.tsx`, que existem. Listagem de
+> arquivos escrita à mão apodrece; confira com
+> `find apps/admin-web/src/app -type f \( -name "*.tsx" -o -name "*.ts" \) | sort`
+> antes de confiar nela. (As rotas de `dashboard/financeiro/` não estão aqui de
+> propósito: são do MÓDULO, e módulo não entra na listagem da plataforma.)
+
 > Não existe mais a pasta `src/app/actions/` — todas as Server Actions que ela continha
-> pertenciam aos módulos removidos. As únicas actions restantes são as de plataforma,
-> em `src/app/auth/actions.ts` e `src/app/dashboard/tenants/actions.ts`.
+> pertenciam aos módulos removidos. **Restam exatamente DUAS**, ambas em `src/app/auth/`:
+> `actions.ts` (login por senha) e `google-actions.ts` (cookies SSR do popup Google) —
+> são os dois únicos arquivos do admin-web com `"use server"` no topo. A tela de
+> empresas (`dashboard/tenants/page.tsx`) **não usa Server Action**: é um componente
+> `"use client"` que chama o `tenantService` do Core, e ele chama as funções `admin_*`
+> do banco — que conferem `is_superuser()` lá dentro. Esse é o desenho da v10.
 
 ### API Routes — ⚠️ TODAS REMOVIDAS NA v10
 
@@ -498,9 +545,17 @@ src/components/dashboard/profile/
 ```
 src/lib/logout.ts             → encerra as DUAS metades da sessão (navegador + cookies)
 src/lib/mobileBlock.ts        → fonte única do bloqueio móvel (rota, mensagem, regex de user agent)
+src/lib/erro.ts               → tira a mensagem legível do `unknown` do `catch` (mata o `catch (e: any)`)
+src/lib/empresaDoContexto.ts  → achata o embed `tenants` do PostgREST (vem objeto OU array de um)
+src/lib/googleClientId.ts     → fonte única do NEXT_PUBLIC_GOOGLE_CLIENT_ID; diz se há popup
 src/hooks/useBrazilCities.ts  → cidades do IBGE (cadastro e edição de perfil)
 src/hooks/useIsMobile.ts      → largura da janela < 768px (breakpoint `md`)
+src/types/plataforma.ts       → tipos da plataforma compartilhados pelas telas do admin-web
 ```
+
+> ⚠️ **AS TRÊS LINHAS DE `src/lib/` DO MEIO ENTRARAM EM 17/09/2026** — os arquivos
+> já existiam, a listagem é que os omitia. Confira com `ls apps/admin-web/src/lib`
+> antes de concluir que algo "não existe no projeto".
 
 **Provedores:**
 ```
@@ -973,7 +1028,23 @@ inclusive numa máquina limpa — foi por isso que a versão com bcrypt foi reve
 - ❌ Nunca gravar arquivo com `open(caminho, "w")` em script de edição — ele TRUNCA antes de codificar, e um caractere que a codificação recusa deixa o arquivo com ZERO byte; monte o texto inteiro, chame `.encode('utf-8')` e só então abra em `"wb"`
 - ❌ Nunca tornar clicável a linha de uma tabela sem cortar a propagação (`stopPropagation`) nas células que JÁ têm ação própria — a caixa de conferir e o botão do menu sobem o clique até a `<tr>`, e a ação pedida some sob a janela que abriu por cima; não quebra build, não acusa erro e só aparece no dedo de quem usa
 - ❌ Nunca montar uma ficha de detalhe com os campos que a linha da lista já tem — a função do extrato devolve o recorte que serve para somar saldo, não o registro inteiro; busque por `id`, sob demanda, em vez de alargar o `RETURNS TABLE` e fazer toda a lista carregar o que quase ninguém abre
+- ❌ Nunca editar **o próprio `CLAUDE.md`** (nem o `HISTORICO.md`) com script Python em modo texto — os dois são **CRLF**, e `open(...).read()` + `"\n".join(...)` reescreve as ~1.100 quebras de linha em silêncio: em 17/09/2026 isso transformou um diff de **84 linhas** em **1.349**, escondendo a alteração real. Antes de editar por script, **meça**: `python -c "print(b'\r\n' in open('CLAUDE.md','rb').read())"`. Em arquivo CRLF, use a ferramenta de edição ou leia/escreva em binário
 - ❌ Nunca editar os `.html` de `_estudos/` com script que leia em modo texto sem `newline=''` — eles são **CRLF** (os `.ts`/`.tsx` são LF), e a leitura em modo texto reescreve as ~2.400 quebras de linha em silêncio: o diff de uma alteração de quatro trechos vira 2.400 linhas e esconde a mudança real
+- ❌ Nunca pôr o `BEGIN;` DEPOIS do porteiro que ele deveria proteger — o cliente que ignora erro imprime a recusa e **segue para a instrução seguinte**, que passa a ser o próprio `BEGIN;`: a transação abre DEPOIS do erro e o estrago acontece inteiro; medido em 17/09/2026 no `financeiro_00_reset.sql`, onde as 4 tabelas do módulo caíram com a trava fechada
+- ❌ Nunca usar `CREATE TEMP TABLE` dentro de função `SECURITY DEFINER` — o PostgreSQL procura relações em `pg_temp` ANTES do `search_path` declarado, então quem chama pode criar uma tabela temporária com aquele nome na sessão dele e a função passa a trabalhar sobre ela; use variável (`uuid[]`, `jsonb[]` + `unnest`), que não existe fora da função
+- ❌ Nunca dar `DEFAULT false` (ou nenhum default) ao parâmetro que decide se uma função destrutiva APAGA — o padrão tem de ser SIMULAR, para que esquecer o argumento seja inofensivo; o caminho seguro precisa ser o caminho preguiçoso
+- ❌ Nunca deixar a tela contar quantos registros uma operação em massa vai atingir — quem conta tem de ser a MESMA função que executa, percorrendo o mesmo conjunto; com duas contagens, um dia a tela diz 137, o banco apaga 141, e o número da confirmação vira mentira
+- ❌ Nunca liberar a confirmação de uma operação em massa sem comparar o FILTRO ATUAL com o filtro que gerou a simulação — conferir setembro (137) e trocar a data para janeiro deixaria o botão dizendo 137 sobre outro período; guarde o par `{filtro, relatório}` e invalide quando divergirem (`avaliarExclusao`, no Core, com teste)
+- ❌ Nunca apagar parte de uma transferência num filtro por período — expanda o conjunto por `transferencia_id` ANTES de conferir fechamento e de apagar, e diga no relatório quantos registros saem de FORA do filtro pedido; meia transferência apagada inventa dinheiro na outra conta, para sempre
+- ❌ Nunca ler `audit_log` numa função de módulo sem os quatro filtros juntos (`fin_pode`, `tabela`, `operacao` e `dados_antes->>'tenant_id'`) — ela é da plataforma, só o Desenvolvedor a lê por RLS, e `SECURITY DEFINER` desliga a RLS lá dentro; sem o filtro de empresa, um Proprietário leria as exclusões de todas as empresas do sistema
+- ❌ Nunca escrever `WHERE tenant_id = …` ao consultar `audit_log` — **essa coluna não existe**; a empresa mora dentro do jsonb, em `dados_antes->>'tenant_id'`
+- ❌ Nunca contar objetos "de tudo que há no schema `public`" num arquivo de diagnóstico da plataforma — com um módulo instalado, as 4 contagens do `inventario.sql` davam DIVERGE e as 24 funções do módulo apareciam como "SOBRANDO" (medido em 17/09/2026); a plataforma conta **as próprias peças, pelo nome**, e quando precisar ignorar as de módulo deduz o prefixo de `platform_modules.funcao_limpeza`, nunca escrevendo o nome de um módulo
+- ❌ Nunca confiar só na CONTAGEM de funções para provar que um schema foi aplicado — contar pega a que sumiu e a que sobrou, não a que MUDOU DE FORMA; a conferência de ASSINATURA (linha 17 do `inventario_financeiro.sql`) é o que pega parâmetro trocado sem alterar o total
+- ❌ Nunca acrescentar função a um módulo sem acrescentá-la ao `<modulo>_00_reset.sql` no MESMO commit — as duas de importação ficaram de fora desde 13/09/2026 e só apareceram em 17/09, ao ENSAIAR o reset num banco de verdade: ele dizia "pronto" deixando duas funções vivas
+- ❌ Nunca confiar num porteiro SQL sem envolver o arquivo inteiro em `BEGIN;` … `COMMIT;` — medido em 17/09/2026: o `psql -f` **sem** `ON_ERROR_STOP` imprime a recusa do porteiro e **segue para a instrução seguinte**, derrubando tudo com o aviso já rolado para fora da tela; o SQL Editor do Supabase aborta sozinho (manda o arquivo como lote único, que o PostgreSQL embrulha em transação implícita), mas um porteiro que só protege num cliente é meio porteiro
+- ❌ Nunca detectar "há módulo instalado" num arquivo da plataforma procurando o NOME de uma tabela de módulo (`to_regclass('public.fin_…')`) — seria uma quarta solda clandestina e ficaria cega para o segundo módulo; procure **o dano**: chave estrangeira de tabela que não é da plataforma apontando para tabela que o script vai derrubar, mais linha sobrando em `platform_modules`
+- ❌ Nunca escrever num documento um número que foi contado à mão sem, na mesma linha, o comando que o recalcula — em 17/09/2026 três números estavam errados ao mesmo tempo (CLAUDE.md dizia 25 funções onde há 27; `LEIA-ME-ORDEM.md` dizia "os 8 arquivos" listando 10; o README do ambiente local dizia "14 linhas, todas PASSOU" onde o teste tem 16) e nenhum deles quebra nada — eles só ensinam o errado
+- ❌ Nunca supor que o `npm run modulos:verificar` entende comentário de várias linhas — o `ehComentario` dele é **linha a linha** (`scripts/verificar-modulos.mjs`), então a linha de continuação de um `{/* … */}` que não começa com `//`, `*` ou `--` é acusada como código; é falso positivo, mas a correção certa é tirar o nome do módulo do comentário, nunca relaxar o verificador
 - ❌ Nunca criar arquivo com múltiplas responsabilidades distintas
 - ❌ Nunca misturar lógica de plataforma com módulo, nem módulo com módulo
 - ❌ Nunca usar `toISOString()` para datas que precisam respeitar UTC-3

@@ -80,7 +80,9 @@ SELECT x.objeto      AS "objeto",
               FROM information_schema.tables
              WHERE table_schema = 'public'
                AND table_type = 'BASE TABLE'
-               AND table_name <> 'resultado_teste_rls') AS encontrado,
+               AND table_name IN (
+                 'users', 'tenants', 'tenant_members', 'global_settings',
+                 'audit_log', 'platform_modules', 'tenant_modules')) AS encontrado,
            7 AS esperado
     UNION ALL
     SELECT '2. funcoes',
@@ -90,11 +92,25 @@ SELECT x.objeto      AS "objeto",
              WHERE n.nspname = 'public'
                AND NOT EXISTS (SELECT 1 FROM pg_depend d
                                 WHERE d.objid = p.oid AND d.deptype = 'e')
-               AND p.proname <> 'rls_auto_enable'),
+               AND p.proname IN (
+                 'admin_apagar_dados_do_modulo',
+                 'admin_list_all_tenants', 'admin_list_tenant_modules', 'admin_list_user_tenants',
+                 'admin_list_users', 'admin_promote_to_owner', 'admin_set_tenant_module',
+                 'admin_sync_user_tenants', 'admin_update_global_settings', 'can_view_user_profile',
+                 'check_is_tenant_member', 'check_is_tenant_owner', 'check_profile_completed',
+                 'delete_user_permanently', 'ensure_google_user_profile', 'gerar_slug_empresa',
+                 'get_user_by_email_for_invite', 'handle_auto_confirm_email', 'handle_new_user',
+                 'is_superuser', 'marcar_atualizacao', 'modulo_contratado',
+                 'modulos_contratados', 'modulos_do_membro',
+                 'registrar_auditoria', 'sync_auth_users', 'validar_modulos_do_membro')),
            27
     UNION ALL
     SELECT '3. policies',
-           (SELECT count(*)::int FROM pg_policies WHERE schemaname = 'public'),
+           (SELECT count(*)::int FROM pg_policies
+             WHERE schemaname = 'public'
+               AND tablename IN (
+                 'users', 'tenants', 'tenant_members', 'global_settings',
+                 'audit_log', 'platform_modules', 'tenant_modules')),
            12
     UNION ALL
     SELECT '4. triggers',
@@ -103,7 +119,10 @@ SELECT x.objeto      AS "objeto",
               JOIN pg_class c     ON c.oid = t.tgrelid
               JOIN pg_namespace n ON n.oid = c.relnamespace
              WHERE NOT t.tgisinternal
-               AND (n.nspname = 'public'
+               AND ((n.nspname = 'public'
+                     AND c.relname IN (
+                       'users', 'tenants', 'tenant_members', 'global_settings',
+                       'audit_log', 'platform_modules', 'tenant_modules'))
                     OR t.tgname IN ('on_auth_user_created', 'on_auth_user_auto_confirm'))),
            15
   ) x
@@ -145,6 +164,27 @@ SELECT z.situacao   AS "situacao",
      WHERE n.nspname = 'public'
        AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid = p.oid AND d.deptype = 'e')
        AND p.proname <> 'rls_auto_enable'   -- do ambiente, não do schema (nota 4)
+       -- =====================================================================
+       -- ⚠️ AS FUNÇÕES DOS MÓDULOS PLUGADOS NÃO SÃO "SOBRA" — 17/09/2026
+       -- =====================================================================
+       -- Sem esta exclusão, um banco com um módulo instalado listava TODAS as
+       -- funções dele como "SOBRANDO no banco" (medido: 24 linhas falsas), e o
+       -- placar do bloco 1A dizia DIVERGE nas quatro contagens. Vermelho falso
+       -- ensina a ignorar o vermelho — o pior defeito que um diagnóstico pode
+       -- ter.
+       --
+       -- ⚠️ E O PREFIXO NÃO É ESCRITO AQUI. Este é um arquivo da PLATAFORMA, e
+       -- ela não pode citar o nome de um módulo (regra do LEGO). O prefixo é
+       -- DEDUZIDO do próprio catálogo: `platform_modules.funcao_limpeza` é o
+       -- nome da função de limpeza que o SEED de cada módulo grava, e o CHECK
+       -- da coluna já exige que ela venha com o prefixo do módulo. Assim isto
+       -- funciona para o módulo de hoje e para os de amanhã, sem saber o nome
+       -- de nenhum.
+       AND NOT EXISTS (
+         SELECT 1 FROM public.platform_modules m
+          WHERE m.funcao_limpeza IS NOT NULL
+            AND p.proname LIKE split_part(m.funcao_limpeza, '_', 1) || '\_%'
+       )
        AND p.proname NOT IN (
          'admin_apagar_dados_do_modulo',
          'admin_list_all_tenants', 'admin_list_tenant_modules', 'admin_list_user_tenants',

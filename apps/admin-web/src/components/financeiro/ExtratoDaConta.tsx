@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { formatarBRL, formatarDataBR, type LinhaDoExtrato } from "@jairo/core";
+import { formatarBRL, formatarDataBR, linhaAbreFicha, type LinhaDoExtrato } from "@jairo/core";
 import MenuDeLinha, { type AcaoDeLinha } from "./MenuDeLinha";
 
 /**
@@ -99,7 +99,16 @@ export default function ExtratoDaConta({
         <tbody>
           {linhas.map((l, i) => {
             const ehResumo = l.linha_tipo !== "LANCAMENTO";
-            const abrir = !ehResumo && l.lancamento_id && onAbrirDetalhe
+            /**
+             * ⚠️ 17/09/2026 — O CRITÉRIO SAIU DAQUI E FOI PARA O CORE.
+             * Ele era um `if` escrito nesta linha, e a tela PESQUISAR passou a
+             * precisar do MESMO critério. Duas cópias seriam duas chances de
+             * divergir — e a segunda cópia é sempre a que esquece um caso.
+             * Agora quem responde é `linhaAbreFicha`, que tem teste em
+             * `manutencaoRegras.test.ts` (inclusive o caso "SALDO INICIAL e
+             * TOTAIS não abrem ficha, porque são somas e não registros").
+             */
+            const abrir = linhaAbreFicha(l) && onAbrirDetalhe
               ? () => onAbrirDetalhe(l.lancamento_id!)
               : undefined;
             return (

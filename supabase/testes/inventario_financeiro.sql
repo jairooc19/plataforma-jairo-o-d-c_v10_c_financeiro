@@ -27,12 +27,14 @@
 -- nesse momento que nascem os defeitos que ele pega.
 --
 -- ---------------------------------------------------------------------------
--- ⚠️ SETE NÚMEROS AQUI SÃO ESCRITOS À MÃO. AO MUDAR O SCHEMA, MUDE-OS JUNTO.
+-- ⚠️ SETE NÚMEROS E UMA LISTA AQUI SÃO ESCRITOS À MÃO. AO MUDAR O SCHEMA,
+-- MUDE-OS JUNTO.
 -- ---------------------------------------------------------------------------
 --
--- São as linhas 1 a 5, a 9 e a 16: tabelas (4), funções (20), policies (4),
--- triggers (8), índices (16), funções alcançáveis pelo app (18) e chaves para a
--- plataforma (8). **Eles não podem ser deduzidos do catálogo** — deduzi-los
+-- São as linhas 1 a 5, a 9 e a 16: tabelas (4), funções (24), policies (4),
+-- triggers (8), índices (16), funções alcançáveis pelo app (22) e chaves para a
+-- plataforma (8) — mais a LISTA DE ASSINATURAS da linha 17, que entrou em
+-- 17/09/2026. **Eles não podem ser deduzidos do catálogo** — deduzi-los
 -- seria perguntar ao banco se o banco
 -- concorda consigo mesmo, e a resposta seria sempre sim. Eles são a AFIRMAÇÃO
 -- do `financeiro_01_schema.sql`, e é justamente a comparação entre a afirmação
@@ -178,13 +180,54 @@ internas AS (
 -- ---------------------------------------------------------------------------
 -- O PLACAR
 -- ---------------------------------------------------------------------------
+-- ---------------------------------------------------------------------------
+-- A LISTA DE ASSINATURAS QUE O SCHEMA AFIRMA CRIAR — 24 linhas (17/09/2026)
+-- ---------------------------------------------------------------------------
+-- ⚠️ AO MUDAR A ASSINATURA DE UMA FUNÇÃO, MUDE A LINHA CORRESPONDENTE AQUI.
+-- É de propósito que isto dê trabalho: assinatura de função é contrato, e
+-- contrato que muda sozinho não é contrato. Para regerar a lista a partir de um
+-- banco que você acabou de conferir à mão:
+--
+--   SELECT '  (''' || p.proname || ''', ''' ||
+--          pg_get_function_identity_arguments(p.oid) || '''),'
+--     FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+--    WHERE n.nspname = 'public' AND p.proname LIKE 'fin\_%'
+--    ORDER BY p.proname;
+assinaturas_esperadas (nome, args) AS (
+  VALUES
+  ('fin_abrir_espaco_na_ordem', 'p_conta_movimento_id uuid, p_data date, p_ordem integer, p_excluir_id uuid'),
+  ('fin_apagar_dados_da_empresa', 'p_tenant_id uuid'),
+  ('fin_buscar_contas_movimento', 'p_tenant_id uuid, p_texto text'),
+  ('fin_buscar_identificadoras', 'p_tenant_id uuid, p_texto text'),
+  ('fin_excluir_lancamento', 'p_tenant_id uuid, p_id uuid'),
+  ('fin_excluir_lancamentos_por_periodo', 'p_tenant_id uuid, p_conta_movimento_id uuid, p_data_inicial date, p_data_final date, p_simular boolean'),
+  ('fin_extrato', 'p_tenant_id uuid, p_conta_movimento_id uuid, p_data_inicial date, p_data_final date'),
+  ('fin_fechar_periodo', 'p_tenant_id uuid, p_conta_movimento_id uuid, p_fechado_ate date, p_observacao text'),
+  ('fin_gravar_conta_movimento', 'p_tenant_id uuid, p_id uuid, p_nome text, p_tipo text, p_saldo_abertura_centavos bigint, p_is_active boolean'),
+  ('fin_gravar_identificadora', 'p_tenant_id uuid, p_id uuid, p_nome text, p_tipo text, p_is_active boolean'),
+  ('fin_gravar_lancamento', 'p_tenant_id uuid, p_id uuid, p_conta_movimento_id uuid, p_conta_identificadora_id uuid, p_data_movimento date, p_ordem_extrato integer, p_tipo_movimento text, p_propriedade text, p_regime text, p_valor_centavos bigint, p_historico text'),
+  ('fin_historico_fechamentos', 'p_tenant_id uuid, p_limite integer'),
+  ('fin_importar_contas_movimento', 'p_tenant_id uuid, p_tipo text, p_nomes text[]'),
+  ('fin_importar_identificadoras', 'p_tenant_id uuid, p_tipo text, p_nomes text[]'),
+  ('fin_listar_exclusoes', 'p_tenant_id uuid, p_desde timestamp with time zone, p_limite integer'),
+  ('fin_marcar_conferido', 'p_tenant_id uuid, p_id uuid, p_conferido boolean'),
+  ('fin_normalizar', 'p_texto text'),
+  ('fin_periodo_fechado', 'p_tenant_id uuid, p_conta_id uuid, p_data date'),
+  ('fin_pode', 'p_tenant_id uuid, p_permissao text'),
+  ('fin_proxima_ordem', 'p_conta_id uuid, p_data date'),
+  ('fin_reabrir_periodo', 'p_tenant_id uuid, p_conta_movimento_id uuid'),
+  ('fin_restaurar_lancamento', 'p_tenant_id uuid, p_audit_id bigint'),
+  ('fin_saldo_atual', 'p_tenant_id uuid, p_conta_movimento_id uuid'),
+  ('fin_transferir', 'p_tenant_id uuid, p_conta_origem_id uuid, p_conta_destino_id uuid, p_data date, p_valor_centavos bigint, p_historico text, p_ordem_origem integer, p_ordem_destino integer')
+),
+
 placar AS (
   SELECT 1 AS n, 'CONTAGEM' AS bloco,
          'Tabelas do modulo (fin_*)' AS o_que_foi_conferido,
          '4' AS esperado, (SELECT count(*)::text FROM tabelas) AS encontrado
   UNION ALL
   SELECT 2, 'CONTAGEM', 'Funcoes do modulo (fin_*)',
-         '20', (SELECT count(*)::text FROM funcoes)
+         '24', (SELECT count(*)::text FROM funcoes)
   UNION ALL
   SELECT 3, 'CONTAGEM', 'Policies de RLS nas tabelas do modulo',
          '4', (SELECT count(*)::text FROM politicas)
@@ -206,7 +249,7 @@ placar AS (
          '0', (SELECT count(*)::text FROM alcance WHERE por_anon OR por_public)
   UNION ALL
   SELECT 9, 'CAMINHO FELIZ', 'Funcoes de cliente alcancaveis pelo app (authenticated)',
-         '18', (SELECT count(*)::text FROM alcance WHERE por_app)
+         '22', (SELECT count(*)::text FROM alcance WHERE por_app)
   UNION ALL
   SELECT 10, 'PORTA INTERNA', 'Funcoes internas que receberam GRANT indevido',
          '0', (SELECT count(*)::text FROM alcance a JOIN internas i USING (proname) WHERE a.por_app)
@@ -233,12 +276,58 @@ placar AS (
   UNION ALL
   SELECT 16, 'AMARRAS', 'Chaves das tabelas do modulo para a plataforma (tenants/users)',
          '8', (SELECT count(*)::text FROM fks_para_a_plataforma)
+  UNION ALL
+  -- -------------------------------------------------------------------------
+  -- 17 — ASSINATURA (17/09/2026)
+  -- -------------------------------------------------------------------------
+  -- ⚠️ POR QUE A CONTAGEM DA LINHA 2 NÃO BASTA. Contar funções pega função que
+  -- SUMIU e função que SOBROU. Não pega a que MUDOU DE FORMA: trocar um
+  -- parâmetro deixa o total em 24 e o inventário diz OK.
+  --
+  -- E essa é exatamente a mudança mais perigosa do módulo. Em 14/09/2026 a
+  -- `fin_transferir` ganhou dois parâmetros e o `CREATE OR REPLACE` criou uma
+  -- SOBRECARGA em vez de substituir — a contagem subiu e a linha 7 pegou. Mas
+  -- no caso oposto (a antiga é derrubada e a nova nasce com a assinatura
+  -- errada), a contagem não muda e NADA acusaria.
+  --
+  -- Esta linha compara a lista INTEIRA de assinaturas com a que o
+  -- `financeiro_01_schema.sql` afirma criar. É a mesma filosofia dos outros
+  -- números escritos à mão: a comparação entre a AFIRMAÇÃO e o banco.
+  SELECT 17, 'ASSINATURA', 'Funcoes com assinatura diferente da que o schema declara',
+         '0', (SELECT count(*)::text FROM (
+                 SELECT f.proname, pg_get_function_identity_arguments(f.oid) AS args
+                   FROM funcoes f
+                 EXCEPT
+                 SELECT e.nome, e.args FROM assinaturas_esperadas e) x)
 ),
+
 
 -- ---------------------------------------------------------------------------
 -- O DETALHE — só aparece quando há culpado. Nenhuma linha DETALHE é boa notícia.
 -- ---------------------------------------------------------------------------
 detalhe AS (
+  -- 17/09/2026 — o culpado da linha 17, com a assinatura que o banco tem e a
+  -- que o schema esperava. Sem isto, "1 funcao diverge" manda procurar em 24.
+  SELECT 117 AS n, 'ASSINATURA' AS bloco,
+         'Assinatura fora do contrato: ' || f.proname AS o_que_foi_conferido,
+         COALESCE((SELECT e.args FROM assinaturas_esperadas e WHERE e.nome = f.proname),
+                  'NAO DEVERIA EXISTIR') AS esperado,
+         pg_get_function_identity_arguments(f.oid) AS encontrado
+    FROM funcoes f
+   WHERE NOT EXISTS (
+     SELECT 1 FROM assinaturas_esperadas e
+      WHERE e.nome = f.proname
+        AND e.args = pg_get_function_identity_arguments(f.oid))
+  UNION ALL
+  -- E o contrário: o schema declara uma funcao que o banco NAO tem.
+  SELECT 118, 'ASSINATURA', 'Funcao declarada pelo schema e AUSENTE no banco: ' || e.nome,
+         e.args, 'nao existe'
+    FROM assinaturas_esperadas e
+   WHERE NOT EXISTS (
+     SELECT 1 FROM funcoes f
+      WHERE f.proname = e.nome
+        AND pg_get_function_identity_arguments(f.oid) = e.args)
+  UNION ALL
   SELECT 107 AS n, 'SOBRECARGA' AS bloco,
          'Funcao com assinatura repetida: ' || proname AS o_que_foi_conferido,
          'uma so' AS esperado, count(*)::text || ' vivas' AS encontrado

@@ -253,9 +253,29 @@ AS $$
 $$;
 
 -- ---------------------------------------------------------------------------
--- 4.2 PERÍODO FECHADO? (RN-24)
+-- 4.2 PERÍODO FECHADO? (RN-24, RN-29)
 -- ---------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.fin_periodo_fechado(p_conta_id uuid, p_data date)
+--
+-- ⚠️ ESTE `DROP` É OBRIGATÓRIO E NÃO PODE SER APAGADO — leia antes de mexer.
+--
+-- Em 17/09/2026 esta função ganhou o parâmetro `p_tenant_id`. Ela era a ÚNICA
+-- do módulo que não filtrava a empresa: perguntava só pela conta e pela data.
+--
+-- `CREATE OR REPLACE` **só substitui quando a lista de parâmetros é
+-- idêntica**. Com uma lista diferente, o PostgreSQL entende que é OUTRA função
+-- e cria uma SOBRECARGA — as duas passam a existir. E a velha continuaria com
+-- o `GRANT` que este arquivo já lhe deu, alcançável e sem filtro de empresa.
+-- É exatamente o defeito medido na `fin_transferir` em 14/09/2026.
+--
+-- A assinatura dentro do DROP são os PARÂMETROS ANTIGOS (uuid, date): no
+-- PostgreSQL a função é identificada por eles, nunca pelo retorno.
+DROP FUNCTION IF EXISTS public.fin_periodo_fechado(uuid, date);
+
+CREATE OR REPLACE FUNCTION public.fin_periodo_fechado(
+  p_tenant_id uuid,
+  p_conta_id  uuid,
+  p_data      date
+)
 RETURNS boolean
 LANGUAGE sql
 STABLE
@@ -264,7 +284,8 @@ SET search_path = public
 AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.fin_fechamentos f
-     WHERE f.conta_movimento_id = p_conta_id
+     WHERE f.tenant_id = p_tenant_id
+       AND f.conta_movimento_id = p_conta_id
        AND p_data <= f.fechado_ate
   );
 $$;
@@ -843,14 +864,14 @@ BEGIN
 
     -- RN-24: a data ANTIGA também não pode estar em período fechado, senão
     -- daria para tirar um lançamento de um mês fechado movendo-o de lugar.
-    IF public.fin_periodo_fechado(v_conta_old, v_data_old) THEN
+    IF public.fin_periodo_fechado(p_tenant_id, v_conta_old, v_data_old) THEN
       RAISE EXCEPTION 'O periodo desta conta esta fechado ate a data do lancamento original.'
         USING ERRCODE = '42501';
     END IF;
   END IF;
 
   -- 2) Período fechado no destino (RN-24)
-  IF public.fin_periodo_fechado(p_conta_movimento_id, p_data_movimento) THEN
+  IF public.fin_periodo_fechado(p_tenant_id, p_conta_movimento_id, p_data_movimento) THEN
     RAISE EXCEPTION 'O periodo desta conta esta fechado nesta data.' USING ERRCODE = '42501';
   END IF;
 
@@ -943,7 +964,7 @@ BEGIN
     RAISE EXCEPTION 'Sem permissao para excluir este lancamento.' USING ERRCODE = '42501';
   END IF;
 
-  IF public.fin_periodo_fechado(v_conta, v_data) THEN
+  IF public.fin_periodo_fechado(p_tenant_id, v_conta, v_data) THEN
     RAISE EXCEPTION 'O periodo desta conta esta fechado nesta data.' USING ERRCODE = '42501';
   END IF;
 
@@ -954,7 +975,7 @@ BEGIN
     IF EXISTS (
       SELECT 1 FROM public.fin_lancamentos l
        WHERE l.transferencia_id = v_transf
-         AND public.fin_periodo_fechado(l.conta_movimento_id, l.data_movimento)
+         AND public.fin_periodo_fechado(p_tenant_id, l.conta_movimento_id, l.data_movimento)
     ) THEN
       RAISE EXCEPTION 'Uma das contas da transferencia esta com o periodo fechado.' USING ERRCODE = '42501';
     END IF;
@@ -968,6 +989,502 @@ BEGIN
 
   RETURN json_build_object('success', true, 'apagados', v_apagados, 'era_transferencia', v_transf IS NOT NULL);
 END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 4.8-b EXCLUIR LANÇAMENTOS POR PERÍODO (RN-23, 24, 25) — 17/09/2026
+-- ---------------------------------------------------------------------------
+--
+-- Pedido do dono do projeto: "excluir lançamentos por período, desde que não
+-- exista fechamento de período".
+--
+-- ===========================================================================
+-- ⚠️ 1. O PADRÃO DE `p_simular` É `true`, E ISSO NÃO É ESTILO
+-- ===========================================================================
+-- Com o padrão em `true`, esquecer o último argumento é INOFENSIVO: o pior que
+-- acontece é receber um relatório. Se o padrão fosse "apagar", qualquer chamada
+-- feita sem o parâmetro — um teste, um script, um dedo errado — apagaria dado
+-- de verdade. O caminho seguro tem de ser o caminho preguiçoso.
+--
+-- ===========================================================================
+-- ⚠️ 2. QUEM CONTA É QUEM APAGA — DE PROPÓSITO
+-- ===========================================================================
+-- A simulação e a exclusão percorrem O MESMO conjunto, montado uma vez só (a
+-- CTE `alvo`). Se a tela contasse por conta própria, um dia ela diria "137" e o
+-- banco apagaria 141 — e o número da confirmação viraria mentira. É a mesma
+-- razão pela qual o saldo do extrato é calculado no banco.
+--
+-- ===========================================================================
+-- ⚠️ 3. A TRANSFERÊNCIA SAI INTEIRA, MESMO A PERNA DE FORA DO PERÍODO (RN-23)
+-- ===========================================================================
+-- Uma transferência são DOIS lançamentos amarrados por `transferencia_id`.
+-- Apagar só a perna que está no filtro deixaria a OUTRA conta com uma entrada
+-- (ou saída) que não veio de lugar nenhum — o saldo dela ficaria errado PARA
+-- SEMPRE, sem nada na tela explicando por quê. Dinheiro inventado.
+--
+-- Por isso o conjunto é montado em dois passos: primeiro o que casa com o
+-- filtro, depois TUDO o que compartilhe um `transferencia_id` com esses — ainda
+-- que esteja em outra conta ou fora das datas pedidas.
+--
+-- ⚠️ CONSEQUÊNCIA QUE O RELATÓRIO PRECISA DIZER EM VOZ ALTA: "apagar setembro
+-- do CAIXA" pode apagar lançamentos de OUTRAS contas. Por isso o retorno traz
+-- `fora_do_filtro` separado — a tela mostra esse número antes de confirmar.
+--
+-- ===========================================================================
+-- ⚠️ 4. A REGRA DO FECHAMENTO É A "PRECISA", NÃO A "RÍGIDA" (decisão de 17/09)
+-- ===========================================================================
+-- Recusa apenas se o fechamento ALCANÇAR alguma linha do conjunto — não por a
+-- conta ter um fechamento qualquer. A leitura rígida puniria justamente quem
+-- fecha o período todo mês: a ferramenta ficaria disponível só para quem NÃO
+-- fecha, que é o contrário do desejável.
+--
+-- A conferência roda sobre o conjunto JÁ EXPANDIDO, então a perna de fora do
+-- período também é conferida: não dá para furar a tranca do BANCO pela porta
+-- do CAIXA.
+--
+-- ===========================================================================
+-- ⚠️ 5. A PERMISSÃO É `lc_excluir_lote`, E NÃO `lc_excluir_todos`
+-- ===========================================================================
+-- "Pode apagar um lançamento que não é seu" e "pode apagar um ano inteiro" são
+-- poderes de tamanhos diferentes. Com uma permissão só, dar o primeiro a um
+-- auxiliar daria o segundo junto. O Proprietário continua tendo tudo por ser
+-- OWNER — quem trata isso é a `fin_pode()`.
+--
+-- ⚠️ E NÃO ACEITA `lc_excluir_proprios` COMO SUBSTITUTO: quem só pode apagar os
+-- próprios receberia uma exclusão PARCIAL do período (algumas linhas saem,
+-- outras não, conforme quem lançou). Um mês meio apagado é pior que um mês
+-- inteiro: o saldo fica numa posição que ninguém pediu.
+CREATE OR REPLACE FUNCTION public.fin_excluir_lancamentos_por_periodo(
+  p_tenant_id          uuid,
+  p_conta_movimento_id uuid,                   -- null = todas as contas
+  p_data_inicial       date,
+  p_data_final         date,
+  p_simular            boolean DEFAULT true    -- ⚠️ padrão SEGURO: não apaga
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_ids            uuid[];   -- TODAS as linhas que vão sair (já com as pernas)
+  v_ids_no_filtro  uuid[];   -- só as que casaram com o filtro pedido
+  v_total          integer := 0;
+  v_fora           integer := 0;
+  v_transferencias integer := 0;
+  v_contas         text[];
+  v_bloqueio       text;
+  v_apagados       integer := 0;
+BEGIN
+  IF NOT public.fin_pode(p_tenant_id, 'lc_excluir_lote') THEN
+    RAISE EXCEPTION 'Sem permissao para excluir lancamentos em lote.' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_data_inicial IS NULL OR p_data_final IS NULL THEN
+    RAISE EXCEPTION 'Informe a data inicial e a data final.' USING ERRCODE = '22004';
+  END IF;
+
+  IF p_data_final < p_data_inicial THEN
+    RAISE EXCEPTION 'A data final nao pode ser anterior a data inicial.' USING ERRCODE = '22007';
+  END IF;
+
+  -- -------------------------------------------------------------------
+  -- O CONJUNTO ALVO — montado UMA vez, usado pela simulação e pela exclusão.
+  -- -------------------------------------------------------------------
+  -- ⚠️ É UM ARRAY DE `uuid`, E NÃO UMA TABELA TEMPORÁRIA. A primeira versão
+  -- desta função usava `CREATE TEMP TABLE`, e isso é frágil dentro de uma
+  -- `SECURITY DEFINER`: o PostgreSQL procura relações em `pg_temp` ANTES do
+  -- `search_path` declarado, então quem chama poderia criar uma tabela temporária
+  -- com este nome na sessão dele e a função passaria a trabalhar sobre ela.
+  -- Um array é uma variável — não existe fora daqui, e não há o que sequestrar.
+  -- (De quebra, sumiu o "relação já existe, ignorando" na segunda chamada.)
+  --
+  -- `no_filtro` = o que casa com o pedido; `v_ids` = isso MAIS as outras pernas
+  -- das transferências, venham da conta que vierem (ponto 3 acima).
+  SELECT array_agg(l.id)
+    INTO v_ids_no_filtro
+    FROM public.fin_lancamentos l
+   WHERE l.tenant_id = p_tenant_id
+     AND (p_conta_movimento_id IS NULL OR l.conta_movimento_id = p_conta_movimento_id)
+     AND l.data_movimento BETWEEN p_data_inicial AND p_data_final;
+
+  v_ids_no_filtro := COALESCE(v_ids_no_filtro, ARRAY[]::uuid[]);
+
+  SELECT array_agg(l.id)
+    INTO v_ids
+    FROM public.fin_lancamentos l
+   WHERE l.tenant_id = p_tenant_id
+     AND (
+           l.id = ANY(v_ids_no_filtro)
+        OR (l.transferencia_id IS NOT NULL
+            AND l.transferencia_id IN (
+                  SELECT t.transferencia_id FROM public.fin_lancamentos t
+                   WHERE t.id = ANY(v_ids_no_filtro) AND t.transferencia_id IS NOT NULL))
+         );
+
+  v_ids := COALESCE(v_ids, ARRAY[]::uuid[]);
+
+  SELECT count(*),
+         count(*) FILTER (WHERE NOT (l.id = ANY(v_ids_no_filtro))),
+         count(DISTINCT l.transferencia_id) FILTER (WHERE l.transferencia_id IS NOT NULL)
+    INTO v_total, v_fora, v_transferencias
+    FROM public.fin_lancamentos l
+   WHERE l.tenant_id = p_tenant_id AND l.id = ANY(v_ids);
+
+  SELECT array_agg(DISTINCT c.nome ORDER BY c.nome)
+    INTO v_contas
+    FROM public.fin_lancamentos l
+    JOIN public.fin_contas_movimento c
+      ON c.tenant_id = p_tenant_id AND c.id = l.conta_movimento_id
+   WHERE l.tenant_id = p_tenant_id AND l.id = ANY(v_ids);
+
+  -- -------------------------------------------------------------------
+  -- RN-24 — o fechamento, conferido sobre o conjunto JÁ EXPANDIDO.
+  -- -------------------------------------------------------------------
+  SELECT string_agg(DISTINCT c.nome, ', ' ORDER BY c.nome)
+    INTO v_bloqueio
+    FROM public.fin_lancamentos l
+    JOIN public.fin_contas_movimento c
+      ON c.tenant_id = p_tenant_id AND c.id = l.conta_movimento_id
+   WHERE l.tenant_id = p_tenant_id
+     AND l.id = ANY(v_ids)
+     AND public.fin_periodo_fechado(p_tenant_id, l.conta_movimento_id, l.data_movimento);
+
+  IF v_bloqueio IS NOT NULL THEN
+    -- ⚠️ ESTOURA MESMO NA SIMULAÇÃO, e é o certo: a simulação existe para
+    -- responder "o que aconteceria se eu confirmasse?". Se ela devolvesse uma
+    -- contagem alegre e só a exclusão recusasse, a pessoa clicaria em
+    -- "EXCLUIR DEFINITIVAMENTE" para descobrir que não podia.
+    RAISE EXCEPTION 'Periodo fechado alcanca estes lancamentos. Conta(s): %. Exclua o fechamento antes, em CONFIGURACOES DO MODULO.', v_bloqueio
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF p_simular THEN
+    RETURN json_build_object(
+      'success', true, 'simulacao', true,
+      'lancamentos', v_total,
+      'fora_do_filtro', v_fora,
+      'transferencias', v_transferencias,
+      'contas', COALESCE(to_jsonb(v_contas), '[]'::jsonb),
+      'apagados', 0
+    );
+  END IF;
+
+  -- ⚠️ CADA LINHA APAGADA PASSA PELO GATILHO `audit_fin_lanc`, que grava o
+  -- registro INTEIRO em `audit_log.dados_antes`. É essa trilha que a
+  -- `fin_restaurar_lancamento` usa para desfazer. Não é custo à toa.
+  DELETE FROM public.fin_lancamentos l
+   WHERE l.tenant_id = p_tenant_id
+     AND l.id = ANY(v_ids);
+  GET DIAGNOSTICS v_apagados = ROW_COUNT;
+
+  RETURN json_build_object(
+    'success', true, 'simulacao', false,
+    'lancamentos', v_total,
+    'fora_do_filtro', v_fora,
+    'transferencias', v_transferencias,
+    'contas', COALESCE(to_jsonb(v_contas), '[]'::jsonb),
+    'apagados', v_apagados
+  );
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 4.8-c A LIXEIRA: LISTAR E RESTAURAR LANÇAMENTOS EXCLUÍDOS — 17/09/2026
+-- ---------------------------------------------------------------------------
+--
+-- 🎁 ISTO EXISTE PORQUE A TRILHA DE AUDITORIA JÁ GUARDAVA TUDO, E NINGUÉM
+-- ESTAVA OLHANDO. O gatilho `audit_fin_lanc` é `AFTER UPDATE OR DELETE ... FOR
+-- EACH ROW`, e a `registrar_auditoria()` grava `dados_antes = to_jsonb(OLD)` —
+-- ou seja, **o registro inteiro, campo por campo**, antes de ele morrer.
+--
+-- Sem nenhuma tabela nova, isso transforma a exclusão em lote de "operação
+-- irreversível" em "operação reversível". Era o bônus nº 1 do estudo de 17/09.
+--
+-- ===========================================================================
+-- ⚠️ POR QUE ESTAS DUAS FUNÇÕES SÃO `SECURITY DEFINER` — E O QUE ISSO EXIGE
+-- ===========================================================================
+-- A `audit_log` é da PLATAFORMA e tem uma policy que deixa **só o
+-- Desenvolvedor** lê-la. Um Proprietário não enxerga uma linha sequer. Estas
+-- funções rodam com o poder do dono do schema para alcançá-la.
+--
+-- ⚠️ E `SECURITY DEFINER` DESLIGA A RLS LÁ DENTRO. Sem filtro explícito, um
+-- Proprietário leria as exclusões de TODAS as empresas do sistema. Por isso os
+-- quatro filtros abaixo são obrigatórios, e nenhum deles é opcional:
+--    1. `fin_pode()` no topo         — tem permissão?
+--    2. `tabela = 'fin_lancamentos'` — só a tabela deste módulo
+--    3. `operacao = 'DELETE'`        — só exclusões
+--    4. `dados_antes->>'tenant_id'`  — SÓ a empresa de quem chamou
+--
+-- ⚠️ A `audit_log` NÃO TEM COLUNA `tenant_id`. A empresa mora DENTRO do jsonb.
+-- É por isso que o filtro é `dados_antes->>'tenant_id' = p_tenant_id::text`, e
+-- não um `WHERE tenant_id = ...` que não compilaria.
+CREATE OR REPLACE FUNCTION public.fin_listar_exclusoes(
+  p_tenant_id uuid,
+  p_desde     timestamptz DEFAULT NULL,   -- null = últimos 30 dias
+  p_limite    integer     DEFAULT 200
+)
+RETURNS TABLE (
+  audit_id        bigint,
+  excluido_em     timestamptz,
+  excluido_por    text,
+  lancamento_id   uuid,
+  data_movimento  date,
+  conta           text,
+  identificadora  text,
+  tipo_movimento  text,
+  valor_centavos  bigint,
+  historico       text,
+  transferencia_id uuid,
+  ja_restaurado   boolean
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT
+    a.id,
+    a.criado_em,
+    COALESCE(u.email, '—'),
+    (a.dados_antes->>'id')::uuid,
+    (a.dados_antes->>'data_movimento')::date,
+    COALESCE(cm.nome, '—'),
+    COALESCE(ci.nome, '—'),
+    a.dados_antes->>'tipo_movimento',
+    (a.dados_antes->>'valor_centavos')::bigint,
+    a.dados_antes->>'historico',
+    NULLIF(a.dados_antes->>'transferencia_id', '')::uuid,
+    -- ⚠️ "Já restaurado" é descoberto perguntando se o id VOLTOU a existir. Não
+    -- há marca na auditoria dizendo isso, e inventar uma exigiria escrever na
+    -- tabela da plataforma a pedido de um módulo — proibido pelo LEGO.
+    EXISTS (SELECT 1 FROM public.fin_lancamentos l
+             WHERE l.id = (a.dados_antes->>'id')::uuid
+               AND l.tenant_id = p_tenant_id)
+  FROM public.audit_log a
+  -- ⚠️ LEFT JOIN, nunca JOIN: a RLS de `users` esconde os colegas, e um JOIN
+  -- simples faria a LINHA sumir da lista em vez de só a coluna vir vazia.
+  LEFT JOIN public.users u                   ON u.id = a.ator_id
+  LEFT JOIN public.fin_contas_movimento cm
+         ON cm.tenant_id = p_tenant_id
+        AND cm.id = (a.dados_antes->>'conta_movimento_id')::uuid
+  LEFT JOIN public.fin_contas_identificadoras ci
+         ON ci.tenant_id = p_tenant_id
+        AND ci.id = (a.dados_antes->>'conta_identificadora_id')::uuid
+ WHERE public.fin_pode(p_tenant_id, 'lc_excluir_lote')
+   AND a.tabela   = 'fin_lancamentos'
+   AND a.operacao = 'DELETE'
+   AND a.dados_antes->>'tenant_id' = p_tenant_id::text
+   AND a.criado_em >= COALESCE(p_desde, now() - interval '30 days')
+ ORDER BY a.criado_em DESC, a.id DESC
+ LIMIT GREATEST(1, LEAST(COALESCE(p_limite, 200), 1000));
+$$;
+
+-- ---------------------------------------------------------------------------
+-- RESTAURAR UM LANÇAMENTO EXCLUÍDO
+-- ---------------------------------------------------------------------------
+--
+-- ⚠️ RESTAURAR É CRIAR DE NOVO, E POR ISSO PASSA PELAS MESMAS TRANCAS. Um
+-- lançamento não pode "voltar" para dentro de um período que foi fechado
+-- depois da exclusão dele — isso seria furar o fechamento pela porta dos
+-- fundos. Também não pode voltar se o cadastro que ele usava foi excluído.
+--
+-- ⚠️ ELA É IDEMPOTENTE DE PROPÓSITO: restaurar duas vezes o mesmo id devolve
+-- `ja_existia`, sem erro e sem duplicar. Dois cliques no mesmo botão é o gesto
+-- mais comum que existe.
+--
+-- ⚠️ A TRANSFERÊNCIA VOLTA INTEIRA, pelo mesmo motivo da RN-23: meia
+-- transferência restaurada inventa dinheiro tanto quanto meia apagada.
+CREATE OR REPLACE FUNCTION public.fin_restaurar_lancamento(
+  p_tenant_id uuid,
+  p_audit_id  bigint
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_linha       jsonb;
+  v_transf      uuid;
+  -- ⚠️ ARRAY, não tabela temporária — pelo mesmo motivo explicado na
+  -- `fin_excluir_lancamentos_por_periodo`: `pg_temp` é procurado antes do
+  -- `search_path` e uma tabela temporária do chamador sequestraria o nome.
+  v_linhas      jsonb[];
+  v_restaurados integer := 0;
+  v_ja          integer := 0;
+  v_bloqueio    text;
+BEGIN
+  IF NOT public.fin_pode(p_tenant_id, 'lc_excluir_lote') THEN
+    RAISE EXCEPTION 'Sem permissao para restaurar lancamento.' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT a.dados_antes
+    INTO v_linha
+    FROM public.audit_log a
+   WHERE a.id       = p_audit_id
+     AND a.tabela   = 'fin_lancamentos'
+     AND a.operacao = 'DELETE'
+     AND a.dados_antes->>'tenant_id' = p_tenant_id::text;   -- o filtro que vale
+
+  IF v_linha IS NULL THEN
+    RAISE EXCEPTION 'Registro de exclusao nao encontrado nesta empresa.' USING ERRCODE = '23503';
+  END IF;
+
+  v_transf := NULLIF(v_linha->>'transferencia_id', '')::uuid;
+
+  -- Todas as linhas que vão voltar: a pedida e, se for transferência, as irmãs.
+  IF v_transf IS NULL THEN
+    v_linhas := ARRAY[v_linha];
+  ELSE
+    -- ⚠️ `DISTINCT ON (id)` com a auditoria mais RECENTE de cada lançamento:
+    -- se o mesmo id foi excluído e restaurado mais de uma vez, há várias linhas
+    -- de DELETE para ele, e restaurar a mais antiga traria um valor vencido.
+    SELECT array_agg(dados) INTO v_linhas FROM (
+      SELECT DISTINCT ON (a.dados_antes->>'id') a.dados_antes AS dados
+        FROM public.audit_log a
+       WHERE a.tabela   = 'fin_lancamentos'
+         AND a.operacao = 'DELETE'
+         AND a.dados_antes->>'tenant_id'        = p_tenant_id::text
+         AND a.dados_antes->>'transferencia_id' = v_transf::text
+       ORDER BY a.dados_antes->>'id', a.criado_em DESC, a.id DESC
+    ) mais_recente;
+  END IF;
+
+  v_linhas := COALESCE(v_linhas, ARRAY[]::jsonb[]);
+
+  -- RN-24: nenhuma delas pode cair dentro de um período fechado HOJE.
+  SELECT string_agg(DISTINCT c.nome, ', ' ORDER BY c.nome)
+    INTO v_bloqueio
+    FROM unnest(v_linhas) AS r(dados)
+    JOIN public.fin_contas_movimento c
+      ON c.tenant_id = p_tenant_id
+     AND c.id = (r.dados->>'conta_movimento_id')::uuid
+   WHERE public.fin_periodo_fechado(p_tenant_id,
+                                    (r.dados->>'conta_movimento_id')::uuid,
+                                    (r.dados->>'data_movimento')::date);
+
+  IF v_bloqueio IS NOT NULL THEN
+    RAISE EXCEPTION 'O periodo foi fechado depois da exclusao. Conta(s): %. Exclua o fechamento antes de restaurar.', v_bloqueio
+      USING ERRCODE = '42501';
+  END IF;
+
+  -- O cadastro que o lançamento usava ainda existe?
+  IF EXISTS (
+    SELECT 1 FROM unnest(v_linhas) AS r(dados)
+     WHERE NOT EXISTS (SELECT 1 FROM public.fin_contas_movimento c
+                        WHERE c.tenant_id = p_tenant_id
+                          AND c.id = (r.dados->>'conta_movimento_id')::uuid)
+        OR NOT EXISTS (SELECT 1 FROM public.fin_contas_identificadoras i
+                        WHERE i.tenant_id = p_tenant_id
+                          AND i.id = (r.dados->>'conta_identificadora_id')::uuid)
+  ) THEN
+    RAISE EXCEPTION 'A conta movimento ou a identificadora deste lancamento nao existe mais. Recrie o cadastro antes de restaurar.'
+      USING ERRCODE = '23503';
+  END IF;
+
+  SELECT count(*) INTO v_ja
+    FROM unnest(v_linhas) AS r(dados)
+   WHERE EXISTS (SELECT 1 FROM public.fin_lancamentos l
+                  WHERE l.id = (r.dados->>'id')::uuid AND l.tenant_id = p_tenant_id);
+
+  -- ⚠️ O `ON CONFLICT DO NOTHING` é o que torna o duplo clique inofensivo.
+  -- ⚠️ E as colunas são listadas UMA A UMA, nunca por `jsonb_populate_record`:
+  --    a regra do projeto manda mapear coluna explicitamente, e assim uma
+  --    coluna nova na tabela aparece como erro de compilação aqui, em vez de
+  --    voltar silenciosamente vazia.
+  INSERT INTO public.fin_lancamentos (
+    id, tenant_id, conta_movimento_id, conta_identificadora_id,
+    tipo_conta_movimento, tipo_conta_identificadora,
+    data_movimento, ordem_extrato, tipo_movimento, propriedade, regime,
+    valor_centavos, historico, conferido, transferencia_id, criado_por,
+    created_at, updated_at
+  )
+  SELECT
+    (r.dados->>'id')::uuid,
+    p_tenant_id,
+    (r.dados->>'conta_movimento_id')::uuid,
+    (r.dados->>'conta_identificadora_id')::uuid,
+    r.dados->>'tipo_conta_movimento',
+    r.dados->>'tipo_conta_identificadora',
+    (r.dados->>'data_movimento')::date,
+    (r.dados->>'ordem_extrato')::integer,
+    r.dados->>'tipo_movimento',
+    r.dados->>'propriedade',
+    r.dados->>'regime',
+    (r.dados->>'valor_centavos')::bigint,
+    r.dados->>'historico',
+    COALESCE((r.dados->>'conferido')::boolean, false),
+    NULLIF(r.dados->>'transferencia_id', '')::uuid,
+    (r.dados->>'criado_por')::uuid,
+    COALESCE((r.dados->>'created_at')::timestamptz, now()),
+    now()
+    FROM unnest(v_linhas) AS r(dados)
+  ON CONFLICT (id) DO NOTHING;
+
+  GET DIAGNOSTICS v_restaurados = ROW_COUNT;
+
+  RETURN json_build_object(
+    'success', true,
+    'restaurados', v_restaurados,
+    'ja_existia', v_ja,
+    'era_transferencia', v_transf IS NOT NULL
+  );
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 4.8-d HISTÓRICO DE FECHAMENTOS — 17/09/2026 (bônus 6 do estudo)
+-- ---------------------------------------------------------------------------
+--
+-- ⚠️ A TABELA `fin_fechamentos` GUARDA UMA LINHA POR CONTA
+-- (`UNIQUE (tenant_id, conta_movimento_id)`), então ela NÃO tem histórico: ao
+-- excluir um fechamento, some da tela qualquer vestígio de que aquele período
+-- esteve fechado, quem fechou e quando.
+--
+-- O dado, porém, existe: o gatilho `audit_fin_fech` grava cada UPDATE e cada
+-- DELETE da tabela. Isto aqui é só a janela — nenhuma tabela nova, e nenhuma
+-- alteração em tabela da plataforma (o LEGO proíbe).
+--
+-- ⚠️ Os mesmos quatro filtros da lixeira valem aqui, pelo mesmo motivo: é
+-- `SECURITY DEFINER` sobre uma tabela da plataforma que o Proprietário não lê.
+CREATE OR REPLACE FUNCTION public.fin_historico_fechamentos(
+  p_tenant_id uuid,
+  p_limite    integer DEFAULT 100
+)
+RETURNS TABLE (
+  quando      timestamptz,
+  operacao    text,
+  quem        text,
+  conta       text,
+  fechado_ate date,
+  observacao  text
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT
+    a.criado_em,
+    -- O gatilho só registra UPDATE e DELETE. Traduzimos para o vocabulário da
+    -- tela: quem alterou "REFEZ O FECHAMENTO", quem apagou "EXCLUIU".
+    CASE a.operacao WHEN 'DELETE' THEN 'EXCLUIU O FECHAMENTO'
+                    ELSE 'ALTEROU O FECHAMENTO' END,
+    COALESCE(u.email, '—'),
+    COALESCE(cm.nome, '—'),
+    (COALESCE(a.dados_depois, a.dados_antes)->>'fechado_ate')::date,
+    COALESCE(a.dados_depois, a.dados_antes)->>'observacao'
+  FROM public.audit_log a
+  LEFT JOIN public.users u ON u.id = a.ator_id
+  LEFT JOIN public.fin_contas_movimento cm
+         ON cm.tenant_id = p_tenant_id
+        AND cm.id = (COALESCE(a.dados_depois, a.dados_antes)->>'conta_movimento_id')::uuid
+ WHERE public.fin_pode(p_tenant_id, 'fechar_periodo')
+   AND a.tabela = 'fin_fechamentos'
+   AND COALESCE(a.dados_depois, a.dados_antes)->>'tenant_id' = p_tenant_id::text
+ ORDER BY a.criado_em DESC, a.id DESC
+ LIMIT GREATEST(1, LEAST(COALESCE(p_limite, 100), 500));
 $$;
 
 -- ---------------------------------------------------------------------------
@@ -1032,8 +1549,8 @@ BEGIN
   END IF;
 
   -- RN-24 nas DUAS contas
-  IF public.fin_periodo_fechado(p_conta_origem_id, p_data)
-     OR public.fin_periodo_fechado(p_conta_destino_id, p_data) THEN
+  IF public.fin_periodo_fechado(p_tenant_id, p_conta_origem_id, p_data)
+     OR public.fin_periodo_fechado(p_tenant_id, p_conta_destino_id, p_data) THEN
     RAISE EXCEPTION 'Uma das contas esta com o periodo fechado nesta data.' USING ERRCODE = '42501';
   END IF;
 
@@ -1561,7 +2078,7 @@ GRANT SELECT ON public.fin_fechamentos            TO authenticated;
 -- ---------------------------------------------------------------------------
 REVOKE EXECUTE ON FUNCTION public.fin_normalizar(text)                                   FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_pode(uuid, text)                                   FROM PUBLIC, anon, authenticated;
-REVOKE EXECUTE ON FUNCTION public.fin_periodo_fechado(uuid, date)                        FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_periodo_fechado(uuid, uuid, date)                  FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_proxima_ordem(uuid, date)                          FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_buscar_contas_movimento(uuid, text)                FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_buscar_identificadoras(uuid, text)                 FROM PUBLIC, anon, authenticated;
@@ -1571,6 +2088,11 @@ REVOKE EXECUTE ON FUNCTION public.fin_importar_contas_movimento(uuid, text, text
 REVOKE EXECUTE ON FUNCTION public.fin_importar_identificadoras(uuid, text, text[])       FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_gravar_lancamento(uuid, uuid, uuid, uuid, date, integer, text, text, text, bigint, text) FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_excluir_lancamento(uuid, uuid)                     FROM PUBLIC, anon, authenticated;
+-- 17/09/2026 — exclusão em lote, lixeira e histórico de fechamentos.
+REVOKE EXECUTE ON FUNCTION public.fin_excluir_lancamentos_por_periodo(uuid, uuid, date, date, boolean) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_listar_exclusoes(uuid, timestamptz, integer)        FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_restaurar_lancamento(uuid, bigint)                  FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_historico_fechamentos(uuid, integer)                FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_transferir(uuid, uuid, uuid, date, bigint, text, integer, integer)
                                                                                          FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_abrir_espaco_na_ordem(uuid, date, integer, uuid)   FROM PUBLIC, anon, authenticated;
@@ -1583,7 +2105,7 @@ REVOKE EXECUTE ON FUNCTION public.fin_apagar_dados_da_empresa(uuid)             
 
 GRANT EXECUTE ON FUNCTION public.fin_normalizar(text)                                   TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_pode(uuid, text)                                   TO authenticated;
-GRANT EXECUTE ON FUNCTION public.fin_periodo_fechado(uuid, date)                        TO authenticated;
+GRANT EXECUTE ON FUNCTION public.fin_periodo_fechado(uuid, uuid, date)                  TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_proxima_ordem(uuid, date)                          TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_buscar_contas_movimento(uuid, text)                TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_buscar_identificadoras(uuid, text)                 TO authenticated;
@@ -1593,6 +2115,12 @@ GRANT EXECUTE ON FUNCTION public.fin_importar_contas_movimento(uuid, text, text[
 GRANT EXECUTE ON FUNCTION public.fin_importar_identificadoras(uuid, text, text[])       TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_gravar_lancamento(uuid, uuid, uuid, uuid, date, integer, text, text, text, bigint, text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_excluir_lancamento(uuid, uuid)                     TO authenticated;
+-- 17/09/2026 — cada uma confere a permissão por dentro (`fin_pode`); o GRANT
+-- só diz "pode chamar", nunca "pode fazer".
+GRANT EXECUTE ON FUNCTION public.fin_excluir_lancamentos_por_periodo(uuid, uuid, date, date, boolean) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.fin_listar_exclusoes(uuid, timestamptz, integer)        TO authenticated;
+GRANT EXECUTE ON FUNCTION public.fin_restaurar_lancamento(uuid, bigint)                  TO authenticated;
+GRANT EXECUTE ON FUNCTION public.fin_historico_fechamentos(uuid, integer)                TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_transferir(uuid, uuid, uuid, date, bigint, text, integer, integer)
                                                                                         TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_marcar_conferido(uuid, uuid, boolean)              TO authenticated;

@@ -15,20 +15,20 @@ documentos, e para achá-la era preciso já saber onde procurar.
 
 ---
 
-## Os 8 arquivos, e o que cada um é
+## Os 10 arquivos, e o que cada um é
 
 | Arquivo | O que faz |
 |---|---|
-| `criar-bd/plataforma_00_reset.sql` | 🔴 **Demolidor da plataforma.** Apaga todos os usuários e todas as empresas |
-| `criar-bd/plataforma_01_schema.sql` | Construtor da plataforma: 7 tabelas, 25 funções, 12 policies, 15 triggers |
+| `criar-bd/plataforma_00_reset.sql` | 🔴 **Demolidor da plataforma.** Apaga todos os usuários e todas as empresas. **Tem porteiro desde 17/09/2026: recusa rodar com módulo instalado** |
+| `criar-bd/plataforma_01_schema.sql` | Construtor da plataforma: 7 tabelas, 27 funções, 12 policies, 15 triggers |
 | `criar-bd/plataforma_02_seed.sql` | Hidratador: cores, título e e-mails de admin (linha `id = 1`) |
-| `criar-bd-financeiro/financeiro_00_reset.sql` | 🔴 **Desplugador do módulo.** Apaga os lançamentos de todas as empresas |
-| `criar-bd-financeiro/financeiro_01_schema.sql` | Banco do módulo: 4 tabelas, 20 funções, 4 policies, 8 triggers |
+| `criar-bd-financeiro/financeiro_00_reset.sql` | 🔴 **Desplugador do módulo.** Apaga os lançamentos de todas as empresas. **Tem trava de intenção desde 17/09/2026: é preciso trocar `NAO CONFIRMO` por `CONFIRMO` na seção 0** |
+| `criar-bd-financeiro/financeiro_01_schema.sql` | Banco do módulo: 4 tabelas, 24 funções, 4 policies, 8 triggers |
 | `criar-bd-financeiro/financeiro_02_seed.sql` | Grava o módulo no catálogo — **sem ele o módulo não existe para a plataforma** |
 | `testes/teste_rls.sql` | 16 travas da plataforma. **Escreve no banco** |
-| `testes/teste_financeiro.sql` | 21 travas do módulo. **Escreve no banco** |
+| `testes/teste_financeiro.sql` | 29 travas do módulo. **Escreve no banco** |
 | `testes/inventario.sql` | Confere o schema da plataforma. Só lê |
-| `testes/inventario_financeiro.sql` | Confere o schema do módulo (16 linhas). Só lê |
+| `testes/inventario_financeiro.sql` | Confere o schema do módulo (17 linhas, com a conferência de assinatura). Só lê |
 
 ---
 
@@ -93,6 +93,39 @@ não há o que demolir, e o `01` já cria tudo do zero.
 > **Se já aconteceu com você:** o `inventario_financeiro.sql` acusa na linha 16
 > (`esperado 8, encontrado 0`) e nomeia cada tabela solta. O conserto é o
 > roteiro 🅱️ inteiro, do começo.
+>
+> ### ✅ 17/09/2026 — AGORA O BANCO IMPEDE, NÃO SÓ AVISA
+>
+> Esta caixa de aviso continuava dependendo de alguém tê-la lido. Desde
+> 17/09/2026 o `plataforma_00_reset.sql` abre com um **porteiro** que
+> **recusa executar** enquanto houver módulo instalado. Colar o arquivo na ordem
+> errada agora devolve isto, e nada é derrubado:
+>
+> ```
+> ERRO: RESET RECUSADO: ha modulo instalado neste banco. Tabelas que perderiam
+>       as chaves estrangeiras em silencio: fin_contas_identificadoras,
+>       fin_contas_movimento, fin_fechamentos, fin_lancamentos.
+>       RODE O RESET DO MODULO PRIMEIRO ... e so depois este arquivo.
+> ```
+>
+> **Ele tem duas travas**, e nenhuma cita o nome de um módulo (a plataforma não
+> pode conhecer a peça — regra do LEGO):
+>
+> | Trava | O que procura | Pega o caso de |
+> |---|---|---|
+> | 1 | Chave estrangeira de tabela que **não é** da plataforma apontando para tabela que o reset vai derrubar | Módulo instalado (o caso normal) |
+> | 2 | Linha sobrando em `platform_modules` | Tabelas já saíram, mas o catálogo ficou |
+>
+> **O arquivo também virou atômico** (`BEGIN;` … `COMMIT;`). Isso não é enfeite:
+> medido em 17/09/2026, o `psql -f` **sem** `ON_ERROR_STOP` imprimia a recusa do
+> porteiro e **seguia derrubando tudo**. Com a transação, o erro desfaz o
+> arquivo inteiro em qualquer cliente. O SQL Editor do Supabase já abortava
+> sozinho (ele manda o arquivo como um lote único, que o PostgreSQL embrulha
+> numa transação implícita) — a transação explícita cobre os outros casos.
+>
+> ⚠️ **Nunca apague o porteiro, o `BEGIN;` ou o `COMMIT;` para "fazer passar".**
+> Se o banco é órfão (tabelas de módulo sem código), derrube-as à mão uma vez:
+> `DROP TABLE public.<nome> CASCADE;`
 
 ---
 
@@ -119,10 +152,37 @@ limpeza do módulo tiverem mudado.
 1) criar-bd-financeiro/financeiro_00_reset.sql
 ```
 
-Ele limpa o próprio rastro: tira `'financeiro'` de `allowed_modules` dos membros
-e apaga a linha do catálogo. **A plataforma continua de pé, intacta.** Depois,
-apagar as 5 pastas do módulo no repositório — o roteiro completo está no
-`MODULOS.md`.
+Ele limpa o próprio rastro: tira `'financeiro'` de `allowed_modules` dos membros,
+apaga a linha do catálogo e as linhas `fin_*` da trilha de auditoria.
+**A plataforma continua de pé, intacta.** Depois, apagar as 5 pastas do módulo no
+repositório — o roteiro completo está no `MODULOS.md`.
+
+> ### ⚠️ ELE VEM TRAVADO — e destravar é de propósito
+>
+> Desde 17/09/2026 a seção 0 do arquivo tem uma **trava de intenção**. Rodá-lo
+> como está devolve a recusa abaixo, **com o tamanho do estrago medido**, e nada
+> é apagado:
+>
+> ```
+> ERRO: RESET DO MODULO RECUSADO: a trava de intencao esta fechada.
+>       Este arquivo apagaria 3 lancamento(s) de 1 empresa(s),
+>       de TODAS as empresas, sem desfazer.
+> ```
+>
+> **Para liberar:** na seção 0, troque `v_confirmacao text := 'NAO CONFIRMO';`
+> por `'CONFIRMO'`. São 3 caracteres — o bastante para exigir que alguém leia.
+>
+> ⚠️ **A trava daqui é DIFERENTE da do reset da plataforma, e o motivo importa.**
+> Lá o arquivo tinha o que PERGUNTAR ao banco ("há módulo instalado?"). Aqui não
+> há: apagar tudo é exatamente o que este arquivo faz de certo. A única pergunta
+> é se a PESSOA quis — e essa o banco não sabe responder. Por isso é trava de
+> intenção, não de estado.
+>
+> ⚠️ **Nunca deixe o arquivo commitado destravado.** Um arquivo que chega
+> destravado ao próximo leitor é um arquivo sem trava.
+>
+> 🔎 **Para apagar os dados de UMA empresa só**, não use este arquivo: use o
+> botão do Painel de Engenharia, que chama `fin_apagar_dados_da_empresa`.
 
 ---
 
@@ -133,9 +193,9 @@ Dois pares de arquivos, com propósitos diferentes. **Rode sempre os dois tipos.
 | Arquivo | Pergunta que responde | Escreve? | Resultado esperado |
 |---|---|---|---|
 | `testes/inventario.sql` | *"as peças da plataforma estão lá?"* | Não | todas OK |
-| `testes/inventario_financeiro.sql` | *"as peças do módulo estão lá?"* | Não | **16 linhas OK** |
+| `testes/inventario_financeiro.sql` | *"as peças do módulo estão lá?"* | Não | **17 linhas OK** |
 | `testes/teste_rls.sql` | *"as regras da plataforma funcionam?"* | **Sim** | **16/16 PASSOU** |
-| `testes/teste_financeiro.sql` | *"as regras do módulo funcionam?"* | **Sim** | **21/21 PASSOU** |
+| `testes/teste_financeiro.sql` | *"as regras do módulo funcionam?"* | **Sim** | **29/29 PASSOU** |
 
 **Comece pelos inventários.** Eles não escrevem nada e levam um segundo; se uma
 peça estiver faltando, os testes falhariam por um motivo que a mensagem deles

@@ -1,0 +1,188 @@
+/**
+ * 🧠 AS DECISÕES DA TELA DE EXCLUSÃO EM LOTE — FORA DA TELA (PJODC v10)
+ * Local: packages/core/src/modules/financeiro/manutencaoRegras.ts
+ *
+ * ===========================================================================
+ * POR QUE ESTE ARQUIVO EXISTE — o bônus 7, e a forma honesta dele
+ * ===========================================================================
+ * O maior buraco da malha de provas deste projeto é a CAMADA DE TELA: o banco
+ * tem 45 travas (16 + 29), a tela tem zero. O defeito da ordem do extrato, de
+ * 16/09/2026, viveu escondido desde o degrau 7 porque nenhuma prova olhava
+ * para lá.
+ *
+ * ⚠️ TESTAR O COMPONENTE `.tsx` DE VERDADE NÃO CABE HOJE, E O MOTIVO FOI
+ * MEDIDO, NÃO SUPOSTO: o `npm test` roda `node --test`, e o Node 24 remove
+ * ANOTAÇÕES DE TIPO mas **não sabe ler JSX** (`SyntaxError: Unexpected token
+ * '<'`, medido em 17/09/2026). Testar componente exigiria um transformador,
+ * um DOM falso e um renderizador — de 3 a 5 dependências novas num projeto que
+ * hoje tem **zero** dependências de desenvolvimento, e uma mudança no que a
+ * Vercel instala para construir. Num projeto cujo dono não roda nada local,
+ * isso é risco de publicação em troca de conforto de quem escreve.
+ *
+ * O CAMINHO QUE CABE é o que a própria regra do projeto já manda ("nunca
+ * escrever cálculo de data dentro de um componente — no Core ele é testável
+ * pelo `npm test`"): **tirar a DECISÃO de dentro da tela**. O que sobra no
+ * componente é desenho; o que decide mora aqui, e tem teste.
+ *
+ * Isso não cobre clique, foco nem propagação de evento — e eu não vou fingir
+ * que cobre. Cobre a parte que erra em silêncio.
+ */
+
+import type { RelatorioDeExclusao } from './manutencaoService';
+
+/**
+ * O filtro que gerou uma simulação.
+ *
+ * ⚠️ ELE EXISTE PARA RESOLVER UM DEFEITO DE CLASSE CONHECIDA NESTE PROJETO:
+ * a tela mostra um resultado calculado com PARÂMETROS ANTIGOS. Foi assim que a
+ * sugestão de ordem ficou presa a `[contaId, data]` e parou de rodar (16/09).
+ *
+ * Aqui seria pior: simular "setembro" (137 registros), depois mexer na data
+ * para "janeiro", e o botão continuar dizendo "EXCLUIR 137". A pessoa confirma
+ * um número que não tem mais relação com o que está na tela.
+ */
+export interface FiltroDeExclusao {
+  contaMovimentoId: string | null;
+  dataInicial: string;
+  dataFinal: string;
+}
+
+/** Uma simulação e o filtro exato com que ela foi feita. */
+export interface SimulacaoFeita {
+  filtro: FiltroDeExclusao;
+  relatorio: RelatorioDeExclusao;
+}
+
+/** Duas filtragens são a mesma pergunta? */
+export function mesmoFiltro(a: FiltroDeExclusao, b: FiltroDeExclusao): boolean {
+  return (
+    (a.contaMovimentoId ?? null) === (b.contaMovimentoId ?? null) &&
+    a.dataInicial === b.dataInicial &&
+    a.dataFinal === b.dataFinal
+  );
+}
+
+/** O que impede a exclusão de acontecer agora. `null` = nada impede. */
+export type MotivoDeBloqueio =
+  | 'SEM_DATAS'
+  | 'DATAS_INVERTIDAS'
+  | 'SEM_SIMULACAO'
+  | 'SIMULACAO_VENCIDA'
+  | 'NADA_A_EXCLUIR'
+  | 'CONFIRMACAO_NAO_CONFERE';
+
+export interface VeredictoDaExclusao {
+  podeExcluir: boolean;
+  motivo: MotivoDeBloqueio | null;
+  /** A frase que a tela mostra ao lado do botão desligado. */
+  aviso: string | null;
+}
+
+const AVISO: Record<MotivoDeBloqueio, string> = {
+  SEM_DATAS: 'INFORME A DATA INICIAL E A DATA FINAL.',
+  DATAS_INVERTIDAS: 'A DATA FINAL NÃO PODE SER ANTERIOR À DATA INICIAL.',
+  SEM_SIMULACAO: 'CLIQUE EM "CONFERIR O QUE SERÁ EXCLUÍDO" ANTES.',
+  SIMULACAO_VENCIDA:
+    'OS FILTROS MUDARAM DEPOIS DA CONFERÊNCIA. CONFIRA DE NOVO ANTES DE EXCLUIR.',
+  NADA_A_EXCLUIR: 'NENHUM LANÇAMENTO NESTE PERÍODO.',
+  CONFIRMACAO_NAO_CONFERE: 'DIGITE O NÚMERO EXATO DE LANÇAMENTOS PARA CONFIRMAR.',
+};
+
+/**
+ * A porta da exclusão em lote. Responde uma coisa só: dá para apagar agora?
+ *
+ * ⚠️ A ORDEM DAS CHECAGENS É A ORDEM EM QUE A PESSOA ESBARRA NELAS. Avisar
+ * "digite o número" para quem ainda nem escolheu as datas seria mandar resolver
+ * o terceiro problema antes do primeiro.
+ *
+ * ⚠️ ISTO NÃO AUTORIZA NADA. Quem recusa de verdade é a função do banco, que
+ * confere permissão, fechamento e transferência por dentro. Aqui é conforto:
+ * evita uma viagem ao servidor para receber um "não" previsível.
+ */
+export function avaliarExclusao(entrada: {
+  filtroAtual: FiltroDeExclusao;
+  simulacao: SimulacaoFeita | null;
+  textoDigitado: string;
+}): VeredictoDaExclusao {
+  const { filtroAtual, simulacao, textoDigitado } = entrada;
+
+  const bloquear = (motivo: MotivoDeBloqueio): VeredictoDaExclusao => ({
+    podeExcluir: false,
+    motivo,
+    aviso: AVISO[motivo],
+  });
+
+  if (!filtroAtual.dataInicial || !filtroAtual.dataFinal) return bloquear('SEM_DATAS');
+  if (filtroAtual.dataFinal < filtroAtual.dataInicial) return bloquear('DATAS_INVERTIDAS');
+  if (!simulacao) return bloquear('SEM_SIMULACAO');
+  if (!mesmoFiltro(simulacao.filtro, filtroAtual)) return bloquear('SIMULACAO_VENCIDA');
+  if (simulacao.relatorio.lancamentos === 0) return bloquear('NADA_A_EXCLUIR');
+
+  // ⚠️ `trim()` porque colar um número costuma trazer espaço junto, e recusar
+  // por causa disso seria implicância. O resto tem de bater exatamente.
+  if (textoDigitado.trim() !== String(simulacao.relatorio.lancamentos)) {
+    return bloquear('CONFIRMACAO_NAO_CONFERE');
+  }
+
+  return { podeExcluir: true, motivo: null, aviso: null };
+}
+
+/**
+ * As frases que a tela mostra depois de uma simulação.
+ *
+ * ⚠️ A FRASE DAS OUTRAS CONTAS É OBRIGATÓRIA QUANDO `foraDoFiltro > 0`, e é a
+ * razão principal desta função existir. "Apagar setembro do CAIXA" pode apagar
+ * lançamentos do BANCO — as outras pernas das transferências (RN-23). Quem
+ * confirma sem saber disso descobre pelo saldo, depois.
+ */
+export function resumirExclusao(relatorio: RelatorioDeExclusao): string[] {
+  if (relatorio.lancamentos === 0) {
+    return ['NENHUM LANÇAMENTO ENCONTRADO NESTE PERÍODO. NADA SERÁ EXCLUÍDO.'];
+  }
+
+  const frases: string[] = [
+    `${relatorio.lancamentos} LANÇAMENTO(S) SERÃO EXCLUÍDOS.`,
+  ];
+
+  if (relatorio.transferencias > 0) {
+    frases.push(
+      `${relatorio.transferencias} TRANSFERÊNCIA(S) ESTÃO ENVOLVIDAS — E TRANSFERÊNCIA SAI SEMPRE COMPLETA, AS DUAS PERNAS.`,
+    );
+  }
+
+  if (relatorio.foraDoFiltro > 0) {
+    frases.push(
+      `ATENÇÃO: ${relatorio.foraDoFiltro} DESSES LANÇAMENTOS ESTÃO FORA DO FILTRO QUE VOCÊ PEDIU — SÃO AS OUTRAS PERNAS DAS TRANSFERÊNCIAS, EM OUTRAS CONTAS OU OUTRAS DATAS.`,
+    );
+  }
+
+  if (relatorio.contas.length > 0) {
+    frases.push(`CONTAS AFETADAS: ${relatorio.contas.join(', ')}.`);
+  }
+
+  frases.push(
+    'OS LANÇAMENTOS EXCLUÍDOS FICAM NA LIXEIRA E PODEM SER RESTAURADOS.',
+  );
+
+  return frases;
+}
+
+/**
+ * Uma linha da tabela pode abrir a ficha do lançamento?
+ *
+ * ⚠️ NASCEU DE UM DEFEITO REAL, E POR ISSO VIVE AQUI E NÃO NO COMPONENTE. No
+ * extrato, "SALDO INICIAL" e "TOTAIS DO PERÍODO" são somas, não registros: uma
+ * linha dessas que respondesse ao clique prometeria uma ficha que não existe.
+ * Na PESQUISAR toda linha é um lançamento, então toda linha abre.
+ *
+ * A mesma pergunta, feita pelas duas telas, com uma resposta só.
+ */
+export function linhaAbreFicha(linha: {
+  linha_tipo?: string | null;
+  lancamento_id?: string | null;
+  id?: string | null;
+}): boolean {
+  const tipo = linha.linha_tipo ?? 'LANCAMENTO';
+  if (tipo !== 'LANCAMENTO') return false;
+  return Boolean(linha.lancamento_id ?? linha.id);
+}

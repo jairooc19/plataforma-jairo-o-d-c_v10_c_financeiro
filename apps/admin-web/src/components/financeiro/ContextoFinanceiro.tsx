@@ -1,7 +1,10 @@
 "use client";
 
 import { createContext, useEffect, useState } from "react";
-import { supabase, permissaoFinanceiroService, type PermissaoFinanceiro } from "@jairo/core";
+import {
+  supabase, permissaoFinanceiroService,
+  PERMISSOES_FINANCEIRO, type PermissaoFinanceiro,
+} from "@jairo/core";
 
 /**
  * 🏢 QUEM ESTÁ USANDO O MÓDULO, E EM QUAL EMPRESA (PJODC v10)
@@ -49,14 +52,18 @@ export interface ContextoFinanceiro {
   erro: string | null;
 }
 
-/** Todas as 17 permissões do módulo — o que o Proprietário recebe de saída. */
-const TUDO: PermissaoFinanceiro[] = [
-  "cm_ver", "cm_gravar", "cm_excluir",
-  "ci_ver", "ci_gravar", "ci_excluir",
-  "lc_ver_todos", "lc_criar", "lc_editar_proprios", "lc_editar_todos",
-  "lc_excluir_proprios", "lc_excluir_todos",
-  "transferencia", "extrato_ver", "conciliar", "imprimir", "fechar_periodo",
-];
+/**
+ * Todas as permissões do módulo — o que o Proprietário recebe de saída.
+ *
+ * ⚠️ ESTA LISTA ERA ESCRITA À MÃO E JÁ NASCEU CONDENADA A DIVERGIR. Em
+ * 17/09/2026 entrou a permissão `lc_excluir_lote`, e uma cópia manual aqui
+ * significaria um Proprietário sem acesso à própria exclusão em lote — sem erro
+ * nenhum na tela, só um botão que não aparece.
+ *
+ * Agora ela é DERIVADA de `PERMISSOES_FINANCEIRO`, que é a fonte única do Core.
+ * Permissão nova passa a chegar aqui sozinha.
+ */
+const TUDO: PermissaoFinanceiro[] = [...PERMISSOES_FINANCEIRO];
 
 const VAZIO: ContextoFinanceiro = {
   carregando: true,

@@ -10,8 +10,14 @@ import { useAuthLogicMobile, type ViewState } from '@/hooks/useAuthLogicMobile';
  * 🔑 ROTA: LOGIN (PJODC v10)
  * Local: apps/mobile-app/app/(auth)/login.tsx
  *
- * Uma rota, TRÊS portas — exatamente como o `AuthInterface.tsx` da web decide
- * entre `LoginGoogleOwnerView` e `LoginFormsView`:
+ * Uma rota, TRÊS portas — como o `AuthInterface.tsx` da web decide entre
+ * `LoginGoogleView` e `LoginFormsView`:
+ *
+ * ⚠️ ESTE COMENTÁRIO DIZIA `LoginGoogleOwnerView` ATÉ 17/09/2026 — nome que
+ * deixou de existir em 13/09/2026 na web. E note a divergência REAL que sobra
+ * abaixo: na WEB o Dependente entra por Google; aqui ele ainda cai no formulário
+ * de senha. Mudar isso é alterar COMPORTAMENTO do aplicativo, não comentário —
+ * ficou pendente de decisão do dono do projeto (o mobile está adiado).
  *
  *   ?papel=OWNER      → LoginGoogleView  (só o botão do Google, sem campos)
  *   ?papel=DEPENDENT  → LoginFormsView   (e-mail + senha)

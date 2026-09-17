@@ -41,6 +41,15 @@ DELETE FROM public.audit_log
  WHERE registro_id IN (
    SELECT id::text FROM public.tenants
     WHERE id IN ('aa000000-0000-0000-0000-0000000000a1','bb000000-0000-0000-0000-0000000000b1'));
+-- ⚠️ 17/09/2026 — a linha acima só alcança auditoria cujo `registro_id` é o id
+-- de uma EMPRESA. Os testes 22 a 29 apagam LANÇAMENTOS, e cada exclusão grava
+-- uma auditoria com o id do LANÇAMENTO. Sem a limpeza abaixo, uma execução
+-- interrompida no meio deixaria lixo que faria o teste 29 (isolamento da
+-- lixeira) falhar na execução SEGUINTE — apontando para o lugar errado.
+DELETE FROM public.audit_log
+ WHERE tabela LIKE 'fin\_%'
+   AND COALESCE(dados_antes, dados_depois)->>'tenant_id' IN
+       ('aa000000-0000-0000-0000-0000000000a1','bb000000-0000-0000-0000-0000000000b1');
 DELETE FROM public.tenants
  WHERE id IN ('aa000000-0000-0000-0000-0000000000a1','bb000000-0000-0000-0000-0000000000b1');
 DELETE FROM auth.users
@@ -1021,9 +1030,447 @@ END;
 $$;
 
 
+-- ===========================================================================
+-- ===========================================================================
+--   BLOCO DE 17/09/2026 — EXCLUSÃO EM LOTE, LIXEIRA E FILTRO DE EMPRESA
+--   Testes 22 a 29
+-- ===========================================================================
+-- ===========================================================================
+--
+-- ⚠️ CADA TESTE DAQUI TEM CADASTRO E FAIXA DE DATAS PRÓPRIOS, e isso não é
+-- exagero: a regra do projeto proíbe teste que dependa do estado deixado por
+-- outro. Estes oito APAGAM lançamentos — se dividissem a mesma conta, inserir
+-- um nono no meio quebraria o primeiro, apontando para o lugar errado.
+--
+-- O fechamento de período é POR CONTA (uma linha por conta), então todo teste
+-- que fecha período usa uma conta só dele. Sem isso, o teste 24 trancaria a
+-- conta do 26 e o vermelho apareceria no teste inocente.
+
+-- ---------------------------------------------------------------------------
+-- PREPARAÇÃO DO BLOCO: o Dependente ganha `lc_excluir_todos` — MAS NÃO
+-- `lc_excluir_lote`. É o que dá sentido ao teste 25.
+-- ---------------------------------------------------------------------------
+UPDATE public.tenant_members
+   SET module_configs = jsonb_build_object('financeiro', jsonb_build_object(
+         'ativo', true,
+         'permissoes', jsonb_build_array('cm_ver','ci_ver','lc_ver_todos','lc_criar',
+                                         'lc_editar_proprios','extrato_ver','imprimir',
+                                         'lc_excluir_proprios','lc_excluir_todos')))
+ WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1'
+   AND user_id = 'd1000000-0000-0000-0000-0000000000d1';
+
+
+-- ===========================================================================
+-- TESTE 22 — a SIMULAÇÃO conta e NÃO apaga (RN-25)
+-- ===========================================================================
+DO $$
+DECLARE
+  v_cm json; v_ci json; v_r json; v_antes int; v_depois int; v_erro text := 'nenhum';
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+  BEGIN
+    v_cm := public.fin_gravar_conta_movimento('aa000000-0000-0000-0000-0000000000a1', NULL, 'lote simulacao', 'CAIXA', 0, true);
+    v_ci := public.fin_gravar_identificadora('aa000000-0000-0000-0000-0000000000a1', NULL, 'lote categoria', 'RECEITA', true);
+
+    PERFORM public.fin_gravar_lancamento('aa000000-0000-0000-0000-0000000000a1', NULL,
+      (v_cm->>'id')::uuid, (v_ci->>'id')::uuid, DATE '2027-01-05', NULL, 'ENTRADA','PROPRIO','CAIXA', 10000, 'jan um');
+    PERFORM public.fin_gravar_lancamento('aa000000-0000-0000-0000-0000000000a1', NULL,
+      (v_cm->>'id')::uuid, (v_ci->>'id')::uuid, DATE '2027-01-20', NULL, 'ENTRADA','PROPRIO','CAIXA', 20000, 'jan dois');
+    -- fora da faixa: não pode entrar na conta
+    PERFORM public.fin_gravar_lancamento('aa000000-0000-0000-0000-0000000000a1', NULL,
+      (v_cm->>'id')::uuid, (v_ci->>'id')::uuid, DATE '2027-02-03', NULL, 'ENTRADA','PROPRIO','CAIXA', 30000, 'fev fora');
+
+    SELECT count(*) INTO v_antes FROM public.fin_lancamentos
+     WHERE conta_movimento_id = (v_cm->>'id')::uuid;
+
+    v_r := public.fin_excluir_lancamentos_por_periodo(
+             'aa000000-0000-0000-0000-0000000000a1', (v_cm->>'id')::uuid,
+             DATE '2027-01-01', DATE '2027-01-31', true);   -- SIMULAR
+
+    SELECT count(*) INTO v_depois FROM public.fin_lancamentos
+     WHERE conta_movimento_id = (v_cm->>'id')::uuid;
+  EXCEPTION WHEN OTHERS THEN v_erro := SQLSTATE || ' ' || SQLERRM;
+  END;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    22,
+    CASE WHEN v_erro = 'nenhum'
+          AND (v_r->>'simulacao')::boolean IS TRUE
+          AND (v_r->>'lancamentos')::int = 2      -- só janeiro
+          AND (v_r->>'apagados')::int = 0
+          AND v_antes = 3 AND v_depois = 3        -- NADA saiu
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-25',
+    'Simulacao conta o periodo certo e NAO apaga nada',
+    format('erro=%s; relatorio=%s; antes=%s depois=%s (esperado 3 e 3)', v_erro, v_r::text, v_antes, v_depois));
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 23 — a transferência sai INTEIRA, inclusive a perna de outra conta (RN-23)
+-- ===========================================================================
+--
+-- ⚠️ ESTE É O TESTE MAIS IMPORTANTE DO BLOCO. Apagar só a perna que está no
+-- filtro deixaria a OUTRA conta com dinheiro que não veio de lugar nenhum, e o
+-- saldo dela ficaria errado para sempre — sem nada na tela explicando.
+DO $$
+DECLARE
+  v_org json; v_dst json; v_ci uuid; v_r json;
+  v_sobrou_org int; v_sobrou_dst int; v_erro text := 'nenhum';
+BEGIN
+  SELECT id INTO v_ci FROM public.fin_contas_identificadoras
+   WHERE tenant_id='aa000000-0000-0000-0000-0000000000a1' AND nome='LOTE CATEGORIA';
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+  BEGIN
+    v_org := public.fin_gravar_conta_movimento('aa000000-0000-0000-0000-0000000000a1', NULL, 'lote transf origem', 'CAIXA', 0, true);
+    v_dst := public.fin_gravar_conta_movimento('aa000000-0000-0000-0000-0000000000a1', NULL, 'lote transf destino', 'BANCO', 0, true);
+
+    -- a transferência: as duas pernas em 2027-03-10
+    PERFORM public.fin_transferir('aa000000-0000-0000-0000-0000000000a1',
+      (v_org->>'id')::uuid, (v_dst->>'id')::uuid, DATE '2027-03-10', 77700, 'transf do lote', NULL, NULL);
+
+    -- apaga MARÇO **só da conta de ORIGEM**
+    v_r := public.fin_excluir_lancamentos_por_periodo(
+             'aa000000-0000-0000-0000-0000000000a1', (v_org->>'id')::uuid,
+             DATE '2027-03-01', DATE '2027-03-31', false);
+
+    SELECT count(*) INTO v_sobrou_org FROM public.fin_lancamentos WHERE conta_movimento_id = (v_org->>'id')::uuid;
+    SELECT count(*) INTO v_sobrou_dst FROM public.fin_lancamentos WHERE conta_movimento_id = (v_dst->>'id')::uuid;
+  EXCEPTION WHEN OTHERS THEN v_erro := SQLSTATE || ' ' || SQLERRM;
+  END;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    23,
+    CASE WHEN v_erro = 'nenhum'
+          AND (v_r->>'apagados')::int = 2          -- as DUAS pernas
+          AND (v_r->>'fora_do_filtro')::int = 1    -- e o relatorio AVISA
+          AND (v_r->>'transferencias')::int = 1
+          AND v_sobrou_org = 0 AND v_sobrou_dst = 0
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-23',
+    'Exclusao em lote leva a transferencia inteira (a perna da OUTRA conta tambem)',
+    format('erro=%s; relatorio=%s; sobrou origem=%s destino=%s (esperado 0 e 0)',
+           v_erro, v_r::text, v_sobrou_org, v_sobrou_dst));
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 24 — o fechamento é "PRECISO", não "rígido" (RN-24)
+-- ===========================================================================
+--
+-- ⚠️ A DECISÃO DE 17/09/2026: recusar só quando o fechamento ALCANÇA o período
+-- pedido. A leitura rígida ("tem fechamento? recusa") puniria justamente quem
+-- fecha o mês todo mês — a ferramenta ficaria disponível só para quem NÃO fecha.
+--
+-- Este teste prova as duas metades: o que está aberto sai, o que está trancado
+-- é recusado.
+DO $$
+DECLARE
+  v_cm json; v_ci uuid; v_r json;
+  v_erro_aberto text := 'nenhum'; v_erro_fechado text := 'nenhum';
+  v_apagados int := -1; v_sobrou int := -1;
+BEGIN
+  SELECT id INTO v_ci FROM public.fin_contas_identificadoras
+   WHERE tenant_id='aa000000-0000-0000-0000-0000000000a1' AND nome='LOTE CATEGORIA';
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+  BEGIN
+    v_cm := public.fin_gravar_conta_movimento('aa000000-0000-0000-0000-0000000000a1', NULL, 'lote fechamento', 'CAIXA', 0, true);
+
+    -- abril (será trancado) e junho (ficará aberto)
+    PERFORM public.fin_gravar_lancamento('aa000000-0000-0000-0000-0000000000a1', NULL,
+      (v_cm->>'id')::uuid, v_ci, DATE '2027-04-10', NULL, 'ENTRADA','PROPRIO','CAIXA', 11100, 'abril trancado');
+    PERFORM public.fin_gravar_lancamento('aa000000-0000-0000-0000-0000000000a1', NULL,
+      (v_cm->>'id')::uuid, v_ci, DATE '2027-06-10', NULL, 'ENTRADA','PROPRIO','CAIXA', 22200, 'junho aberto');
+
+    -- tranca tudo até o fim de abril
+    PERFORM public.fin_fechar_periodo('aa000000-0000-0000-0000-0000000000a1', (v_cm->>'id')::uuid, DATE '2027-04-30', NULL);
+
+    -- (a) JUNHO está depois do corte → tem de SAIR normalmente
+    BEGIN
+      v_r := public.fin_excluir_lancamentos_por_periodo(
+               'aa000000-0000-0000-0000-0000000000a1', (v_cm->>'id')::uuid,
+               DATE '2027-06-01', DATE '2027-06-30', false);
+      v_apagados := (v_r->>'apagados')::int;
+    EXCEPTION WHEN OTHERS THEN v_erro_aberto := SQLSTATE;
+    END;
+
+    -- (b) ABRIL está dentro do corte → tem de ser RECUSADO
+    BEGIN
+      PERFORM public.fin_excluir_lancamentos_por_periodo(
+                'aa000000-0000-0000-0000-0000000000a1', (v_cm->>'id')::uuid,
+                DATE '2027-04-01', DATE '2027-04-30', false);
+    EXCEPTION WHEN OTHERS THEN v_erro_fechado := SQLSTATE;
+    END;
+
+    SELECT count(*) INTO v_sobrou FROM public.fin_lancamentos WHERE conta_movimento_id = (v_cm->>'id')::uuid;
+  END;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    24,
+    CASE WHEN v_erro_aberto = 'nenhum' AND v_apagados = 1      -- junho saiu
+          AND v_erro_fechado = '42501'                          -- abril recusado
+          AND v_sobrou = 1                                      -- abril continua la
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-24',
+    'Fechamento bloqueia SO o periodo que ele alcanca (regra precisa, nao rigida)',
+    format('junho: erro=%s apagados=%s (esperado nenhum e 1); abril: erro=%s (esperado 42501); sobrou=%s (esperado 1)',
+           v_erro_aberto, v_apagados, v_erro_fechado, v_sobrou));
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 25 — `lc_excluir_todos` NÃO dá direito à exclusão em LOTE (RN-25)
+-- ===========================================================================
+--
+-- ⚠️ ESTE TESTE É A RAZÃO DE `lc_excluir_lote` EXISTIR. O Dependente recebeu
+-- `lc_excluir_todos` na preparação deste bloco — ele pode apagar UM lançamento
+-- de qualquer pessoa. Isso NÃO pode virar "pode apagar o ano inteiro".
+DO $$
+DECLARE
+  v_cm uuid; v_erro text := 'nenhum'; v_sobrou int;
+BEGIN
+  SELECT id INTO v_cm FROM public.fin_contas_movimento
+   WHERE tenant_id='aa000000-0000-0000-0000-0000000000a1' AND nome='LOTE SIMULACAO';
+
+  SET LOCAL ROLE authenticated;
+  -- agora quem fala é o DEPENDENTE
+  PERFORM set_config('request.jwt.claims','{"sub":"d1000000-0000-0000-0000-0000000000d1","role":"authenticated"}', true);
+  BEGIN
+    PERFORM public.fin_excluir_lancamentos_por_periodo(
+              'aa000000-0000-0000-0000-0000000000a1', v_cm,
+              DATE '2027-01-01', DATE '2027-12-31', false);
+  EXCEPTION WHEN OTHERS THEN v_erro := SQLSTATE;
+  END;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  SELECT count(*) INTO v_sobrou FROM public.fin_lancamentos WHERE conta_movimento_id = v_cm;
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    25,
+    CASE WHEN v_erro = '42501' AND v_sobrou = 3 THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-25',
+    'Dependente com lc_excluir_todos NAO consegue excluir em lote',
+    format('erro=%s (esperado 42501); lancamentos intactos=%s (esperado 3)', v_erro, v_sobrou));
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 26 — a LIXEIRA lista e restaura; restaurar duas vezes não duplica
+-- ===========================================================================
+DO $$
+DECLARE
+  v_cm json; v_ci uuid; v_audit bigint; v_r1 json; v_r2 json;
+  v_listadas int; v_sobrou int; v_erro text := 'nenhum';
+BEGIN
+  SELECT id INTO v_ci FROM public.fin_contas_identificadoras
+   WHERE tenant_id='aa000000-0000-0000-0000-0000000000a1' AND nome='LOTE CATEGORIA';
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+  BEGIN
+    v_cm := public.fin_gravar_conta_movimento('aa000000-0000-0000-0000-0000000000a1', NULL, 'lote lixeira', 'CAIXA', 0, true);
+    PERFORM public.fin_gravar_lancamento('aa000000-0000-0000-0000-0000000000a1', NULL,
+      (v_cm->>'id')::uuid, v_ci, DATE '2027-08-15', NULL, 'SAIDA','PROPRIO','CAIXA', 45600, 'vai para a lixeira');
+
+    PERFORM public.fin_excluir_lancamentos_por_periodo(
+              'aa000000-0000-0000-0000-0000000000a1', (v_cm->>'id')::uuid,
+              DATE '2027-08-01', DATE '2027-08-31', false);
+
+    SELECT count(*) INTO v_listadas
+      FROM public.fin_listar_exclusoes('aa000000-0000-0000-0000-0000000000a1', NULL, 500)
+     WHERE conta = 'LOTE LIXEIRA';
+
+    SELECT audit_id INTO v_audit
+      FROM public.fin_listar_exclusoes('aa000000-0000-0000-0000-0000000000a1', NULL, 500)
+     WHERE conta = 'LOTE LIXEIRA' LIMIT 1;
+
+    v_r1 := public.fin_restaurar_lancamento('aa000000-0000-0000-0000-0000000000a1', v_audit);
+    v_r2 := public.fin_restaurar_lancamento('aa000000-0000-0000-0000-0000000000a1', v_audit); -- duplo clique
+
+    SELECT count(*) INTO v_sobrou FROM public.fin_lancamentos WHERE conta_movimento_id = (v_cm->>'id')::uuid;
+  EXCEPTION WHEN OTHERS THEN v_erro := SQLSTATE || ' ' || SQLERRM;
+  END;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    26,
+    CASE WHEN v_erro = 'nenhum'
+          AND v_listadas = 1
+          AND (v_r1->>'restaurados')::int = 1
+          AND (v_r2->>'restaurados')::int = 0 AND (v_r2->>'ja_existia')::int = 1
+          AND v_sobrou = 1                       -- voltou UM, nao dois
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-28',
+    'Lixeira lista a exclusao, restaura o lancamento e o duplo clique nao duplica',
+    format('erro=%s; listadas=%s; 1a restauracao=%s; 2a=%s; lancamentos na conta=%s (esperado 1)',
+           v_erro, v_listadas, v_r1::text, v_r2::text, v_sobrou));
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 27 — não se restaura para dentro de um período fechado DEPOIS (RN-24)
+-- ===========================================================================
+--
+-- ⚠️ A PORTA DOS FUNDOS QUE ESTE TESTE FECHA: excluir com o período aberto,
+-- fechar o período, e depois restaurar — o lançamento entraria num mês trancado
+-- sem passar por nenhuma trava.
+DO $$
+DECLARE
+  v_cm json; v_ci uuid; v_audit bigint; v_erro text := 'nenhum'; v_sobrou int;
+BEGIN
+  SELECT id INTO v_ci FROM public.fin_contas_identificadoras
+   WHERE tenant_id='aa000000-0000-0000-0000-0000000000a1' AND nome='LOTE CATEGORIA';
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+  BEGIN
+    v_cm := public.fin_gravar_conta_movimento('aa000000-0000-0000-0000-0000000000a1', NULL, 'lote restaurar travado', 'CAIXA', 0, true);
+    PERFORM public.fin_gravar_lancamento('aa000000-0000-0000-0000-0000000000a1', NULL,
+      (v_cm->>'id')::uuid, v_ci, DATE '2027-09-10', NULL, 'SAIDA','PROPRIO','CAIXA', 33300, 'excluido antes de fechar');
+
+    -- 1) exclui com o periodo AINDA ABERTO
+    PERFORM public.fin_excluir_lancamentos_por_periodo(
+              'aa000000-0000-0000-0000-0000000000a1', (v_cm->>'id')::uuid,
+              DATE '2027-09-01', DATE '2027-09-30', false);
+
+    SELECT audit_id INTO v_audit
+      FROM public.fin_listar_exclusoes('aa000000-0000-0000-0000-0000000000a1', NULL, 500)
+     WHERE conta = 'LOTE RESTAURAR TRAVADO' LIMIT 1;
+
+    -- 2) SÓ ENTÃO fecha o periodo
+    PERFORM public.fin_fechar_periodo('aa000000-0000-0000-0000-0000000000a1', (v_cm->>'id')::uuid, DATE '2027-09-30', NULL);
+
+    -- 3) tentar restaurar tem de ser RECUSADO
+    BEGIN
+      PERFORM public.fin_restaurar_lancamento('aa000000-0000-0000-0000-0000000000a1', v_audit);
+    EXCEPTION WHEN OTHERS THEN v_erro := SQLSTATE;
+    END;
+
+    SELECT count(*) INTO v_sobrou FROM public.fin_lancamentos WHERE conta_movimento_id = (v_cm->>'id')::uuid;
+  END;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    27,
+    CASE WHEN v_erro = '42501' AND v_sobrou = 0 THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-24',
+    'Restaurar e recusado se o periodo foi fechado depois da exclusao',
+    format('erro=%s (esperado 42501); voltou algum? %s (esperado 0)', v_erro, v_sobrou));
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 28 — `fin_periodo_fechado` filtra pela EMPRESA (RN-29)
+-- ===========================================================================
+--
+-- ⚠️ ERA A ÚNICA FUNÇÃO DO MÓDULO SEM FILTRO DE EMPRESA. Ela perguntava só
+-- pela conta e pela data. Com o `p_tenant_id` (17/09/2026), consultar a conta
+-- da empresa A informando a empresa B passa a devolver `false` — como qualquer
+-- outra função do módulo faria.
+DO $$
+DECLARE
+  v_cm json; v_com_dono boolean; v_com_estranho boolean; v_erro text := 'nenhum';
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+  BEGIN
+    v_cm := public.fin_gravar_conta_movimento('aa000000-0000-0000-0000-0000000000a1', NULL, 'lote tenant', 'CAIXA', 0, true);
+    PERFORM public.fin_fechar_periodo('aa000000-0000-0000-0000-0000000000a1', (v_cm->>'id')::uuid, DATE '2027-11-30', NULL);
+
+    -- a empresa DONA da conta enxerga o fechamento
+    v_com_dono := public.fin_periodo_fechado('aa000000-0000-0000-0000-0000000000a1', (v_cm->>'id')::uuid, DATE '2027-11-10');
+    -- a empresa B, com o MESMO id de conta, não
+    v_com_estranho := public.fin_periodo_fechado('bb000000-0000-0000-0000-0000000000b1', (v_cm->>'id')::uuid, DATE '2027-11-10');
+  EXCEPTION WHEN OTHERS THEN v_erro := SQLSTATE || ' ' || SQLERRM;
+  END;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    28,
+    CASE WHEN v_erro = 'nenhum' AND v_com_dono IS TRUE AND v_com_estranho IS FALSE
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-29',
+    'fin_periodo_fechado responde pela empresa dona, e nao pela conta solta',
+    format('erro=%s; empresa dona=%s (esperado t); empresa estranha=%s (esperado f)',
+           v_erro, v_com_dono, v_com_estranho));
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 29 — a LIXEIRA de uma empresa não vaza para a outra (RN-27)
+-- ===========================================================================
+--
+-- ⚠️ A `fin_listar_exclusoes` é `SECURITY DEFINER` sobre a `audit_log`, que é
+-- da PLATAFORMA e tem policy de leitura só para o Desenvolvedor. Rodando com o
+-- poder do dono do schema, a RLS não a protege: se o filtro
+-- `dados_antes->>'tenant_id'` falhasse, o Proprietário da empresa B leria as
+-- exclusões da empresa A. Este teste é a trava desse filtro.
+DO $$
+DECLARE
+  v_a int; v_b int; v_erro text := 'nenhum';
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+  SELECT count(*) INTO v_a FROM public.fin_listar_exclusoes('aa000000-0000-0000-0000-0000000000a1', NULL, 500);
+  RESET ROLE;
+
+  SET LOCAL ROLE authenticated;
+  -- agora o DONO DA EMPRESA B pergunta pela PRÓPRIA empresa
+  PERFORM set_config('request.jwt.claims','{"sub":"b1000000-0000-0000-0000-0000000000b1","role":"authenticated"}', true);
+  BEGIN
+    SELECT count(*) INTO v_b FROM public.fin_listar_exclusoes('bb000000-0000-0000-0000-0000000000b1', NULL, 500);
+  EXCEPTION WHEN OTHERS THEN v_erro := SQLSTATE;
+  END;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    29,
+    CASE WHEN v_a > 0 AND v_b = 0 AND v_erro = 'nenhum' THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-27',
+    'Lixeira da empresa A nao aparece para a empresa B',
+    format('empresa A viu %s exclusao(oes) (esperado > 0); empresa B viu %s (esperado 0); erro=%s',
+           v_a, v_b, v_erro));
+END;
+$$;
+
+
 -- ---------------------------------------------------------------------------
 -- LIMPEZA FINAL
 -- ---------------------------------------------------------------------------
+-- ⚠️ A LINHA DE `audit_log` ABAIXO É NOVA (17/09/2026) E É OBRIGATÓRIA.
+-- A limpeza antiga só apagava auditoria cujo `registro_id` fosse o id de uma
+-- EMPRESA. Os testes 22 a 29 apagam LANÇAMENTOS, e cada exclusão grava uma
+-- linha de auditoria com o id do lançamento — que a limpeza antiga não
+-- alcançava. Sem isto, a lixeira do teste 29 acumularia lixo a cada execução e
+-- o arquivo deixaria de ser idempotente.
+DELETE FROM public.audit_log
+ WHERE tabela LIKE 'fin\_%'
+   AND COALESCE(dados_antes, dados_depois)->>'tenant_id' IN
+       ('aa000000-0000-0000-0000-0000000000a1','bb000000-0000-0000-0000-0000000000b1');
+
 DELETE FROM public.fin_lancamentos
  WHERE tenant_id IN ('aa000000-0000-0000-0000-0000000000a1','bb000000-0000-0000-0000-0000000000b1');
 DELETE FROM public.fin_fechamentos

@@ -1,5 +1,5 @@
 {
-  "name": "plataforma-jairo-o-d-c-v4",
+  "name": "plataforma-jairo-o-d-c-v10",
   "private": true,
   "workspaces": [
     "apps/*",

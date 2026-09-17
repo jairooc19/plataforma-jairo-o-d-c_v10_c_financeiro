@@ -25,7 +25,8 @@ interface Props {
  * - Botão do Google em `outline` de 56pt, o padrão de acesso social
  * - Divisor "ou" separando o acesso social do resto da tela
  *
- * Espelho do `LoginGoogleOwnerView.tsx` da web: **nenhum campo**. Sem e-mail,
+ * Espelho do `LoginGoogleView.tsx` da web (que se chamava `LoginGoogleOwnerView`
+ * até 13/09/2026 — nome corrigido aqui em 17/09/2026): **nenhum campo**. Sem e-mail,
  * sem senha, sem "esqueci minha senha" — não há senha a esquecer. Quem guarda a
  * credencial é o Google.
  *

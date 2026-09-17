@@ -26,8 +26,14 @@ import {
  *
  * ⚠️ ESTA TELA É DA PLATAFORMA E NÃO CONHECE MÓDULO NENHUM. Tudo o que ela
  * lista vem do catálogo `platform_modules`, que é preenchido pelo SEED DE CADA
- * MÓDULO. Com zero módulos plugados (o estado de hoje), ela mostra o estado
- * vazio explicando exatamente isso.
+ * MÓDULO. Quando NÃO há módulo plugado, ela mostra um aviso explicando isso —
+ * e esse aviso é condicional (`MODULOS_INSTALADOS.length === 0`), não fixo.
+ *
+ * ⚠️ ESTE COMENTÁRIO DIZIA "Com zero módulos plugados (o ESTADO DE HOJE)" ATÉ
+ * 17/09/2026. Hoje há UM módulo plugado, e o aviso de estado vazio, portanto,
+ * NÃO aparece. O código sempre esteve certo; era o comentário que descrevia um
+ * passado. Qual módulo é, esta tela não sabe nem precisa saber — quem responde
+ * é `MODULOS_INSTALADOS`, do Core.
  *
  * ⚠️ QUEM AUTORIZA É O BANCO. Todas as chamadas passam por funções que conferem
  * `is_superuser()` por dentro; abrir esta URL sem ser o Desenvolvedor devolve
@@ -169,9 +175,15 @@ export default function ModulosPage() {
           </div>
         )}
 
-        {/* 🧩 ESTADO DE HOJE: NENHUM MÓDULO PLUGADO NA PLATAFORMA.
-            O catálogo do banco é preenchido pelo seed de cada módulo; o registro
-            do Core (`MODULOS_INSTALADOS`) diz quais têm código instalado. */}
+        {/* 🧩 AVISO PARA O CASO DE NÃO HAVER MÓDULO PLUGADO — hoje há um, então
+            ele não aparece. O catálogo do banco é preenchido pelo seed de cada
+            módulo; o registro do Core (`MODULOS_INSTALADOS`) diz quais têm
+            código instalado.
+
+            ⚠️ NÃO ESCREVA O NOME DO MÓDULO NESTE COMENTÁRIO. A primeira versão
+            desta correção (17/09/2026) o citou, e o `npm run modulos:verificar`
+            acusou violação R1/R8 na hora: arquivo de plataforma não nomeia peça
+            fora dos 3 pontos de solda — comentário incluído. */}
         {MODULOS_INSTALADOS.length === 0 && (
           <div className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 text-sm text-amber-900">
             <strong className="font-black uppercase tracking-wide text-xs block mb-1">

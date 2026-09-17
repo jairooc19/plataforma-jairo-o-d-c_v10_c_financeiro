@@ -1,0 +1,1580 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Estudo 17/09/2026 (2ª rodada) — Exclusão em lote, a Lixeira e os sete bônus</title>
+<style>
+/* ===================================================================
+   PALETA — fonte PRETA, fundos e destaques SUAVES
+   print-color-adjust: exact FORA de @media print, como pedido.
+   =================================================================== */
+* {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  box-sizing: border-box;
+}
+
+:root {
+  --azul:           #2c5282;
+  --azul-claro:     #f0f4f8;
+  --verde-claro:    #f0f9f7;
+  --ambar-claro:    #fef5e7;
+  --vermelho-claro: #fdf0ef;
+  --roxo-claro:     #f4f1fa;
+  --borda:          #d6dee8;
+  --texto:          #000000;
+  --cinza:          #55606e;
+}
+
+body {
+  font-family: Georgia, "Times New Roman", serif;
+  color: var(--texto);
+  background-color: #ffffff;
+  line-height: 1.7;
+  margin: 0;
+  padding: 0;
+  font-size: 16px;
+}
+
+.folha { max-width: 980px; margin: 0 auto; padding: 48px 32px 96px; }
+
+/* ---------- Cabeçalho ---------- */
+header.capa { border-bottom: 3px solid var(--azul); padding-bottom: 24px; margin-bottom: 8px; }
+header.capa .selo {
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase;
+  color: var(--azul); font-weight: 700;
+}
+h1 { font-size: 30px; line-height: 1.25; margin: 10px 0 6px; color: var(--texto); }
+header.capa .linha-fina { font-size: 15px; color: var(--cinza); font-style: italic; }
+
+/* ---------- Títulos ---------- */
+h2 {
+  font-size: 23px; margin: 46px 0 14px; padding: 10px 16px;
+  background-color: var(--azul-claro); border-left: 5px solid var(--azul); color: var(--texto);
+}
+h3 {
+  font-size: 18.5px; margin: 30px 0 10px; color: var(--azul);
+  border-bottom: 1px solid var(--borda); padding-bottom: 5px;
+}
+h4 { font-size: 16px; margin: 22px 0 8px; color: var(--texto); font-family: "Segoe UI", Arial, sans-serif; }
+
+p { margin: 12px 0; }
+ul, ol { margin: 12px 0; padding-left: 26px; }
+li { margin: 7px 0; }
+strong { font-weight: 700; }
+code {
+  font-family: "Consolas", "Courier New", monospace; font-size: 0.88em;
+  background-color: var(--azul-claro); padding: 1px 5px; border-radius: 3px; border: 1px solid var(--borda);
+}
+pre {
+  font-family: "Consolas", "Courier New", monospace; font-size: 13px; line-height: 1.55;
+  background-color: #f7f9fc; border: 1px solid var(--borda); border-left: 4px solid var(--azul);
+  padding: 14px 16px; overflow-x: auto; margin: 14px 0;
+  white-space: pre-wrap; word-break: break-word;
+}
+pre code { background: none; border: none; padding: 0; font-size: 13px; }
+
+/* ---------- Caixas ---------- */
+.caixa { padding: 16px 20px; margin: 18px 0; border-radius: 6px; border: 1px solid var(--borda); }
+.caixa > *:first-child { margin-top: 0; }
+.caixa > *:last-child  { margin-bottom: 0; }
+.caixa .rotulo {
+  font-family: "Segoe UI", Arial, sans-serif; font-size: 11px; font-weight: 700;
+  letter-spacing: 1.8px; text-transform: uppercase; display: block; margin-bottom: 7px;
+}
+.destaque      { background-color: var(--azul-claro);     border-left: 5px solid var(--azul); }
+.destaque .rotulo { color: var(--azul); }
+.feito         { background-color: var(--verde-claro);    border-left: 5px solid #2f7a68; }
+.feito .rotulo { color: #1f5347; }
+.armadilha     { background-color: var(--ambar-claro);    border-left: 5px solid #b07d2b; }
+.armadilha .rotulo { color: #855c15; }
+.perigo        { background-color: var(--vermelho-claro); border-left: 5px solid #a34b41; }
+.perigo .rotulo { color: #7d332b; }
+.exemplo       { background-color: var(--roxo-claro);     border-left: 5px solid #6a5aa0; }
+.exemplo .rotulo { color: #4c3f7d; }
+.honesto       { background-color: #f6f6f4;               border-left: 5px solid #5c5c56; }
+.honesto .rotulo { color: #43433e; }
+
+/* ---------- Tabelas ---------- */
+table {
+  width: 100%; border-collapse: collapse; margin: 18px 0;
+  font-size: 14.5px; font-family: "Segoe UI", Arial, sans-serif;
+}
+thead { background-color: var(--azul); }
+thead th {
+  color: #ffffff; text-align: left; padding: 9px 11px; font-size: 12.5px;
+  letter-spacing: 0.6px; text-transform: uppercase; font-weight: 700;
+}
+tbody td { padding: 9px 11px; border-bottom: 1px solid var(--borda); vertical-align: top; }
+tbody tr:nth-child(even) { background-color: #fafbfd; }
+td.certo  { color: #1f5347; font-weight: 700; }
+td.errado { color: #7d332b; font-weight: 700; }
+.num { text-align: center; font-variant-numeric: tabular-nums; }
+
+/* ---------- Sumário ---------- */
+.toc {
+  background-color: #f7f9fc; border: 1px solid var(--borda);
+  border-radius: 6px; padding: 22px 26px; margin: 28px 0 10px;
+}
+.toc h2 { margin: 0 0 12px; padding: 0; background: none; border: none; font-size: 19px; }
+.toc ol { list-style: none; padding-left: 0; counter-reset: sec; }
+.toc ol > li {
+  counter-increment: sec; margin: 6px 0;
+  font-family: "Segoe UI", Arial, sans-serif; font-size: 14.5px;
+}
+.toc ol > li::before {
+  content: counter(sec) "."; font-weight: 700; color: var(--azul);
+  display: inline-block; min-width: 26px;
+}
+.toc ol ol { padding-left: 30px; counter-reset: sub; margin: 4px 0; }
+.toc ol ol > li { counter-increment: sub; font-size: 13.5px; color: var(--cinza); }
+.toc ol ol > li::before {
+  content: counter(sec) "." counter(sub); min-width: 34px; font-weight: 400; color: var(--cinza);
+}
+.toc a { color: inherit; text-decoration: none; }
+.toc a:hover { text-decoration: underline; color: var(--azul); }
+
+/* ---------- Placar ---------- */
+.placar { display: flex; flex-wrap: wrap; gap: 12px; margin: 18px 0; }
+.placar .item {
+  flex: 1 1 150px; background-color: var(--verde-claro); border: 1px solid var(--borda);
+  border-radius: 6px; padding: 12px 14px; font-family: "Segoe UI", Arial, sans-serif;
+}
+.placar .item .rot {
+  font-size: 10.5px; letter-spacing: 1.4px; text-transform: uppercase;
+  color: #1f5347; font-weight: 700;
+}
+.placar .item .val { font-size: 21px; font-weight: 700; margin-top: 3px; }
+
+/* ---------- Rodapé ---------- */
+footer.fim {
+  margin-top: 60px; border-top: 2px solid var(--borda); padding-top: 18px;
+  font-size: 13px; color: var(--cinza); font-family: "Segoe UI", Arial, sans-serif;
+}
+
+/* ===================================================================
+   BOTÃO DE IMPRESSÃO — fixo no canto superior direito
+   =================================================================== */
+.print-container {
+  position: fixed; top: 18px; right: 18px; z-index: 9999;
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+#printBtn {
+  background-color: var(--azul); color: #ffffff; border: none; border-radius: 6px;
+  padding: 11px 18px; font-size: 13px; font-weight: 700; letter-spacing: 0.8px;
+  text-transform: uppercase; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.22);
+}
+#printBtn:hover { background-color: #23415f; }
+#printMenu {
+  display: none; position: absolute; top: calc(100% + 6px); right: 0; min-width: 232px;
+  background-color: #ffffff; border: 1px solid var(--borda); border-radius: 6px;
+  box-shadow: 0 6px 22px rgba(0,0,0,0.20); overflow: hidden;
+}
+#printMenu.aberto { display: block; }
+#printMenu button {
+  display: block; width: 100%; text-align: left; background-color: #ffffff;
+  border: none; border-bottom: 1px solid var(--borda); padding: 13px 16px;
+  font-size: 13.5px; color: var(--texto); cursor: pointer;
+}
+#printMenu button:last-child { border-bottom: none; }
+#printMenu button:hover { background-color: var(--azul-claro); }
+#printMenu button .dica { display: block; font-size: 11px; color: var(--cinza); margin-top: 2px; }
+
+/* ===================================================================
+   CLASSE .print-bw — TODAS as cores para escala de cinza
+   (fica FORA do @media print, de propósito)
+   =================================================================== */
+.print-bw,
+.print-bw * {
+  color: #000000 !important;
+  background-color: #ffffff !important;
+  border-color: #000000 !important;
+  box-shadow: none !important;
+  fill: #000000 !important;
+  stroke: #000000 !important;
+}
+.print-bw h2 { background-color: #f2f2f2 !important; border-left-color: #000000 !important; }
+.print-bw h3 { color: #000000 !important; }
+.print-bw .caixa { background-color: #f7f7f7 !important; border-color: #000000 !important; }
+.print-bw .caixa .rotulo { color: #000000 !important; }
+.print-bw pre  { background-color: #f4f4f4 !important; }
+.print-bw code { background-color: #f0f0f0 !important; }
+.print-bw .toc { background-color: #f7f7f7 !important; }
+.print-bw .placar .item { background-color: #f4f4f4 !important; }
+.print-bw table thead,
+.print-bw .table thead { background-color: #333333 !important; }
+.print-bw table thead th,
+.print-bw .table thead th { color: #ffffff !important; background-color: #333333 !important; }
+.print-bw tbody tr:nth-child(even) { background-color: #f4f4f4 !important; }
+.print-bw td.certo,
+.print-bw td.errado { color: #000000 !important; }
+
+/* ===================================================================
+   @media print — SÓ layout, quebras, margens e display.
+   NENHUMA cor aqui: quem decide cor é a tela ou a classe .print-bw.
+   =================================================================== */
+@media print {
+  @page { size: A4; margin: 0.5cm; }
+
+  .print-container { display: none !important; }
+
+  body   { margin: 0; padding: 0; }
+  .folha { max-width: 100%; margin: 0; padding: 0.3cm 0.4cm; }
+
+  section        { page-break-inside: avoid; }
+  section h2     { page-break-inside: avoid; page-break-after: avoid; }
+  h2, h3, h4     { page-break-after: avoid; }
+  .toc           { page-break-inside: avoid; }
+  .caixa         { page-break-inside: avoid; }
+  .destaque, .feito, .armadilha, .perigo, .exemplo, .honesto { page-break-inside: avoid; }
+  .bonus-section { page-break-inside: avoid; }
+  .example-box   { page-break-inside: avoid; }
+  .highlight-box { page-break-inside: avoid; }
+  .placar        { page-break-inside: avoid; }
+  table          { page-break-inside: avoid; }
+  tr             { page-break-inside: avoid; }
+  pre            { page-break-inside: avoid; overflow: visible; }
+
+  header.capa { page-break-after: avoid; }
+  footer.fim  { page-break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============ BOTÃO DE IMPRESSÃO ============ -->
+<div class="print-container" id="printContainer">
+  <button type="button" id="printBtn">Imprimir &#9662;</button>
+  <div id="printMenu">
+    <button type="button" id="btnCores">
+      Cores (A4)
+      <span class="dica">Mantém as cores exatas da tela</span>
+    </button>
+    <button type="button" id="btnPB">
+      Preto &amp; Branco (A4)
+      <span class="dica">Converte tudo para preto, cinzas e branco</span>
+    </button>
+  </div>
+</div>
+
+<div class="folha" id="folha">
+
+<header class="capa">
+  <span class="selo">Plataforma Jairo O D C · v10 · C Financeiro · 17/09/2026 · 2ª rodada</span>
+  <h1>Exclusão em lote, a Lixeira que já existia<br>sem ninguém saber, e os sete bônus</h1>
+  <p class="linha-fina">
+    Tudo construído, testado e medido. Inclusive dois defeitos antigos que estavam no seu banco
+    e ninguém tinha visto.
+  </p>
+</header>
+
+<!-- ============ 0. TRANSCRIÇÃO ============ -->
+<section>
+<h2 id="s0">0. O seu pedido, transcrito literalmente</h2>
+
+<div class="caixa honesto">
+  <span class="rotulo">Transcrição literal — nada reescrito, nada resumido</span>
+<pre>ACEITO TUDO INCLUSIVE OS BONUS, PODE FAZER APENAS UMA OBSERVAÇÃO SE JÁ EXISTE
+No pedido A "REABRIR", NÃO PRECISA CRIAR O PEDIDO PORQUE JÁ TEM FUNÇÃO QUE GERE
+O EFEITO DESEJADO.
+
+APRESENTE O RESULTADO NO FORMATO HONESTIDADE: 100% HONESTA, SEM INVENÇÕES
+O PÚBLICO É PESSOA QUE PRECISA 100% DE ORIENTAÇÃO.
+
+ ESTILO DE ENSINO: EXPLICAR O ÓBVIO E IMPLÍCITO, COM EXEMPLOS PRÁTICOS, EM
+ FORMATO INTUITIVO E DIDÁTICO.
+
+BONUS: SUGESTÕES DE ALTA RELEVÂNCIA NÃO MENCIONADAS NO PROMPT.
+
+FORMATO DE ENTREGA: CRIE UM ARQUIVO HTML COM: [sumário, corpo completo, design
+sóbrio com fonte preta, botão fixo de impressão com menu Cores (A4) e Preto &amp;
+Branco (A4), CSS @media print sem cores, quebras de página inteligentes e
+compatibilidade cross-browser]</pre>
+</div>
+
+<div class="caixa feito">
+  <span class="rotulo">✅ O que foi feito — o escopo exato</span>
+  <table style="margin:8px 0 0">
+    <thead><tr><th>Item</th><th>Situação</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Pedido C</strong> — ficha ao clicar na linha da PESQUISAR</td><td class="certo">FEITO</td></tr>
+      <tr><td><strong>Pedido B</strong> — excluir lançamentos por período</td><td class="certo">FEITO</td></tr>
+      <tr><td><strong>Pedido A</strong> — excluir fechamento</td><td><strong>NÃO FEITO, a seu pedido</strong> — e você tem razão: ver seção 2</td></tr>
+      <tr><td><strong>Os 7 bônus</strong></td><td class="certo">TODOS FEITOS</td></tr>
+    </tbody>
+  </table>
+</div>
+</section>
+
+<!-- ============ SUMÁRIO ============ -->
+<nav class="toc">
+<h2 id="sumario">Sumário</h2>
+<ol>
+  <li><a href="#s0">O seu pedido, transcrito literalmente</a></li>
+  <li><a href="#s1">Três palavras que você precisa ter no bolso</a></li>
+  <li><a href="#s2">A sua observação sobre o pedido A estava certa</a></li>
+  <li><a href="#s3">PEDIDO C — a ficha ao clicar na linha da PESQUISAR</a>
+    <ol>
+      <li><a href="#s3-1">O que mudou, e a armadilha que foi desviada</a></li>
+      <li><a href="#s3-2">Um ganho que não estava no pedido</a></li>
+      <li><a href="#s3-3">Como você testa</a></li>
+    </ol>
+  </li>
+  <li><a href="#s4">PEDIDO B — excluir lançamentos por período</a>
+    <ol>
+      <li><a href="#s4-1">Como a tela funciona, passo a passo</a></li>
+      <li><a href="#s4-2">As cinco decisões de projeto, e o porquê de cada uma</a></li>
+      <li><a href="#s4-3">A armadilha da transferência, resolvida em números</a></li>
+      <li><a href="#s4-4">O que o banco recusa, e com que mensagem</a></li>
+      <li><a href="#s4-5">Como você testa</a></li>
+    </ol>
+  </li>
+  <li><a href="#s5">A LIXEIRA — o bônus 1, e a descoberta que mudou tudo</a>
+    <ol>
+      <li><a href="#s5-1">O dado já estava lá há semanas</a></li>
+      <li><a href="#s5-2">Restaurar não é desfazer cego</a></li>
+      <li><a href="#s5-3">O perigo de ler a auditoria, e os quatro filtros</a></li>
+    </ol>
+  </li>
+  <li><a href="#s6">Os outros seis bônus, um a um</a>
+    <ol>
+      <li><a href="#s6-2">Bônus 2 — a permissão própria <code>lc_excluir_lote</code></a></li>
+      <li><a href="#s6-3">Bônus 3 — a trava de intenção no reset do módulo</a></li>
+      <li><a href="#s6-4">Bônus 4 — <code>fin_periodo_fechado</code> ganhou a empresa</a></li>
+      <li><a href="#s6-5">Bônus 5 — eu errei no estudo da manhã, e o código me corrigiu</a></li>
+      <li><a href="#s6-6">Bônus 6 — o histórico de fechamentos</a></li>
+      <li><a href="#s6-7">Bônus 7 — o teste de tela, na forma honesta</a></li>
+    </ol>
+  </li>
+  <li><a href="#s7">Dois defeitos ANTIGOS que apareceram ao ensaiar</a>
+    <ol>
+      <li><a href="#s7-1">O reset do módulo deixava duas funções vivas</a></li>
+      <li><a href="#s7-2">O inventário da plataforma dava vermelho falso no SEU banco</a></li>
+    </ol>
+  </li>
+  <li><a href="#s8">Os erros que eu cometi hoje e o que os pegou</a></li>
+  <li><a href="#s9">As provas — tudo o que foi medido</a></li>
+  <li><a href="#s10">BÔNUS NOVOS — cinco sugestões que você não pediu</a></li>
+  <li><a href="#s11">O que você precisa fazer agora</a></li>
+</ol>
+</nav>
+
+<!-- ============ 1. VOCABULÁRIO ============ -->
+<section>
+<h2 id="s1">1. Três palavras que você precisa ter no bolso</h2>
+
+<h4>1. Trilha de auditoria (<code>audit_log</code>)</h4>
+<p>
+  É um caderno onde o banco anota, sozinho, tudo o que foi <strong>alterado ou
+  apagado</strong>. Ele já existia no seu sistema desde sempre. A novidade de hoje é que
+  <strong>passamos a ler esse caderno</strong> — é dele que sai a Lixeira.
+</p>
+
+<h4>2. Simulação (ou "ensaio")</h4>
+<p>
+  É pedir ao banco: <em>"se eu confirmasse agora, o que aconteceria?"</em>. Ele responde com
+  números, <strong>sem mexer em nada</strong>. É o primeiro passo obrigatório da exclusão em
+  lote.
+</p>
+
+<h4>3. Perna de transferência</h4>
+<p>
+  Uma transferência entre contas <strong>não é um lançamento: são dois</strong> — a saída de
+  uma conta e a entrada na outra. Cada um é uma "perna". Elas são amarradas por um código
+  comum, e <strong>as duas têm de andar sempre juntas</strong>.
+</p>
+<div class="caixa exemplo">
+  <span class="rotulo">Por que isso importa tanto</span>
+  <p>
+    Se uma perna for apagada sozinha, a outra conta fica com dinheiro que
+    <strong>não veio de lugar nenhum</strong>. O saldo dela fica errado para sempre, e nada
+    na tela explica por quê. É o defeito mais caro que uma exclusão em lote pode causar — e
+    a seção 4.3 mostra como ele foi evitado, com números.
+  </p>
+</div>
+</section>
+
+<!-- ============ 2. PEDIDO A ============ -->
+<section>
+<h2 id="s2">2. A sua observação sobre o pedido A estava certa</h2>
+
+<div class="caixa feito">
+  <span class="rotulo">✅ Você disse, e eu concordo inteiramente</span>
+  <p>
+    <em>"Se já existe REABRIR, não precisa criar o pedido porque já tem função que gere o
+    efeito desejado."</em>
+  </p>
+</div>
+
+<p>
+  <strong>Não fiz o pedido A, e foi a decisão certa.</strong> Vale explicar por que ela é
+  mais do que economia de trabalho.
+</p>
+
+<div class="caixa destaque">
+  <span class="rotulo">A razão técnica, em uma frase</span>
+  <p>
+    Criar um botão "EXCLUIR FECHAMENTO" ao lado do "REABRIR" produziria
+    <strong>dois caminhos para o mesmo efeito</strong> — e todo caminho duplicado é uma
+    regra duplicada. No dia em que uma delas precisasse mudar (uma permissão a mais, uma
+    confirmação diferente), alguém corrigiria um caminho e esqueceria o outro.
+  </p>
+  <p>
+    É a mesma razão pela qual "EDITAR" na tela de PESQUISAR não abre um formulário próprio:
+    ele manda você para o "Novo Lançamento", que já sabe editar.
+  </p>
+</div>
+
+<div class="caixa honesto">
+  <span class="rotulo">O que, então, sobrou daquele pedido — e onde foi parar</span>
+  <p>
+    Das três lacunas que eu havia apontado no pedido A, <strong>uma foi resolvida
+    assim mesmo</strong>, porque não dependia de criar caminho novo:
+  </p>
+  <ul>
+    <li>
+      <strong>Não havia histórico de fechamentos</strong> — ao reabrir, sumia o vestígio de
+      que o período esteve fechado. Isso <strong>foi resolvido pelo bônus 6</strong>
+      (seção 6.6), sem tocar no botão REABRIR.
+    </li>
+    <li>
+      <strong>O rótulo continua "REABRIR"</strong> e <strong>continua não havendo "excluir
+      todos de uma vez"</strong>. Os dois seguem como estavam, por sua decisão.
+      Se um dia incomodarem, os dois são mudança de tela, sem tocar no banco.
+    </li>
+  </ul>
+</div>
+</section>
+
+<!-- ============ 3. PEDIDO C ============ -->
+<section>
+<h2 id="s3">3. PEDIDO C — a ficha ao clicar na linha da PESQUISAR</h2>
+
+<h3 id="s3-1">3.1 O que mudou, e a armadilha que foi desviada</h3>
+
+<p>
+  Em <strong>LANÇAMENTOS &gt; PESQUISAR</strong>, clicar em qualquer linha do resultado
+  agora abre a <strong>ficha completa</strong> daquele lançamento — a mesma janela que o
+  extrato da CONFERÊNCIA DA CONTA já abria desde 16/09.
+</p>
+
+<div class="caixa perigo">
+  <span class="rotulo">⚠️ A armadilha: o clique é UM só, e quem está mais perto fica com ele</span>
+  <p>
+    A linha da PESQUISAR já tinha uma célula com ação própria: o menu <strong>OPÇÕES</strong>
+    (EDITAR e EXCLUIR). Fazendo a linha inteira responder ao clique, sem cuidado,
+    acontece isto:
+  </p>
+  <p>
+    Você clica em OPÇÕES → o clique <em>sobe</em> até a linha → <strong>a ficha abre por
+    cima do menu</strong>. A ação que você pediu desaparece atrás de uma janela que você não
+    pediu.
+  </p>
+  <p>
+    <strong>E isso não quebra o build, não acusa erro nenhum e só aparece no dedo de quem
+    usa.</strong>
+  </p>
+</div>
+
+<div class="caixa feito">
+  <span class="rotulo">✅ A solução — uma linha, e ela já era regra escrita no projeto</span>
+<pre>&lt;td onClick={(e) =&gt; e.stopPropagation()}&gt;
+  &lt;MenuDeLinha acoes={acoesDoLancamento(l)} /&gt;
+&lt;/td&gt;</pre>
+  <p>
+    Isso diz ao navegador: <em>"este clique é meu, não o entregue a quem está atrás"</em>.
+  </p>
+</div>
+
+<h3 id="s3-2">3.2 Um ganho que não estava no pedido</h3>
+
+<p>
+  Para saber <strong>quais</strong> linhas abrem ficha, havia um critério escrito dentro do
+  extrato: "SALDO INICIAL" e "TOTAIS DO PERÍODO" não abrem, porque são somas, não registros.
+</p>
+<p>
+  A PESQUISAR passou a precisar do mesmo critério. Em vez de copiá-lo, ele
+  <strong>saiu da tela e foi para o Core</strong>, numa função chamada
+  <code>linhaAbreFicha</code> — <strong>com teste</strong>.
+</p>
+<div class="caixa destaque">
+  <span class="rotulo">Por que isso vale a pena</span>
+  <p>
+    Duas cópias de um critério são duas chances de ele divergir, e
+    <strong>a segunda cópia é sempre a que esquece um caso</strong>. Agora as duas telas
+    fazem a mesma pergunta e recebem a mesma resposta — e se alguém mexer nela, quatro
+    testes acusam.
+  </p>
+</div>
+
+<h3 id="s3-3">3.3 Como você testa</h3>
+<ol>
+  <li>Abra <strong>LANÇAMENTOS &gt; PESQUISAR</strong> e clique em PESQUISAR;</li>
+  <li><strong>Clique numa linha</strong> → a ficha completa tem de abrir;</li>
+  <li>Aperte <strong>Esc</strong> → tem de fechar;</li>
+  <li>
+    <strong>Clique em OPÇÕES</strong> → tem de abrir o menu, e a ficha
+    <strong>NÃO</strong> pode abrir. <em>(É a armadilha da seção 3.1.)</em>
+  </li>
+  <li>
+    Com o teclado: <strong>Tab</strong> até a linha e <strong>Enter</strong> → a ficha abre.
+  </li>
+</ol>
+</section>
+
+<!-- ============ 4. PEDIDO B ============ -->
+<section>
+<h2 id="s4">4. PEDIDO B — excluir lançamentos por período</h2>
+
+<p>
+  Está em <strong>CONFIGURAÇÕES DO MÓDULO</strong>, abaixo do fechamento de período.
+  É a operação mais destrutiva do módulo, e a tela foi desenhada em volta disso.
+</p>
+
+<h3 id="s4-1">4.1 Como a tela funciona, passo a passo</h3>
+
+<div class="caixa destaque">
+  <span class="rotulo">São DOIS passos obrigatórios, nunca um</span>
+  <ol>
+    <li>
+      Escolher a <strong>conta</strong> (ou "todas") e o <strong>período</strong> — com os
+      mesmos atalhos de mês que a PESQUISAR já tem.
+    </li>
+    <li>
+      Clicar em <strong>"CONFERIR O QUE SERÁ EXCLUÍDO"</strong>. O banco responde com
+      números e <strong>não apaga nada</strong>.
+    </li>
+    <li>
+      Ler o relatório. Ele diz, em português: quantos lançamentos, quantas transferências
+      envolvidas, <strong>quantos registros de OUTRAS contas vão sair junto</strong> e quais
+      contas serão afetadas.
+    </li>
+    <li>
+      <strong>Digitar o número</strong> que apareceu. Só então o botão vermelho
+      "EXCLUIR DEFINITIVAMENTE" destrava.
+    </li>
+  </ol>
+</div>
+
+<div class="caixa exemplo">
+  <span class="rotulo">Exemplo prático do que você vai ver</span>
+<pre>• 137 LANÇAMENTO(S) SERÃO EXCLUÍDOS.
+• 4 TRANSFERÊNCIA(S) ESTÃO ENVOLVIDAS — E TRANSFERÊNCIA SAI SEMPRE COMPLETA,
+  AS DUAS PERNAS.
+• ATENÇÃO: 4 DESSES LANÇAMENTOS ESTÃO FORA DO FILTRO QUE VOCÊ PEDIU — SÃO AS
+  OUTRAS PERNAS DAS TRANSFERÊNCIAS, EM OUTRAS CONTAS OU OUTRAS DATAS.
+• CONTAS AFETADAS: CAIXA, BANCO ITAU.
+• OS LANÇAMENTOS EXCLUÍDOS FICAM NA LIXEIRA E PODEM SER RESTAURADOS.
+
+        PARA CONFIRMAR, DIGITE 137  [ ____ ]   [ EXCLUIR DEFINITIVAMENTE ]</pre>
+</div>
+
+<h3 id="s4-2">4.2 As cinco decisões de projeto, e o porquê de cada uma</h3>
+
+<table>
+<thead><tr><th style="width:230px">Decisão</th><th>Por que assim, e não de outro jeito</th></tr></thead>
+<tbody>
+<tr>
+  <td><strong>O padrão é SIMULAR, não apagar</strong></td>
+  <td>
+    A função do banco tem um parâmetro que decide se ela apaga. O padrão dele é
+    <strong>"só simule"</strong>. Assim, <strong>esquecer esse parâmetro é inofensivo</strong>
+    — o pior que acontece é você receber um relatório. Se o padrão fosse "apague", qualquer
+    chamada feita sem ele (um teste, um script, um dedo errado) apagaria dados de verdade.
+    <br><br><strong>O caminho seguro tem de ser o caminho preguiçoso.</strong>
+  </td>
+</tr>
+<tr>
+  <td><strong>Quem CONTA é quem APAGA</strong></td>
+  <td>
+    O número 137 vem da <em>mesma</em> função que apaga, percorrendo o <em>mesmo</em>
+    conjunto. Se a tela contasse por conta própria, um dia ela mostraria 137 e o banco
+    apagaria 141 — e o número da confirmação viraria mentira. É a mesma razão pela qual o
+    saldo do extrato é calculado no banco.
+  </td>
+</tr>
+<tr>
+  <td><strong>Fechamento "preciso", não "rígido"</strong></td>
+  <td>
+    Recusa apenas se o fechamento <strong>alcançar</strong> o período pedido. Conta fechada
+    até 31/08 e você quer apagar outubro? <strong>Pode.</strong>
+    <br><br>A leitura rígida ("tem fechamento? recusa") puniria justamente quem fecha o mês
+    todo mês: a ferramenta ficaria disponível só para quem <em>não</em> fecha.
+  </td>
+</tr>
+<tr>
+  <td><strong>Permissão própria</strong><br><code>lc_excluir_lote</code></td>
+  <td>
+    "Pode apagar UM lançamento que não é seu" e "pode apagar UM ANO inteiro" são poderes de
+    tamanhos diferentes. Com uma permissão só, dar a primeira a um auxiliar daria a segunda
+    de brinde. Ver seção 6.2.
+  </td>
+</tr>
+<tr>
+  <td><strong>Digitar o número</strong></td>
+  <td>
+    Uma janela de "tem certeza?" é clicada no automático — todos fazemos isso. Digitar
+    <strong>137</strong> obriga a duas coisas: <em>ler</em> o número e <em>concordar</em>
+    com ele. Se apareceu 1.500 onde você esperava 137, a digitação é o instante em que você
+    percebe.
+  </td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="s4-3">4.3 A armadilha da transferência, resolvida em números</h3>
+
+<p>Suponha que existe esta transferência:</p>
+<pre>15/09  TRANSFERÊNCIA de R$ 1.000,00 do CAIXA para o BANCO
+       ├─ perna 1:  CAIXA  → SAÍDA   de R$ 1.000,00   (15/09)
+       └─ perna 2:  BANCO  → ENTRADA de R$ 1.000,00   (15/09)</pre>
+
+<p>E você pede: <em>"apague setembro da conta <strong>CAIXA</strong>"</em>.</p>
+
+<table>
+<thead><tr><th>Se a função fosse ingênua</th><th>O que ela realmente faz</th></tr></thead>
+<tbody>
+<tr>
+  <td>
+    Apagaria só a <strong>perna 1</strong>.<br><br>
+    O <strong>BANCO</strong> ficaria com uma ENTRADA de R$ 1.000,00 sem origem. O saldo dele
+    ficaria R$ 1.000,00 a mais, <strong>para sempre</strong>.
+    <br><br><strong class="errado">Dinheiro inventado. ❌</strong>
+  </td>
+  <td>
+    <strong>Expande o conjunto</strong> pelo código da transferência ANTES de conferir
+    qualquer coisa — puxa a perna 2 junto, mesmo estando em outra conta.<br><br>
+    Depois confere o fechamento das <strong>duas</strong> contas: não dá para furar a tranca
+    do BANCO pela porta do CAIXA.
+    <br><br><strong class="certo">Os dois lados fecham. ✅</strong>
+  </td>
+</tr>
+</tbody>
+</table>
+
+<div class="caixa armadilha">
+  <span class="rotulo">⚠️ A consequência que você precisa aceitar — e que a tela avisa</span>
+  <p>
+    <strong>"Apagar setembro do CAIXA" pode apagar lançamentos de OUTRAS contas.</strong>
+    Isso não é defeito: é a única saída correta. Por isso o relatório traz esse número
+    <strong>separado</strong> ("4 desses estão fora do filtro que você pediu"), antes de
+    você confirmar.
+  </p>
+</div>
+
+<h3 id="s4-4">4.4 O que o banco recusa, e com que mensagem</h3>
+
+<table>
+<thead><tr><th>Situação</th><th>O que acontece</th></tr></thead>
+<tbody>
+<tr>
+  <td>Você não tem a permissão <code>lc_excluir_lote</code></td>
+  <td>Recusa. <em>"Sem permissao para excluir lancamentos em lote."</em></td>
+</tr>
+<tr>
+  <td>Faltou data inicial ou final</td>
+  <td>Recusa. <em>"Informe a data inicial e a data final."</em></td>
+</tr>
+<tr>
+  <td>Data final antes da inicial</td>
+  <td>Recusa antes de qualquer viagem ao banco</td>
+</tr>
+<tr>
+  <td>O período (ou a perna em outra conta) está fechado</td>
+  <td>
+    Recusa, <strong>nomeando as contas</strong>:<br>
+    <em>"Periodo fechado alcanca estes lancamentos. Conta(s): CAIXA. Exclua o fechamento
+    antes, em CONFIGURACOES DO MODULO."</em>
+  </td>
+</tr>
+</tbody>
+</table>
+
+<div class="caixa destaque">
+  <span class="rotulo">Um detalhe de desenho: a simulação também recusa</span>
+  <p>
+    Se o período estiver fechado, <strong>a conferência já estoura</strong> — não devolve
+    uma contagem alegre para só o botão vermelho recusar depois.
+  </p>
+  <p>
+    <strong>Por quê:</strong> a simulação existe para responder <em>"o que aconteceria se eu
+    confirmasse?"</em>. Se ela mentisse por omissão, você clicaria em EXCLUIR para descobrir
+    que não podia.
+  </p>
+</div>
+
+<h3 id="s4-5">4.5 Como você testa</h3>
+<ol>
+  <li>
+    <strong>Conferir sem apagar:</strong> escolha um mês com lançamentos, clique em CONFERIR.
+    Leia os números. <strong>Nada pode ter sumido do extrato</strong> — confira numa outra aba.
+  </li>
+  <li>
+    <strong>O botão travado:</strong> digite um número <em>errado</em> no campo de
+    confirmação. O botão vermelho tem de continuar desligado.
+  </li>
+  <li>
+    <strong>⭐ A trava mais importante:</strong> confira um mês, e <strong>depois mude a data
+    na tela</strong>. O relatório tem de <strong>sumir</strong> e o botão tem de travar de
+    novo. <em>(Sem isso, você confirmaria o número de um período e apagaria outro.)</em>
+  </li>
+  <li>
+    <strong>O fechamento:</strong> feche um período e tente apagar dentro dele. Tem de
+    recusar nomeando a conta.
+  </li>
+  <li>
+    <strong>A transferência:</strong> faça uma transferência, e apague o mês só da conta de
+    ORIGEM. O relatório tem de avisar "1 fora do filtro", e a perna do DESTINO tem de sumir
+    junto.
+  </li>
+</ol>
+</section>
+
+<!-- ============ 5. A LIXEIRA ============ -->
+<section>
+<h2 id="s5">5. A LIXEIRA — o bônus 1, e a descoberta que mudou tudo</h2>
+
+<h3 id="s5-1">5.1 O dado já estava lá há semanas</h3>
+
+<div class="caixa feito">
+  <span class="rotulo">🎁 A descoberta</span>
+  <p>
+    Investigando o que sobra depois de um lançamento ser apagado, encontrei isto no seu
+    banco — <strong>e está lá desde que o módulo foi criado</strong>:
+  </p>
+<pre>CREATE TRIGGER audit_fin_lanc AFTER UPDATE OR <strong>DELETE</strong> ON public.fin_lancamentos
+  FOR EACH ROW EXECUTE PROCEDURE public.registrar_auditoria();
+
+-- e dentro de registrar_auditoria():
+INSERT INTO public.audit_log (..., dados_antes, ...)
+  VALUES (..., CASE WHEN TG_OP IN ('UPDATE','DELETE') THEN <strong>to_jsonb(OLD)</strong> ... )</pre>
+  <p>
+    <strong>Em português:</strong> todo lançamento apagado deixa em <code>audit_log</code>
+    uma cópia <strong>do registro inteiro</strong>, campo por campo, mais quem apagou e
+    quando.
+  </p>
+  <p>
+    <strong>Nunca faltou o dado. Faltava a janela.</strong>
+  </p>
+</div>
+
+<div class="caixa destaque">
+  <span class="rotulo">Por que isso mudou o projeto do pedido B</span>
+  <p>
+    Uma exclusão em massa deixa de ser uma operação <strong>irreversível</strong> e passa a
+    ser <strong>reversível</strong>. Isso muda a natureza do risco inteiro: um erro de data
+    deixa de ser desastre e vira contratempo.
+  </p>
+  <p>
+    <strong>Foi essa descoberta que tornou o pedido B aceitável de construir.</strong> E não
+    custou nenhuma tabela nova.
+  </p>
+</div>
+
+<h3 id="s5-2">5.2 Restaurar não é desfazer cego</h3>
+
+<p>
+  O botão RESTAURAR não simplesmente "cola o registro de volta". O lançamento passa pelas
+  <strong>mesmas trancas de quando nasceu</strong>:
+</p>
+
+<table>
+<thead><tr><th>Situação</th><th>O que acontece</th></tr></thead>
+<tbody>
+<tr>
+  <td>O período foi fechado <strong>depois</strong> da exclusão</td>
+  <td class="errado">
+    <strong>RECUSA.</strong> Senão seria furar o fechamento pela porta dos fundos: excluir
+    com o mês aberto, fechar, e restaurar para dentro dele
+  </td>
+</tr>
+<tr>
+  <td>A conta ou a categoria do lançamento foi apagada</td>
+  <td class="errado"><strong>RECUSA</strong>, pedindo que você recrie o cadastro antes</td>
+</tr>
+<tr>
+  <td>Você clica em RESTAURAR <strong>duas vezes</strong></td>
+  <td class="certo">
+    Inofensivo: a segunda vez diz <em>"já estava de volta, nada mudou"</em>.
+    <strong>Não duplica e não dá erro</strong>
+  </td>
+</tr>
+<tr>
+  <td>O lançamento é perna de transferência</td>
+  <td class="certo">
+    <strong>As DUAS pernas voltam</strong> — a confirmação avisa antes. Meia transferência
+    restaurada inventa dinheiro tanto quanto meia apagada
+  </td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="s5-3">5.3 O perigo de ler a auditoria, e os quatro filtros</h3>
+
+<div class="caixa perigo">
+  <span class="rotulo">⚠️ Isto precisou de cuidado redobrado, e vale você saber por quê</span>
+  <p>
+    A <code>audit_log</code> é uma tabela <strong>da plataforma</strong>, e ela tem uma
+    regra de segurança que deixa <strong>só o Desenvolvedor</strong> lê-la. Um Proprietário
+    não enxerga uma linha sequer.
+  </p>
+  <p>
+    Para a Lixeira funcionar, as funções novas rodam com <strong>poder elevado</strong> — e
+    esse poder <strong>desliga a proteção automática</strong> lá dentro. Sem filtro
+    explícito, um Proprietário leria as exclusões de <strong>todas as empresas do
+    sistema</strong>.
+  </p>
+</div>
+
+<div class="caixa feito">
+  <span class="rotulo">✅ Os quatro filtros, e nenhum é opcional</span>
+  <ol>
+    <li><code>fin_pode()</code> no topo — <em>tem permissão?</em></li>
+    <li><code>tabela = 'fin_lancamentos'</code> — <em>só a tabela deste módulo</em></li>
+    <li><code>operacao = 'DELETE'</code> — <em>só exclusões</em></li>
+    <li><code>dados_antes-&gt;&gt;'tenant_id'</code> — <strong>só a SUA empresa</strong></li>
+  </ol>
+  <p>
+    O <strong>teste 29</strong> é a trava disso: a empresa A vê as exclusões dela, e a
+    empresa B vê <strong>zero</strong>. Provado sabotando o filtro — o teste ficou vermelho.
+  </p>
+</div>
+
+<div class="caixa armadilha">
+  <span class="rotulo">⚠️ Um detalhe que engana: a <code>audit_log</code> não tem coluna de empresa</span>
+  <p>
+    Escrever <code>WHERE tenant_id = ...</code> ali <strong>nem compilaria</strong>: essa
+    coluna não existe. A empresa mora <em>dentro</em> do registro guardado, no campo
+    <code>dados_antes</code>. Virou regra escrita no <code>CLAUDE.md</code>.
+  </p>
+</div>
+</section>
+
+<!-- ============ 6. OS OUTROS BÔNUS ============ -->
+<section class="bonus-section">
+<h2 id="s6">6. Os outros seis bônus, um a um</h2>
+
+<h3 id="s6-2">6.2 Bônus 2 — a permissão própria <code>lc_excluir_lote</code></h3>
+<p>
+  O módulo passou de <strong>17 para 18 permissões</strong>. A nova aparece na tela de
+  EQUIPE E PERMISSÕES como <em>"EXCLUIR LANÇAMENTOS EM LOTE E RESTAURAR DA LIXEIRA"</em>.
+</p>
+<div class="caixa destaque">
+  <span class="rotulo">Por que ela não é redundante</span>
+  <p>
+    Um Dependente pode ter <code>lc_excluir_todos</code> — apagar um lançamento que não é
+    dele. <strong>Isso não pode virar "apagar o ano inteiro".</strong>
+  </p>
+  <p>
+    O <strong>teste 25</strong> prova isso: o Dependente recebe <code>lc_excluir_todos</code>
+    e a exclusão em lote é recusada mesmo assim. <em>Você</em>, como Proprietário, tem tudo
+    automaticamente.
+  </p>
+</div>
+<div class="caixa armadilha">
+  <span class="rotulo">⚠️ Um risco que foi fechado de quebra</span>
+  <p>
+    A lista de "tudo o que o Proprietário recebe" era <strong>escrita à mão</strong> numa
+    tela. Acrescentar a 18ª permissão sem atualizar essa cópia deixaria você
+    <strong>sem acesso à sua própria exclusão em lote</strong> — sem erro nenhum, só um botão
+    que não aparece.
+  </p>
+  <p>
+    Ela agora é <strong>derivada</strong> da lista oficial do Core. Permissão nova passa a
+    chegar lá sozinha.
+  </p>
+</div>
+
+<h3 id="s6-3">6.3 Bônus 3 — a trava de intenção no reset do módulo</h3>
+<p>
+  O <code>financeiro_00_reset.sql</code> apaga <strong>os lançamentos de todas as
+  empresas</strong>, e não tinha trava nenhuma: era colar e executar. Agora ele recusa:
+</p>
+<pre>ERRO: RESET DO MODULO RECUSADO: a trava de intencao esta fechada.
+      Este arquivo apagaria 3 lancamento(s) de 1 empresa(s),
+      de TODAS as empresas, sem desfazer.</pre>
+<p>
+  Para liberar, troque <code>'NAO CONFIRMO'</code> por <code>'CONFIRMO'</code> na seção 0.
+  São 3 caracteres.
+</p>
+<div class="caixa destaque">
+  <span class="rotulo">Por que esta trava é DIFERENTE da do reset da plataforma</span>
+  <p>
+    Lá, o arquivo tinha o que <strong>perguntar ao banco</strong>: "há módulo instalado?".
+    Aqui não há: apagar tudo é exatamente o que este arquivo faz de certo. A única pergunta
+    é <strong>se a PESSOA quis</strong> — e essa o banco não sabe responder.
+  </p>
+  <p>
+    Por isso lá é trava de <em>estado</em>, e aqui é trava de <em>intenção</em>.
+  </p>
+</div>
+<p>
+  Ele também mostra <strong>o tamanho do estrago antes de recusar</strong>. Um número
+  concreto ("3 lançamentos de 1 empresa") faz pensar; "isto é destrutivo", não.
+</p>
+
+<h3 id="s6-4">6.4 Bônus 4 — <code>fin_periodo_fechado</code> ganhou a empresa</h3>
+<p>
+  Era a <strong>única função do módulo</strong> que não filtrava por empresa: perguntava só
+  pela conta e pela data. Agora recebe a empresa, como todas as vizinhas.
+</p>
+<div class="caixa perigo">
+  <span class="rotulo">⚠️ Esta mudança é a mais perigosa do dia, e aqui está o porquê</span>
+  <p>
+    Acrescentar um parâmetro a uma função do PostgreSQL <strong>não a substitui</strong>:
+    cria uma <strong>SEGUNDA função</strong>, com o mesmo nome. As duas passam a existir, e a
+    antiga continua chamável — <em>sem o filtro de empresa</em>.
+  </p>
+  <p>
+    É exatamente o defeito que aconteceu com a <code>fin_transferir</code> em 14/09/2026.
+  </p>
+  <p>
+    Por isso o arquivo derruba a assinatura antiga <strong>explicitamente</strong> antes de
+    criar a nova — e por isso o teste abaixo importa mais que o resto.
+  </p>
+</div>
+<div class="caixa feito">
+  <span class="rotulo">✅ O ensaio do UPGRADE, que é o teste que quase ninguém faz</span>
+  <p>
+    Instalar num banco vazio não prova nada aqui: num banco vazio não há função antiga para
+    sobrar. Então eu montei um banco com o schema de <strong>ontem</strong> e apliquei o de
+    <strong>hoje</strong> por cima:
+  </p>
+<pre>ANTES:  20 funções · fin_periodo_fechado(p_conta_id uuid, p_data date)
+DEPOIS: 24 funções · fin_periodo_fechado(p_tenant_id uuid, p_conta_id uuid, p_data date)
+
+Funções duplicadas:  NENHUMA ✅
+Inventário:          17/17 OK
+Testes:              29/29 PASSOU</pre>
+</div>
+
+<h3 id="s6-5">6.5 Bônus 5 — eu errei no estudo da manhã, e o código me corrigiu</h3>
+
+<div class="caixa honesto">
+  <span class="rotulo">Correção de uma afirmação minha</span>
+  <p>
+    No estudo da manhã eu escrevi que o <code>inventario_financeiro.sql</code>
+    <em>"não conta as funções do módulo"</em>.
+    <strong>Isso estava errado.</strong> Ele conta desde sempre (é a linha 2), e a linha 7 já
+    detectava função duplicada.
+  </p>
+  <p>Descobri ao abrir o arquivo para mexer nele. Registro aqui porque você leu a versão errada.</p>
+</div>
+
+<p>
+  <strong>Mas havia um buraco de verdade, e é outro:</strong> contar pega a função que
+  <em>sumiu</em> e a que <em>sobrou</em> — <strong>não pega a que MUDOU DE FORMA</strong>.
+  Trocar um parâmetro deixa o total em 24 e o inventário diz OK.
+</p>
+<p>
+  Daí a <strong>linha 17 nova</strong>: ela compara a <strong>lista inteira de
+  assinaturas</strong> com a que o schema declara. Provada sabotando uma função:
+</p>
+<pre> 2 | CONTAGEM   | Funcoes do modulo (fin_*)                        | 24 | 24 | <strong>OK</strong>
+17 | ASSINATURA | Funcoes com assinatura diferente da declarada    |  0 |  1 | <strong>DIVERGE</strong>
+117| ASSINATURA | Assinatura fora do contrato: fin_saldo_atual
+     esperado: p_tenant_id uuid, p_conta_movimento_id uuid
+     encontrado: p_tenant_id uuid, p_conta_movimento_id uuid, <strong>p_extra text</strong></pre>
+<p>
+  A contagem disse OK. A linha 17 pegou, nomeou o culpado e mostrou as duas assinaturas lado
+  a lado.
+</p>
+
+<h3 id="s6-6">6.6 Bônus 6 — o histórico de fechamentos</h3>
+<p>
+  Dentro de FECHAMENTO DE PERÍODO há agora um link <strong>"HISTÓRICO DE FECHAMENTOS
+  (VER)"</strong>. Ele mostra quem alterou ou excluiu cada fechamento, quando, em qual conta
+  e até que data ela estava trancada.
+</p>
+<div class="caixa destaque">
+  <span class="rotulo">Por que isso era um buraco</span>
+  <p>
+    A tabela de fechamentos guarda <strong>uma linha por conta</strong>. Ao reabrir, some da
+    tela qualquer vestígio de que aquele período esteve fechado. Num sistema financeiro,
+    "este mês foi conferido, trancado, e depois destrancado" é exatamente o tipo de evento
+    que se precisa poder mostrar.
+  </p>
+  <p>
+    <strong>E a saída não foi mexer na tabela</strong> — o dado já existia na auditoria.
+    Isto é só a janela.
+  </p>
+</div>
+<div class="caixa armadilha">
+  <span class="rotulo">⚠️ Uma limitação que eu preciso declarar</span>
+  <p>
+    <strong>O PRIMEIRO fechamento de uma conta não aparece nesse histórico.</strong> O
+    gatilho de auditoria cobre alterações e exclusões, <strong>não criações</strong>.
+  </p>
+  <p>
+    Quem responde "está fechado até quando?" é a lista de fechamentos vigentes, logo acima na
+    mesma tela. O histórico é a lista <em>do que mudou</em>. Se você quiser também os
+    primeiros fechamentos, é uma mudança no gatilho da plataforma — me diga.
+  </p>
+</div>
+
+<h3 id="s6-7">6.7 Bônus 7 — o teste de tela, na forma honesta</h3>
+
+<div class="caixa honesto">
+  <span class="rotulo">Aqui eu entreguei MENOS do que a palavra "teste de tela" promete, e explico</span>
+  <p>
+    Testar os componentes de verdade (simular clique, ver o que aparece)
+    <strong>não coube — e isso foi medido, não suposto</strong>:
+  </p>
+<pre>$ node --test arquivo.tsx
+const x = &lt;div&gt;oi&lt;/div&gt;;
+          ^
+<strong>SyntaxError: Unexpected token '&lt;'</strong></pre>
+  <p>
+    O <code>npm test</code> roda o Node direto. O Node 24 remove anotações de tipo, mas
+    <strong>não sabe ler JSX</strong>. Testar componente exigiria um transformador, um
+    navegador falso e um renderizador — de <strong>3 a 5 dependências novas</strong> num
+    projeto que hoje tem <strong>zero</strong>, e mudança no que a Vercel instala para
+    construir.
+  </p>
+  <p>
+    <strong>Num projeto em que você não roda nada local, isso é risco de publicação em troca
+    de conforto de quem escreve o código.</strong> Não me pareceu um bom negócio sem você
+    saber do custo.
+  </p>
+</div>
+
+<div class="caixa feito">
+  <span class="rotulo">✅ O que eu fiz no lugar — e não é consolo</span>
+  <p>
+    Tirei <strong>as DECISÕES de dentro da tela</strong> e as pus no Core, onde já há teste.
+    É o que a própria regra do projeto manda. Nasceram <code>manutencaoRegras.ts</code> e
+    <strong>19 testes novos</strong>.
+  </p>
+  <p><strong>A trava mais importante deles:</strong></p>
+<pre>test('mexer no filtro DEPOIS de conferir invalida a conferencia', ...)</pre>
+  <p>
+    O defeito que ela impede: conferir setembro (137 registros), trocar a data para janeiro,
+    e o botão continuar dizendo "137" — um número sem relação nenhuma com o que está na tela.
+    <strong>É a mesma classe do defeito da sugestão de ordem</strong>, de 16/09: resultado
+    calculado com parâmetro que já mudou.
+  </p>
+  <p>
+    <strong>O que isto NÃO cobre:</strong> clique, foco, propagação de evento e desenho. Eu
+    não vou fingir que cobre. Cobre a parte que erra <em>em silêncio</em>.
+  </p>
+</div>
+</section>
+
+<!-- ============ 7. DEFEITOS ANTIGOS ============ -->
+<section>
+<h2 id="s7">7. Dois defeitos ANTIGOS que apareceram ao ensaiar</h2>
+
+<div class="caixa destaque">
+  <span class="rotulo">Os dois têm a mesma moral</span>
+  <p>
+    Nenhum dos dois apareceu <strong>lendo</strong> os arquivos. Os dois apareceram
+    <strong>rodando</strong> num banco de verdade. É a diferença entre revisar e medir.
+  </p>
+</div>
+
+<h3 id="s7-1">7.1 O reset do módulo deixava duas funções vivas</h3>
+<p>
+  Ao ensaiar o desplugar completo do módulo, a conferência do fim do arquivo (que deve dar
+  zero em tudo) devolveu <strong>2 funções</strong>:
+</p>
+<pre>fin_importar_contas_movimento
+fin_importar_identificadoras</pre>
+<div class="caixa perigo">
+  <span class="rotulo">⚠️ O que isso significava</span>
+  <p>
+    As duas nasceram em <strong>13/09/2026</strong>, no degrau da importação de planilhas, e
+    <strong>ninguém as acrescentou à lista de baixa do reset</strong>. Desde então, desplugar
+    o módulo deixava duas funções dele vivas no banco: um módulo "desplugado" que ainda tinha
+    código instalado.
+  </p>
+  <p>
+    Corrigido, com o comentário explicando que <strong>lista de nomes escrita à mão precisa
+    de uma conferência automática</strong> — e é ela que transforma esse esquecimento em erro
+    visível.
+  </p>
+</div>
+
+<h3 id="s7-2">7.2 O inventário da plataforma dava vermelho falso no SEU banco</h3>
+
+<div class="caixa perigo">
+  <span class="rotulo">⚠️ Este está no seu Supabase agora, e provavelmente há semanas</span>
+  <p>
+    O <code>inventario.sql</code> (o da plataforma) contava <strong>tudo o que existe</strong>
+    no banco. Com o módulo instalado — que é o seu caso —, as tabelas e funções dele entravam
+    na conta. Resultado, medido:
+  </p>
+</div>
+
+<table>
+<thead><tr><th>Linha</th><th>Esperava</th><th>Encontrava</th><th>Veredito</th></tr></thead>
+<tbody>
+<tr><td>1. tabelas</td><td class="num">7</td><td class="num">12</td><td class="errado">DIVERGE</td></tr>
+<tr><td>2. funcoes</td><td class="num">27</td><td class="num">51</td><td class="errado">DIVERGE</td></tr>
+<tr><td>3. policies</td><td class="num">12</td><td class="num">16</td><td class="errado">DIVERGE</td></tr>
+<tr><td>4. triggers</td><td class="num">15</td><td class="num">23</td><td class="errado">DIVERGE</td></tr>
+</tbody>
+</table>
+
+<p>
+  E o bloco seguinte listava as <strong>24 funções do módulo como "SOBRANDO no banco"</strong>
+  — como se fossem restos de uma versão antiga.
+</p>
+
+<div class="caixa armadilha">
+  <span class="rotulo">⚠️ Por que isto é pior do que parece</span>
+  <p>
+    <strong>Vermelho falso ensina a ignorar o vermelho.</strong> É o pior defeito que um
+    arquivo de diagnóstico pode ter: no dia em que ele acusar um problema de verdade, já
+    ninguém olha.
+  </p>
+  <p>
+    E o projeto inteiro é construído em cima da ideia oposta — há avisos escritos no
+    <code>CLAUDE.md</code> sobre exatamente isso.
+  </p>
+</div>
+
+<div class="caixa feito">
+  <span class="rotulo">✅ O conserto, e por que ele não podia ser o óbvio</span>
+  <p>
+    O jeito óbvio seria <em>"conte tudo, menos o que começa com <code>fin_</code>"</em>.
+    <strong>Isso é proibido:</strong> é um arquivo da plataforma, e ela não pode citar o nome
+    de um módulo.
+  </p>
+  <p>O conserto foi em duas partes:</p>
+  <ol>
+    <li>
+      <strong>As contagens passam a listar as PRÓPRIAS peças, pelo nome.</strong> A
+      plataforma conhece as suas 7 tabelas e as suas 27 funções. De quebra, isso ficou
+      <em>mais</em> preciso: agora ele detecta uma tabela de plataforma faltando mesmo que
+      uma tabela de módulo "compense" o total.
+    </li>
+    <li>
+      <strong>Para ignorar as funções de módulo, o prefixo é DEDUZIDO do catálogo</strong>
+      (<code>platform_modules.funcao_limpeza</code>), nunca escrito. Funciona para o módulo
+      de hoje e para os de amanhã, sem saber o nome de nenhum.
+    </li>
+  </ol>
+  <p>
+    <strong>Resultado medido</strong> num banco com o módulo instalado:
+    <strong>4/4 OK</strong>, e zero "SOBRANDO" falso.
+  </p>
+</div>
+</section>
+
+<!-- ============ 8. MEUS ERROS ============ -->
+<section>
+<h2 id="s8">8. Os erros que eu cometi hoje e o que os pegou</h2>
+
+<p>
+  Esta seção existe porque "honestidade 100%" inclui o que deu errado no caminho. Foram
+  quatro.
+</p>
+
+<table>
+<thead><tr><th style="width:38px">#</th><th>O erro</th><th>O que o pegou</th></tr></thead>
+<tbody>
+<tr>
+  <td class="num">1</td>
+  <td>
+    <strong>Pus o <code>BEGIN;</code> DEPOIS da trava</strong> no reset do módulo. Com um
+    cliente que ignora erro, a recusa era impressa, ele seguia para a instrução seguinte — que
+    era o próprio <code>BEGIN;</code> — e <strong>as 4 tabelas caíam com a trava fechada</strong>
+  </td>
+  <td class="certo">O ensaio do pior caso. Virou regra no <code>CLAUDE.md</code></td>
+</tr>
+<tr>
+  <td class="num">2</td>
+  <td>
+    <strong>Usei tabela temporária dentro de função de poder elevado.</strong> O PostgreSQL
+    procura tabelas temporárias <em>antes</em> do caminho declarado, então quem chama poderia
+    criar uma com aquele nome e a função passaria a trabalhar sobre ela
+  </td>
+  <td class="certo">Revisão ao ver um aviso suspeito no teste. Trocado por variáveis (arrays)</td>
+</tr>
+<tr>
+  <td class="num">3</td>
+  <td>
+    <strong>Escrevi o nome do módulo num comentário da tela de módulos</strong> (arquivo de
+    plataforma)
+  </td>
+  <td class="certo">O <code>npm run modulos:verificar</code>, na hora</td>
+</tr>
+<tr>
+  <td class="num">4</td>
+  <td>
+    <strong>Converti o <code>CLAUDE.md</code> de CRLF para LF</strong> ao editá-lo por
+    script. O diff de <strong>84 linhas</strong> virou <strong>1.349</strong>, escondendo a
+    alteração real
+  </td>
+  <td class="certo">A conferência do diff antes de entregar. Restaurado; virou regra</td>
+</tr>
+</tbody>
+</table>
+
+<div class="caixa honesto">
+  <span class="rotulo">E uma sabotagem que era MINHA, não do teste</span>
+  <p>
+    Ao provar que as travas novas pegam defeito, sabotei 8 proteções. Sete ficaram vermelhas
+    na hora. <strong>A oitava ficou verde — e o teste estava certo.</strong>
+  </p>
+  <p>
+    Eu havia trocado uma proteção por outra <em>equivalente</em>: o comportamento continuava
+    correto, então não havia defeito para acusar. Refiz a sabotagem removendo a proteção de
+    vez, e aí sim o teste 26 acusou <code>23505 duplicar valor da chave</code>.
+  </p>
+  <p><strong>O erro era meu. Registro para você não ler "7 de 8" e achar que sobrou um buraco.</strong></p>
+</div>
+
+<div class="caixa destaque">
+  <span class="rotulo">Uma mudança no repositório que NÃO foi minha</span>
+  <p>
+    O arquivo <code>packages/core/src/constants/versions.ts</code> aparece alterado, e
+    <strong>não fui eu</strong>: as versões foram para <code>v10 - 2026-09-17-01</code>.
+    Presumo que você tenha feito isso no VS Code. <strong>Deixei como está</strong> — é a
+    convenção do projeto e está correto para hoje.
+  </p>
+</div>
+</section>
+
+<!-- ============ 9. PROVAS ============ -->
+<section>
+<h2 id="s9">9. As provas — tudo o que foi medido</h2>
+
+<div class="placar">
+  <div class="item"><div class="rot">npm test</div><div class="val">63 / 63</div></div>
+  <div class="item"><div class="rot">teste_financeiro</div><div class="val">29 / 29</div></div>
+  <div class="item"><div class="rot">teste_rls</div><div class="val">16 / 16</div></div>
+  <div class="item"><div class="rot">inventário módulo</div><div class="val">17 / 17</div></div>
+  <div class="item"><div class="rot">inventário plataforma</div><div class="val">4 / 4</div></div>
+  <div class="item"><div class="rot">LEGO</div><div class="val">0 violações</div></div>
+</div>
+
+<table>
+<thead><tr><th>Prova</th><th>Antes de hoje</th><th>Agora</th></tr></thead>
+<tbody>
+<tr><td><code>npm test</code> (Core)</td><td class="num">44</td><td class="num certo">63</td></tr>
+<tr><td><code>teste_financeiro.sql</code></td><td class="num">21</td><td class="num certo">29</td></tr>
+<tr><td><code>inventario_financeiro.sql</code></td><td class="num">16 linhas</td><td class="num certo">17 linhas</td></tr>
+<tr><td><code>inventario.sql</code> com módulo instalado</td><td class="num errado">4 DIVERGE</td><td class="num certo">4 OK</td></tr>
+<tr><td>Funções do módulo</td><td class="num">20</td><td class="num certo">24</td></tr>
+<tr><td>Permissões do módulo</td><td class="num">17</td><td class="num certo">18</td></tr>
+</tbody>
+</table>
+
+<h3>As 8 travas novas foram todas vistas FALHAR</h3>
+<p>
+  A regra do projeto é explícita: <em>"teste que nunca falhou é decoração"</em>. Cada uma foi
+  provada sabotando exatamente a proteção que ela guarda:
+</p>
+<table>
+<thead><tr><th style="width:56px">Teste</th><th>O que ele guarda</th><th>Sabotagem</th></tr></thead>
+<tbody>
+<tr><td class="num">22</td><td>A simulação não apaga</td><td class="certo">Ficou vermelho ✅</td></tr>
+<tr><td class="num">23</td><td>A transferência sai inteira</td><td class="certo">Ficou vermelho ✅</td></tr>
+<tr><td class="num">24</td><td>Fechamento bloqueia só o que alcança</td><td class="certo">Ficou vermelho ✅</td></tr>
+<tr><td class="num">25</td><td><code>lc_excluir_todos</code> não dá exclusão em lote</td><td class="certo">Ficou vermelho ✅</td></tr>
+<tr><td class="num">26</td><td>Duplo clique não duplica</td><td class="certo">Ficou vermelho ✅ (na 2ª tentativa — ver seção 8)</td></tr>
+<tr><td class="num">27</td><td>Não se restaura para período fechado</td><td class="certo">Ficou vermelho ✅</td></tr>
+<tr><td class="num">28</td><td><code>fin_periodo_fechado</code> filtra a empresa</td><td class="certo">Ficou vermelho ✅</td></tr>
+<tr><td class="num">29</td><td>A lixeira não vaza entre empresas</td><td class="certo">Ficou vermelho ✅</td></tr>
+</tbody>
+</table>
+
+<h3>Os quatro cenários de banco que foram exercitados</h3>
+<table>
+<thead><tr><th>Cenário</th><th>Resultado</th></tr></thead>
+<tbody>
+<tr><td>Instalação limpa (banco vazio)</td><td class="certo">Aplicou sem erro · 29/29 · 17/17 · 16/16</td></tr>
+<tr><td><strong>Atualização</strong> (schema de ontem → o de hoje)</td><td class="certo">Sem sobrecarga · 29/29 · 17/17</td></tr>
+<tr><td>Reset do módulo com a trava fechada</td><td class="certo">Recusou · nada apagado (inclusive no pior caso)</td></tr>
+<tr><td>Reset do módulo destravado</td><td class="certo">0 tabelas · 0 funções · 0 catálogo · plataforma intacta (7)</td></tr>
+</tbody>
+</table>
+
+<h3>Os arquivos</h3>
+<pre>24 arquivos alterados · 1.983 inserções · 94 remoções
+ 7 arquivos NOVOS (1.162 linhas), todos abaixo de ~230 linhas:
+
+  packages/core/.../manutencaoService.ts       212   o serviço (só traduz chamada)
+  packages/core/.../manutencaoRegras.ts        188   as decisões da tela
+  packages/core/.../manutencaoRegras.test.ts   231   os 19 testes
+  .../manutencao/ExclusaoPorPeriodo.tsx        138   o painel de exclusão
+  .../manutencao/LixeiraDeLancamentos.tsx      155   a lixeira
+  .../manutencao/HistoricoDeFechamentos.tsx    123   o histórico
+  .../manutencao/useExclusaoPorPeriodo.ts      115   o estado da exclusão</pre>
+<div class="caixa destaque">
+  <span class="rotulo">Por que sete arquivos e não um</span>
+  <p>
+    A regra de ouro do projeto: um arquivo por responsabilidade, e fatiar ao passar de ~150
+    linhas. "Calcular saldo" e "apagar um ano de lançamentos" não são a mesma
+    responsabilidade — juntá-las faria a tela de extrato importar, sem precisar, a função que
+    apaga tudo.
+  </p>
+</div>
+</section>
+
+<!-- ============ 10. BÔNUS NOVOS ============ -->
+<section class="bonus-section">
+<h2 id="s10">10. BÔNUS NOVOS — cinco sugestões que você não pediu</h2>
+
+<p>Tudo aqui nasceu de algo que eu <strong>medi hoje</strong>. Nenhuma é urgente.</p>
+
+<h3>Novo 1 ⭐ — A lixeira devia aparecer também na PESQUISAR</h3>
+<p>
+  Hoje a Lixeira só existe em CONFIGURAÇÕES DO MÓDULO, e ela cobre <strong>toda</strong>
+  exclusão de lançamento — inclusive as que você faz uma a uma pelo menu OPÇÕES da PESQUISAR.
+</p>
+<p>
+  <strong>Quem exclui um lançamento por engano na PESQUISAR não tem como saber que ele é
+  recuperável.</strong> Um aviso após a exclusão ("EXCLUÍDO. DÁ PARA RESTAURAR EM
+  CONFIGURAÇÕES &gt; LIXEIRA") custaria uma linha e resolveria.
+</p>
+
+<h3>Novo 2 — A lixeira mostra 30 dias, e isso é um número que eu escolhi</h3>
+<p>
+  O padrão de 30 dias foi decisão minha, sem você opinar. A função aceita qualquer período —
+  falta só a tela oferecer a escolha. <strong>Se 30 dias for pouco para o seu uso, diga um
+  número.</strong>
+</p>
+<div class="caixa honesto">
+  <span class="rotulo">E um limite real que você precisa conhecer</span>
+  <p>
+    A recuperação depende da <code>audit_log</code>. <strong>Se um dia alguém limpar essa
+    tabela, a lixeira esvazia junto</strong> — e não há aviso. Hoje nada no sistema a limpa;
+    estou registrando para o dia em que alguém pensar em "liberar espaço".
+  </p>
+</div>
+
+<h3>Novo 3 — O primeiro fechamento não entra no histórico</h3>
+<p>
+  Como expliquei em 6.6, o gatilho de auditoria cobre alteração e exclusão, não criação.
+  Fazer o primeiro fechamento aparecer exige mexer no gatilho <strong>da plataforma</strong>,
+  que serve a todas as tabelas. É decisão sua, e não a tomei sozinho.
+</p>
+
+<h3>Novo 4 — Os testes do módulo já demoram; vale separar os destrutivos</h3>
+<p>
+  O <code>teste_financeiro.sql</code> foi de 21 para 29 travas, e 8 delas criam contas e
+  apagam lançamentos. Ele continua rápido, mas o arquivo passou de 1.400 linhas.
+  <strong>Se um dia ficar pesado</strong>, o corte natural é separar
+  <code>teste_financeiro_manutencao.sql</code> — mesma tabela de resultado, execução
+  independente.
+</p>
+
+<h3>Novo 5 — Um "ensaio geral" que rode tudo de uma vez</h3>
+<p>
+  Hoje eu rodo, à mão, seis coisas em sequência para provar uma entrega: instalação limpa,
+  atualização, os dois testes, os dois inventários. <strong>Isso podia ser um script
+  só</strong> em <code>supabase/testes/ambiente-local/</code>, com uma saída de uma linha por
+  etapa.
+</p>
+<p>
+  O ganho não é para você — é para que a próxima conversa comigo <em>comece</em> com essa
+  prova, em vez de reconstruí-la. Foi o que mais tomou tempo hoje.
+</p>
+</section>
+
+<!-- ============ 11. O QUE FAZER AGORA ============ -->
+<section>
+<h2 id="s11">11. O que você precisa fazer agora</h2>
+
+<div class="caixa perigo">
+  <span class="rotulo">⚠️ ORDEM OBRIGATÓRIA — o SQL vem ANTES da Vercel</span>
+  <p>
+    As telas novas chamam <strong>4 funções que ainda não existem no seu banco</strong>. Se a
+    Vercel publicar antes de você rodar o SQL, a tela de CONFIGURAÇÕES vai dar erro de função
+    inexistente.
+  </p>
+</div>
+
+<h3>Passo 1 — No SQL Editor do Supabase</h3>
+<p>Limpe o editor (<kbd>Ctrl+A</kbd>) e cole <strong>um arquivo por vez</strong>:</p>
+<pre>1) supabase/criar-bd-financeiro/financeiro_01_schema.sql   ← idempotente, NÃO apaga dados</pre>
+<div class="caixa destaque">
+  <span class="rotulo">Este arquivo é seguro de rodar com os seus dados dentro</span>
+  <p>
+    Ele não apaga nada: cria o que falta e substitui as funções. É o roteiro 🅲 do
+    <code>LEIA-ME-ORDEM.md</code> ("só atualizar o módulo"), o caso mais comum.
+  </p>
+  <p>
+    <strong>O <code>financeiro_02_seed.sql</code> não é preciso</strong> — o nome, a descrição
+    e a função de limpeza do módulo não mudaram.
+  </p>
+</div>
+
+<h3>Passo 2 — Conferir que o banco ficou certo</h3>
+<pre>2) supabase/testes/inventario_financeiro.sql   ← tem de dar 17 linhas OK
+3) supabase/testes/inventario.sql              ← tem de dar 4 OK (antes dava 4 DIVERGE)</pre>
+<div class="caixa armadilha">
+  <span class="rotulo">⚠️ O que fazer se alguma linha disser DIVERGE</span>
+  <p>
+    <strong>Pare e me chame, com o print.</strong> As linhas <code>DETALHE</code> nomeiam o
+    objeto culpado — não é preciso rodar mais nada. A linha 17 (ASSINATURA), em especial,
+    mostra a assinatura esperada e a encontrada lado a lado.
+  </p>
+</div>
+
+<h3>Passo 3 — Enviar ao GitHub</h3>
+<p>
+  <strong>Eu não commitei nada.</strong> Os 24 arquivos alterados e os 7 novos estão no seu
+  diretório, prontos. Me diga e eu preparo a mensagem no padrão do projeto.
+</p>
+
+<h3>Passo 4 — Testar no sistema publicado</h3>
+<table>
+<thead><tr><th style="width:38px">#</th><th>O que testar</th><th>O que tem de acontecer</th></tr></thead>
+<tbody>
+<tr><td class="num">1</td><td>PESQUISAR → clicar numa linha</td><td>Abre a ficha completa</td></tr>
+<tr><td class="num">2</td><td>PESQUISAR → clicar em OPÇÕES</td><td>Abre o menu, e <strong>NÃO</strong> a ficha</td></tr>
+<tr><td class="num">3</td><td>CONFIGURAÇÕES → CONFERIR um mês</td><td>Mostra os números; <strong>nada some do extrato</strong></td></tr>
+<tr><td class="num">4</td><td>⭐ Conferir e <strong>depois mudar a data</strong></td><td>O relatório <strong>some</strong> e o botão trava</td></tr>
+<tr><td class="num">5</td><td>Excluir um período de teste</td><td>Some do extrato e <strong>aparece na Lixeira</strong></td></tr>
+<tr><td class="num">6</td><td>RESTAURAR na Lixeira</td><td>Volta ao extrato, na mesma data e ordem</td></tr>
+<tr><td class="num">7</td><td>Fechar um período e tentar excluir dentro dele</td><td>Recusa, nomeando a conta</td></tr>
+<tr><td class="num">8</td><td>FECHAMENTO → "HISTÓRICO DE FECHAMENTOS (VER)"</td><td>Lista quem alterou/excluiu cada fechamento</td></tr>
+</tbody>
+</table>
+
+<div class="caixa feito">
+  <span class="rotulo">✅ Sugestão de como testar o 5 e o 6 sem medo</span>
+  <p>
+    Crie uma conta movimento chamada <strong>TESTE</strong>, lance dois ou três valores nela
+    num mês qualquer, e faça a exclusão em lote <strong>só nessa conta</strong>. Nada do seu
+    movimento real é tocado — e você vê o ciclo inteiro (conferir → excluir → lixeira →
+    restaurar) com dado descartável.
+  </p>
+</div>
+
+<div class="caixa honesto">
+  <span class="rotulo">O que eu NÃO pude provar, e só você pode</span>
+  <ul>
+    <li>
+      <strong>Nada rodou no seu Supabase.</strong> Todas as provas de SQL foram num
+      PostgreSQL 18 descartável desta máquina.
+    </li>
+    <li>
+      <strong>Nada foi clicado numa tela de verdade.</strong> O build compila e a lógica tem
+      teste, mas clique, foco e propagação de evento só se provam no dedo — é o item 2 da
+      tabela acima.
+    </li>
+    <li>
+      <strong>O porteiro do reset da plataforma</strong> (entrega da manhã) continua sem ser
+      exercitado no seu banco. A instrução está no estudo anterior, seção 10.
+    </li>
+  </ul>
+</div>
+</section>
+
+<footer class="fim">
+  <p>
+    <strong>Estudo de 17/09/2026 — 2ª rodada</strong> · Plataforma Jairo O D C v10 · módulo C FINANCEIRO<br>
+    Arquivo: <code>_estudos/estudo-2026-09-17b-exclusao-em-lote-lixeira-e-bonus.html</code>
+  </p>
+  <p>
+    <strong>Entregue:</strong> pedido C (ficha na PESQUISAR) · pedido B (exclusão por período,
+    com simulação obrigatória e confirmação digitada) · os 7 bônus, incluindo a LIXEIRA que
+    torna a exclusão reversível · 2 defeitos antigos corrigidos · 4 funções novas no banco ·
+    7 arquivos novos · 24 alterados.
+  </p>
+  <p>
+    <strong>Medido:</strong> <code>npm test</code> 63/63 · <code>teste_financeiro.sql</code> 29/29 ·
+    <code>teste_rls.sql</code> 16/16 · <code>inventario_financeiro.sql</code> 17/17 ·
+    <code>inventario.sql</code> 4/4 · LEGO 0 violações · build compilado ·
+    caminho de atualização sem sobrecarga · 8 travas novas vistas falhar.
+  </p>
+  <p>
+    <strong>Pendente com você:</strong> rodar o <code>financeiro_01_schema.sql</code> no Supabase
+    <strong>antes</strong> de publicar, conferir os dois inventários, e o commit.
+  </p>
+</footer>
+
+</div><!-- /.folha -->
+
+<script>
+(function () {
+  'use strict';
+
+  var container = document.getElementById('printContainer');
+  var btn       = document.getElementById('printBtn');
+  var menu      = document.getElementById('printMenu');
+  var btnCores  = document.getElementById('btnCores');
+  var btnPB     = document.getElementById('btnPB');
+
+  if (!container || !btn || !menu || !btnCores || !btnPB) {
+    console.error('[IMPRESSAO] Elementos do menu de impressao nao encontrados.');
+    return;
+  }
+
+  function abrirMenu()  { menu.classList.add('aberto'); }
+  function fecharMenu() { menu.classList.remove('aberto'); }
+
+  /* ---- O botao abre e fecha. stopPropagation para o listener do
+          documento nao receber este mesmo clique e fechar na hora. ---- */
+  btn.addEventListener('click', function (event) {
+    event.stopPropagation();
+    if (menu.classList.contains('aberto')) {
+      fecharMenu();
+    } else {
+      abrirMenu();
+    }
+  });
+
+  /* ---- O MENU inteiro segura os eventos. E isto que permite passear
+          com o mouse entre as 2 opcoes sem o menu fechar. ---- */
+  menu.addEventListener('click',     function (event) { event.stopPropagation(); });
+  menu.addEventListener('mousedown', function (event) { event.stopPropagation(); });
+  menu.addEventListener('mouseup',   function (event) { event.stopPropagation(); });
+  menu.addEventListener('mouseover', function (event) { event.stopPropagation(); });
+  menu.addEventListener('mousemove', function (event) { event.stopPropagation(); });
+
+  /* ---- Fecha ao clicar FORA do container (nem no botao, nem no menu). ---- */
+  document.addEventListener('click', function (event) {
+    if (!container.contains(event.target)) {
+      fecharMenu();
+    }
+  });
+
+  /* Esc tambem fecha — reflexo de qualquer menu do sistema. */
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') { fecharMenu(); }
+  });
+
+  /* =================================================================
+     OPCAO "CORES (A4)"
+     Remove .print-bw, espera 100ms o navegador repintar, e imprime.
+     O @media print nao forca cor nenhuma: sai igual a tela.
+     ================================================================= */
+  btnCores.addEventListener('click', function (event) {
+    event.stopPropagation();
+    fecharMenu();
+    document.body.classList.remove('print-bw');
+    setTimeout(function () {
+      window.print();
+    }, 100);
+  });
+
+  /* =================================================================
+     OPCAO "PRETO & BRANCO (A4)"
+     Adiciona .print-bw, espera 100ms os estilos valerem, imprime,
+     e depois de 100ms remove a classe para a TELA voltar ao normal.
+     ================================================================= */
+  btnPB.addEventListener('click', function (event) {
+    event.stopPropagation();
+    fecharMenu();
+    document.body.classList.add('print-bw');
+    setTimeout(function () {
+      window.print();
+      setTimeout(function () {
+        document.body.classList.remove('print-bw');
+      }, 100);
+    }, 100);
+  });
+
+  console.log('[IMPRESSAO] Menu carregado com sucesso: Cores (A4) e Preto & Branco (A4). Sem erros.');
+}());
+</script>
+
+</body>
+</html>

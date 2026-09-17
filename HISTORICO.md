@@ -17,6 +17,185 @@ todas foram pagas com um defeito em produção.
 
 ---
 
+**2026-09-17 (segunda rodada) — v10: exclusão em lote, a LIXEIRA que já existia sem ninguém saber, e os sete bônus**
+
+Ele autorizou tudo do estudo da manhã, **menos o pedido A** — e pela razão certa:
+*"se já existe REABRIR, não precisa criar o pedido porque já tem função que gere o efeito
+desejado"*. Duplicar um caminho para o mesmo efeito seria criar duas regras onde há uma.
+
+**O QUE ENTROU:** pedido C (ficha na PESQUISAR), pedido B (excluir lançamentos por período)
+e os 7 bônus.
+
+> 🎁 **A DESCOBERTA QUE MUDOU O PROJETO DO PEDIDO B: a lixeira já existia, e ninguém
+> estava olhando.** O gatilho `audit_fin_lanc` é `AFTER UPDATE OR DELETE ... FOR EACH ROW`
+> e a `registrar_auditoria()` grava `dados_antes = to_jsonb(OLD)` — **o registro inteiro,
+> campo por campo**, antes de morrer. Isso sempre esteve lá; faltava a janela. Com
+> `fin_listar_exclusoes` e `fin_restaurar_lancamento` (nenhuma tabela nova), a exclusão em
+> massa deixou de ser irreversível. Foi o que tornou o pedido B aceitável.
+
+**As decisões do pedido B, e o porquê de cada uma:**
+
+| Decisão | Por quê |
+|---|---|
+| `p_simular` com padrão **`true`** | Esquecer o argumento tem de ser inofensivo. O caminho seguro precisa ser o preguiçoso |
+| Quem **conta** é quem **apaga** | Com duas contagens, um dia a tela diz 137 e o banco apaga 141 — e a confirmação vira mentira |
+| Fechamento **preciso**, não rígido | A leitura rígida puniria quem fecha o mês todo mês: a ferramenta ficaria só para quem NÃO fecha |
+| Permissão própria `lc_excluir_lote` | "Apagar UM lançamento alheio" e "apagar UM ANO" são poderes de tamanhos diferentes |
+| Digitar o NÚMERO para confirmar | "Tem certeza?" é clicado no automático. Digitar 137 obriga a LER e a CONCORDAR |
+
+> ⚠️ **A TRANSFERÊNCIA SAI INTEIRA, INCLUSIVE A PERNA FORA DO FILTRO (RN-23).** Apagar só
+> a perna que casa com o filtro deixaria a OUTRA conta com dinheiro que não veio de lugar
+> nenhum. Por isso o conjunto é expandido por `transferencia_id` ANTES de conferir
+> fechamento e de apagar — e o relatório devolve `fora_do_filtro` separado, para a tela
+> avisar que "apagar setembro do CAIXA" vai mexer no BANCO.
+
+> ⚠️ **`CREATE TEMP TABLE` DENTRO DE `SECURITY DEFINER` FOI TROCADO POR ARRAY.** A primeira
+> versão usava tabela temporária; o PostgreSQL procura relações em `pg_temp` **antes** do
+> `search_path` declarado, então quem chama poderia criar uma tabela com aquele nome na
+> sessão dele e a função passaria a trabalhar sobre ela. `uuid[]` + `jsonb[]` com `unnest`
+> são variáveis: não existem fora da função, e não há o que sequestrar.
+
+**OS SETE BÔNUS — e dois deles corrigiram defeitos que JÁ ESTAVAM no banco dele:**
+
+1. **Lixeira + restaurar** — descrito acima.
+2. **`lc_excluir_lote`** — a 18ª permissão.
+3. **Trava de intenção no `financeiro_00_reset.sql`** — ele apagava os lançamentos de
+   TODAS as empresas sem trava nenhuma.
+4. **`fin_periodo_fechado` ganhou `p_tenant_id`** — era a única função do módulo sem
+   filtro de empresa.
+5. **Conferência de ASSINATURA no inventário do módulo** (linha 17).
+6. **Histórico de fechamentos** — `fin_fechamentos` tem UMA linha por conta, então reabrir
+   apagava o vestígio; o histórico sai da auditoria.
+7. **Teste da camada de tela** — na forma que cabe, ver abaixo.
+
+> ⚠️ **EU ERREI NO ESTUDO DA MANHÃ, E O CÓDIGO ME CORRIGIU.** Eu havia escrito que o
+> `inventario_financeiro.sql` "não conta as funções do módulo". **Conta desde sempre** (é a
+> linha 2), e a linha 7 já pegava sobrecarga. O que faltava mesmo era outra coisa: contar
+> pega a função que SUMIU e a que SOBROU, mas **não a que MUDOU DE FORMA** — trocar um
+> parâmetro deixa o total igual e o inventário diz OK. Daí a linha 17 nova, que compara a
+> lista INTEIRA de assinaturas. Provada sabotando `fin_saldo_atual`: a linha 2 disse OK e a
+> 17 nomeou o culpado com as duas assinaturas lado a lado.
+
+> ⚠️ **DOIS DEFEITOS ANTIGOS APARECERAM AO ENSAIAR, NÃO AO LER.**
+> **(a)** O `financeiro_00_reset.sql` **nunca derrubou as duas funções de importação** —
+> elas nasceram em 13/09/2026 e ninguém as pôs na lista de baixa. O reset dizia "pronto"
+> deixando duas funções `fin_*` vivas: um módulo "desplugado" com código instalado.
+> **(b)** O `inventario.sql` da PLATAFORMA contava tudo que havia no schema `public`. Com o
+> módulo instalado — que é o estado do banco dele — as **quatro** contagens davam DIVERGE
+> (12 tabelas onde esperava 7, 51 funções onde esperava 27) e as 24 funções do módulo
+> apareciam como "SOBRANDO". Vermelho falso desde que o módulo foi plugado, e **vermelho
+> falso ensina a ignorar o vermelho**. O conserto: a plataforma passa a contar **as próprias
+> peças, pelo nome**, e para ignorar as de módulo **deduz o prefixo de
+> `platform_modules.funcao_limpeza`** — sem escrever o nome de módulo nenhum, que o LEGO
+> proíbe.
+
+> ⚠️ **O `BEGIN;` TEM DE VIR ANTES DA TRAVA — descoberto errando.** Na primeira versão da
+> trava do reset do módulo eu pus o `BEGIN;` **depois** do bloco que recusa. O ensaio com
+> `psql -f` sem `ON_ERROR_STOP` mostrou o buraco na hora: o erro era impresso, o psql seguia
+> para a instrução seguinte — que era o próprio `BEGIN;` — e **as 4 tabelas caíam com a
+> trava fechada**. A transação abria depois do erro.
+
+**O BÔNUS 7, NA FORMA HONESTA.** Testar o `.tsx` de verdade **não cabe hoje, e isso foi
+medido**: o `npm test` roda `node --test`, e o Node 24 remove anotações de tipo mas **não
+lê JSX** (`SyntaxError: Unexpected token '<'`). Seriam de 3 a 5 dependências novas num
+projeto com **zero** — e mudança no que a Vercel instala, num projeto cujo dono não roda
+nada local. O caminho que cabe é o que a própria regra do projeto já manda: **tirar a
+DECISÃO de dentro da tela**. Nasceram `manutencaoRegras.ts` e 19 testes. A trava mais
+importante deles: **mexer no filtro DEPOIS de conferir invalida a conferência** — sem isso,
+conferir setembro (137) e trocar para janeiro deixaria o botão dizendo 137 sobre outro
+período. É a mesma classe de defeito da sugestão de ordem presa a `[contaId, data]`.
+**Não cobre clique, foco nem propagação de evento, e eu não vou fingir que cobre.**
+
+**Placar, tudo medido em PostgreSQL 18 local:** `npm test` **63/63** (eram 44) ·
+`teste_rls.sql` **16/16** · `teste_financeiro.sql` **29/29** (eram 21) ·
+`inventario_financeiro.sql` **17/17** · `inventario.sql` **4/4 com o módulo instalado**
+(antes dava DIVERGE nas quatro) · verificador de LEGO sem violação · build compilado.
+
+**As 8 travas novas foram todas vistas FALHAR**, uma a uma, sabotando a proteção que cada
+uma guarda. Uma das sabotagens foi **erro meu**: trocar `ON CONFLICT DO NOTHING` por um
+`NOT EXISTS` equivalente manteve o comportamento correto, e o teste ficou verde com razão.
+Refeita removendo a proteção de vez, a trava 26 acusou `23505 duplicar valor da chave`.
+
+---
+
+**2026-09-17 — v10: o porteiro do reset, e oito divergências entre o que a doc diz e o que o código faz**
+
+Dois pedidos autorizados no mesmo dia: **corrigir as divergências doc × código** apontadas
+pelo estudo de engenharia reversa de 16/09, e **gerar o porteiro** que faz o
+`plataforma_00_reset.sql` recusar rodar com módulo instalado — a armadilha que a entrada
+de 16/09, logo abaixo, só tinha conseguido *documentar*.
+
+**AS DIVERGÊNCIAS ERAM 7 NA LISTA; FORAM ENCONTRADAS 8.** Todas corrigidas:
+
+| # | O que a doc/comentário dizia | O que o código faz |
+|---|---|---|
+| 1 | `CLAUDE.md`: "Não há scripts de teste em nenhum pacote" | A raiz tem `npm test` com **44 testes** |
+| 2 | `CLAUDE.md`: "25 funções" no schema da plataforma | **27** |
+| 3 | `CLAUDE.md`: a raiz "ainda declara um script de build do core" | Não declara; são 6 scripts, nenhum deles |
+| 4 | `CLAUDE.md`: listava `dashboard/tenants/actions.ts` | Não existe; e faltavam `dashboard/modulos/`, `privacidade/` e 3 arquivos de `src/lib/` |
+| 5 | `registro.ts`: "Hoje a lista está VAZIA" | Registra um módulo desde o degrau 6 |
+| 6 | `dashboard/modulos/page.tsx`: "com zero módulos plugados (o estado de hoje)" | Há um; o aviso de estado vazio é condicional e não aparece |
+| 7 | `package.json`: nome `plataforma-jairo-o-d-c-v4` | Projeto na v10 — sete versões de defasagem |
+| **8** | 3 arquivos citavam `LoginGoogleOwnerView` | Virou `LoginGoogleView.tsx` em 13/09/2026 |
+
+> ⚠️ **A Nº 1 ERA A PERIGOSA, E NÃO PELO TEXTO.** Uma doc que diz não haver teste ensina
+> que não existe rede de proteção — e convida a entregar sem rodar nada. Ela estava lá
+> enquanto o `npm test` passava 44 verdes.
+
+> ⚠️ **A Nº 7 NÃO SE CORRIGE À MÃO.** Trocar o nome no `package.json` sem o
+> `package-lock.json` desincroniza os dois, e é isso que o `npm ci` da Vercel recusa —
+> quebraria a publicação por um detalhe cosmético. O certo é alterar o `package.json` e
+> deixar o **npm** regravar o lockfile: `npm install --package-lock-only`. Resultado
+> medido: **2 linhas** mudadas no lockfile, zero mexida em dependência.
+
+**O PORTEIRO — e por que ele não pode citar o nome de um módulo.** Um porteiro escrito
+como `IF to_regclass('public.fin_lancamentos') IS NOT NULL` seria uma **quarta solda
+clandestina** (a plataforma passaria a conhecer a peça, contra a regra do LEGO) e ainda
+ficaria **cego para o segundo módulo**. Então ele não procura nomes — procura **o dano**,
+em duas travas: (1) chave estrangeira de tabela que **não é** da plataforma apontando para
+tabela que o reset vai derrubar; (2) linha sobrando em `platform_modules`. Serve para o
+módulo de hoje, para os de amanhã e para qualquer tabela avulsa.
+
+> ⚠️ **O PORTEIRO SOZINHO NÃO BASTAVA — E SÓ O ENSAIO MOSTROU.** Com o módulo instalado,
+> `psql -f plataforma_00_reset.sql` **sem** `-v ON_ERROR_STOP=1` imprimia a recusa e
+> **seguia para a instrução seguinte**: `users` e `tenants` caíram e as **8 chaves do
+> módulo foram destruídas** — exatamente o estrago que o porteiro existia para impedir,
+> agora com um aviso já rolado para fora da tela. O SQL Editor do Supabase **aborta
+> sozinho** (manda o arquivo como lote único, que o PostgreSQL embrulha numa transação
+> implícita — provado com um lote de duas instruções), mas porteiro que protege só num
+> cliente é meio porteiro. **A correção foi envolver o arquivo em `BEGIN;` … `COMMIT;`**,
+> e de brinde o reset ficou atômico: ou volta tudo ao estado limpo, ou nada muda.
+
+**As seis provas, num PostgreSQL 18 descartável desta máquina** — e o porteiro foi visto
+**recusar antes** de ser visto liberar:
+
+| Cenário | Esperado | Medido |
+|---|---|---|
+| A · Plataforma + módulo instalados | Recusa, nomeando as 4 tabelas | Recusou; **2** tabelas de plataforma e **8** chaves intactas |
+| B · Reset do módulo primeiro | Tabelas `fin_*` e catálogo a zero | 0 e 0 |
+| C · Reset da plataforma depois | "PORTEIRO OK", 7 tabelas derrubadas | exit 0; 7 derrubadas |
+| D · Banco virgem (sem `platform_modules`) | Não estoura | "PORTEIRO OK", exit 0 |
+| E · Só a linha do catálogo sobrando | Recusa pela trava 2 | Recusou, nomeando o módulo |
+| F · Pior caso: cliente que ignora erro | Nada é derrubado | **2** tabelas e **8** chaves sobreviveram |
+
+Reconstrução completa no mesmo banco depois de tudo: `teste_rls.sql` **16/16 PASSOU**
+localmente, `npm test` **44/44**, verificador de LEGO sem violação.
+
+> ⚠️ **O VERIFICADOR DE LEGO ACUSOU UMA CORREÇÃO MINHA — E TINHA RAZÃO PELA METADE.** Ao
+> reescrever o comentário de `dashboard/modulos/page.tsx` eu escrevi o nome do módulo
+> dentro de um `{/* … */}`. O `ehComentario` dele é **linha a linha**, então a linha de
+> continuação (que não começa com `//`, `*` ou `--`) foi lida como código e virou violação
+> R1/R8. É **falso positivo** do verificador — mas a correção certa é tirar o nome do
+> comentário, não relaxar o verificador. Ele apanhou o gesto errado pelo motivo quase
+> certo.
+
+**Três números defasados foram corrigidos de quebra**, todos do tipo que não quebra nada e
+só ensina o errado: `LEIA-ME-ORDEM.md` dizia "os 8 arquivos" listando 10 e "25 funções";
+o README do ambiente local dizia "**14 linhas**, todas PASSOU" onde o teste tem **16**.
+Cada um ganhou, na mesma linha, o comando que o recalcula.
+
+---
+
 **2026-09-16 (noite) — v10: o LEIA-ME-ORDEM, e a armadilha que ele desenterrou**
 
 Nasceu o `supabase/LEIA-ME-ORDEM.md`: qual dos 10 SQLs rodar, em que ordem e em qual

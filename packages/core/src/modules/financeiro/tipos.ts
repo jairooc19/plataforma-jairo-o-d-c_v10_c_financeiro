@@ -135,7 +135,8 @@ export interface FechamentoDaConta {
 }
 
 /**
- * As 17 permissões do módulo (especificação, seção 4.3).
+ * As 18 permissões do módulo (especificação, seção 4.3; a 18ª, `lc_excluir_lote`,
+ * entrou em 17/09/2026 com a exclusão em lote).
  *
  * ⚠️ ESTA LISTA É A FONTE ÚNICA. A tela de permissões do Dependente a desenha,
  * e as funções do banco conferem a mesma chave — uma diferença de grafia entre
@@ -146,6 +147,21 @@ export const PERMISSOES_FINANCEIRO = [
   'ci_ver', 'ci_gravar', 'ci_excluir',
   'lc_ver_todos', 'lc_criar', 'lc_editar_proprios', 'lc_editar_todos',
   'lc_excluir_proprios', 'lc_excluir_todos',
+  /**
+   * ⚠️ 17/09/2026 — `lc_excluir_lote` NÃO É REDUNDANTE COM `lc_excluir_todos`,
+   * e separá-las foi decisão consciente.
+   *
+   * "Pode apagar UM lançamento que não é seu" e "pode apagar UM ANO INTEIRO"
+   * são poderes de tamanhos diferentes. Com uma permissão só, dar a primeira a
+   * um auxiliar daria a segunda de brinde.
+   *
+   * Ela governa três funções do banco: a exclusão em lote, a listagem da
+   * lixeira e a restauração — porque quem pode desfazer em massa precisa do
+   * mesmo grau de confiança de quem pode fazer.
+   *
+   * O Proprietário tem tudo por ser OWNER; quem trata isso é a `fin_pode()`.
+   */
+  'lc_excluir_lote',
   'transferencia', 'extrato_ver', 'conciliar', 'imprimir', 'fechar_periodo',
 ] as const;
 
@@ -165,6 +181,7 @@ export const ROTULO_DA_PERMISSAO: Record<PermissaoFinanceiro, string> = {
   lc_editar_todos: 'EDITAR LANÇAMENTOS DE QUALQUER PESSOA',
   lc_excluir_proprios: 'EXCLUIR OS PRÓPRIOS LANÇAMENTOS',
   lc_excluir_todos: 'EXCLUIR LANÇAMENTOS DE QUALQUER PESSOA',
+  lc_excluir_lote: 'EXCLUIR LANÇAMENTOS EM LOTE E RESTAURAR DA LIXEIRA',
   transferencia: 'REGISTRAR TRANSFERÊNCIA ENTRE CONTAS',
   extrato_ver: 'VER A CONFERÊNCIA DA CONTA (SALDOS)',
   conciliar: 'MARCAR LANÇAMENTOS COMO CONFERIDOS',

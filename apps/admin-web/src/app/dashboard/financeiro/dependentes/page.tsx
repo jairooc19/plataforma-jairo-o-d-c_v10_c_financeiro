@@ -9,6 +9,9 @@ import {
 } from "@jairo/core";
 import { useEmpresaAtiva } from "@/components/financeiro/useEmpresaAtiva";
 import IconeFin from "@/components/financeiro/IconeFin";
+import ExclusaoPorPeriodo from "@/components/financeiro/manutencao/ExclusaoPorPeriodo";
+import LixeiraDeLancamentos from "@/components/financeiro/manutencao/LixeiraDeLancamentos";
+import HistoricoDeFechamentos from "@/components/financeiro/manutencao/HistoricoDeFechamentos";
 
 /**
  * 🔑 TELA: DEPENDENTES E FECHAMENTO DE PERÍODO (PJODC v10)
@@ -39,6 +42,18 @@ export default function DependentesPage() {
   const [contaFechar, setContaFechar] = useState("");
   const [dataFechar, setDataFechar] = useState("");
   const [observacao, setObservacao] = useState("");
+
+  /**
+   * Um contador que só cresce, para a LIXEIRA saber que precisa reler.
+   *
+   * ⚠️ É UM CONTADOR, E NÃO UM BOOLEANO OU O PRÓPRIO RELATÓRIO. A lição está no
+   * `CLAUDE.md`: prender um efeito ao que MUDA falha quando a tela foi feita
+   * para NÃO mudar. Duas exclusões seguidas com o mesmo filtro produziriam o
+   * mesmo valor, o efeito não dispararia, e a lixeira mostraria a lista
+   * anterior — sem erro nenhum para denunciar. Um número que só cresce é o
+   * jeito de dizer "leia de novo, mesmo que nada pareça diferente".
+   */
+  const [excluiuAgora, setExcluiuAgora] = useState(0);
 
   const carregar = useCallback(async () => {
     if (!tenantId) return;
@@ -263,7 +278,38 @@ export default function DependentesPage() {
               })}
             </ul>
           )}
+
+          {/*
+            📜 BÔNUS 6 (17/09/2026) — o histórico que a tabela não guarda.
+            `fin_fechamentos` tem UMA linha por conta, então reabrir apaga o
+            vestígio. O histórico sai da trilha de auditoria.
+          */}
+          <HistoricoDeFechamentos tenantId={tenantId} />
         </section>
+      )}
+
+      {/*
+        🗑️ EXCLUSÃO EM LOTE E LIXEIRA (17/09/2026)
+
+        ⚠️ AS DUAS PEDEM `lc_excluir_lote`, E NÃO `lc_excluir_todos`. São
+        poderes de tamanhos diferentes: "apagar UM lançamento que não é seu" e
+        "apagar UM ANO inteiro". Com uma permissão só, dar a primeira a um
+        auxiliar daria a segunda de brinde.
+
+        ⚠️ E ESCONDER O PAINEL NÃO É CONTROLE DE ACESSO — é conforto. Quem
+        recusa de verdade são as funções do banco, que conferem `fin_pode()`
+        por dentro (RN-25). O `pode()` aqui só evita mostrar uma porta que o
+        banco fecharia.
+      */}
+      {pode("lc_excluir_lote") && (
+        <>
+          <ExclusaoPorPeriodo
+            tenantId={tenantId}
+            contas={contas}
+            aoConcluir={() => setExcluiuAgora((n) => n + 1)}
+          />
+          <LixeiraDeLancamentos tenantId={tenantId} recarregarAo={excluiuAgora} />
+        </>
       )}
     </div>
   );

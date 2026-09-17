@@ -40,8 +40,42 @@ $PSQL -d pjodc_local -v ON_ERROR_STOP=1 -f supabase/criar-bd/plataforma_02_seed.
 $PSQL -d pjodc_local                    -f supabase/testes/teste_rls.sql
 ```
 
-O último comando tem de imprimir **14 linhas, todas PASSOU** — o mesmo resultado
-que o banco publicado deu em 12/09/2026.
+O último comando tem de imprimir **16 linhas, todas PASSOU** — o mesmo resultado
+que o banco publicado deu.
+
+> ⚠️ **ESTA LINHA DIZIA "14 linhas" ATÉ 17/09/2026.** O `teste_rls.sql` ganhou as
+> travas 15 e 16 e ninguém atualizou aqui. Número escrito à mão numa folha de
+> instruções envelhece calado — e um "14" faria alguém achar que duas travas a
+> mais são defeito. **Confira o total no arquivo antes de confiar na folha** —
+> cada trava grava um veredito, e são esses `INSERT` que o `SELECT` final imprime:
+>
+> ```bash
+> grep -c "INSERT INTO public.resultado_teste_rls VALUES" supabase/testes/teste_rls.sql
+> ```
+>
+> Hoje: **16**.
+
+## Conferir também o MÓDULO e o PORTEIRO do reset (17/09/2026)
+
+O ambiente local também aplica o módulo e exercita o porteiro do
+`plataforma_00_reset.sql` — foi assim que ele foi validado antes de existir:
+
+```bash
+$PSQL -d pjodc_local -v ON_ERROR_STOP=1 -f supabase/criar-bd-financeiro/financeiro_01_schema.sql
+$PSQL -d pjodc_local -v ON_ERROR_STOP=1 -f supabase/criar-bd-financeiro/financeiro_02_seed.sql
+
+# Com o módulo instalado, o reset da plataforma TEM de recusar (sai com código 3):
+$PSQL -d pjodc_local -v ON_ERROR_STOP=1 -f supabase/criar-bd/plataforma_00_reset.sql
+
+# Na ordem certa, os dois passam:
+$PSQL -d pjodc_local -v ON_ERROR_STOP=1 -f supabase/criar-bd-financeiro/financeiro_00_reset.sql
+$PSQL -d pjodc_local -v ON_ERROR_STOP=1 -f supabase/criar-bd/plataforma_00_reset.sql
+```
+
+> ⚠️ **RODE TAMBÉM SEM O `-v ON_ERROR_STOP=1`.** É o teste que importa: sem ele o
+> psql imprime o erro e **segue para a instrução seguinte**. Foi esse ensaio que
+> mostrou, em 17/09/2026, que o porteiro sozinho não bastava — e que o arquivo
+> precisava do `BEGIN;`/`COMMIT;` que ele tem hoje.
 
 ## Derrubar e apagar
 
