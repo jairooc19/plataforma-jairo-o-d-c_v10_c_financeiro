@@ -17,6 +17,53 @@ todas foram pagas com um defeito em produção.
 
 ---
 
+**2026-09-16 (noite) — v10: o LEIA-ME-ORDEM, e a armadilha que ele desenterrou**
+
+Nasceu o `supabase/LEIA-ME-ORDEM.md`: qual dos 10 SQLs rodar, em que ordem e em qual
+das quatro situações (banco novo, recomeçar do zero, só atualizar o módulo, desplugar).
+Era para ser meia hora de escrita. Virou outra coisa ao conferir a ordem dos dois resets.
+
+> ⚠️ **RODAR O `plataforma_00_reset.sql` COM O MÓDULO INSTALADO DESTRÓI AS CHAVES DO
+> MÓDULO PARA SEMPRE — EM SILÊNCIO.** Medido num PostgreSQL 18, três passos:
+> módulo instalado **11 chaves** → após o reset da plataforma **3** → após reconstruir
+> **tudo**, módulo incluso, **3**. O reset derruba `tenants` e `users` com `CASCADE`: as
+> tabelas `fin_*` **sobrevivem** (o reset é restrito ao CORE, de propósito) mas as 8
+> chaves delas para a plataforma vão junto. **E reaplicar o `financeiro_01_schema.sql`
+> não as traz de volta:** `CREATE TABLE IF NOT EXISTS` vê a tabela de pé e pula o bloco
+> inteiro — e as chaves moram dentro dele. O módulo fica sem a amarra `tenant_id →
+> tenants`, e apagar uma empresa passa a deixar lançamentos órfãos. Nada reclama.
+> **A ordem certa é o reset do MÓDULO primeiro**, e aí as 11 chaves voltam inteiras.
+
+> ⚠️ **A LIÇÃO GERAL, maior que este caso:** "schema idempotente" não quer dizer
+> "conserta o que estiver errado". `CREATE TABLE IF NOT EXISTS` **não compara nada** —
+> constraint perdida, coluna nova e default alterado ficam de fora para sempre.
+
+**O inventário aprendeu a pegar isso, e passou a ter 16 linhas.** A linha 16 (AMARRAS)
+espera 8 chaves de `fin_*` para a plataforma; no banco estragado ela diz `8 → 0` e as
+linhas DETALHE nomeiam as quatro tabelas soltas. **Provado nos dois sentidos:** 16/16 OK
+num banco do zero (os 5 arquivos sem um único erro) e DIVERGE no banco com o estrago.
+
+> **Medida de brinde, para o documento não afirmar o que não foi medido:** aplicar o
+> `financeiro_01_schema.sql` num banco SEM a plataforma estoura **47 vezes** — e o SQL
+> Editor mostra só o primeiro erro, que fala de uma tabela que ninguém esperava ver
+> citada ali. Por isso a ordem plataforma→módulo ganhou explicação, e não só um número.
+
+> ⚠️ **ARMADILHA DE FERRAMENTA, A MESMA DE HORAS ANTES, E EU CAÍ NELA DE NOVO:**
+> `open(p, "wb").write(s.encode())` avalia o `open` **antes** do `encode` — o arquivo
+> é truncado e, se a codificação estourar, sobra **zero byte**. De manhã zerou o
+> `useNovoLancamento.ts`; à noite zerou o próprio `CLAUDE.md`. Os dois recuperados com
+> `git checkout`, porque estavam commitados. **Codificar para uma variável primeiro, e
+> só então abrir o arquivo** — virou regra, depois de duas.
+
+> ⚠️ **E UM SUSTO QUE NÃO ERA DEFEITO:** durante as medições, o `plataforma_01_schema.sql`
+> parecia criar só 2 das 7 tabelas e funcionar na segunda tentativa. **Não é defeito do
+> arquivo:** era o meu roteiro conectando ao banco recém-criado antes de ele estar
+> pronto, e o `00_supabase_falso.sql` falhando calado. Com uma consulta de espera entre
+> `CREATE DATABASE` e o primeiro uso, os 5 arquivos rodam com **zero erros**. Fica
+> registrado para ninguém "consertar" um schema que está certo.
+
+---
+
 **2026-09-16 (tarde) — v10: a ordem que voltou, e o inventário do módulo**
 
 Dois pedidos dele, e um defeito mais grave achado no caminho do primeiro.

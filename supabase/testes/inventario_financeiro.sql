@@ -27,12 +27,13 @@
 -- nesse momento que nascem os defeitos que ele pega.
 --
 -- ---------------------------------------------------------------------------
--- ⚠️ SEIS NÚMEROS AQUI SÃO ESCRITOS À MÃO. AO MUDAR O SCHEMA, MUDE-OS JUNTO.
+-- ⚠️ SETE NÚMEROS AQUI SÃO ESCRITOS À MÃO. AO MUDAR O SCHEMA, MUDE-OS JUNTO.
 -- ---------------------------------------------------------------------------
 --
--- São as linhas 1 a 5 e a 9: tabelas (4), funções (20), policies (4), triggers
--- (8), índices (16) e funções alcançáveis pelo app (18). **Eles não podem ser
--- deduzidos do catálogo** — deduzi-los seria perguntar ao banco se o banco
+-- São as linhas 1 a 5, a 9 e a 16: tabelas (4), funções (20), policies (4),
+-- triggers (8), índices (16), funções alcançáveis pelo app (18) e chaves para a
+-- plataforma (8). **Eles não podem ser deduzidos do catálogo** — deduzi-los
+-- seria perguntar ao banco se o banco
 -- concorda consigo mesmo, e a resposta seria sempre sim. Eles são a AFIRMAÇÃO
 -- do `financeiro_01_schema.sql`, e é justamente a comparação entre a afirmação
 -- e o banco que faz este arquivo valer alguma coisa.
@@ -147,6 +148,26 @@ fks_do_modulo AS (
      AND orig.relname LIKE 'fin\_%'
      AND dest.relname LIKE 'fin\_%'
 ),
+-- ⚠️ AS CHAVES DO MÓDULO PARA A PLATAFORMA — a linha 16, e ela existe por um
+-- defeito MEDIDO em 16/09/2026. Rodar o `plataforma_00_reset.sql` com o módulo
+-- ainda instalado derruba `tenants` e `users` com CASCADE: as tabelas `fin_*`
+-- SOBREVIVEM (o reset é restrito ao CORE, de propósito) mas as 8 chaves delas
+-- para a plataforma são destruídas em silêncio. E reaplicar o
+-- `financeiro_01_schema.sql` NÃO as traz de volta: `CREATE TABLE IF NOT EXISTS`
+-- vê a tabela de pé e pula o bloco inteiro, chaves inclusas.
+--
+-- O estrago é permanente e mudo: apagar uma empresa passaria a deixar
+-- lançamentos órfãos para sempre, sem ninguém reclamar. Esta linha é o único
+-- lugar do projeto que percebe.
+fks_para_a_plataforma AS (
+  SELECT con.conname, orig.relname AS de, dest.relname AS para
+    FROM pg_constraint con
+    JOIN pg_class orig ON orig.oid = con.conrelid
+    JOIN pg_class dest ON dest.oid = con.confrelid
+   WHERE con.contype = 'f'
+     AND orig.relname LIKE 'fin\_%'
+     AND dest.relname NOT LIKE 'fin\_%'
+),
 -- As duas funções que NÃO podem ter GRANT: são chamadas de dentro de outras
 -- `SECURITY DEFINER` e não precisam dele. Expostas, deixariam embaralhar o
 -- extrato alheio e apagar os dados de uma empresa sem checagem de permissão.
@@ -209,6 +230,9 @@ placar AS (
   UNION ALL
   SELECT 15, 'RN-29', 'Chaves estrangeiras SIMPLES entre tabelas do modulo',
          '0', (SELECT count(*)::text FROM fks_do_modulo WHERE colunas < 2)
+  UNION ALL
+  SELECT 16, 'AMARRAS', 'Chaves das tabelas do modulo para a plataforma (tenants/users)',
+         '8', (SELECT count(*)::text FROM fks_para_a_plataforma)
 ),
 
 -- ---------------------------------------------------------------------------
@@ -249,6 +273,12 @@ detalhe AS (
    WHERE prosecdef
      AND (proconfig IS NULL
           OR NOT EXISTS (SELECT 1 FROM unnest(proconfig) c WHERE c LIKE 'search\_path=%'))
+  UNION ALL
+  SELECT 116, 'AMARRAS', 'Tabela do modulo SEM chave para tenants: ' || t.relname,
+         'tem chave', 'SOLTA'
+    FROM tabelas t
+   WHERE NOT EXISTS (SELECT 1 FROM fks_para_a_plataforma f
+                      WHERE f.de = t.relname AND f.para = 'tenants')
   UNION ALL
   SELECT 115, 'RN-29', 'Chave simples entre tabelas do modulo: ' || conname
          || ' (' || de || ' -> ' || para || ')', '2 colunas', colunas::text || ' coluna'

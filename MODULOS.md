@@ -57,7 +57,7 @@ apps/admin-web/src/components/financeiro/        os componentes
 packages/core/src/modules/financeiro/            regras de negócio + manifesto
 supabase/criar-bd-financeiro/                    o banco (4 tabelas, 20 funções)
 supabase/testes/teste_financeiro.sql             as travas do módulo (21 testes)
-supabase/testes/inventario_financeiro.sql        o inventário do módulo (15 linhas, só lê)
+supabase/testes/inventario_financeiro.sql        o inventário do módulo (16 linhas, só lê)
 ```
 
 E a documentação dele, que também é do módulo:

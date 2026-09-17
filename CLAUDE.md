@@ -96,6 +96,7 @@ plataforma-jairo-o-d-c-v4/
 │   │                         (conferem o schema da plataforma e o do módulo: 15 linhas, só leem)
 │   │   └── ambiente-local/ → 🆕 sobe um PostgreSQL descartável e valida o SQL antes do Supabase
 │   ├── migrations/         → vazia; ler o README antes do primeiro dado real
+│   ├── LEIA-ME-ORDEM.md    → 🆕 qual SQL rodar, em que ordem, em qual situação
 │   └── config.toml         → Configuração do Supabase CLI
 ├── scripts/
 │   └── verificar-modulos.mjs  → 🆕 degrau 5: o verificador de LEGO
@@ -963,6 +964,9 @@ inclusive numa máquina limpa — foi por isso que a versão com bcrypt foi reve
 - ❌ Nunca repetir a regra de deslocamento da ordem (RN-12) fora de `fin_abrir_espaco_na_ordem` — a cópia é a que esquece o `p_excluir_id`, e aí o lançamento editado empurra a si mesmo
 - ❌ Nunca conceder `GRANT` a função interna de módulo — chamada de dentro de uma `SECURITY DEFINER` ela não precisa, e exposta deixaria embaralhar o extrato alheio sem checagem de permissão; exclua-a do teste do caminho feliz, com o motivo escrito
 - ❌ Nunca ler `42501 Sem permissao` de um módulo como problema de permissão antes de conferir o seed — sem a linha do módulo em `platform_modules`, a `fin_pode()` nega tudo, e a mensagem não menciona catálogo nenhum
+- ❌ Nunca rodar o `plataforma_00_reset.sql` com um módulo ainda instalado — o `DROP TABLE … CASCADE` de `tenants` e `users` destrói em silêncio as 8 chaves estrangeiras das tabelas `fin_*` para a plataforma, as tabelas SOBREVIVEM, e reaplicar o schema do módulo NÃO as recria (`CREATE TABLE IF NOT EXISTS` pula o bloco inteiro); o reset do MÓDULO vem primeiro — ver `supabase/LEIA-ME-ORDEM.md`
+- ❌ Nunca supor que reaplicar um schema idempotente conserta uma tabela existente — `CREATE TABLE IF NOT EXISTS` não compara nada: constraint perdida, coluna nova e default alterado ficam de fora para sempre, sem um aviso
+- ❌ Nunca gravar arquivo com `open(p, "wb").write(s.encode())` — o `open` é avaliado ANTES do `encode` e trunca o arquivo; se a codificação estourar, sobra ZERO byte. Codifique para `bytes` numa variável e só então abra o arquivo (zerou o `CLAUDE.md` em 16/09/2026, recuperado do commit)
 - ❌ Nunca prender uma sugestão de campo só ao que MUDA quando a tela foi feita para NÃO mudar — o bônus N2 mantém conta e data após gravar, e a sugestão de ordem, presa a `[contaId, data]`, nunca mais rodava; um contador que só cresce é o jeito de dizer "pergunte de novo, mesmo que nada tenha mudado"
 - ❌ Nunca deixar uma sugestão automática rodar durante a EDIÇÃO de um registro — ela sobrescreve o dado real pelo palpite e a gravada seguinte move o registro sem avisar; a guarda vai no EFEITO, nunca dentro da busca, senão ela lê o valor antigo do fecho quando `limparFormulario` zera o modo de edição
 - ❌ Nunca conferir privilégio de função com `has_function_privilege('anon', …)` num arquivo de diagnóstico — ele ESTOURA se o papel não existir e derruba o arquivo inteiro; use `aclexplode` com `JOIN` em `pg_roles`, e trate `proacl IS NULL` como ABERTA A PUBLIC
