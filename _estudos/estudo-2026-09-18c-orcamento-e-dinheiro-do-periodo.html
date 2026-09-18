@@ -1,0 +1,1570 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Estudo 18/09/2026 — Orçamento e Dinheiro do Período</title>
+<style>
+/* ===================================================================
+   PALETA — fonte PRETA, fundos e destaques SUAVES
+   print-color-adjust: exact FORA de @media print, como pedido.
+   =================================================================== */
+* {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  box-sizing: border-box;
+}
+
+:root {
+  --azul:           #2c5282;
+  --azul-claro:     #f0f4f8;
+  --verde-claro:    #f0f9f7;
+  --ambar-claro:    #fef5e7;
+  --vermelho-claro: #fdf0ef;
+  --roxo-claro:     #f4f1fa;
+  --borda:          #d6dee8;
+  --texto:          #000000;
+  --cinza:          #55606e;
+}
+
+body {
+  font-family: Georgia, "Times New Roman", serif;
+  color: var(--texto);
+  background-color: #ffffff;
+  line-height: 1.7;
+  margin: 0;
+  padding: 0;
+  font-size: 16px;
+}
+
+.folha { max-width: 980px; margin: 0 auto; padding: 48px 32px 96px; }
+
+/* ---------- Cabeçalho ---------- */
+header.capa { border-bottom: 3px solid var(--azul); padding-bottom: 24px; margin-bottom: 8px; }
+header.capa .selo {
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase;
+  color: var(--azul); font-weight: 700;
+}
+h1 { font-size: 30px; line-height: 1.25; margin: 10px 0 6px; color: var(--texto); }
+header.capa .linha-fina { font-size: 15px; color: var(--cinza); font-style: italic; }
+
+/* ---------- Títulos ---------- */
+h2 {
+  font-size: 23px; margin: 46px 0 14px; padding: 10px 16px;
+  background-color: var(--azul-claro); border-left: 5px solid var(--azul); color: var(--texto);
+}
+h3 {
+  font-size: 18.5px; margin: 30px 0 10px; color: var(--azul);
+  border-bottom: 1px solid var(--borda); padding-bottom: 5px;
+}
+h4 { font-size: 16px; margin: 22px 0 8px; color: var(--texto); font-family: "Segoe UI", Arial, sans-serif; }
+
+p { margin: 12px 0; }
+ul, ol { margin: 12px 0; padding-left: 26px; }
+li { margin: 7px 0; }
+strong { font-weight: 700; }
+code {
+  font-family: "Consolas", "Courier New", monospace; font-size: 0.88em;
+  background-color: var(--azul-claro); padding: 1px 5px; border-radius: 3px; border: 1px solid var(--borda);
+}
+pre {
+  font-family: "Consolas", "Courier New", monospace; font-size: 13px; line-height: 1.55;
+  background-color: #f7f9fc; border: 1px solid var(--borda); border-left: 4px solid var(--azul);
+  padding: 14px 16px; overflow-x: auto; margin: 14px 0;
+  white-space: pre-wrap; word-break: break-word;
+}
+pre code { background: none; border: none; padding: 0; font-size: 13px; }
+pre.largo { white-space: pre; word-break: normal; font-size: 11.5px; line-height: 1.45; }
+
+/* ---------- Caixas ---------- */
+.caixa { padding: 16px 20px; margin: 18px 0; border-radius: 6px; border: 1px solid var(--borda); }
+.caixa > *:first-child { margin-top: 0; }
+.caixa > *:last-child  { margin-bottom: 0; }
+.caixa .rotulo {
+  font-family: "Segoe UI", Arial, sans-serif; font-size: 11px; font-weight: 700;
+  letter-spacing: 1.8px; text-transform: uppercase; display: block; margin-bottom: 7px;
+}
+.destaque      { background-color: var(--azul-claro);     border-left: 5px solid var(--azul); }
+.destaque .rotulo { color: var(--azul); }
+.feito         { background-color: var(--verde-claro);    border-left: 5px solid #2f7a68; }
+.feito .rotulo { color: #1f5347; }
+.armadilha     { background-color: var(--ambar-claro);    border-left: 5px solid #b07d2b; }
+.armadilha .rotulo { color: #855c15; }
+.perigo        { background-color: var(--vermelho-claro); border-left: 5px solid #a34b41; }
+.perigo .rotulo { color: #7d332b; }
+.exemplo       { background-color: var(--roxo-claro);     border-left: 5px solid #6a5aa0; }
+.exemplo .rotulo { color: #4c3f7d; }
+.honesto       { background-color: #f6f6f4;               border-left: 5px solid #5c5c56; }
+.honesto .rotulo { color: #43433e; }
+
+/* ---------- Tabelas ---------- */
+table {
+  width: 100%; border-collapse: collapse; margin: 18px 0;
+  font-size: 14.5px; font-family: "Segoe UI", Arial, sans-serif;
+}
+thead { background-color: var(--azul); }
+thead th {
+  color: #ffffff; text-align: left; padding: 9px 11px; font-size: 12.5px;
+  letter-spacing: 0.6px; text-transform: uppercase; font-weight: 700;
+}
+tbody td { padding: 9px 11px; border-bottom: 1px solid var(--borda); vertical-align: top; }
+tbody tr:nth-child(even) { background-color: #fafbfd; }
+td.certo  { color: #1f5347; font-weight: 700; }
+td.errado { color: #7d332b; font-weight: 700; }
+td.talvez { color: #855c15; font-weight: 700; }
+.num { text-align: center; font-variant-numeric: tabular-nums; }
+table.miuda { font-size: 12.5px; }
+table.miuda thead th { padding: 6px 7px; font-size: 11px; }
+table.miuda tbody td { padding: 6px 7px; }
+
+/* ---------- Barra de exemplo ---------- */
+.barra {
+  height: 16px; border: 1px solid var(--borda); border-radius: 8px;
+  background-color: #eef1f5; overflow: hidden; margin: 4px 0;
+}
+.barra span { display: block; height: 100%; }
+.b-verde  span { background-color: #7fb9a6; }
+.b-ambar  span { background-color: #e2be7a; }
+.b-vermelho span { background-color: #cf8d85; }
+
+/* ---------- Sumário ---------- */
+.toc {
+  background-color: #f7f9fc; border: 1px solid var(--borda);
+  border-radius: 6px; padding: 22px 26px; margin: 28px 0 10px;
+}
+.toc h2 { margin: 0 0 12px; padding: 0; background: none; border: none; font-size: 19px; }
+.toc ol { list-style: none; padding-left: 0; counter-reset: sec; }
+.toc ol > li {
+  counter-increment: sec; margin: 6px 0;
+  font-family: "Segoe UI", Arial, sans-serif; font-size: 14.5px;
+}
+.toc ol > li::before {
+  content: counter(sec) "."; font-weight: 700; color: var(--azul);
+  display: inline-block; min-width: 26px;
+}
+.toc ol ol { padding-left: 30px; counter-reset: sub; margin: 4px 0; }
+.toc ol ol > li { counter-increment: sub; font-size: 13.5px; color: var(--cinza); }
+.toc ol ol > li::before {
+  content: counter(sec) "." counter(sub); min-width: 34px; font-weight: 400; color: var(--cinza);
+}
+.toc a { color: inherit; text-decoration: none; }
+.toc a:hover { text-decoration: underline; color: var(--azul); }
+
+/* ---------- Placar ---------- */
+.placar { display: flex; flex-wrap: wrap; gap: 12px; margin: 18px 0; }
+.placar .item {
+  flex: 1 1 150px; background-color: var(--verde-claro); border: 1px solid var(--borda);
+  border-radius: 6px; padding: 12px 14px; font-family: "Segoe UI", Arial, sans-serif;
+}
+.placar .item .rot {
+  font-size: 10.5px; letter-spacing: 1.4px; text-transform: uppercase;
+  color: #1f5347; font-weight: 700;
+}
+.placar .item .val { font-size: 21px; font-weight: 700; margin-top: 3px; }
+
+/* ---------- Rodapé ---------- */
+footer.fim {
+  margin-top: 60px; border-top: 2px solid var(--borda); padding-top: 18px;
+  font-size: 13px; color: var(--cinza); font-family: "Segoe UI", Arial, sans-serif;
+}
+
+/* ===================================================================
+   BOTÃO DE IMPRESSÃO — fixo no canto superior direito
+   =================================================================== */
+.print-container {
+  position: fixed; top: 18px; right: 18px; z-index: 9999;
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+#printBtn {
+  background-color: var(--azul); color: #ffffff; border: none; border-radius: 6px;
+  padding: 11px 18px; font-size: 13px; font-weight: 700; letter-spacing: 0.8px;
+  text-transform: uppercase; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.22);
+}
+#printBtn:hover { background-color: #23415f; }
+#printMenu {
+  display: none; position: absolute; top: calc(100% + 6px); right: 0; min-width: 232px;
+  background-color: #ffffff; border: 1px solid var(--borda); border-radius: 6px;
+  box-shadow: 0 6px 22px rgba(0,0,0,0.20); overflow: hidden;
+}
+#printMenu.aberto { display: block; }
+#printMenu button {
+  display: block; width: 100%; text-align: left; background-color: #ffffff;
+  border: none; border-bottom: 1px solid var(--borda); padding: 13px 16px;
+  font-size: 13.5px; color: var(--texto); cursor: pointer;
+}
+#printMenu button:last-child { border-bottom: none; }
+#printMenu button:hover { background-color: var(--azul-claro); }
+#printMenu button .dica { display: block; font-size: 11px; color: var(--cinza); margin-top: 2px; }
+
+/* ===================================================================
+   CLASSE .print-bw — TODAS as cores para escala de cinza
+   (fica FORA do @media print, de propósito)
+   =================================================================== */
+.print-bw,
+.print-bw * {
+  color: #000000 !important;
+  background-color: #ffffff !important;
+  border-color: #000000 !important;
+  box-shadow: none !important;
+  fill: #000000 !important;
+  stroke: #000000 !important;
+}
+.print-bw h2 { background-color: #f2f2f2 !important; border-left-color: #000000 !important; }
+.print-bw h3 { color: #000000 !important; }
+.print-bw .caixa { background-color: #f7f7f7 !important; border-color: #000000 !important; }
+.print-bw .caixa .rotulo { color: #000000 !important; }
+.print-bw pre  { background-color: #f4f4f4 !important; }
+.print-bw code { background-color: #f0f0f0 !important; }
+.print-bw .toc { background-color: #f7f7f7 !important; }
+.print-bw .placar .item { background-color: #f4f4f4 !important; }
+.print-bw table thead,
+.print-bw .table thead { background-color: #333333 !important; }
+.print-bw table thead th,
+.print-bw .table thead th { color: #ffffff !important; background-color: #333333 !important; }
+.print-bw tbody tr:nth-child(even) { background-color: #f4f4f4 !important; }
+.print-bw td.certo,
+.print-bw td.errado,
+.print-bw td.talvez { color: #000000 !important; }
+.print-bw .barra { background-color: #ffffff !important; }
+.print-bw .barra span { background-color: #555555 !important; }
+
+/* ===================================================================
+   @media print — SÓ layout, quebras, margens e display.
+   NENHUMA cor aqui: quem decide cor é a tela ou a classe .print-bw.
+   =================================================================== */
+@media print {
+  @page { size: A4; margin: 0.5cm; }
+
+  .print-container { display: none !important; }
+
+  body   { margin: 0; padding: 0; }
+  .folha { max-width: 100%; margin: 0; padding: 0.3cm 0.4cm; }
+
+  section        { page-break-inside: avoid; }
+  section h2     { page-break-inside: avoid; page-break-after: avoid; }
+  h2, h3, h4     { page-break-after: avoid; }
+  .toc           { page-break-inside: avoid; }
+  .caixa         { page-break-inside: avoid; }
+  .destaque, .feito, .armadilha, .perigo, .exemplo, .honesto { page-break-inside: avoid; }
+  .bonus-section { page-break-inside: avoid; }
+  .example-box   { page-break-inside: avoid; }
+  .highlight-box { page-break-inside: avoid; }
+  .placar        { page-break-inside: avoid; }
+  table          { page-break-inside: avoid; }
+  tr             { page-break-inside: avoid; }
+  pre            { page-break-inside: avoid; overflow: visible; }
+
+  header.capa { page-break-after: avoid; }
+  footer.fim  { page-break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============ BOTÃO DE IMPRESSÃO ============ -->
+<div class="print-container" id="printContainer">
+  <button type="button" id="printBtn">Imprimir &#9662;</button>
+  <div id="printMenu">
+    <button type="button" id="btnCores">
+      Cores (A4)
+      <span class="dica">Mantém as cores exatas da tela</span>
+    </button>
+    <button type="button" id="btnPB">
+      Preto &amp; Branco (A4)
+      <span class="dica">Converte tudo para preto, cinzas e branco</span>
+    </button>
+  </div>
+</div>
+
+<div class="folha" id="folha">
+
+<header class="capa">
+  <span class="selo">Plataforma Jairo O D C · v10 · C Financeiro · 18/09/2026 · Estudo</span>
+  <h1>Orçamento e Dinheiro do Período<br>— as duas últimas peças da fase 5</h1>
+  <p class="linha-fina">
+    Estudo antes da construção. E um aviso que você precisa ler antes de aprovar: o modo
+    "só percentual" que você pediu <strong>não esconde valor de quem tem outras permissões</strong>.
+  </p>
+</header>
+
+<!-- ============ 0. TRANSCRIÇÃO ============ -->
+<section>
+<h2 id="s0">0. O seu pedido, transcrito literalmente</h2>
+
+<div class="caixa honesto">
+  <span class="rotulo">Transcrição literal — nada reescrito, nada resumido</span>
+<pre>“ORÇAMENTO DE CONTA IDENTIFICADORA DO MOVIMENTO”
+OPÇÃO “+ ADICIONAR NOVO”
+OPÇÃO “PESQUISAR”
+
+EM “+ ADICIONAR NOVO”;
+SOLICITA A COMPETÊNCIA “MÊS – ANO” VEM POR PADRÃO MÊS ATUAL;
+CAMPO “CONTA IDENTIFICADORA DO MOVIMENTO” COM AS MESMAS FUNÇÕES QUE EXITEM EM
+“NOVO LANÇAMENTO”;
+CAMPO “VALOR DO ORÇAMENTO”
+AO ABRIR “+ ADICIONAR NOVO” LOGO ABAIXO DOS CAMPOS APRESENTAR “CONFERÊNCIA DOS
+REGISTROS EXISTENTES” LISTAR TODOS OS REGISTROS DA COMPETÊNCIA INFORMADA, CADA
+REGISTRO COM BOTÃO “OPÇÕES” CONTENDO EDITAR E EXCLUIR;
+ORDENAR OS REGISTRO INICIANDO PELO “TIPO DA CONTA IDENTIFICADORA DO MOVIMENTO” =
+RECEITA, EM SEGUIDA DESPESA, EM SEGUIDA OUTRAS;
+FUNÇÃO “IMPRIMIR” IGUAL A QUE JÁ EXISTE NO SITEMA.
+
+EM “PESQUISAR”;
+FILTRO “COMPETÊNCIA”
+FILTRO “CONTA IDENTIFICADORA DO MOVIMENTO”
+RETORNAR NA PESQUISA AS COMPETÊNCIAS EXISTES E AO CLICA NO REGISTRO ABRIR TELA
+“CONFERÊNCIA DOS REGISTROS EXISTENTES” QUE FOI DESCRITA ANTERIORMENTE.
+
+
+“DINHEIRO DO PERÍODO”
+SOLICITA A COMPETÊNCIA “MÊS – ANO” VEM POR PADRÃO MÊS ATUAL.
+VERIFICA SE EXISTE ORÇAMENTO ADICIONADO PARA A COMPETÊNCIA INFORMADA, SE NÃO
+INFORMA QUE NÃO EXISTE E RETORNA, SE SIM:
+APRESENTA LISTA DAS CONTAS DO ORÇAMENTO, INICIANDO PELO “TIPO DA CONTA
+IDENTIFICADORA DO MOVIMENTO” = RECEITA, EM SEGUIDA DESPESA, EM SEGUIDA OUTRAS;
+CADA “CONTA IDENTIFICADORA DO MOVIMENTO” SER APRESENTADA COM CORES TIPO BARRA DE
+PROGRESSÃO DA CORRELAÇÃO ENTRE O VALOR DO ORÇAMENTO VERSUS O TOTAL EXISTENTE EM
+“LANÇAMENTOS” DE MODO QUE O USUÁRIO SÓ NO OLHAR SABERÁ QUE DO VALOR ORÇADO JÁ FOI
+CONSUMIDO “X VALOR/PERCENTUAL”;
+SE CLICAR NO REGISTRO, ABRE TELA “NOVO LANÇAMENTO” COM AS SEGUINTES
+ESPECIFICAÇÕES:
+NÃO EXISTE “TRANSFERÊNCIA”
+NÃO EXISTE “ORDEM NO EXTRATO”
+
+SE “CONTA IDENTIFICADORA DO MOVIMENTO” COM “TIPO DA CONTA IDENTIFICADORA DO
+MOVIMENTO” = “RECEITA”, “TIPO DO MOVIMENTO” FIXO = “ENTRADA”;
+
+SE “CONTA IDENTIFICADORA DO MOVIMENTO” COM “TIPO DA CONTA IDENTIFICADORA DO
+MOVIMENTO” = “DESPESA”, “TIPO DO MOVIMENTO” FIXO = “SAÍDA”;
+
+“REGIME” FIXO COMO “CAIXA”
+
+AO GRAVAR ATUALIZAR AUTOMATICAMENTE A CORRELAÇÃO ENTRE O VALOR DO ORÇAMENTO
+VERSUS O TOTAL EXISTENTE EM “LANÇAMENTOS”.
+
+FUNÇÃO “IMPRIMIR” QUE APRESENTA O ESTADO ATUAL DETALHADO DA CORRELAÇÃO ENTRE O
+VALOR DO ORÇAMENTO VERSUS O TOTAL EXISTENTE EM “LANÇAMENTOS”.
+
+PARA ESTAS DUAS FUNÇÕES “ORÇAMENTO” E DINHEIRO DO PERÍODO, PRECISAM SEREM
+ADICIONADAS “CONFIGURAÇÕES DO MÓDULO” &gt; “DEPENDENTES DO MÓDULO” COM ACESSOS O
+MAIS DETALHADO POSSÍVEL, E COM:
+SER POSSÍVEL LIBERAR O ACESSO PARA O USUÁRIO DEPENDENTE EM “DINHEIRO DO PERÍODO”
+DE VISUALIZAR “NOME DA CONTA IDENTIFICADORA DO MOVIMENTO” ESPECÍFICAS PODER
+SELECIONAR UMA OU ALGUMAS OU TODAS;
+SER POSSÍVEL LIBERAR O ACESSO PARA O USUÁRIO DEPENDENTE EM “DINHEIRO DO PERÍODO”
+VISUALIZAR A CORRELAÇÃO ENTRE O VALOR DO ORÇAMENTO VERSUS O TOTAL EXISTENTE EM
+“LANÇAMENTOS” NO MODO APENAS % (PERCENTUAL) OU SEJA ELE VÊ PERCETUAL MAS NÃO VÊ
+OS VALORES CORRESPONDENTES, A IDEIA É QUE SEJA POSSIVEL DAR ACESSO AO USUARIO
+DEPENDENTE QUE CONSIGA VER APENAS EM PERCENTUAL ASSIM NÃO VE OS VALORES.</pre>
+</div>
+
+<div class="caixa perigo">
+  <span class="rotulo">⚠️ Leia isto antes de tudo — o que este documento é</span>
+  <p>
+    <strong>Nenhuma linha de código foi escrita.</strong> Este é o <strong>estudo</strong>, porque
+    é o que o seu formato de entrega encomendou ("SUMÁRIO DE TODO O CONTEÚDO DO ESTUDO").
+    O seu banco e o seu código estão intocados; o único arquivo novo é este HTML.
+  </p>
+  <p>
+    Quando você disser <strong>"PODE FAZER"</strong>, eu construo. Mas leia ao menos a
+    <strong>seção 5</strong> antes: lá está um problema no pedido do "só percentual" que,
+    se eu implementasse do jeito óbvio, <strong>daria a você uma sensação de sigilo que não
+    existe de verdade</strong>.
+  </p>
+</div>
+</section>
+
+<!-- ============ SUMÁRIO ============ -->
+<nav class="toc">
+<h2 id="sumario">Sumário</h2>
+<ol>
+  <li><a href="#s0">O seu pedido, transcrito literalmente</a></li>
+  <li><a href="#s1">Quatro palavras que você precisa ter no bolso</a></li>
+  <li><a href="#s2">O que eu fui olhar no seu código antes de escrever</a></li>
+  <li><a href="#s3">ORÇAMENTO — a quinta tabela do módulo</a>
+    <ol>
+      <li><a href="#s3-1">"MÊS – ANO": como se guarda uma competência</a></li>
+      <li><a href="#s3-2">A tabela, campo a campo</a></li>
+      <li><a href="#s3-3">A tela "+ ADICIONAR NOVO", desenhada</a></li>
+      <li><a href="#s3-4">A tela "PESQUISAR", desenhada</a></li>
+      <li><a href="#s3-5">Uma conta, uma competência — e o que acontece ao repetir</a></li>
+    </ol>
+  </li>
+  <li><a href="#s4">DINHEIRO DO PERÍODO — o orçado contra o realizado</a>
+    <ol>
+      <li><a href="#s4-1">A tela, desenhada</a></li>
+      <li><a href="#s4-2">A barra esconde quatro perguntas — e eu preciso das respostas</a></li>
+      <li><a href="#s4-3">O lançamento simplificado: o que some e o que fica</a></li>
+      <li><a href="#s4-4">O que a impressão mostra</a></li>
+    </ol>
+  </li>
+  <li><a href="#s5">⚠️ O MURO DESTA RODADA: "só percentual" não é um cofre</a>
+    <ol>
+      <li><a href="#s5-1">Se o valor viaja até o navegador, ele está entregue</a></li>
+      <li><a href="#s5-2">E existem CINCO outras portas para o mesmo número</a></li>
+      <li><a href="#s5-3">O que eu proponho fazer — e o que eu NÃO posso prometer</a></li>
+    </ol>
+  </li>
+  <li><a href="#s6">As permissões novas e a lista de contas por dependente</a>
+    <ol>
+      <li><a href="#s6-1">Onde isso mora hoje, e por que cabe sem mexer na plataforma</a></li>
+      <li><a href="#s6-2">`[]` não é `NULL`, pela terceira vez</a></li>
+      <li><a href="#s6-3">A conta liberada que deixa de existir</a></li>
+    </ol>
+  </li>
+  <li><a href="#s7">O que o banco ganha: uma tabela e seis funções</a></li>
+  <li><a href="#s8">O tamanho honesto, e por que eu proponho DUAS entregas</a></li>
+  <li><a href="#s9">Como eu vou provar que funciona</a></li>
+  <li><a href="#s10">O que eu NÃO vou fazer neste degrau</a></li>
+  <li><a href="#s11">BÔNUS — 12 sugestões de alta relevância</a></li>
+  <li><a href="#s12">As perguntas que eu preciso que você responda</a></li>
+  <li><a href="#s13">Placar de hoje, e o que acontece depois do "PODE FAZER"</a></li>
+</ol>
+</nav>
+
+<!-- ============ 1. VOCABULÁRIO ============ -->
+<section>
+<h2 id="s1">1. Quatro palavras que você precisa ter no bolso</h2>
+
+<table>
+  <thead><tr><th style="width:24%">Palavra</th><th>O que significa aqui dentro</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>COMPETÊNCIA</strong></td>
+      <td>
+        O <strong>mês</strong> a que o orçamento se refere: "SETEMBRO / 2026". Não é um dia —
+        é o mês inteiro. Um orçamento de energia elétrica de setembro vale de 01/09 a 30/09.
+      </td>
+    </tr>
+    <tr>
+      <td><strong>ORÇADO</strong></td>
+      <td>
+        O valor que você <strong>planejou</strong> gastar (ou receber) naquela conta, naquele mês.
+        É um número que você digita. Ele não sai de lançamento nenhum.
+      </td>
+    </tr>
+    <tr>
+      <td><strong>REALIZADO</strong></td>
+      <td>
+        O que de fato <strong>aconteceu</strong>: a soma dos lançamentos daquela conta
+        identificadora, naquele mês. Ele sai sozinho dos lançamentos — ninguém digita.
+      </td>
+    </tr>
+    <tr>
+      <td><strong>CONSUMO</strong></td>
+      <td>
+        <code>realizado ÷ orçado</code>, em percentual. "Já consumi 78% do que orçei para
+        energia elétrica em setembro." É o número que a barra colorida desenha.
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="caixa exemplo">
+  <span class="rotulo">Exemplo prático — os quatro juntos, numa linha só</span>
+  <p style="margin-bottom:6px">
+    <strong>ENERGIA ELÉTRICA · SETEMBRO / 2026</strong> — orçado R$ 400,00, realizado R$ 312,00.
+  </p>
+  <div class="barra b-verde"><span style="width:78%"></span></div>
+  <p style="margin-top:6px">
+    A barra mostra <strong>78%</strong>. O mês ainda não acabou e ainda há R$ 88,00 de folga.
+    Você soube disso <em>sem ler número nenhum</em> — que é exatamente o que o seu pedido diz:
+    <em>"de modo que o usuário só no olhar saberá"</em>.
+  </p>
+</div>
+
+<div class="caixa armadilha">
+  <span class="rotulo">⚠️ Uma diferença que vai importar mais adiante</span>
+  <p>
+    <strong>Orçamento é por CONTA IDENTIFICADORA, não por conta movimento.</strong> Você orça
+    "ENERGIA ELÉTRICA", e não "BANCO ITAÚ". Faz sentido: você planeja <em>por que</em> o dinheiro
+    vai sair, não <em>de onde</em>. Por isso o realizado soma os lançamentos daquela
+    identificadora <strong>em todas as contas movimento</strong> — igual ao dashboard 2 que já
+    está no ar.
+  </p>
+</div>
+</section>
+
+<!-- ============ 2. O QUE EU MEDI ============ -->
+<section>
+<h2 id="s2">2. O que eu fui olhar no seu código antes de escrever</h2>
+
+<p>
+  Leitura feita hoje, no repositório, depois dos seus três commits de 18/09. Cada linha é
+  verificável.
+</p>
+
+<table>
+  <thead><tr><th style="width:44%">O que eu perguntei ao código</th><th>A resposta</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>A especificação do módulo já descreve ORÇAMENTO ou DINHEIRO DO PERÍODO?</td>
+      <td class="errado">NÃO. Nos dois casos ela só diz "EM DESENVOLVIMENTO". <strong>O desenho é o que você acabou de escrever</strong> — não há decisão antiga para contradizer.</td>
+    </tr>
+    <tr>
+      <td>Existe alguma tabela para orçamento?</td>
+      <td class="errado">NÃO. O módulo tem 4 tabelas: contas movimento, identificadoras, lançamentos e fechamentos.</td>
+    </tr>
+    <tr>
+      <td>As permissões cabem sem mexer na plataforma?</td>
+      <td class="certo">SIM. Elas moram em <code>tenant_members.module_configs</code>, um <code>jsonb</code> livre por módulo.</td>
+    </tr>
+    <tr>
+      <td>A função <code>fin_pode()</code> sabe guardar uma LISTA de contas liberadas?</td>
+      <td class="errado">NÃO. Ela só responde "tem esta chave no array de permissões?". Lista e modo de exibição precisam de leitura própria.</td>
+    </tr>
+    <tr>
+      <td>"DINHEIRO DO PERÍODO" já tem lugar na tela?</td>
+      <td class="certo">SIM — é o <strong>cartão grande</strong> da tela inicial do módulo, hoje escrito "EM DESENVOLVIMENTO".</td>
+    </tr>
+    <tr>
+      <td>E "ORÇAMENTO"?</td>
+      <td class="certo">SIM — item do menu OPÇÕES, também "EM DESENVOLVIMENTO".</td>
+    </tr>
+    <tr>
+      <td>O campo de escolher conta com busca já existe?</td>
+      <td class="certo">SIM — <code>SelecaoComBusca</code> + <code>fin_buscar_identificadoras</code>, o mesmo do NOVO LANÇAMENTO.</td>
+    </tr>
+    <tr>
+      <td>A impressão em nova guia serve?</td>
+      <td class="certo">SIM, inclusive deitada, desde 18/09.</td>
+    </tr>
+    <tr>
+      <td>O formulário de lançamento sabe nascer com campos travados?</td>
+      <td class="talvez">NÃO HOJE, mas ele já lê a URL (<code>?editar=</code>) e já esconde campos por permissão. É extensão, não reescrita.</td>
+    </tr>
+  </tbody>
+</table>
+</section>
+
+<!-- ============ 3. ORÇAMENTO ============ -->
+<section>
+<h2 id="s3">3. ORÇAMENTO — a quinta tabela do módulo</h2>
+
+<h3 id="s3-1">3.1 "MÊS – ANO": como se guarda uma competência</h3>
+
+<p>
+  Parece detalhe e não é: a forma de guardar decide se você vai conseguir ordenar, filtrar por
+  intervalo e comparar competências. Há três caminhos, e só um presta.
+</p>
+
+<table>
+  <thead><tr><th style="width:26%">Como guardar</th><th style="width:32%">Parece bom porque…</th><th>O que quebra</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Texto <code>"09/2026"</code></td>
+      <td>é o que se lê na tela</td>
+      <td class="errado">Ordenar por texto põe 01/2027 antes de 09/2026. Filtrar "de janeiro a junho" vira código à mão.</td>
+    </tr>
+    <tr>
+      <td>Dois inteiros (<code>mes</code>, <code>ano</code>)</td>
+      <td>é explícito</td>
+      <td class="talvez">Todo filtro de intervalo passa a precisar dos dois campos, com um <code>OR</code> no meio. Funciona, mas cada consulta fica mais longa e mais fácil de errar.</td>
+    </tr>
+    <tr>
+      <td><strong>Uma <code>date</code> travada no dia 1</strong></td>
+      <td>—</td>
+      <td class="certo">Nada. Ordena sozinho, compara sozinho, e é o tipo que o projeto inteiro já usa para data de calendário.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="caixa destaque">
+  <span class="rotulo">A escolha, e a trava que a acompanha</span>
+  <p>
+    <code>competencia date NOT NULL CHECK (EXTRACT(DAY FROM competencia) = 1)</code>
+  </p>
+  <p>
+    Setembro de 2026 é gravado como <code>2026-09-01</code>. O <code>CHECK</code> impede que
+    alguém grave <code>2026-09-17</code> e crie <strong>duas competências de setembro</strong> —
+    que seria um defeito mudo: a tela mostraria "SETEMBRO / 2026" duas vezes, com valores
+    diferentes, e ninguém entenderia por quê.
+  </p>
+  <p>
+    ⚠️ E a conversão "1º de setembro ↔ SETEMBRO / 2026" mora no <strong>Core</strong>, em
+    <code>lib/datas.ts</code>, com teste — nunca na tela. É a regra que já existe no projeto:
+    <em>"nunca escrever cálculo de data dentro de um componente de tela"</em>.
+  </p>
+</div>
+
+<h3 id="s3-2">3.2 A tabela, campo a campo</h3>
+
+<pre><code>CREATE TABLE IF NOT EXISTS public.fin_orcamentos (
+    id        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id uuid NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+
+    competencia              date   NOT NULL,   -- sempre dia 1
+    conta_identificadora_id  uuid   NOT NULL,
+    valor_centavos           bigint NOT NULL CHECK (valor_centavos &gt; 0),
+    observacao               text   NULL CHECK (observacao IS NULL OR length(observacao) &lt;= 200),
+
+    criado_por uuid NOT NULL REFERENCES public.users(id) ON DELETE RESTRICT,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+
+    CONSTRAINT fin_orc_dia_1 CHECK (EXTRACT(DAY FROM competencia) = 1),
+
+    -- uma conta, uma competência, um valor
+    CONSTRAINT fin_orc_unico UNIQUE (tenant_id, competencia, conta_identificadora_id),
+
+    -- ⚠️ CHAVE COMPOSTA (RN-29): sem o tenant_id aqui, um orçamento de uma
+    -- empresa poderia apontar para a conta de outra.
+    CONSTRAINT fin_orc_conta_fk
+      FOREIGN KEY (tenant_id, conta_identificadora_id)
+      REFERENCES public.fin_contas_identificadoras (tenant_id, id) ON DELETE CASCADE
+);</code></pre>
+
+<div class="caixa armadilha">
+  <span class="rotulo">⚠️ As seis coisas que TÊM de acompanhar uma tabela nova neste projeto</span>
+  <p>
+    Nenhuma é opcional, e o inventário acusa se faltar. Eu as cumpro no mesmo commit:
+  </p>
+  <ol>
+    <li><strong>RLS ligado</strong> + uma policy de SELECT <strong>com a cláusula <code>TO authenticated</code></strong> — sem o <code>TO</code>, o padrão do PostgreSQL é PUBLIC, e foi assim que a lista de usuários ficou aberta até a v9.</li>
+    <li><strong>Nenhuma policy de escrita.</strong> Gravar é só por função <code>SECURITY DEFINER</code>, que confere <code>fin_pode()</code> por dentro — é o desenho de todo o módulo.</li>
+    <li><strong>Dois gatilhos</strong>: <code>set_updated_at</code> e <code>audit</code> (a auditoria é o que permite a lixeira e o rastro).</li>
+    <li><strong>Entrar no <code>financeiro_00_reset.sql</code></strong>, antes das tabelas de que depende. Em 17/09 duas funções ficaram de fora dessa lista por quatro dias.</li>
+    <li><strong>Atualizar o <code>inventario_financeiro.sql</code></strong>: 4 → 5 tabelas, 4 → 5 policies, 8 → 10 gatilhos, e a contagem de índices.</li>
+    <li><strong>Ensaio de UPGRADE</strong>, não só instalação limpa — o <code>npm run ensaio</code> já faz isso sozinho desde hoje de manhã.</li>
+  </ol>
+</div>
+
+<h3 id="s3-3">3.3 A tela "+ ADICIONAR NOVO", desenhada</h3>
+
+<pre class="largo">┌──────────────────────────────────────────────────────────────────────────────────┐
+│  ORÇAMENTO · + ADICIONAR NOVO                          [ IMPRIMIR ]  [ ◄ VOLTAR ]│
+├──────────────────────────────────────────────────────────────────────────────────┤
+│  COMPETÊNCIA        CONTA IDENTIFICADORA DO MOVIMENTO       VALOR DO ORÇAMENTO   │
+│  [ SETEMBRO ▾][2026] [ digite para procurar…            ]   [        400,00 ]    │
+│  [◄ MÊS ANTERIOR] [MÊS ATUAL] [MÊS SEGUINTE ►]                    [ GRAVAR ]     │
+├──────────────────────────────────────────────────────────────────────────────────┤
+│  CONFERÊNCIA DOS REGISTROS EXISTENTES · SETEMBRO / 2026        6 CONTA(S)        │
+│                                                                                  │
+│  RECEITAS                                              VALOR ORÇADO     OPÇÕES   │
+│  VENDA DE MERCADORIA                                      14.000,00       [⋮]    │
+│  PRESTAÇÃO DE SERVIÇOS                                     3.500,00       [⋮]    │
+│  ──────────────────────────────────────────────────────────────────              │
+│  TOTAL RECEITAS                                           17.500,00              │
+│                                                                                  │
+│  DESPESAS                                              VALOR ORÇADO     OPÇÕES   │
+│  ALUGUEL                                                   2.500,00       [⋮]    │
+│  ENERGIA ELÉTRICA                                            400,00       [⋮]    │
+│  FOLHA DE PAGAMENTO                                        8.900,00       [⋮]    │
+│  ──────────────────────────────────────────────────────────────────              │
+│  TOTAL DESPESAS                                           11.800,00              │
+│                                                                                  │
+│  OUTRAS                                                VALOR ORÇADO     OPÇÕES   │
+│  APORTE DO SÓCIO                                           5.000,00       [⋮]    │
+│  ──────────────────────────────────────────────────────────────────              │
+│  TOTAL OUTRAS                                              5.000,00              │
+└──────────────────────────────────────────────────────────────────────────────────┘</pre>
+
+<p>
+  <strong>Tudo o que você pediu está aí</strong>, e três coisas entraram por coerência com o que
+  já existe no módulo:
+</p>
+
+<table class="miuda">
+  <thead><tr><th style="width:32%">Detalhe</th><th>Por que assim</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>Competência = dois campos</strong> (mês por extenso + ano)</td>
+      <td>Um campo <code>type="month"</code> do navegador existe, mas é desenhado diferente em cada navegador e não tem tradução garantida. Dois campos são previsíveis e combinam com o resto do módulo.</td>
+    </tr>
+    <tr>
+      <td><strong>Os três botões de mês</strong></td>
+      <td>É o mesmo <code>AtalhosDeMes</code> que já está na CONFERÊNCIA e na PESQUISAR. Aqui ele mexe na competência em vez do par de datas.</td>
+    </tr>
+    <tr>
+      <td><strong>Os totais por tipo</strong></td>
+      <td>Não estavam no pedido. Uma lista de seis valores sem total obriga a somar de cabeça justamente quando se está decidindo quanto orçar. Se você não quiser, é uma linha a menos.</td>
+    </tr>
+    <tr>
+      <td><strong>A lista recarrega ao trocar a competência</strong></td>
+      <td>É o que faz a "conferência dos registros existentes" ser da competência <em>informada</em>, como você escreveu — e não de um mês que ficou para trás.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="caixa destaque">
+  <span class="rotulo">O botão OPÇÕES (⋮) é a peça que já existe</span>
+  <p>
+    <code>MenuDeLinha.tsx</code>, o mesmo do extrato e da PESQUISAR. Ele já resolve a armadilha
+    documentada no projeto: menu de linha com <code>position: absolute</code> dentro de tabela
+    que rola é <strong>recortado</strong> pelo container; o componente usa <code>fixed</code> com
+    <code>getBoundingClientRect</code> e abre para cima quando não cabe embaixo.
+  </p>
+  <p>
+    <strong>EDITAR</strong> carrega o registro nos campos de cima (a competência e a conta ficam
+    travadas — mudar as duas seria criar outro registro, não editar este) e o botão passa a
+    dizer "ALTERAR". <strong>EXCLUIR</strong> pede confirmação dizendo o nome da conta, a
+    competência e o valor — nunca um "tem certeza?" pelado.
+  </p>
+</div>
+
+<h3 id="s3-4">3.4 A tela "PESQUISAR", desenhada</h3>
+
+<pre class="largo">┌──────────────────────────────────────────────────────────────────────────────────┐
+│  ORÇAMENTO · PESQUISAR                                                           │
+├──────────────────────────────────────────────────────────────────────────────────┤
+│  COMPETÊNCIA DE          COMPETÊNCIA ATÉ       CONTA IDENTIFICADORA              │
+│  [ JANEIRO ▾][2026]      [DEZEMBRO ▾][2026]    [ (todas)                   ]     │
+│                                                              [ PESQUISAR ]       │
+├──────────────────────────────────────────────────────────────────────────────────┤
+│  COMPETÊNCIA        CONTAS    TOTAL RECEITAS   TOTAL DESPESAS   TOTAL OUTRAS     │
+│  ─────────────────────────────────────────────────────────────────────────       │
+│  SETEMBRO / 2026        6        17.500,00        11.800,00       5.000,00   ►   │
+│  AGOSTO / 2026          6        17.500,00        11.640,00           0,00   ►   │
+│  JULHO / 2026           5        17.500,00        11.200,00           0,00   ►   │
+└──────────────────────────────────────────────────────────────────────────────────┘</pre>
+
+<p>
+  Você pediu que a pesquisa <strong>retorne as competências existentes</strong> e que clicar
+  abra a conferência daquela competência. É exatamente isso. As colunas de total não estavam no
+  pedido — sem elas, a lista seria uma coluna de meses e nada mais, e você teria de abrir um por
+  um só para saber onde está o dinheiro.
+</p>
+
+<div class="caixa armadilha">
+  <span class="rotulo">⚠️ O filtro por CONTA muda o sentido da lista — e isso precisa ficar dito na tela</span>
+  <p>
+    Se você filtrar por "ENERGIA ELÉTRICA", a lista passa a mostrar <strong>só as competências
+    que têm orçamento dessa conta</strong>, e os totais passam a ser <strong>só dela</strong>.
+    Sem um aviso, a pessoa olharia "SETEMBRO / 2026 — 1 conta — 400,00" e pensaria que o
+    orçamento de setembro inteiro é de R$ 400,00.
+  </p>
+  <p>
+    <strong>Solução:</strong> quando o filtro de conta estiver ligado, a tela escreve, acima da
+    lista: <em>"MOSTRANDO SOMENTE A CONTA ENERGIA ELÉTRICA — OS TOTAIS SÃO DELA, NÃO DA
+    COMPETÊNCIA INTEIRA"</em>.
+  </p>
+</div>
+
+<h3 id="s3-5">3.5 Uma conta, uma competência — e o que acontece ao repetir</h3>
+
+<div class="caixa exemplo">
+  <span class="rotulo">Exemplo prático — você orça ENERGIA duas vezes em setembro</span>
+  <p>
+    Você grava "ENERGIA ELÉTRICA · SETEMBRO / 2026 · 400,00". Semanas depois, sem lembrar,
+    grava "ENERGIA ELÉTRICA · SETEMBRO / 2026 · 450,00". O que deve acontecer?
+  </p>
+  <p><strong>Três comportamentos possíveis, e o que eu proponho:</strong></p>
+  <table class="miuda" style="margin-top:8px">
+    <thead><tr><th style="width:26%">Comportamento</th><th>Resultado</th></tr></thead>
+    <tbody>
+      <tr><td>Criar os dois</td><td class="errado">A tela mostra ENERGIA duas vezes e o total fica 850,00. É o pior dos três, e é o que acontece se ninguém pensar no assunto.</td></tr>
+      <tr><td>Recusar com erro</td><td class="talvez">Honesto, mas irritante: você teria de ir até a lista, achar a linha, clicar em EDITAR e só então mudar.</td></tr>
+      <tr><td><strong>Perguntar e substituir</strong></td><td class="certo">A tela avisa <em>"JÁ EXISTE ORÇAMENTO DE ENERGIA ELÉTRICA PARA SETEMBRO / 2026, NO VALOR DE 400,00. SUBSTITUIR POR 450,00?"</em> — e você decide.</td></tr>
+    </tbody>
+  </table>
+  <p style="margin-top:12px">
+    <strong>O índice único no banco é a rede por baixo disso.</strong> A pergunta na tela é
+    conforto; quem garante que não existirão dois é o <code>UNIQUE (tenant_id, competencia,
+    conta_identificadora_id)</code> — porque uma chamada feita por fora da tela também precisa
+    ser barrada.
+  </p>
+</div>
+</section>
+
+<!-- ============ 4. DINHEIRO DO PERÍODO ============ -->
+<section>
+<h2 id="s4">4. DINHEIRO DO PERÍODO — o orçado contra o realizado</h2>
+
+<h3 id="s4-1">4.1 A tela, desenhada</h3>
+
+<pre class="largo">┌──────────────────────────────────────────────────────────────────────────────────┐
+│  DINHEIRO DO PERÍODO           COMPETÊNCIA [ SETEMBRO ▾][2026]      [ IMPRIMIR ] │
+│  SUA EMPRESA LTDA · ORÇAMENTO DE SETEMBRO / 2026 · 6 CONTAS                      │
+├──────────────────────────────────────────────────────────────────────────────────┤
+│  RECEITAS                                                                        │
+│  VENDA DE MERCADORIA                     ORÇADO 14.000,00 · REALIZADO 11.900,00  │
+│  ████████████████████████░░░░░░░  85%                        FALTAM 2.100,00     │
+│                                                                                  │
+│  PRESTAÇÃO DE SERVIÇOS                    ORÇADO 3.500,00 · REALIZADO 3.500,00   │
+│  ████████████████████████████████ 100%                         META ATINGIDA     │
+│                                                                                  │
+│  DESPESAS                                                                        │
+│  ALUGUEL                                  ORÇADO 2.500,00 · REALIZADO 2.500,00   │
+│  ████████████████████████████████ 100%                        SEM FOLGA          │
+│                                                                                  │
+│  ENERGIA ELÉTRICA                           ORÇADO 400,00 · REALIZADO 312,00     │
+│  █████████████████████████░░░░░░░  78%                          RESTAM 88,00     │
+│                                                                                  │
+│  FOLHA DE PAGAMENTO                       ORÇADO 8.900,00 · REALIZADO 9.240,00   │
+│  ████████████████████████████████ 104%  ⚠ ESTOUROU EM 340,00                     │
+│                                                                                  │
+│  OUTRAS                                                                          │
+│  APORTE DO SÓCIO                          ORÇADO 5.000,00 · REALIZADO 5.000,00   │
+│  ████████████████████████████████ 100%                                           │
+└──────────────────────────────────────────────────────────────────────────────────┘</pre>
+
+<p>
+  Clicar em qualquer linha abre o lançamento simplificado da seção 4.3, já com aquela conta
+  escolhida.
+</p>
+
+<div class="caixa destaque">
+  <span class="rotulo">As cores da barra — a regra que eu proponho</span>
+  <table class="miuda" style="margin:8px 0 0">
+    <thead><tr><th style="width:22%">Faixa</th><th style="width:26%">Cor</th><th>Significa</th></tr></thead>
+    <tbody>
+      <tr><td>até 80%</td><td>verde suave</td><td>dentro do plano</td></tr>
+      <tr><td>80% a 100%</td><td>âmbar suave</td><td>chegando no limite</td></tr>
+      <tr><td>acima de 100%</td><td>vermelho suave</td><td>estourou</td></tr>
+    </tbody>
+  </table>
+  <p style="margin-top:12px">
+    ⚠️ <strong>Nas RECEITAS o sentido se inverte</strong>, e isso não é detalhe: bater 100% de
+    uma receita é <strong>bom</strong>; ficar em 40% é <strong>ruim</strong>. Usar a mesma escala
+    de cor nos dois pintaria de verde uma receita que não entrou. Proponho: nas receitas,
+    <strong>verde a partir de 100%</strong> e âmbar/vermelho abaixo — e a tela escreve
+    "META ATINGIDA" em vez de "ESTOUROU".
+  </p>
+</div>
+
+<h3 id="s4-2">4.2 A barra esconde quatro perguntas — e eu preciso das respostas</h3>
+
+<p>
+  "O total existente em lançamentos" parece uma frase sem ambiguidade. Não é. Quatro decisões
+  estão escondidas nela, e cada uma muda o número da barra.
+</p>
+
+<table>
+  <thead><tr><th style="width:5%">#</th><th style="width:34%">A pergunta</th><th>Minha recomendação, e por quê</th></tr></thead>
+  <tbody>
+    <tr>
+      <td class="num">1</td>
+      <td><strong>O realizado conta só regime CAIXA, ou também COMPETÊNCIA?</strong></td>
+      <td class="certo"><strong>Só CAIXA.</strong> É a RN-19, e é o que o extrato, os dois dashboards e a conferência já fazem. Se aqui fosse diferente, o mesmo mês mostraria dois valores em duas telas do mesmo sistema — e ninguém saberia qual acreditar.</td>
+    </tr>
+    <tr>
+      <td class="num">2</td>
+      <td><strong>Soma o dinheiro de TERCEIROS junto com o PRÓPRIO?</strong></td>
+      <td class="certo"><strong>Soma tudo.</strong> O orçamento é da conta, e não de uma propriedade. Se um dia você quiser separar, o dashboard 2 já divide as receitas — e daí o orçamento também precisaria de duas linhas por conta, o que é outro degrau.</td>
+    </tr>
+    <tr>
+      <td class="num">3</td>
+      <td><strong>Numa conta de DESPESA, o que conta: as saídas, ou saídas menos entradas?</strong></td>
+      <td class="certo"><strong>Saídas menos entradas</strong> — igual ao dashboard 2. Um reembolso recebido REDUZ a despesa realizada, e é o comportamento contábil correto. Assim a barra do "dinheiro do período" e a célula do dashboard 2 mostram o MESMO número.</td>
+    </tr>
+    <tr>
+      <td class="num">4</td>
+      <td><strong>E se o realizado for NEGATIVO?</strong> (só houve estorno, sem despesa)</td>
+      <td class="certo"><strong>Barra em 0% e o valor negativo escrito ao lado.</strong> Barra com largura negativa não existe; esconder o número seria pior. A tela escreve "REALIZADO −50,00".</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="caixa armadilha">
+  <span class="rotulo">⚠️ E uma quinta, que eu já resolvi sozinho: dividir por zero</span>
+  <p>
+    <code>realizado ÷ orçado</code> com orçado igual a zero estoura. O <code>CHECK
+    (valor_centavos &gt; 0)</code> da tabela impede orçamento zerado, então <strong>o caso não
+    chega a existir</strong> — mas a função do banco trata assim mesmo, porque uma restrição
+    pode ser afrouxada um dia e o cálculo continuaria lá, esperando.
+  </p>
+</div>
+
+<div class="caixa perigo">
+  <span class="rotulo">⚠️ O que a tela NÃO mostra hoje, e devia: o gasto FORA do orçamento</span>
+  <p>
+    O seu pedido diz "apresenta lista das contas do orçamento". Perfeito — mas repare no que
+    isso deixa de fora: <strong>uma conta em que você gastou e não orçou simplesmente não
+    aparece.</strong>
+  </p>
+  <p>
+    Se em setembro você orçou 6 contas e gastou em 9, as outras 3 ficam invisíveis nesta tela.
+    A soma de "quanto gastei" que a pessoa monta olhando as barras fica menor que a realidade —
+    e é justamente o gasto que <em>ninguém planejou</em> que some. Proponho um bloco final,
+    <strong>"GASTO FORA DO ORÇAMENTO"</strong>, listando as contas com movimento e sem orçamento
+    naquela competência. É o bônus B7, e eu recomendo com força.
+  </p>
+</div>
+
+<h3 id="s4-3">4.3 O lançamento simplificado: o que some e o que fica</h3>
+
+<table>
+  <thead><tr><th style="width:34%">Campo</th><th style="width:26%">No lançamento normal</th><th>No lançamento a partir do orçamento</th></tr></thead>
+  <tbody>
+    <tr><td>CONTA MOVIMENTO</td><td>escolhe</td><td class="certo">escolhe (é a única pergunta de verdade que sobra)</td></tr>
+    <tr><td>CONTA IDENTIFICADORA</td><td>escolhe</td><td><strong>já vem preenchida</strong> e travada — foi nela que você clicou</td></tr>
+    <tr><td>DATA</td><td>escolhe</td><td>escolhe, mas <strong>dentro da competência</strong> — ver o aviso abaixo</td></tr>
+    <tr><td>ORDEM NO EXTRATO</td><td>sugere a próxima</td><td class="errado"><strong>some</strong>, como você pediu</td></tr>
+    <tr><td>TIPO DO MOVIMENTO</td><td>escolhe</td><td><strong>fixo</strong>: ENTRADA na receita, SAÍDA na despesa. Em OUTRAS — ver a pergunta 3</td></tr>
+    <tr><td>PROPRIEDADE</td><td>escolhe</td><td>escolhe (padrão PRÓPRIO)</td></tr>
+    <tr><td>REGIME</td><td>escolhe</td><td class="errado"><strong>some</strong>, fixo em CAIXA, como você pediu</td></tr>
+    <tr><td>VALOR e HISTÓRICO</td><td>escreve</td><td>escreve</td></tr>
+    <tr><td>Botão TRANSFERÊNCIA</td><td>existe</td><td class="errado"><strong>some</strong>, como você pediu</td></tr>
+    <tr><td>CONFERÊNCIA DA CONTA (a coluna direita)</td><td>existe</td><td>substituída pela <strong>barra daquela conta</strong>, que se atualiza a cada gravação</td></tr>
+  </tbody>
+</table>
+
+<div class="caixa armadilha">
+  <span class="rotulo">⚠️ "SOME A ORDEM NO EXTRATO" não quer dizer que ela deixa de existir</span>
+  <p>
+    A ordem é o que faz dois lançamentos do mesmo dia aparecerem sempre na mesma sequência
+    (RN-11 e RN-21). Ela continua sendo gravada — <strong>o banco a atribui sozinho</strong>,
+    mandando o lançamento para o fim do dia naquela conta. O que some é o <em>campo na tela</em>,
+    que é o que você pediu. Se ela deixasse de existir de verdade, o extrato passaria a
+    embaralhar lançamentos do mesmo dia entre uma abertura e outra.
+  </p>
+</div>
+
+<div class="caixa armadilha">
+  <span class="rotulo">⚠️ E a data: lançar fora da competência é um furo silencioso</span>
+  <p>
+    Você abre o orçamento de SETEMBRO, clica em ENERGIA ELÉTRICA e lança com data 03/10. O
+    lançamento é válido — mas <strong>ele não entra na barra de setembro</strong>, porque o
+    realizado de setembro só conta lançamentos de setembro. A barra não se mexe, e a pessoa
+    conclui que a gravação falhou.
+  </p>
+  <p>
+    <strong>Proposta:</strong> a data já vem com <strong>hoje, se hoje estiver dentro da
+    competência</strong>; senão, com o primeiro dia da competência. E se a pessoa digitar uma
+    data fora, a tela avisa antes de gravar — <em>"ESTA DATA ESTÁ FORA DE SETEMBRO / 2026 E O
+    LANÇAMENTO NÃO VAI ENTRAR NESTA BARRA. CONFIRMA?"</em> — sem bloquear, porque pode ser
+    proposital.
+  </p>
+</div>
+
+<h3 id="s4-4">4.4 O que a impressão mostra</h3>
+
+<p>
+  A mesma peça de sempre (guia nova, menu CORES (A4) / PRETO &amp; BRANCO (A4)), em
+  <strong>retrato</strong> — são 6 colunas, cabem em pé. O papel traz o estado detalhado, como
+  você pediu:
+</p>
+
+<pre class="largo">ORÇAMENTO × REALIZADO · SETEMBRO / 2026 · SUA EMPRESA LTDA
+EMITIDO EM 18/09/2026 14:32 · REGIME CAIXA (COMPETÊNCIA NÃO ENTRA — RN-19)
+
+TIPO       CONTA IDENTIFICADORA        ORÇADO    REALIZADO     SALDO   CONSUMO
+RECEITA    VENDA DE MERCADORIA      14.000,00    11.900,00  2.100,00      85%
+RECEITA    PRESTAÇÃO DE SERVIÇOS     3.500,00     3.500,00      0,00     100%
+           TOTAL RECEITAS           17.500,00    15.400,00  2.100,00      88%
+DESPESA    ALUGUEL                   2.500,00     2.500,00      0,00     100%
+DESPESA    ENERGIA ELÉTRICA            400,00       312,00     88,00      78%
+DESPESA    FOLHA DE PAGAMENTO        8.900,00     9.240,00   -340,00     104%
+           TOTAL DESPESAS           11.800,00    12.052,00   -252,00     102%
+OUTRAS     APORTE DO SÓCIO           5.000,00     5.000,00      0,00     100%
+           TOTAL OUTRAS              5.000,00     5.000,00      0,00     100%</pre>
+
+<p>
+  ⚠️ <strong>A coluna SALDO é "orçado − realizado", e o nome importa.</strong> Chamá-la de
+  "diferença" deixaria ambíguo o sinal; "saldo" se lê como "o que ainda posso usar" — e o
+  negativo se lê como estouro, que é o que ele é.
+</p>
+</section>
+
+<!-- ============ 5. O MURO ============ -->
+<section>
+<h2 id="s5">5. ⚠️ O MURO DESTA RODADA: "só percentual" não é um cofre</h2>
+
+<p>
+  Esta é a parte do estudo que eu mais preciso que você leia. O que você pediu é razoável e vai
+  ser feito — mas, do jeito óbvio, <strong>ele daria a você uma sensação de sigilo que não
+  corresponde à realidade</strong>. Prefiro dizer isso agora do que você descobrir depois.
+</p>
+
+<h3 id="s5-1">5.1 Se o valor viaja até o navegador, ele está entregue</h3>
+
+<div class="caixa perigo">
+  <span class="rotulo">⚠️ O jeito errado — e é o jeito que quase todo sistema faz</span>
+  <p>
+    O jeito natural de implementar "ele vê só o percentual" é: o banco devolve
+    <code>{orçado: 40000, realizado: 31200, consumo: 78}</code>, e a tela, sabendo que aquele
+    usuário está no modo percentual, <strong>desenha só o 78%</strong>.
+  </p>
+  <p>
+    <strong>Isso não esconde nada.</strong> Os dois valores atravessaram a internet e estão
+    dentro do navegador do dependente. Ele abre as ferramentas do navegador (a tecla F12, que
+    existe em qualquer computador), vai na aba de rede, e lê
+    <code>orçado: 40000, realizado: 31200</code> em texto puro. Não é preciso saber programar;
+    é preciso saber clicar.
+  </p>
+  <p>
+    É exatamente o mesmo erro que este projeto já cometeu e documentou: o
+    <code>sessionStorage.dev_vip_access</code>, em que o privilégio de Desenvolvedor era uma
+    marca no navegador — e bastava o DevTools para virar Desenvolvedor.
+  </p>
+</div>
+
+<div class="caixa feito">
+  <span class="rotulo">✅ O jeito certo: o valor NÃO SAI DO BANCO</span>
+  <p>
+    A função <code>fin_dinheiro_do_periodo</code> lê, ela mesma, o modo daquele membro. Se o
+    modo for "só percentual", ela devolve <code>orcado_centavos = NULL</code>,
+    <code>realizado_centavos = NULL</code> e <strong>só o número do consumo</strong>. A tela não
+    precisa esconder nada — <strong>não há o que esconder</strong>, porque o valor nunca foi
+    enviado.
+  </p>
+  <p>
+    ⚠️ <strong>E o percentual sai ARREDONDADO para inteiro.</strong> "78%" não permite deduzir
+    os valores; "77,9412%" reduz muito as combinações possíveis se alguém souber o realizado por
+    outro caminho. Custa nada arredondar, e fecha a fresta.
+  </p>
+</div>
+
+<h3 id="s5-2">5.2 E existem CINCO outras portas para o mesmo número</h3>
+
+<div class="caixa perigo">
+  <span class="rotulo">⚠️ Esconder o valor NESTA TELA não o esconde no sistema</span>
+  <p>
+    Mesmo com o banco devolvendo só o percentual, o dependente chega aos mesmos valores por
+    outros caminhos <strong>que ele já tem hoje</strong>, se as permissões dele permitirem:
+  </p>
+  <table class="miuda" style="margin-top:8px">
+    <thead><tr><th style="width:30%">Permissão que ele tenha</th><th>O que ela revela</th></tr></thead>
+    <tbody>
+      <tr><td><code>extrato_ver</code></td><td>a CONFERÊNCIA DA CONTA e os dois DASHBOARDS — com todos os valores, mês a mês</td></tr>
+      <tr><td><code>lc_ver_todos</code></td><td>a tela PESQUISAR, com o valor de cada lançamento e a faixa de totais</td></tr>
+      <tr><td><code>imprimir</code></td><td>o papel e o arquivo .TSV das telas acima</td></tr>
+      <tr><td><code>orc_ver</code> (nova)</td><td>a própria tela de ORÇAMENTO, onde o valor orçado é a informação principal</td></tr>
+      <tr><td><code>cm_ver</code></td><td>o saldo de abertura de cada conta movimento</td></tr>
+    </tbody>
+  </table>
+  <p style="margin-top:12px">
+    Ou seja: <strong>o modo percentual só é um sigilo de verdade se o dependente NÃO tiver
+    nenhuma dessas cinco.</strong> Com qualquer uma delas, ele é conforto visual — útil, mas
+    conforto.
+  </p>
+</div>
+
+<h3 id="s5-3">5.3 O que eu proponho fazer — e o que eu NÃO posso prometer</h3>
+
+<table>
+  <thead><tr><th style="width:36%">Eu faço</th><th>Eu não prometo</th></tr></thead>
+  <tbody>
+    <tr>
+      <td class="certo">O valor <strong>não sai do banco</strong> quando o modo é percentual — a proteção é do lado de lá, não da tela.</td>
+      <td class="errado">Que o dependente não descubra os valores <strong>se ele tiver outra permissão que os mostre</strong>. Isso não é falha da implementação: é aritmética de permissões.</td>
+    </tr>
+    <tr>
+      <td class="certo">A tela de CONFIGURAÇÕES avisa, com destaque, quando o modo percentual está ligado <strong>e</strong> o mesmo dependente tem alguma das cinco permissões que vazam — dizendo <strong>quais</strong>.</td>
+      <td class="errado">Bloquear automaticamente. Pode haver caso legítimo em que você quer o percentual só como conforto, e decidir isso por você seria errado.</td>
+    </tr>
+    <tr>
+      <td class="certo">Um botão, nesse aviso: <strong>"RETIRAR ESSAS PERMISSÕES AGORA"</strong>, que desliga as cinco de uma vez.</td>
+      <td class="errado">Que o percentual esconda o valor de quem tem acesso ao banco pelo painel do Supabase — aí não há tela que resolva.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="caixa honesto">
+  <span class="rotulo">Em uma frase, para você levar</span>
+  <p>
+    <strong>Esconder informação numa tela é conforto; não enviá-la é segurança.</strong> Eu vou
+    fazer o segundo. Mas nenhum dos dois protege contra uma segunda porta aberta — e é você quem
+    decide quais portas cada dependente tem.
+  </p>
+</div>
+</section>
+
+<!-- ============ 6. PERMISSÕES ============ -->
+<section>
+<h2 id="s6">6. As permissões novas e a lista de contas por dependente</h2>
+
+<h3 id="s6-1">6.1 Onde isso mora hoje, e por que cabe sem mexer na plataforma</h3>
+
+<p>
+  As permissões do módulo ficam em <code>tenant_members.module_configs</code>, uma coluna
+  <code>jsonb</code> que a plataforma criou justamente para "configurações por módulo, por
+  membro". Hoje, para um dependente, ela guarda isto:
+</p>
+
+<pre><code>{ "financeiro": { "ativo": true, "permissoes": ["cm_ver", "lc_criar", "extrato_ver"] } }</code></pre>
+
+<p>E passaria a guardar isto:</p>
+
+<pre><code>{ "financeiro": {
+    "ativo": true,
+    "permissoes": ["cm_ver", "lc_criar", "extrato_ver", "orc_ver", "dp_ver"],
+
+    "dinheiro_contas": ["uuid-da-energia", "uuid-do-aluguel"],   ← a lista da sua 1ª exigência
+    "dinheiro_percentual": true                                   ← a sua 2ª exigência
+} }</code></pre>
+
+<div class="caixa feito">
+  <span class="rotulo">✅ Três coisas boas acontecem aqui</span>
+  <ol>
+    <li><strong>A plataforma não muda nada.</strong> O <code>jsonb</code> é livre por módulo — a regra do LEGO continua inteira, e desplugar o módulo leva essa configuração junto.</li>
+    <li><strong>A lista e o modo NÃO são permissões</strong>, e é de propósito. Uma permissão chamada "só percentual" seria invertida — <em>ter</em> a permissão significaria <em>ver menos</em> —, e um dia alguém marcaria a caixa achando que estava dando acesso.</li>
+    <li><strong>Quem lê são as funções novas</strong>, dentro do banco. A tela lê a mesma coisa só para desenhar.</li>
+  </ol>
+</div>
+
+<h4>As permissões novas: 18 → 22</h4>
+
+<table class="miuda">
+  <thead><tr><th style="width:22%">Chave</th><th style="width:38%">Rótulo na tela</th><th>Governa</th></tr></thead>
+  <tbody>
+    <tr><td><code>orc_ver</code></td><td>VER O ORÇAMENTO</td><td>abrir as duas telas de orçamento e a impressão delas</td></tr>
+    <tr><td><code>orc_gravar</code></td><td>CRIAR E EDITAR ORÇAMENTO</td><td>o botão GRAVAR e o EDITAR do menu de linha</td></tr>
+    <tr><td><code>orc_excluir</code></td><td>EXCLUIR ORÇAMENTO</td><td>o EXCLUIR do menu de linha</td></tr>
+    <tr><td><code>dp_ver</code></td><td>VER O DINHEIRO DO PERÍODO</td><td>a tela das barras e a impressão dela</td></tr>
+  </tbody>
+</table>
+
+<p>
+  <strong>Lançar a partir do "dinheiro do período" continua exigindo <code>lc_criar</code></strong>
+  — a mesma permissão de sempre. Criar uma permissão separada para "lançar por aqui" daria dois
+  interruptores para o mesmo poder, e um dia eles discordariam.
+</p>
+
+<h3 id="s6-2">6.2 <code>[]</code> não é <code>NULL</code>, pela terceira vez</h3>
+
+<div class="caixa armadilha">
+  <span class="rotulo">⚠️ A mesma lição, no terceiro lugar diferente</span>
+  <p>
+    Na lista de contas liberadas (<code>dinheiro_contas</code>), os dois valores significam
+    coisas opostas:
+  </p>
+  <table class="miuda" style="margin-top:8px">
+    <thead><tr><th style="width:24%">Valor</th><th>Significa</th></tr></thead>
+    <tbody>
+      <tr><td><strong>ausente / <code>null</code></strong></td><td>"não estou escolhendo" → <strong>TODAS</strong> as contas (é o padrão de quem nunca mexeu)</td></tr>
+      <tr><td><strong><code>[]</code></strong></td><td>"desmarquei tudo" → <strong>NENHUMA</strong> conta</td></tr>
+    </tbody>
+  </table>
+  <p style="margin-top:12px">
+    Confundi-los faria o botão <strong>DESMARCAR TODAS</strong> liberar o orçamento inteiro — o
+    contrário exato do que a pessoa acabou de pedir. É a mesma armadilha da exclusão em lote
+    (17/09) e da conferência somada (18/09), e ela vai ter <strong>trava no banco</strong>, como
+    as outras duas.
+  </p>
+</div>
+
+<h3 id="s6-3">6.3 A conta liberada que deixa de existir</h3>
+
+<p>
+  Você libera três contas para um dependente. Meses depois, exclui uma delas do cadastro. O
+  <code>jsonb</code> continua com o id da conta apagada, porque <strong>o banco não valida o
+  conteúdo de um jsonb de módulo</strong> — e nem deveria: a plataforma não conhece o negócio da
+  peça.
+</p>
+
+<div class="caixa destaque">
+  <span class="rotulo">Por que isso NÃO é um problema de segurança, e ainda assim merece conserto</span>
+  <p>
+    O filtro é uma <strong>interseção</strong>: a função devolve as contas que estão orçadas
+    <strong>e</strong> liberadas. Um id que não existe mais simplesmente não casa com nada — não
+    libera coisa alguma, e não quebra.
+  </p>
+  <p>
+    O que ele faz é sujar a tela de configuração, que mostraria "3 contas liberadas" quando só 2
+    existem. Proponho: a tela conta e avisa — <em>"1 CONTA LIBERADA JÁ NÃO EXISTE"</em> — com um
+    botão para limpar. É o bônus B11.
+  </p>
+</div>
+</section>
+
+<!-- ============ 7. O BANCO ============ -->
+<section>
+<h2 id="s7">7. O que o banco ganha: uma tabela e seis funções</h2>
+
+<table>
+  <thead><tr><th style="width:42%">Função</th><th>O que responde</th></tr></thead>
+  <tbody>
+    <tr><td><code>fin_gravar_orcamento(tenant, id, competencia, conta, valor)</code></td><td>cria ou altera. Recusa competência que não seja dia 1, valor ≤ 0, e conta de outra empresa</td></tr>
+    <tr><td><code>fin_excluir_orcamento(tenant, id)</code></td><td>apaga um registro (a auditoria guarda o rastro)</td></tr>
+    <tr><td><code>fin_listar_orcamento(tenant, competencia)</code></td><td>a conferência: as contas da competência, já na ordem RECEITA → DESPESA → OUTRAS, com os totais por tipo</td></tr>
+    <tr><td><code>fin_competencias_orcadas(tenant, de, ate, conta)</code></td><td>a PESQUISAR: uma linha por competência, com contagem e totais</td></tr>
+    <tr><td><code>fin_dinheiro_do_periodo(tenant, competencia)</code></td><td><strong>a peça central</strong>: orçado × realizado por conta, já filtrada pelas contas liberadas e já no modo (valor ou só percentual) daquele membro</td></tr>
+    <tr><td><code>fin_config_dinheiro(tenant)</code></td><td>o que a TELA precisa saber para se desenhar: este membro vê valores? quantas contas ele enxerga?</td></tr>
+  </tbody>
+</table>
+
+<div class="caixa armadilha">
+  <span class="rotulo">⚠️ Por que o filtro e o modo ficam DENTRO da função, e não na tela</span>
+  <p>
+    Se a função devolvesse tudo e a tela filtrasse, bastaria chamar a função por fora da tela —
+    ou abrir o DevTools — para ver o orçamento inteiro. É a mesma regra que o módulo segue desde
+    o primeiro dia: <strong>a tela desenha, o banco decide</strong>. Com o filtro lá dentro, a
+    resposta já chega recortada, e não há por onde contornar.
+  </p>
+</div>
+
+<div class="caixa destaque">
+  <span class="rotulo">E o ritual de sempre, que já é automático aqui</span>
+  <p>
+    <code>REVOKE … FROM PUBLIC</code> antes do <code>GRANT</code> · <code>fin_pode()</code> por
+    dentro de cada uma · as seis na lista do <code>financeiro_00_reset.sql</code> · inventário
+    atualizado (contagem <strong>e</strong> assinatura) · ensaio de upgrade. O
+    <code>npm run ensaio</code> confere tudo isso num comando.
+  </p>
+</div>
+</section>
+
+<!-- ============ 8. TAMANHO ============ -->
+<section>
+<h2 id="s8">8. O tamanho honesto, e por que eu proponho DUAS entregas</h2>
+
+<table>
+  <thead><tr><th style="width:26%">Peça</th><th class="num" style="width:12%">Quantos</th><th>O quê</th></tr></thead>
+  <tbody>
+    <tr><td>Tabela nova</td><td class="num">1</td><td><code>fin_orcamentos</code> — a primeira tabela nova do módulo desde a criação dele</td></tr>
+    <tr><td>Funções novas</td><td class="num">6</td><td>29 → 35 no módulo</td></tr>
+    <tr><td>Telas novas</td><td class="num">4</td><td>orçamento (adicionar), orçamento (pesquisar), dinheiro do período, lançamento simplificado</td></tr>
+    <tr><td>Componentes</td><td class="num">~7</td><td>seletor de competência, barra de consumo, lista da conferência, seletor de contas liberadas…</td></tr>
+    <tr><td>Arquivos do Core</td><td class="num">~5</td><td>serviço, regras testáveis, tipos, helpers de competência em <code>lib/datas.ts</code></td></tr>
+    <tr><td>Travas novas no SQL</td><td class="num">~8</td><td>41 → ~49</td></tr>
+  </tbody>
+</table>
+
+<div class="caixa destaque">
+  <span class="rotulo">A proposta: duas entregas, e a ordem não é negociável</span>
+  <p>
+    <strong>ENTREGA A — ORÇAMENTO.</strong> A tabela, as 4 primeiras funções, as duas telas, as
+    3 permissões novas e a impressão. Ao fim dela você já consegue <em>montar</em> o orçamento e
+    conferi-lo.
+  </p>
+  <p>
+    <strong>ENTREGA B — DINHEIRO DO PERÍODO.</strong> As 2 funções restantes, a tela das barras,
+    o lançamento simplificado, a permissão <code>dp_ver</code>, a lista de contas liberadas e o
+    modo percentual.
+  </p>
+  <p>
+    ⚠️ <strong>B depende de A, e não o contrário.</strong> Sem orçamento gravado, a tela do
+    DINHEIRO DO PERÍODO não tem o que mostrar — ela própria diz isso ("não existe orçamento para
+    esta competência"). Entregar as duas juntas também funciona; o que <em>não</em> funciona é
+    inverter a ordem.
+  </p>
+  <p>
+    <strong>Minha recomendação: as duas juntas</strong>, se você puder esperar; ou A primeiro, se
+    preferir ver algo funcionando antes. Diga na resposta.
+  </p>
+</div>
+</section>
+
+<!-- ============ 9. PROVAS ============ -->
+<section>
+<h2 id="s9">9. Como eu vou provar que funciona</h2>
+
+<table>
+  <thead><tr><th style="width:5%">#</th><th style="width:36%">Prova</th><th>O que ela pega</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td><strong>Duas vezes a mesma conta na mesma competência é recusado</strong></td><td>o orçamento em dobro, que soma errado e ninguém percebe</td></tr>
+    <tr><td class="num">2</td><td><strong>Competência que não é dia 1 é recusada</strong></td><td>duas "SETEMBRO / 2026" no banco</td></tr>
+    <tr><td class="num">3</td><td><strong>O realizado bate com a célula do dashboard 2</strong></td><td><strong>a prova que mais importa</strong>: duas telas do mesmo sistema mostrando números diferentes para o mesmo mês</td></tr>
+    <tr><td class="num">4</td><td><strong>COMPETÊNCIA não entra no realizado</strong> (RN-19)</td><td>a regra esquecida numa função nova</td></tr>
+    <tr><td class="num">5</td><td><strong>Modo percentual: o valor vem NULO do banco</strong></td><td>o vazamento da seção 5 — é a trava mais importante desta rodada</td></tr>
+    <tr><td class="num">6</td><td><strong>Lista de contas vazia (<code>[]</code>) devolve NENHUMA conta; ausente devolve TODAS</strong></td><td>a confusão que faria DESMARCAR TODAS liberar tudo</td></tr>
+    <tr><td class="num">7</td><td><strong>Empresa A não vê orçamento da empresa B</strong>, nas 6 funções</td><td>vazamento entre empresas</td></tr>
+    <tr><td class="num">8</td><td><strong>Sem <code>orc_ver</code> / <code>dp_ver</code>, as funções recusam com 42501</strong></td><td>função nova aberta a quem não deveria</td></tr>
+    <tr><td class="num">9</td><td><strong>Cada trava nova vista FALHAR uma vez</strong></td><td>teste decorativo — regra do projeto</td></tr>
+  </tbody>
+</table>
+
+<p>
+  Mais o <code>npm run ensaio</code>, que hoje roda as seis provas de uma vez, incluindo o ensaio
+  de upgrade a partir do schema do último commit.
+</p>
+</section>
+
+<!-- ============ 10. FRONTEIRA ============ -->
+<section>
+<h2 id="s10">10. O que eu NÃO vou fazer neste degrau</h2>
+
+<table>
+  <thead><tr><th style="width:34%">Não entra</th><th>Por quê</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Orçamento por conta MOVIMENTO</strong></td><td>Você pediu por identificadora, e é o que faz sentido: orça-se o motivo, não o lugar.</td></tr>
+    <tr><td><strong>Orçamento anual, ou por trimestre</strong></td><td>Você pediu competência mensal. Um total do ano é bônus (B5), não estrutura nova.</td></tr>
+    <tr><td><strong>Orçamento separado por PROPRIEDADE</strong></td><td>Dobraria as linhas. Se você quiser, é um degrau próprio — ver a pergunta 2.</td></tr>
+    <tr><td><strong>Previsão automática</strong> ("com base nos 3 meses anteriores")</td><td>Não foi pedido, e é chute com cara de número. O que eu proponho é <strong>copiar</strong> o mês anterior (B1), que é você decidindo.</td></tr>
+    <tr><td><strong>Gráficos</strong></td><td>A barra de progresso é desenho em CSS, sem biblioteca. Gráfico de verdade é outro assunto — o <code>recharts</code> foi desinstalado do projeto.</td></tr>
+    <tr><td><strong>Alerta por e-mail ao estourar</strong></td><td>Exigiria provedor de e-mail, que saiu na v4. Só aviso na tela.</td></tr>
+  </tbody>
+</table>
+</section>
+
+<!-- ============ 11. BÔNUS ============ -->
+<section class="bonus-section">
+<h2 id="s11">11. BÔNUS — 12 sugestões de alta relevância</h2>
+
+<p>Nada aqui estava no seu pedido. Todas são recusáveis.</p>
+
+<table>
+  <thead><tr><th style="width:5%">#</th><th style="width:26%">Sugestão</th><th style="width:48%">Por que vale</th><th style="width:21%">Custo</th></tr></thead>
+  <tbody>
+    <tr>
+      <td class="num">B1</td>
+      <td><strong>COPIAR O ORÇAMENTO DO MÊS ANTERIOR</strong></td>
+      <td><strong>É o que eu mais recomendo.</strong> Sem isto, montar o orçamento de outubro significa redigitar as mesmas 15 contas de setembro, uma a uma, todo mês. Um botão que copia tudo (e deixa você ajustar) transforma 15 minutos em 15 segundos.</td>
+      <td class="certo">Baixo — uma função de banco que insere em lote.</td>
+    </tr>
+    <tr>
+      <td class="num">B2</td>
+      <td><strong>Bloco "GASTO FORA DO ORÇAMENTO"</strong></td>
+      <td><strong>O segundo que eu mais recomendo.</strong> Sem ele, o gasto que ninguém planejou some da tela — e é justamente o que você mais precisa ver. Ver a seção 4.2.</td>
+      <td class="certo">Baixo — a mesma consulta, com o filtro invertido.</td>
+    </tr>
+    <tr>
+      <td class="num">B3</td>
+      <td><strong>Linha de RESULTADO orçado × realizado</strong></td>
+      <td>"Planejei sobrar R$ 5.700,00 e estou sobrando R$ 3.348,00." É a pergunta que a tela provoca, e hoje ela ficaria sem resposta.</td>
+      <td class="certo">Baixo.</td>
+    </tr>
+    <tr>
+      <td class="num">B4</td>
+      <td><strong>Marca do "ritmo do mês"</strong></td>
+      <td>Um risquinho na barra no ponto proporcional ao dia de hoje: em 18 de setembro, ele fica em 60%. Consumir 78% no dia 18 é diferente de consumir 78% no dia 30 — e a barra sozinha não conta isso.</td>
+      <td class="talvez">Médio-baixo, e muda a leitura da tela inteira.</td>
+    </tr>
+    <tr>
+      <td class="num">B5</td>
+      <td><strong>Coluna TOTAL DO ANO na pesquisa</strong></td>
+      <td>Somar 12 competências de orçamento faz sentido (é fluxo, não saldo) — é a mesma regra do dashboard 2.</td>
+      <td class="certo">Baixo.</td>
+    </tr>
+    <tr>
+      <td class="num">B6</td>
+      <td><strong>Exportar .TSV do dinheiro do período</strong></td>
+      <td>O exportador genérico já existe desde hoje de manhã. Fica coerente com os dashboards, que já exportam.</td>
+      <td class="certo">Muito baixo.</td>
+    </tr>
+    <tr>
+      <td class="num">B7</td>
+      <td><strong>Aviso de data fora da competência</strong></td>
+      <td>Descrito em 4.3: sem ele, a pessoa lança, a barra não mexe, e ela conclui que o sistema falhou.</td>
+      <td class="certo">Baixo.</td>
+    </tr>
+    <tr>
+      <td class="num">B8</td>
+      <td><strong>O aviso de vazamento na tela de configuração</strong></td>
+      <td>Descrito em 5.3. <strong>Não é opcional na minha cabeça</strong> — sem ele, o modo percentual promete o que não cumpre.</td>
+      <td class="certo">Baixo.</td>
+    </tr>
+    <tr>
+      <td class="num">B9</td>
+      <td><strong>Contas sem orçamento destacadas no "+ ADICIONAR NOVO"</strong></td>
+      <td>Ao montar outubro, a tela lembra: "VOCÊ ORÇOU ENERGIA EM SETEMBRO E AINDA NÃO ORÇOU EM OUTUBRO".</td>
+      <td class="talvez">Médio-baixo.</td>
+    </tr>
+    <tr>
+      <td class="num">B10</td>
+      <td><strong>Campo OBSERVAÇÃO no orçamento</strong></td>
+      <td>"Aumentei por causa do reajuste do aluguel." Daqui a seis meses, é a diferença entre entender e adivinhar. Já está previsto na tabela da seção 3.2.</td>
+      <td class="certo">Muito baixo.</td>
+    </tr>
+    <tr>
+      <td class="num">B11</td>
+      <td><strong>Faxina dos ids órfãos na lista de contas liberadas</strong></td>
+      <td>Descrito em 6.3. Não é segurança; é a tela parar de mentir sobre quantas contas estão liberadas.</td>
+      <td class="certo">Baixo.</td>
+    </tr>
+    <tr>
+      <td class="num">B12</td>
+      <td><strong>Atalho do DINHEIRO DO PERÍODO para o orçamento que falta</strong></td>
+      <td>Quando não há orçamento na competência, em vez de só avisar, a tela oferece "CRIAR O ORÇAMENTO DESTA COMPETÊNCIA" — que é o que a pessoa vai fazer a seguir de qualquer jeito.</td>
+      <td class="certo">Muito baixo.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="caixa feito">
+  <span class="rotulo">✅ Se você quiser escolher rápido</span>
+  <p>
+    <strong>B1, B2 e B8</strong> são os três que mudam o valor da entrega — eu faria os três sem
+    pensar. <strong>B3, B6, B7, B10, B11 e B12</strong> são baratos e melhoram a tela.
+    <strong>B4</strong> é o mais interessante e o mais caro. <strong>B5 e B9</strong> dependem de
+    gosto seu.
+  </p>
+</div>
+</section>
+
+<!-- ============ 12. PERGUNTAS ============ -->
+<section>
+<h2 id="s12">12. As perguntas que eu preciso que você responda</h2>
+
+<p>
+  São <strong>seis</strong>. Se você responder só <strong>"PODE FAZER"</strong>, eu sigo com a
+  recomendação de cada uma — nenhuma fica bloqueada esperando.
+</p>
+
+<table>
+  <thead><tr><th style="width:5%">#</th><th style="width:40%">Pergunta</th><th>Minha recomendação (vale se você não disser nada)</th></tr></thead>
+  <tbody>
+    <tr>
+      <td class="num">1</td>
+      <td>O <strong>realizado</strong> conta só regime CAIXA, ou também COMPETÊNCIA?</td>
+      <td class="certo"><strong>Só CAIXA</strong> — para bater com o extrato, os dashboards e a conferência.</td>
+    </tr>
+    <tr>
+      <td class="num">2</td>
+      <td>O realizado <strong>soma PRÓPRIO + TERCEIROS</strong>, ou orça-se cada um?</td>
+      <td class="certo"><strong>Soma tudo.</strong> Separar dobraria as linhas do orçamento.</td>
+    </tr>
+    <tr>
+      <td class="num">3</td>
+      <td>Numa identificadora do tipo <strong>OUTRAS</strong>, o TIPO DO MOVIMENTO fica fixo ou livre?</td>
+      <td class="certo"><strong>Livre</strong>, com padrão ENTRADA. "OUTRAS" existe justamente para o que vai nos dois sentidos.</td>
+    </tr>
+    <tr>
+      <td class="num">4</td>
+      <td>No modo percentual, eu <strong>bloqueio</strong> as cinco permissões que vazam, ou só <strong>aviso</strong>?</td>
+      <td class="certo"><strong>Aviso</strong>, dizendo quais, com um botão para retirá-las. Bloquear seria decidir por você.</td>
+    </tr>
+    <tr>
+      <td class="num">5</td>
+      <td><strong>Uma entrega ou duas?</strong></td>
+      <td class="certo"><strong>As duas juntas</strong>, se puder esperar; A primeiro se quiser ver algo antes.</td>
+    </tr>
+    <tr>
+      <td class="num">6</td>
+      <td><strong>Quais bônus</strong> da seção 11?</td>
+      <td class="certo"><strong>B1, B2, B3, B6, B7, B8, B10, B11 e B12.</strong> B4 se você quiser; B5 e B9 se gostar.</td>
+    </tr>
+  </tbody>
+</table>
+</section>
+
+<!-- ============ 13. PLACAR ============ -->
+<section>
+<h2 id="s13">13. Placar de hoje, e o que acontece depois do "PODE FAZER"</h2>
+
+<p>O estado do projeto <strong>agora</strong>, medido, depois dos três commits de hoje:</p>
+
+<div class="placar">
+  <div class="item"><div class="rot">npm test</div><div class="val">98 / 98</div></div>
+  <div class="item"><div class="rot">teste_financeiro.sql</div><div class="val">41 / 41</div></div>
+  <div class="item"><div class="rot">teste_rls.sql</div><div class="val">16 / 16</div></div>
+  <div class="item"><div class="rot">inventário do módulo</div><div class="val">17 / 17</div></div>
+  <div class="item"><div class="rot">tabelas · funções</div><div class="val">4 · 29</div></div>
+  <div class="item"><div class="rot">LEGO</div><div class="val">0 violações</div></div>
+</div>
+
+<h3>A ordem em que eu trabalho, se você autorizar</h3>
+
+<ol>
+  <li><strong>Banco primeiro, tela por último</strong> — a tabela, as funções e as travas antes de existir qualquer interface. É a regra do módulo.</li>
+  <li><strong>Core</strong> — os helpers de competência em <code>lib/datas.ts</code> (com teste), o serviço e as regras testáveis da barra.</li>
+  <li><strong>ORÇAMENTO</strong> — as duas telas, com impressão.</li>
+  <li><strong>DINHEIRO DO PERÍODO</strong> — as barras, o lançamento simplificado, a impressão.</li>
+  <li><strong>CONFIGURAÇÕES</strong> — as 4 permissões, a lista de contas e o modo percentual, com o aviso de vazamento.</li>
+  <li><strong>Menu, documentação e commit</strong> — e o <code>npm run ensaio</code> completo antes de empurrar.</li>
+  <li><strong>Eu te entrego</strong>: o SQL para colar no Supabase (devolvendo linhas PASSOU/FALHOU) e o aviso de que está publicado.</li>
+</ol>
+
+<div class="caixa destaque">
+  <span class="rotulo">Uma observação sobre o que isto significa</span>
+  <p>
+    Com estas duas peças, <strong>a fase 5 da especificação fecha</strong> — DASHBOARDS saiu hoje
+    de manhã, e DINHEIRO DO PERÍODO e ORÇAMENTO são os dois últimos "EM DESENVOLVIMENTO" do
+    módulo. Depois disto, o Controle Financeiro está inteiro.
+  </p>
+</div>
+
+<div class="caixa honesto">
+  <span class="rotulo">E uma última honestidade, sobre a seção 5</span>
+  <p>
+    Eu poderia ter implementado o "só percentual" do jeito óbvio, entregado, e você nunca
+    saberia — a tela mostraria só o percentual e pareceria certo. Preferi escrever três páginas
+    explicando por que aquilo seria uma fechadura pintada na porta. <strong>Se você discordar da
+    minha leitura, diga: eu faço do seu jeito e registro a decisão</strong> — mas não faço sem
+    você saber.
+  </p>
+</div>
+</section>
+
+<footer class="fim">
+  <p>
+    <strong>Plataforma Jairo O D C · v10 · Módulo Controle Financeiro</strong><br>
+    Estudo produzido em 18/09/2026, com leitura direta dos arquivos do repositório após os
+    commits <code>36e93bc</code>, <code>8843d16</code> e <code>0b7ce97</code>. Nenhum código foi
+    alterado para escrever este documento.<br>
+    Documentos irmãos: <code>CLAUDE.md</code> (as regras), <code>HISTORICO.md</code> (o porquê de
+    cada uma), <code>MODULOS.md</code> (plataforma × módulos),
+    <code>_estudos/estudo-2026-09-18-dashboards-saldos-por-mes.html</code> (a rodada anterior).
+  </p>
+</footer>
+
+</div><!-- /folha -->
+
+<script>
+(function () {
+  'use strict';
+
+  var container = document.getElementById('printContainer');
+  var btn       = document.getElementById('printBtn');
+  var menu      = document.getElementById('printMenu');
+  var btnCores  = document.getElementById('btnCores');
+  var btnPB     = document.getElementById('btnPB');
+
+  if (!container || !btn || !menu || !btnCores || !btnPB) {
+    console.error('[IMPRESSAO] Elementos do menu de impressao nao encontrados.');
+    return;
+  }
+
+  function abrirMenu()  { menu.classList.add('aberto'); }
+  function fecharMenu() { menu.classList.remove('aberto'); }
+
+  /* ---- O botao abre e fecha. stopPropagation para o listener do
+          documento nao receber este mesmo clique e fechar na hora. ---- */
+  btn.addEventListener('click', function (event) {
+    event.stopPropagation();
+    if (menu.classList.contains('aberto')) {
+      fecharMenu();
+    } else {
+      abrirMenu();
+    }
+  });
+
+  /* ---- O MENU inteiro segura os eventos. E isto que permite passear
+          com o mouse entre as 2 opcoes sem o menu fechar. ---- */
+  menu.addEventListener('click',     function (event) { event.stopPropagation(); });
+  menu.addEventListener('mousedown', function (event) { event.stopPropagation(); });
+  menu.addEventListener('mouseup',   function (event) { event.stopPropagation(); });
+  menu.addEventListener('mouseover', function (event) { event.stopPropagation(); });
+  menu.addEventListener('mousemove', function (event) { event.stopPropagation(); });
+
+  /* ---- Fecha ao clicar FORA do container (nem no botao, nem no menu). ---- */
+  document.addEventListener('click', function (event) {
+    if (!container.contains(event.target)) {
+      fecharMenu();
+    }
+  });
+
+  /* Esc tambem fecha — reflexo de qualquer menu do sistema. */
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') { fecharMenu(); }
+  });
+
+  /* =================================================================
+     OPCAO "CORES (A4)"
+     Remove .print-bw, espera 100ms o navegador repintar, e imprime.
+     O @media print nao forca cor nenhuma: sai igual a tela.
+     ================================================================= */
+  btnCores.addEventListener('click', function (event) {
+    event.stopPropagation();
+    fecharMenu();
+    document.body.classList.remove('print-bw');
+    setTimeout(function () {
+      window.print();
+    }, 100);
+  });
+
+  /* =================================================================
+     OPCAO "PRETO & BRANCO (A4)"
+     Adiciona .print-bw, espera 100ms os estilos valerem, imprime,
+     e depois de 100ms remove a classe para a TELA voltar ao normal.
+     ================================================================= */
+  btnPB.addEventListener('click', function (event) {
+    event.stopPropagation();
+    fecharMenu();
+    document.body.classList.add('print-bw');
+    setTimeout(function () {
+      window.print();
+      setTimeout(function () {
+        document.body.classList.remove('print-bw');
+      }, 100);
+    }, 100);
+  });
+
+  console.log('[IMPRESSAO] Menu carregado com sucesso: Cores (A4) e Preto & Branco (A4). Sem erros.');
+}());
+</script>
+
+</body>
+</html>

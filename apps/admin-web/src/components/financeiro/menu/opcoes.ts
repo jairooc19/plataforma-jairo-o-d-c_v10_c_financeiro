@@ -18,7 +18,8 @@ import type { NomeDeIcone } from "../IconeFin";
 /** A permissão que o item exige para aparecer. `undefined` = aparece sempre. */
 export type ChavePermissao =
   | "cm_ver" | "ci_ver" | "lc_ver_todos" | "lc_criar" | "extrato_ver"
-  | "transferencia" | "fechar_periodo" | "imprimir";
+  | "transferencia" | "fechar_periodo" | "imprimir"
+  | "orc_ver" | "dp_ver";
 
 export interface ItemDeMenu {
   rotulo: string;
@@ -117,7 +118,32 @@ export const OPCOES: ItemDeMenu[] = [
       },
     ],
   },
-  { rotulo: "ORÇAMENTO",  icone: "orcamento",  emDesenvolvimento: true },
+  /**
+   * 🎯 O ORÇAMENTO — 18/09/2026. Deixou de ser "EM DESENVOLVIMENTO".
+   *
+   * ⚠️ O "DINHEIRO DO PERÍODO" NÃO ENTRA NESTA LISTA, e não é esquecimento: ele
+   * é o CARTÃO GRANDE da tela inicial do módulo, no lugar reservado para ele
+   * desde o degrau 6. Pô-lo também aqui criaria duas portas para a mesma
+   * pergunta — o mesmo motivo pelo qual o extrato nunca teve entrada de menu.
+   */
+  {
+    rotulo: "ORÇAMENTO",
+    icone: "orcamento",
+    filhos: [
+      {
+        rotulo: "+ ADICIONAR NOVO",
+        icone: "novo",
+        href: "/dashboard/financeiro/orcamento/novo",
+        exige: "orc_ver",
+      },
+      {
+        rotulo: "PESQUISAR",
+        icone: "pesquisar",
+        href: "/dashboard/financeiro/orcamento/pesquisar",
+        exige: "orc_ver",
+      },
+    ],
+  },
 ];
 
 /**

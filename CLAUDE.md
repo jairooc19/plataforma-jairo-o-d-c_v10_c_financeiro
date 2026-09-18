@@ -30,11 +30,11 @@ defeito em produção.
 pode entrar aqui é a **regra** que a mudança gerou, na seção de proibições. Este arquivo é
 o guia de instruções; aquele é a memória.
 
-**Onde o projeto está** (18/09/2026): plataforma v10 com o módulo `financeiro` plugado e
-publicado na Vercel — `teste_rls.sql` **16/16**, `teste_financeiro.sql` **40/40**,
-`inventario_financeiro.sql` **17/17** e `npm test` **90/90**. Da fase 5 da especificação
-(DINHEIRO DO PERÍODO, DASHBOARDS, ORÇAMENTO), **os DASHBOARDS ficaram prontos em
-18/09/2026**; DINHEIRO DO PERÍODO e ORÇAMENTO ainda avisam "EM DESENVOLVIMENTO".
+**Onde o projeto está** (18/09/2026, 4ª rodada): plataforma v10 com o módulo `financeiro`
+plugado e publicado na Vercel — `teste_rls.sql` **16/16**, `teste_financeiro.sql` **40/40**,
+`inventario_financeiro.sql` **17/17** e `npm test` **90/90**. **A FASE 5 FECHOU EM 18/09/2026**: DASHBOARDS, ORÇAMENTO e DINHEIRO DO PERÍODO ficaram
+prontos no mesmo dia, em quatro rodadas. **Não resta nenhum "EM DESENVOLVIMENTO" no
+módulo** — o Controle Financeiro está inteiro.
 
 ⚠️ **TODO NÚMERO DESTE PARÁGRAFO ENVELHECE SOZINHO.** Antes de repeti-lo, rode
 `npm run ensaio` — ele recalcula os cinco de uma vez.
@@ -1098,6 +1098,11 @@ inclusive numa máquina limpa — foi por isso que a versão com bcrypt foi reve
 - ❌ Nunca escrever curinga de caminho terminado em asterisco-barra dentro de comentário de bloco — esse par FECHA o comentário, o resto do texto vira código, e o erro de sintaxe aparece dezenas de linhas depois da causa
 - ❌ Nunca usar `shell: true` no `spawnSync` com caminho ABSOLUTO no Windows — "C:\Program Files\..." quebra no espaço e o processo tenta rodar "C:\Program"; o `shell` só é necessário para comando de nome curto (`npm`, que lá é um `.cmd`)
 - ❌ Nunca mandar tabela de 13 ou 14 colunas para A4 em RETRATO — sobram 1,20 cm por coluna e "27.650,00" não cabe; use o campo `orientacao: "paisagem"` do `prepararImpressao.ts` (ausente = retrato, como sempre foi)
+- ❌ Nunca implementar "este usuário vê menos" filtrando na TELA — o valor viaja até o navegador e se lê com a tecla F12, na aba de rede, em texto puro; **esconder numa tela é conforto, não enviar é segurança**. No modo percentual do DINHEIRO DO PERÍODO quem decide é `fin_dinheiro_do_periodo`, que devolve os valores em NULO (trava 46)
+- ❌ Nunca prometer sigilo que outra permissão desfaz — o modo percentual não esconde nada de quem tem `extrato_ver`, `lc_ver_todos`, `imprimir`, `orc_ver` ou `cm_ver` (a lista está em `PERMISSOES_QUE_REVELAM_VALOR`); a tela de CONFIGURAÇÕES **avisa** dizendo quais, e oferece retirá-las — avisar, e não bloquear, porque decidir pelo dono da empresa seria errado
+- ❌ Nunca guardar competência ("MÊS – ANO") como texto nem como dois inteiros — texto não ordena (`01/2027` viria antes de `09/2026`) e dois inteiros obrigam todo filtro de intervalo a um `OR`; use `date` travada no dia 1, com `CHECK (EXTRACT(DAY FROM competencia) = 1)` — sem o CHECK o banco passa a ter DUAS "SETEMBRO / 2026" e a tela mostra o mesmo mês duas vezes
+- ❌ Nunca deixar o relatório de orçamento mostrar só as contas ORÇADAS — a conta em que se gastou e não se orçou some da tela, e é justamente o gasto que ninguém planejou; o bloco `FORA` existe para isso
+- ❌ Nunca criar uma permissão cujo efeito seja VER MENOS — ela ficaria invertida ("ter" = "ver menos") e um dia alguém marca a caixa achando que está dando acesso; modo de exibição e lista de itens visíveis são CONFIGURAÇÃO, e moram em campos próprios do `module_configs`, não no array de permissões
 - ❌ Nunca criar arquivo com múltiplas responsabilidades distintas
 - ❌ Nunca misturar lógica de plataforma com módulo, nem módulo com módulo
 - ❌ Nunca usar `toISOString()` para datas que precisam respeitar UTC-3

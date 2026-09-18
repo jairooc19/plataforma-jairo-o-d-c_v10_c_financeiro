@@ -163,6 +163,23 @@ export const PERMISSOES_FINANCEIRO = [
    */
   'lc_excluir_lote',
   'transferencia', 'extrato_ver', 'conciliar', 'imprimir', 'fechar_periodo',
+  /**
+   * ⚠️ 18/09/2026 — AS QUATRO DO ORÇAMENTO E DO DINHEIRO DO PERÍODO.
+   *
+   * São quatro e não duas porque ver, criar e apagar orçamento são poderes de
+   * tamanhos diferentes: quem monta o plano do mês não é necessariamente quem
+   * pode apagá-lo.
+   *
+   * ⚠️ LANÇAR A PARTIR DO DINHEIRO DO PERÍODO CONTINUA EXIGINDO `lc_criar` — a
+   * mesma permissão de sempre. Uma permissão separada para "lançar por aqui"
+   * daria dois interruptores para o mesmo poder, e um dia eles discordariam.
+   *
+   * ⚠️ E O MODO "SÓ PERCENTUAL" **NÃO** É UMA PERMISSÃO, de propósito: ela
+   * seria invertida (TER a permissão significaria VER MENOS), e um dia alguém
+   * marcaria a caixa achando que estava dando acesso. Ele mora em
+   * `ConfiguracaoDoMembro.dinheiro_percentual`.
+   */
+  'orc_ver', 'orc_gravar', 'orc_excluir', 'dp_ver',
 ] as const;
 
 export type PermissaoFinanceiro = (typeof PERMISSOES_FINANCEIRO)[number];
@@ -187,7 +204,33 @@ export const ROTULO_DA_PERMISSAO: Record<PermissaoFinanceiro, string> = {
   conciliar: 'MARCAR LANÇAMENTOS COMO CONFERIDOS',
   imprimir: 'IMPRIMIR E EXPORTAR',
   fechar_periodo: 'FECHAR E REABRIR PERÍODO',
+  orc_ver: 'VER O ORÇAMENTO',
+  orc_gravar: 'CRIAR E EDITAR ORÇAMENTO',
+  orc_excluir: 'EXCLUIR ORÇAMENTO',
+  dp_ver: 'VER O DINHEIRO DO PERÍODO',
 };
+
+/**
+ * ⚠️ AS CINCO PERMISSÕES QUE **VAZAM O VALOR** APESAR DO MODO PERCENTUAL.
+ *
+ * O modo "só percentual" impede o valor de SAIR DO BANCO na tela do dinheiro do
+ * período — mas quem tiver qualquer uma destas chega aos mesmos números por
+ * outro caminho, que ele já tem hoje:
+ *
+ *   extrato_ver   → a conferência da conta e os dois dashboards, mês a mês
+ *   lc_ver_todos  → a tela PESQUISAR, com o valor de cada lançamento
+ *   imprimir      → o papel e o .TSV das telas acima
+ *   orc_ver       → a própria tela de orçamento, onde o valor é o assunto
+ *   cm_ver        → o saldo de abertura de cada conta movimento
+ *
+ * A tela de CONFIGURAÇÕES usa esta lista para AVISAR o Proprietário — dizendo
+ * quais — quando ele liga o modo percentual num dependente que tem alguma
+ * delas. Avisar, e não bloquear: pode haver caso legítimo em que o percentual é
+ * só conforto, e decidir isso por ele seria errado.
+ */
+export const PERMISSOES_QUE_REVELAM_VALOR: PermissaoFinanceiro[] = [
+  'extrato_ver', 'lc_ver_todos', 'imprimir', 'orc_ver', 'cm_ver',
+];
 
 /** O conjunto sugerido para um Dependente novo (especificação, seção 4.3). */
 export const PERMISSOES_PADRAO_DEPENDENTE: PermissaoFinanceiro[] = [
@@ -195,10 +238,95 @@ export const PERMISSOES_PADRAO_DEPENDENTE: PermissaoFinanceiro[] = [
   'lc_editar_proprios', 'extrato_ver', 'imprimir',
 ];
 
-/** Como as permissões ficam guardadas em `tenant_members.module_configs`. */
+/**
+ * Como as permissões ficam guardadas em `tenant_members.module_configs`.
+ *
+ * ⚠️ OS DOIS CAMPOS DE 18/09/2026 NÃO SÃO PERMISSÕES, e por isso não estão no
+ * array: um é uma LISTA (quais contas este membro enxerga) e o outro é um MODO
+ * (ele vê valores ou só percentual). Permissão é sim-ou-não; estes dois não são.
+ *
+ * ⚠️ NADA DISSO MUDA A PLATAFORMA: `module_configs` é um `jsonb` livre por
+ * módulo, e desplugar o financeiro leva esta configuração junto.
+ */
 export interface ConfiguracaoDoMembro {
   ativo: boolean;
   permissoes: PermissaoFinanceiro[];
+  /**
+   * As contas identificadoras que este membro enxerga no DINHEIRO DO PERÍODO.
+   *
+   * ⚠️ AUSENTE E `[]` SÃO COISAS DIFERENTES — pela terceira vez neste módulo:
+   *     ausente / undefined → "não estou escolhendo": TODAS as contas
+   *     []                  → "desmarquei tudo": NENHUMA conta
+   * Confundi-los faria o botão DESMARCAR TODAS liberar o orçamento inteiro, que
+   * é o contrário exato do que a pessoa acabou de pedir. Travado na trava 47.
+   */
+  dinheiro_contas?: string[];
+  /** `true` = este membro vê só o percentual, sem os valores. */
+  dinheiro_percentual?: boolean;
+}
+
+/** O que o banco responde sobre o que ESTE membro pode ver no dinheiro do período. */
+export interface ConfigDoDinheiro {
+  eh_owner: boolean;
+  /** `false` = o banco devolve os valores em NULO; só o percentual atravessa. */
+  ve_valores: boolean;
+  /** `null` = todas as contas. `[]` = nenhuma. */
+  contas_liberadas: string[] | null;
+}
+
+// ===========================================================================
+// ORÇAMENTO E DINHEIRO DO PERÍODO — 18/09/2026
+// ===========================================================================
+
+/**
+ * Uma linha da conferência do orçamento, como `fin_listar_orcamento` a devolve.
+ *
+ * ⚠️ AS LINHAS DE TOTAL VÊM NA MESMA LISTA, marcadas por `linha_tipo` — o mesmo
+ * desenho do `fin_extrato`. A tela não soma nada, e por isso o papel impresso e
+ * o .TSV mostram sempre o mesmo número que o monitor.
+ */
+export interface LinhaDoOrcamento {
+  bloco: TipoContaIdentificadora;
+  linha_tipo: 'CONTA' | 'TOTAL';
+  orcamento_id: string | null;
+  conta_id: string | null;
+  nome: string | null;
+  is_active: boolean | null;
+  valor_centavos: number;
+  observacao: string | null;
+}
+
+/** Uma competência com orçamento, na tela PESQUISAR. `competencia` nula = a linha de total. */
+export interface CompetenciaOrcada {
+  competencia: string | null;
+  contas: number;
+  receitas_centavos: number;
+  despesas_centavos: number;
+  outras_centavos: number;
+  total_centavos: number;
+}
+
+/**
+ * Uma linha do DINHEIRO DO PERÍODO.
+ *
+ * ⚠️ OS TRÊS VALORES PODEM VIR NULOS, E ISSO NÃO É FALHA: no modo percentual o
+ * banco NÃO OS ENVIA. Esconder na tela seria inútil — o número teria viajado
+ * até o navegador e estaria legível com a tecla F12. Ver o cabeçalho de
+ * `fin_dinheiro_do_periodo` no schema.
+ */
+export interface LinhaDoDinheiro {
+  /** `FORA` = conta com movimento e SEM orçamento (o gasto que ninguém planejou). */
+  bloco: 'RECEITA' | 'DESPESA' | 'RESULTADO' | 'OUTRAS' | 'FORA';
+  linha_tipo: 'CONTA' | 'TOTAL';
+  conta_id: string | null;
+  nome: string | null;
+  tipo: TipoContaIdentificadora | null;
+  orcado_centavos: number | null;
+  realizado_centavos: number | null;
+  saldo_centavos: number | null;
+  /** Sempre presente, arredondado para inteiro. `null` no bloco FORA. */
+  consumo_percentual: number | null;
+  estourou: boolean;
 }
 
 // ===========================================================================

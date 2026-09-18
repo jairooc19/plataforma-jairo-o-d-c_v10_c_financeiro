@@ -283,3 +283,95 @@ export function mesDoAno(ano: number, mes: number): PeriodoDoMes {
     ate: dataLocalISO(new Date(ano, mes, 0)),
   };
 }
+
+// ===========================================================================
+// COMPETÊNCIA — 18/09/2026, para o orçamento e o dinheiro do período
+// ===========================================================================
+//
+// ⚠️ COMPETÊNCIA É UM MÊS, E ELA É GUARDADA COMO O PRIMEIRO DIA DELE.
+// "SETEMBRO / 2026" mora no banco como `2026-09-01`, numa coluna `date` com um
+// `CHECK` que exige o dia 1. As três alternativas foram pesadas no estudo:
+// texto "09/2026" não ordena (01/2027 viria antes de 09/2026) e dois inteiros
+// obrigam todo filtro de intervalo a usar os dois campos com um OR no meio.
+//
+// ⚠️ E A CONVERSÃO MORA AQUI, NÃO NA TELA. É a mesma regra que trouxe os
+// atalhos de mês para este arquivo: no Core ela é testável pelo `npm test`; na
+// tela, só clicando.
+
+/**
+ * Os doze meses por extenso, para o campo de escolher a competência.
+ *
+ * ⚠️ LISTA FIXA, E NÃO `Intl`, pelo mesmo motivo de `MESES_CURTOS`: o
+ * `Intl.DateTimeFormat` devolve "setembro" em minúsculas, e o módulo escreve
+ * tudo em caixa alta. Converter a cada renderização é trabalho para nada.
+ */
+export const MESES_POR_EXTENSO = [
+  'JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO',
+  'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO',
+] as const;
+
+/** A competência de uma data qualquer: "2026-09-17" → "2026-09-01". */
+export function competenciaDe(iso: DataISO = hojeISO()): DataISO {
+  return primeiroDiaDoMes(iso);
+}
+
+/** A competência do mês atual — o padrão das duas telas. */
+export function competenciaAtual(): DataISO {
+  return competenciaDe(hojeISO());
+}
+
+/** `competenciaDoMes(2026, 9)` → "2026-09-01". O mês é de 1 a 12. */
+export function competenciaDoMes(ano: number, mes: number): DataISO {
+  return mesDoAno(ano, mes).de;
+}
+
+/** Anda `passos` meses a partir de uma competência. Negativo anda para trás. */
+export function deslocarCompetencia(competencia: DataISO, passos: number): DataISO {
+  return deslocarMes(competencia, passos).de;
+}
+
+/**
+ * A data está dentro da competência?
+ *
+ * ⚠️ ELA EXISTE POR UM FURO SILENCIOSO. Abrir o orçamento de SETEMBRO, clicar
+ * numa conta e lançar com data 03/10 produz um lançamento válido que **não
+ * entra na barra de setembro** — a barra não se mexe e a pessoa conclui que a
+ * gravação falhou. A tela usa isto para avisar antes de gravar.
+ */
+export function ehDataNaCompetencia(data: DataISO, competencia: DataISO): boolean {
+  return competenciaDe(data) === competenciaDe(competencia);
+}
+
+/**
+ * A data que o lançamento deve sugerir dentro de uma competência: HOJE, se hoje
+ * cair nela; senão o primeiro dia dela.
+ *
+ * Sugerir sempre o dia 1 dataria errado o lançamento do mês corrente, que é o
+ * caso comum; sugerir sempre hoje dataria fora da competência ao trabalhar num
+ * mês passado, que é o furo descrito acima.
+ */
+export function dataPadraoNaCompetencia(competencia: DataISO, hoje: DataISO = hojeISO()): DataISO {
+  return ehDataNaCompetencia(hoje, competencia) ? hoje : competenciaDe(competencia);
+}
+
+/**
+ * 🎁 O "RITMO DO MÊS" — quanto do mês já passou, em percentual.
+ *
+ * ⚠️ ELE MUDA A LEITURA DA BARRA INTEIRA. Consumir 78% do orçamento no dia 18
+ * de setembro (quando 60% do mês passou) é diferente de consumir 78% no dia 30.
+ * A barra sozinha não conta isso; a marca do ritmo conta.
+ *
+ * Fora da competência a resposta é absoluta, e tem de ser: um mês passado está
+ * 100% vencido, e um mês futuro, 0%.
+ */
+export function ritmoDoMes(competencia: DataISO, hoje: DataISO = hojeISO()): number {
+  const inicio = competenciaDe(competencia);
+  if (hoje < inicio) return 0;
+
+  const fim = ultimoDiaDoMes(inicio);
+  if (hoje > fim) return 100;
+
+  const diaDeHoje = deDataISO(hoje).getDate();
+  const diasDoMes = deDataISO(fim).getDate();
+  return Math.round((diaDeHoje / diasDoMes) * 100);
+}

@@ -124,6 +124,8 @@ DELETE FROM public.platform_modules WHERE id = 'financeiro';
 -- 2. AS TABELAS DO MÓDULO
 -- Ordem reversa de dependência: filhas primeiro.
 -- ===========================================================================
+-- ⚠️ O ORÇAMENTO CAI PRIMEIRO: ele aponta para `fin_contas_identificadoras`.
+DROP TABLE IF EXISTS public.fin_orcamentos             CASCADE;
 DROP TABLE IF EXISTS public.fin_fechamentos            CASCADE;
 DROP TABLE IF EXISTS public.fin_lancamentos            CASCADE;
 DROP TABLE IF EXISTS public.fin_contas_movimento       CASCADE;
@@ -143,6 +145,14 @@ DROP FUNCTION IF EXISTS public.fin_apagar_dados_da_empresa(uuid) CASCADE;
 -- 17/09/2026: as duas funções de importação ficaram de fora desta lista por
 -- quatro dias, e o reset dizia "pronto" deixando duas funções `fin_*` vivas no
 -- `public`. Quem acrescenta função ao módulo acrescenta a baixa dela junto.
+-- 18/09/2026 — o orçamento e o dinheiro do período.
+DROP FUNCTION IF EXISTS public.fin_dinheiro_do_periodo(uuid, date) CASCADE;
+DROP FUNCTION IF EXISTS public.fin_copiar_orcamento(uuid, date, date, boolean) CASCADE;
+DROP FUNCTION IF EXISTS public.fin_competencias_orcadas(uuid, date, date, uuid) CASCADE;
+DROP FUNCTION IF EXISTS public.fin_listar_orcamento(uuid, date) CASCADE;
+DROP FUNCTION IF EXISTS public.fin_excluir_orcamento(uuid, uuid) CASCADE;
+DROP FUNCTION IF EXISTS public.fin_gravar_orcamento(uuid, uuid, date, uuid, bigint, text) CASCADE;
+DROP FUNCTION IF EXISTS public.fin_config_dinheiro(uuid) CASCADE;
 DROP FUNCTION IF EXISTS public.fin_extrato_consolidado(uuid, uuid[], date, date) CASCADE;
 DROP FUNCTION IF EXISTS public.fin_extrato_identificadora(uuid, uuid, date, date) CASCADE;
 DROP FUNCTION IF EXISTS public.fin_movimentos_mensais_identificadora(uuid, integer) CASCADE;

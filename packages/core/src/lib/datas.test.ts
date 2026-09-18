@@ -30,6 +30,14 @@ import {
   anoInteiro,
   mesDoAno,
   MESES_CURTOS,
+  MESES_POR_EXTENSO,
+  competenciaDe,
+  competenciaAtual,
+  competenciaDoMes,
+  deslocarCompetencia,
+  ehDataNaCompetencia,
+  dataPadraoNaCompetencia,
+  ritmoDoMes,
 } from './datas.ts';
 
 test('dataLocalISO usa o calendário local, não UTC', () => {
@@ -214,4 +222,62 @@ test('MESES_CURTOS tem os 12 meses, em três letras e sem ponto', () => {
   assert.equal(MESES_CURTOS[11], 'DEZ');
   // O ponto de "set." do Intl é justamente o que esta lista existe para evitar.
   assert.ok(MESES_CURTOS.every((m) => m.length === 3 && m === m.toUpperCase()));
+});
+
+// ===========================================================================
+// COMPETÊNCIA — 18/09/2026 (o orçamento e o dinheiro do período)
+// ===========================================================================
+
+test('a competência é sempre o primeiro dia do mês', () => {
+  assert.equal(competenciaDe('2026-09-17'), '2026-09-01');
+  assert.equal(competenciaDe('2026-09-01'), '2026-09-01');
+  assert.equal(competenciaDe('2026-02-28'), '2026-02-01');
+  assert.equal(competenciaDoMes(2026, 9), '2026-09-01');
+  assert.equal(competenciaAtual(), competenciaDe(hojeISO()));
+});
+
+test('deslocarCompetencia anda mês a mês e vira o ano sozinho', () => {
+  assert.equal(deslocarCompetencia('2026-09-01', 1), '2026-10-01');
+  assert.equal(deslocarCompetencia('2026-01-01', -1), '2025-12-01');
+  assert.equal(deslocarCompetencia('2026-12-01', 1), '2027-01-01');
+  // partindo de um dia qualquer, ainda assim ancora no dia 1
+  assert.equal(deslocarCompetencia('2026-03-31', -1), '2026-02-01');
+});
+
+test('ehDataNaCompetencia separa o que entra na barra do que não entra', () => {
+  // É o furo silencioso: lançar 03/10 no orçamento de setembro produz um
+  // lançamento válido que NÃO mexe na barra de setembro.
+  assert.equal(ehDataNaCompetencia('2026-09-30', '2026-09-01'), true);
+  assert.equal(ehDataNaCompetencia('2026-10-03', '2026-09-01'), false);
+  assert.equal(ehDataNaCompetencia('2026-08-31', '2026-09-01'), false);
+});
+
+test('dataPadraoNaCompetencia usa HOJE quando hoje cabe, e o dia 1 quando não', () => {
+  assert.equal(dataPadraoNaCompetencia('2026-09-01', '2026-09-18'), '2026-09-18');
+  assert.equal(dataPadraoNaCompetencia('2026-07-01', '2026-09-18'), '2026-07-01');
+  assert.equal(dataPadraoNaCompetencia('2027-01-01', '2026-09-18'), '2027-01-01');
+});
+
+test('ritmoDoMes diz quanto do mês já passou', () => {
+  // 18 de 30 dias = 60%
+  assert.equal(ritmoDoMes('2026-09-01', '2026-09-18'), 60);
+  // 15 de 31 = 48,4% → 48
+  assert.equal(ritmoDoMes('2026-01-01', '2026-01-15'), 48);
+  // o último dia é sempre 100%, em mês de 28, 30 ou 31
+  assert.equal(ritmoDoMes('2026-02-01', '2026-02-28'), 100);
+});
+
+test('ritmoDoMes é absoluto fora da competência', () => {
+  // Mês passado está 100% vencido; mês futuro, 0%. Sem isto, a marca do ritmo
+  // apareceria no meio da barra de um mês que já acabou.
+  assert.equal(ritmoDoMes('2026-08-01', '2026-09-18'), 100);
+  assert.equal(ritmoDoMes('2026-11-01', '2026-09-18'), 0);
+});
+
+test('MESES_POR_EXTENSO tem os 12 meses, em caixa alta', () => {
+  assert.equal(MESES_POR_EXTENSO.length, 12);
+  assert.equal(MESES_POR_EXTENSO[0], 'JANEIRO');
+  assert.equal(MESES_POR_EXTENSO[2], 'MARÇO');
+  assert.equal(MESES_POR_EXTENSO[11], 'DEZEMBRO');
+  assert.ok(MESES_POR_EXTENSO.every((m) => m === m.toUpperCase()));
 });

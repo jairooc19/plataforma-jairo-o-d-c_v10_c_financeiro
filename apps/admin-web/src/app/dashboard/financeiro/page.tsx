@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { useEmpresaAtiva } from "@/components/financeiro/useEmpresaAtiva";
 import IconeFin, { type NomeDeIcone } from "@/components/financeiro/IconeFin";
@@ -28,7 +27,6 @@ import IconeFin, { type NomeDeIcone } from "@/components/financeiro/IconeFin";
  */
 export default function FinanceiroPage() {
   const { carregando, erro, pode } = useEmpresaAtiva();
-  const [aviso, setAviso] = useState(false);
 
   if (carregando) {
     return (
@@ -57,19 +55,38 @@ export default function FinanceiroPage() {
   return (
     <div className="flex flex-col items-center gap-6">
 
-      {/* 1 — DINHEIRO DO PERÍODO: o lugar já reservado (decisão 2) */}
-      <button
-        type="button"
-        onClick={() => setAviso(true)}
-        className="w-full max-w-2xl bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-12
-                   text-center hover:shadow-lg transition-all"
-      >
-        <div className="flex items-center justify-center gap-2.5 text-slate-400 mb-4">
-          <IconeFin nome="dinheiroPeriodo" tamanho={18} traco={1.75} />
-          <span className="text-xs font-black uppercase tracking-[0.2em]">DINHEIRO DO PERÍODO</span>
+      {/* 1 — DINHEIRO DO PERÍODO: o lugar reservado desde o degrau 6, ocupado
+             em 18/09/2026. É a porta principal dele, e por isso ele NÃO tem
+             entrada no menu OPÇÕES: duas portas para a mesma pergunta é
+             exatamente o que o módulo evita desde 13/09. */}
+      {pode("dp_ver") ? (
+        <Link
+          href="/dashboard/financeiro/dinheiro-do-periodo"
+          className="w-full max-w-2xl bg-blue-600 rounded-[2.5rem] shadow-sm p-12
+                     text-center hover:shadow-lg transition-all"
+        >
+          <div className="flex items-center justify-center gap-2.5 text-blue-100 mb-4">
+            <IconeFin nome="dinheiroPeriodo" tamanho={18} traco={1.75} />
+            <span className="text-xs font-black uppercase tracking-[0.2em]">DINHEIRO DO PERÍODO</span>
+          </div>
+          <p className="text-2xl font-black uppercase tracking-tight text-white">
+            ORÇADO × REALIZADO
+          </p>
+          <p className="text-xs font-medium text-blue-100 mt-2">
+            O QUANTO DO PLANO DO MÊS JÁ FOI CONSUMIDO, CONTA A CONTA.
+          </p>
+        </Link>
+      ) : (
+        <div className="w-full max-w-2xl bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-12 text-center">
+          <div className="flex items-center justify-center gap-2.5 text-slate-400 mb-4">
+            <IconeFin nome="dinheiroPeriodo" tamanho={18} traco={1.75} />
+            <span className="text-xs font-black uppercase tracking-[0.2em]">DINHEIRO DO PERÍODO</span>
+          </div>
+          <p className="text-sm font-black uppercase tracking-tight text-slate-300">
+            VOCÊ NÃO TEM PERMISSÃO PARA VER ESTA TELA
+          </p>
         </div>
-        <p className="text-2xl font-black uppercase tracking-tight text-slate-300">EM DESENVOLVIMENTO</p>
-      </button>
+      )}
 
       {/* 2 e 3 — NOVO LANÇAMENTO e PESQUISAR */}
       <div className="w-full max-w-2xl grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -94,26 +111,6 @@ export default function FinanceiroPage() {
         Cadastros, extrato e configurações ficam no menu OPÇÕES, no canto superior direito.
       </p>
 
-      {aviso && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-6"
-             onClick={() => setAviso(false)}>
-          <div className="bg-white rounded-3xl p-8 max-w-sm text-center"
-               onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-center mb-3 text-amber-500">
-              <IconeFin nome="atencao" tamanho={32} traco={1.75} />
-            </div>
-            <p className="text-lg font-black uppercase text-slate-800 mb-2">DINHEIRO DO PERÍODO</p>
-            <p className="text-sm text-slate-500 font-medium mb-6">ESTA FUNÇÃO ESTÁ EM DESENVOLVIMENTO.</p>
-            <button
-              type="button"
-              onClick={() => setAviso(false)}
-              className="px-6 py-2.5 rounded-xl bg-slate-800 text-white text-xs font-black uppercase tracking-widest"
-            >
-              FECHAR
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

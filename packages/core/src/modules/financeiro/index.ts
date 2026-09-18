@@ -15,6 +15,8 @@ export * from './importacao';
 export * from './lancamentoService';
 export * from './extratoService';
 export * from './dashboardService';
+export * from './orcamentoService';
+export * from './orcamentoRegras';
 export * from './dashboardRegras';
 export * from './dashboardRelatorio';
 export * from './manutencaoService';

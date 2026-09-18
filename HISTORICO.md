@@ -17,6 +17,100 @@ todas foram pagas com um defeito em produção.
 
 ---
 
+**2026-09-18 (quarta rodada) — v10: ORÇAMENTO e DINHEIRO DO PERÍODO, e a fase 5 fecha**
+
+As duas últimas peças "EM DESENVOLVIMENTO" do módulo. Um estudo foi entregue antes
+(`_estudos/estudo-2026-09-18c-orcamento-e-dinheiro-do-periodo.html`), com seis perguntas e
+doze bônus; ele respondeu **"PODE FAZER E ACEITO TODOS OS BONUS"**.
+
+> 🧱 **O MURO DESTA RODADA ESTAVA NO PEDIDO DO "SÓ PERCENTUAL".** Ele pediu que o Dependente
+> pudesse ver a barra **sem os valores**, só o percentual. O jeito natural de fazer isso — o
+> banco devolver tudo e a TELA esconder — **não esconderia nada**: os números atravessariam a
+> internet e ficariam legíveis no navegador com a tecla F12, na aba de rede, em texto puro.
+> Não é preciso saber programar; é preciso saber clicar. É exatamente o erro do
+> `sessionStorage.dev_vip_access` que este projeto já documentou.
+
+A saída foi pôr a decisão no BANCO: `fin_dinheiro_do_periodo` lê o modo daquele membro e, no
+modo percentual, devolve `orcado`, `realizado` e `saldo` em **NULO** — só o percentual
+atravessa, arredondado para inteiro (77,9412% reduziria muito as combinações possíveis para
+quem soubesse o realizado por outro caminho). **A tela não esconde nada porque não há o que
+esconder.** A trava 46 confere o que chega do banco, e não o que a tela desenha.
+
+> ⚠️ **E ISSO NÃO É UM COFRE — O ESTUDO DISSE, E A TELA REPETE.** Quem tiver `extrato_ver`,
+> `lc_ver_todos`, `imprimir`, `orc_ver` ou `cm_ver` chega aos mesmos valores por outra tela,
+> que já tem hoje. A lista está em `PERMISSOES_QUE_REVELAM_VALOR`, e a tela de CONFIGURAÇÕES
+> **avisa dizendo quais**, com um botão para retirá-las. Avisar, e não bloquear: pode haver
+> caso legítimo em que o percentual é só conforto, e decidir isso pelo dono da empresa seria
+> errado — mas deixá-lo decidir sem saber seria pior.
+
+**A quinta tabela do módulo.** `fin_orcamentos` é a primeira tabela nova desde a criação dele
+(4 → 5). A competência "MÊS – ANO" é uma `date` travada no dia 1:
+
+| Como guardar | O que quebra |
+|---|---|
+| texto `"09/2026"` | ordenar por texto põe `01/2027` **antes** de `09/2026` |
+| dois inteiros | todo filtro de intervalo passa a precisar dos dois campos com um `OR` |
+| **`date` no dia 1** | nada — e é o tipo que o projeto inteiro já usa para data de calendário |
+
+> ⚠️ **O `CHECK (EXTRACT(DAY FROM competencia) = 1)` NÃO É ENFEITE.** Sem ele, gravar
+> `2026-09-17` criaria **duas "SETEMBRO / 2026"** no banco — a tela mostraria o mesmo mês duas
+> vezes, com valores diferentes, e ninguém entenderia por quê. A trava 42 o exercita.
+
+**Sete funções novas** (29 → 36): gravar, excluir, listar, as competências da PESQUISAR,
+copiar de um mês para outro, o dinheiro do período e a configuração de quem vê o quê.
+
+> ⚠️ **`fin_pode()` NÃO DAVA CONTA DOS DOIS CONTROLES NOVOS.** Ela responde "tem esta chave no
+> array de permissões?" — sim ou não. Uma LISTA de contas liberadas e um MODO de exibição não
+> são sim-ou-não: são configuração, e moram em campos próprios do `module_configs`
+> (`dinheiro_contas` e `dinheiro_percentual`). **A plataforma não mudou nada** — aquele `jsonb`
+> é livre por módulo, e desplugar o financeiro leva a configuração junto.
+
+> ⚠️ **E O MODO NÃO VIROU PERMISSÃO, DE PROPÓSITO.** Uma permissão "só percentual" seria
+> INVERTIDA — *ter* a permissão significaria *ver menos* —, e um dia alguém marcaria a caixa
+> achando que estava dando acesso.
+
+> ⚠️ **`[]` NÃO É AUSENTE, PELA TERCEIRA VEZ NESTE MÓDULO.** Na lista de contas liberadas,
+> ausente = TODAS e `[]` = NENHUMA. Confundi-los faria o botão DESMARCAR TODAS liberar o
+> orçamento inteiro. Trava 47.
+
+**Um buraco no pedido, tapado com o bônus B2.** A tela do dinheiro do período mostrava só as
+contas ORÇADAS — então uma conta em que se gastou e **não se orçou** simplesmente sumia. Se
+você orçou 6 e gastou em 9, some justamente o gasto que ninguém planejou. O bloco
+**GASTO FORA DO ORÇAMENTO** existe por isso, e a trava 45 o fixa.
+
+**Os doze bônus, todos aceitos e feitos.** Os três que mudam o valor da entrega:
+**copiar o orçamento do mês anterior** (sem ele, montar outubro é redigitar as 15 contas de
+setembro todo mês), o **bloco FORA** acima, e o **aviso de vazamento** do modo percentual. Os
+outros: linha de RESULTADO orçado × realizado, **marca do ritmo do mês** na barra (consumir
+78% no dia 18 é diferente de consumir 78% no dia 30), total do ano na PESQUISAR, aviso de data
+fora da competência, contas que faltam em relação ao mês anterior, campo de observação, faxina
+dos ids órfãos e o atalho para criar o orçamento que falta.
+
+**As armadilhas da rodada:**
+
+1. **O ensaio de mutação mentiu, e quase passou batido.** O script que quebra as funções de
+   propósito recebia as âncoras da linha de comando com `\n`, e o schema é CRLF: **seis das
+   oito mutações acharam ZERO ocorrências** e reportaram "não consegui quebrar" — que se lê
+   facilmente como "está tudo bem". As travas pareciam sólidas sem nunca terem sido
+   exercitadas. O mutador agora normaliza as âncoras.
+
+2. **`CREATE TRIGGER ... EXECUTE PROCEDURE public.set_updated_at()` não existe neste banco.**
+   A função da plataforma chama-se `marcar_atualizacao()`. Escrever o nome "óbvio" fez o
+   schema parar no meio, e só o ensaio local pegou.
+
+3. **O compilador do React recusou um `useCallback`** na tela de lançar ("existing memoization
+   could not be preserved"). A busca foi para dentro do efeito, com um contador que só cresce
+   — porque gravar não muda a conta nem a competência, e sem o contador a barra não se
+   atualizaria depois de gravar. É a mesma armadilha da sugestão de ordem, de 16/09.
+
+**Placar:** `npm test` **118/118** · `teste_financeiro.sql` **50/50** · `teste_rls.sql`
+**16/16** · `inventario_financeiro.sql` **17/17** · LEGO 0 violações · lint e build limpos ·
+ensaio de upgrade sem sobrecarga · **as 9 travas novas vistas FALHAR**, cada uma por uma
+mutação própria aplicada na função que ela protege.
+
+Módulo: **5 tabelas, 36 funções, 22 permissões, 18 rotas**.
+---
+
 **2026-09-18 (terceira rodada) — v10: quem decide se o mês aparece é a COLUNA, não a linha**
 
 Ele rodou o SQL de novo (17/17 e 41/41), testou, e pediu um ajuste único — que é, na verdade,

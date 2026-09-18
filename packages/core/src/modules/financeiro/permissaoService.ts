@@ -33,6 +33,14 @@ export interface MembroDoModulo {
   /** `true` quando o módulo está ligado para este membro. */
   modulo_ativo: boolean;
   permissoes: PermissaoFinanceiro[];
+  /**
+   * As contas identificadoras que ele enxerga no DINHEIRO DO PERÍODO.
+   *
+   * ⚠️ `undefined` E `[]` SÃO DIFERENTES: ausente = TODAS; vazio = NENHUMA.
+   */
+  dinheiro_contas?: string[];
+  /** `true` = ele vê só o percentual de consumo, sem os valores. */
+  dinheiro_percentual: boolean;
 }
 
 interface LinhaDeMembro {
@@ -51,6 +59,16 @@ function lerConfiguracao(configs: Record<string, unknown> | null): ConfiguracaoD
   return {
     ativo: bruto?.ativo === true,
     permissoes: Array.isArray(bruto?.permissoes) ? (bruto!.permissoes as PermissaoFinanceiro[]) : [],
+    /**
+     * ⚠️ `undefined` SOBREVIVE AQUI, DE PROPÓSITO. Um `?? []` transformaria
+     * "não escolhi nenhuma conta ainda" em "escolhi nenhuma conta" — e o
+     * dependente veria uma tela em branco sem que ninguém tivesse pedido isso.
+     * É a mesma distinção que a trava 47 fixa no banco.
+     */
+    dinheiro_contas: Array.isArray(bruto?.dinheiro_contas)
+      ? (bruto!.dinheiro_contas as string[])
+      : undefined,
+    dinheiro_percentual: bruto?.dinheiro_percentual === true,
   };
 }
 
@@ -101,6 +119,8 @@ export const permissaoFinanceiroService = {
         is_active: m.is_active,
         modulo_ativo: cfg.ativo && (m.allowed_modules ?? []).includes('financeiro'),
         permissoes: cfg.permissoes,
+        dinheiro_contas: cfg.dinheiro_contas,
+        dinheiro_percentual: cfg.dinheiro_percentual === true,
       };
     });
   },
@@ -120,6 +140,16 @@ export const permissaoFinanceiroService = {
     memberId: string;
     ativo: boolean;
     permissoes?: PermissaoFinanceiro[];
+    /**
+     * As contas liberadas no DINHEIRO DO PERÍODO (18/09/2026).
+     *
+     * ⚠️ `undefined` = "não mexi nisto agora", e o valor atual é PRESERVADO.
+     * `null` = "limpar a escolha", e volta a valer TODAS. `[]` = NENHUMA.
+     * Três estados, três significados — e é o `undefined` que permite a tela
+     * mexer só nas permissões sem apagar a lista sem querer.
+     */
+    dinheiroContas?: string[] | null;
+    dinheiroPercentual?: boolean;
   }): Promise<void> {
     const atual = await supabase
       .from('tenant_members')
@@ -135,10 +165,22 @@ export const permissaoFinanceiroService = {
     else modulos.delete('financeiro');
 
     const configs = { ...((atual.data?.module_configs as Record<string, unknown> | null) ?? {}) };
-    configs['financeiro'] = {
+    const anterior = (configs['financeiro'] ?? {}) as ConfiguracaoDoMembro;
+
+    const novo: ConfiguracaoDoMembro = {
       ativo: params.ativo,
       permissoes: params.permissoes ?? PERMISSOES_PADRAO_DEPENDENTE,
-    } satisfies ConfiguracaoDoMembro;
+      dinheiro_percentual: params.dinheiroPercentual ?? anterior.dinheiro_percentual === true,
+    };
+
+    // ⚠️ Os três estados de `dinheiroContas` — ver o comentário do parâmetro.
+    if (params.dinheiroContas === undefined) {
+      if (Array.isArray(anterior.dinheiro_contas)) novo.dinheiro_contas = anterior.dinheiro_contas;
+    } else if (params.dinheiroContas !== null) {
+      novo.dinheiro_contas = params.dinheiroContas;
+    }
+
+    configs['financeiro'] = novo;
 
     const { error } = await supabase
       .from('tenant_members')

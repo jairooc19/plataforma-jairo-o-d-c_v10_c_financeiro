@@ -204,6 +204,62 @@ CREATE TABLE IF NOT EXISTS public.fin_fechamentos (
 );
 
 
+-- ---------------------------------------------------------------------------
+-- 2.5 ORÇAMENTO POR COMPETÊNCIA (18/09/2026 — 4ª rodada)
+-- ---------------------------------------------------------------------------
+--
+-- 📖 O QUE ELA GUARDA: quanto se PLANEJOU gastar (ou receber) em cada conta
+-- identificadora, em cada mês. O que de fato aconteceu não mora aqui — sai dos
+-- lançamentos, somado na hora pela `fin_dinheiro_do_periodo`.
+--
+-- ===========================================================================
+-- ⚠️ A COMPETÊNCIA É UMA `date` TRAVADA NO DIA 1, E ISSO É DECISÃO DE PROJETO
+-- ===========================================================================
+-- Havia três caminhos, e dois deles quebram:
+--
+--   • texto "09/2026"  → ordenar por texto põe 01/2027 ANTES de 09/2026, e
+--                        filtrar "de janeiro a junho" vira código à mão;
+--   • dois inteiros    → funciona, mas todo filtro de intervalo passa a
+--                        precisar dos dois campos com um OR no meio;
+--   • date no dia 1    → ordena sozinho, compara sozinho, e é o tipo que o
+--                        projeto inteiro já usa para data de calendário.
+--
+-- ⚠️ O `CHECK` DO DIA 1 NÃO É ENFEITE. Sem ele, alguém gravaria `2026-09-17` e
+-- o banco passaria a ter DUAS "SETEMBRO / 2026" — a tela mostraria o mesmo mês
+-- duas vezes, com valores diferentes, e ninguém entenderia por quê.
+--
+-- ⚠️ E A CHAVE PARA A IDENTIFICADORA É COMPOSTA (RN-29): sem o `tenant_id`
+-- dentro dela, um orçamento de uma empresa poderia apontar para a conta de
+-- outra.
+CREATE TABLE IF NOT EXISTS public.fin_orcamentos (
+    id        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id uuid NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+
+    competencia             date   NOT NULL,
+    conta_identificadora_id uuid   NOT NULL,
+    valor_centavos          bigint NOT NULL CHECK (valor_centavos > 0),
+    observacao              text   NULL CHECK (observacao IS NULL OR length(observacao) <= 200),
+
+    criado_por uuid NOT NULL REFERENCES public.users(id) ON DELETE RESTRICT,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+
+    CONSTRAINT fin_orc_dia_1 CHECK (EXTRACT(DAY FROM competencia) = 1),
+
+    -- Uma conta, uma competência, um valor. É esta linha que impede o
+    -- orçamento em dobro — a pergunta na tela é conforto, isto é a rede.
+    CONSTRAINT fin_orc_unico UNIQUE (tenant_id, competencia, conta_identificadora_id),
+
+    CONSTRAINT fin_orc_conta_fk
+      FOREIGN KEY (tenant_id, conta_identificadora_id)
+      REFERENCES public.fin_contas_identificadoras (tenant_id, id) ON DELETE CASCADE
+);
+
+-- A consulta mais comum é "tudo desta empresa nesta competência".
+CREATE INDEX IF NOT EXISTS idx_fin_orc_competencia
+  ON public.fin_orcamentos (tenant_id, competencia);
+
+
 -- ===========================================================================
 -- 3. ROW LEVEL SECURITY
 -- ===========================================================================
@@ -211,6 +267,7 @@ ALTER TABLE public.fin_contas_movimento      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fin_contas_identificadoras ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fin_lancamentos           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fin_fechamentos           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.fin_orcamentos            ENABLE ROW LEVEL SECURITY;
 
 
 -- ===========================================================================
@@ -2679,6 +2736,603 @@ $$;
 
 
 -- ---------------------------------------------------------------------------
+-- 4.19 O QUE ESTE MEMBRO PODE VER NO DINHEIRO DO PERÍODO (18/09/2026)
+-- ---------------------------------------------------------------------------
+--
+-- 📖 Responde duas perguntas que NÃO cabem em `fin_pode()`:
+--   • este membro vê VALORES, ou só o percentual?
+--   • ele enxerga TODAS as contas do orçamento, ou só algumas?
+--
+-- ⚠️ POR QUE NÃO COUBE EM `fin_pode()`. Aquela função responde "tem esta chave
+-- no array de permissões?" — sim ou não. Uma LISTA de contas liberadas e um
+-- MODO de exibição não são sim-ou-não; são configuração. Elas moram no mesmo
+-- `module_configs`, em campos próprios.
+--
+-- ⚠️ O PROPRIETÁRIO VÊ TUDO, SEMPRE. Ele não tem `module_configs` do módulo (a
+-- `fin_pode` já lhe dá tudo por ser OWNER), e restringir o dono da empresa com
+-- uma configuração que ele mesmo escreve não faria sentido nenhum.
+--
+-- ⚠️ `contas_liberadas = null` E `[]` SÃO COISAS DIFERENTES — pela terceira vez
+-- neste módulo:
+--     ausente / null → "não estou escolhendo": TODAS as contas
+--     []             → "desmarquei tudo": NENHUMA conta
+-- Tratá-los como iguais faria o botão DESMARCAR TODAS liberar o orçamento
+-- inteiro, que é o contrário exato do que a pessoa acabou de pedir.
+CREATE OR REPLACE FUNCTION public.fin_config_dinheiro(p_tenant_id uuid)
+RETURNS json
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_role   text;
+  v_cfg    jsonb;
+  v_contas jsonb;
+BEGIN
+  IF NOT public.fin_pode(p_tenant_id, 'dp_ver') THEN
+    RAISE EXCEPTION 'Sem permissao para ver o dinheiro do periodo.' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT m.role, m.module_configs -> 'financeiro'
+    INTO v_role, v_cfg
+    FROM public.tenant_members m
+   WHERE m.tenant_id = p_tenant_id
+     AND m.user_id = auth.uid()
+     AND m.is_active = true;
+
+  IF v_role = 'OWNER' THEN
+    RETURN json_build_object(
+      'eh_owner', true, 've_valores', true, 'contas_liberadas', NULL);
+  END IF;
+
+  v_contas := v_cfg -> 'dinheiro_contas';
+
+  RETURN json_build_object(
+    'eh_owner', false,
+    -- ⚠️ `ve_valores` é o INVERSO de `dinheiro_percentual`, e a ausência do
+    -- campo significa "vê valores". O padrão de quem nunca mexeu tem de ser o
+    -- comportamento completo; o modo restrito é o que se liga de propósito.
+    've_valores', COALESCE((v_cfg ->> 'dinheiro_percentual')::boolean, false) = false,
+    'contas_liberadas',
+      CASE WHEN v_contas IS NULL OR jsonb_typeof(v_contas) <> 'array'
+           THEN NULL ELSE v_contas END
+  );
+END;
+$$;
+
+
+-- ---------------------------------------------------------------------------
+-- 4.20 GRAVAR UM ORÇAMENTO (18/09/2026)
+-- ---------------------------------------------------------------------------
+--
+-- ⚠️ ELA TRADUZ O ERRO DE DUPLICIDADE. Sem o bloco `EXCEPTION`, gravar duas
+-- vezes a mesma conta na mesma competência devolveria o `23505` cru do
+-- PostgreSQL — uma mensagem que fala de índice e não diz à pessoa o que ela
+-- fez. A tela já pergunta antes ("substituir?"), mas uma chamada por fora dela
+-- também precisa de resposta em português.
+CREATE OR REPLACE FUNCTION public.fin_gravar_orcamento(
+  p_tenant_id               uuid,
+  p_id                      uuid,      -- null = novo
+  p_competencia             date,
+  p_conta_identificadora_id uuid,
+  p_valor_centavos          bigint,
+  p_observacao              text DEFAULT NULL
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_id   uuid;
+  v_nome text;
+BEGIN
+  IF NOT public.fin_pode(p_tenant_id, 'orc_gravar') THEN
+    RAISE EXCEPTION 'Sem permissao para gravar orcamento.' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_competencia IS NULL OR EXTRACT(DAY FROM p_competencia) <> 1 THEN
+    RAISE EXCEPTION 'A competencia tem de ser o primeiro dia do mes.' USING ERRCODE = '22023';
+  END IF;
+
+  IF p_valor_centavos IS NULL OR p_valor_centavos <= 0 THEN
+    RAISE EXCEPTION 'O valor do orcamento tem de ser maior que zero.' USING ERRCODE = '23514';
+  END IF;
+
+  SELECT ci.nome INTO v_nome
+    FROM public.fin_contas_identificadoras ci
+   WHERE ci.id = p_conta_identificadora_id AND ci.tenant_id = p_tenant_id;
+
+  IF v_nome IS NULL THEN
+    RAISE EXCEPTION 'Conta identificadora inexistente nesta empresa.' USING ERRCODE = '23503';
+  END IF;
+
+  BEGIN
+    IF p_id IS NULL THEN
+      INSERT INTO public.fin_orcamentos
+             (tenant_id, competencia, conta_identificadora_id, valor_centavos, observacao, criado_por)
+      VALUES (p_tenant_id, p_competencia, p_conta_identificadora_id, p_valor_centavos,
+              NULLIF(btrim(p_observacao), ''), auth.uid())
+      RETURNING id INTO v_id;
+    ELSE
+      UPDATE public.fin_orcamentos
+         SET competencia             = p_competencia,
+             conta_identificadora_id = p_conta_identificadora_id,
+             valor_centavos          = p_valor_centavos,
+             observacao              = NULLIF(btrim(p_observacao), '')
+       WHERE id = p_id AND tenant_id = p_tenant_id
+      RETURNING id INTO v_id;
+
+      IF v_id IS NULL THEN
+        RAISE EXCEPTION 'Orcamento inexistente nesta empresa.' USING ERRCODE = '23503';
+      END IF;
+    END IF;
+  EXCEPTION WHEN unique_violation THEN
+    RAISE EXCEPTION
+      'Ja existe orcamento de "%" para %/%. Edite o registro existente em vez de criar outro.',
+      v_nome, to_char(p_competencia, 'MM'), to_char(p_competencia, 'YYYY')
+      USING ERRCODE = '23505';
+  END;
+
+  RETURN json_build_object('success', true, 'id', v_id, 'conta', v_nome);
+END;
+$$;
+
+
+-- ---------------------------------------------------------------------------
+-- 4.21 EXCLUIR UM ORÇAMENTO (18/09/2026)
+-- ---------------------------------------------------------------------------
+--
+-- ⚠️ O RASTRO FICA NA `audit_log`, pelo gatilho da tabela — igual a todo o
+-- resto do módulo. Apagar orçamento não destrói lançamento nenhum: são coisas
+-- separadas, e é justamente por isso que o "dinheiro do período" continua
+-- somando o realizado mesmo sem orçamento (ele vai para o bloco FORA).
+CREATE OR REPLACE FUNCTION public.fin_excluir_orcamento(p_tenant_id uuid, p_id uuid)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE v_apagados int;
+BEGIN
+  IF NOT public.fin_pode(p_tenant_id, 'orc_excluir') THEN
+    RAISE EXCEPTION 'Sem permissao para excluir orcamento.' USING ERRCODE = '42501';
+  END IF;
+
+  DELETE FROM public.fin_orcamentos
+   WHERE id = p_id AND tenant_id = p_tenant_id;
+  GET DIAGNOSTICS v_apagados = ROW_COUNT;
+
+  RETURN json_build_object('success', true, 'apagados', v_apagados);
+END;
+$$;
+
+
+-- ---------------------------------------------------------------------------
+-- 4.22 A CONFERÊNCIA DOS REGISTROS DE UMA COMPETÊNCIA (18/09/2026)
+-- ---------------------------------------------------------------------------
+--
+-- 📖 A lista que aparece abaixo dos campos em "+ ADICIONAR NOVO", e que a
+-- PESQUISAR abre ao clicar numa competência.
+--
+-- ⚠️ A ORDEM É RECEITA → DESPESA → OUTRAS, como o dono do projeto pediu, e ela
+-- vem DAQUI — não da tela. É a mesma razão de sempre: ordenar em dois lugares é
+-- ter duas regras que um dia discordam sobre acento.
+--
+-- ⚠️ E AS LINHAS DE TOTAL VÊM JUNTO, marcadas por `linha_tipo`. A tela não soma
+-- nada; o papel impresso e o .TSV mostram o mesmo número porque saem da mesma
+-- lista.
+CREATE OR REPLACE FUNCTION public.fin_listar_orcamento(
+  p_tenant_id   uuid,
+  p_competencia date
+)
+RETURNS TABLE (
+  bloco          text,      -- RECEITA | DESPESA | OUTRAS
+  linha_tipo     text,      -- CONTA | TOTAL
+  orcamento_id   uuid,
+  conta_id       uuid,
+  nome           text,
+  is_active      boolean,
+  valor_centavos bigint,
+  observacao     text
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT public.fin_pode(p_tenant_id, 'orc_ver') THEN
+    RAISE EXCEPTION 'Sem permissao para ver o orcamento.' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_competencia IS NULL THEN
+    RAISE EXCEPTION 'Informe a competencia.' USING ERRCODE = '22023';
+  END IF;
+
+  RETURN QUERY
+  WITH linha AS (
+    SELECT ci.tipo AS bloco, o.id AS orcamento_id, ci.id AS conta_id,
+           ci.nome, ci.is_active, o.valor_centavos, o.observacao
+      FROM public.fin_orcamentos o
+      JOIN public.fin_contas_identificadoras ci ON ci.id = o.conta_identificadora_id
+     WHERE o.tenant_id = p_tenant_id
+       AND o.competencia = date_trunc('month', p_competencia)::date
+  ),
+  tudo AS (
+    SELECT 1 AS ord, l.bloco, 'CONTA'::text AS lt, l.orcamento_id, l.conta_id,
+           l.nome, l.is_active, l.valor_centavos, l.observacao
+      FROM linha l
+    UNION ALL
+    SELECT 2, l.bloco, 'TOTAL'::text, NULL::uuid, NULL::uuid,
+           NULL::text, NULL::boolean, SUM(l.valor_centavos)::bigint, NULL::text
+      FROM linha l
+     GROUP BY l.bloco
+  )
+  SELECT t.bloco, t.lt, t.orcamento_id, t.conta_id, t.nome, t.is_active,
+         t.valor_centavos, t.observacao
+    FROM tudo t
+   ORDER BY CASE t.bloco WHEN 'RECEITA' THEN 1 WHEN 'DESPESA' THEN 2 ELSE 3 END,
+            t.ord, t.nome NULLS LAST;
+END;
+$$;
+
+
+-- ---------------------------------------------------------------------------
+-- 4.23 AS COMPETÊNCIAS QUE TÊM ORÇAMENTO — a tela PESQUISAR (18/09/2026)
+-- ---------------------------------------------------------------------------
+--
+-- ⚠️ O FILTRO DE CONTA MUDA O SENTIDO DA LISTA, e a tela avisa por isso. Com
+-- ele ligado, os totais passam a ser DAQUELA CONTA, não da competência inteira
+-- — e "SETEMBRO / 2026 · 1 conta · 400,00" seria lido como "o orçamento de
+-- setembro é de 400,00" se ninguém avisasse.
+--
+-- ⚠️ A ÚLTIMA LINHA É O TOTAL DO PERÍODO PESQUISADO (bônus B5), marcada com
+-- `competencia IS NULL`. Somar competências faz sentido: orçamento é FLUXO, e
+-- fluxo se soma — a mesma regra que dá a coluna TOTAL DO ANO ao dashboard 2 e a
+-- nega ao dashboard 1.
+CREATE OR REPLACE FUNCTION public.fin_competencias_orcadas(
+  p_tenant_id               uuid,
+  p_de                      date,
+  p_ate                     date,
+  p_conta_identificadora_id uuid DEFAULT NULL
+)
+RETURNS TABLE (
+  competencia      date,      -- NULL na linha de total do período
+  contas           integer,
+  receitas_centavos bigint,
+  despesas_centavos bigint,
+  outras_centavos   bigint,
+  total_centavos    bigint
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT public.fin_pode(p_tenant_id, 'orc_ver') THEN
+    RAISE EXCEPTION 'Sem permissao para ver o orcamento.' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_de IS NULL OR p_ate IS NULL THEN
+    RAISE EXCEPTION 'Informe a competencia inicial e a final.' USING ERRCODE = '22023';
+  END IF;
+
+  RETURN QUERY
+  WITH linha AS (
+    SELECT o.competencia, ci.tipo, o.valor_centavos
+      FROM public.fin_orcamentos o
+      JOIN public.fin_contas_identificadoras ci ON ci.id = o.conta_identificadora_id
+     WHERE o.tenant_id = p_tenant_id
+       AND o.competencia BETWEEN date_trunc('month', p_de)::date
+                             AND date_trunc('month', p_ate)::date
+       AND (p_conta_identificadora_id IS NULL
+            OR o.conta_identificadora_id = p_conta_identificadora_id)
+  ),
+  tudo AS (
+    SELECT 1 AS ord, l.competencia,
+           count(*)::integer AS contas,
+           COALESCE(SUM(l.valor_centavos) FILTER (WHERE l.tipo = 'RECEITA'), 0)::bigint AS rec,
+           COALESCE(SUM(l.valor_centavos) FILTER (WHERE l.tipo = 'DESPESA'), 0)::bigint AS des,
+           COALESCE(SUM(l.valor_centavos) FILTER (WHERE l.tipo = 'OUTRAS'),  0)::bigint AS out,
+           SUM(l.valor_centavos)::bigint AS tot
+      FROM linha l
+     GROUP BY l.competencia
+    UNION ALL
+    SELECT 2, NULL::date,
+           count(*)::integer,
+           COALESCE(SUM(l.valor_centavos) FILTER (WHERE l.tipo = 'RECEITA'), 0)::bigint,
+           COALESCE(SUM(l.valor_centavos) FILTER (WHERE l.tipo = 'DESPESA'), 0)::bigint,
+           COALESCE(SUM(l.valor_centavos) FILTER (WHERE l.tipo = 'OUTRAS'),  0)::bigint,
+           COALESCE(SUM(l.valor_centavos), 0)::bigint
+      FROM linha l
+     HAVING count(*) > 0
+  )
+  SELECT t.competencia, t.contas, t.rec, t.des, t.out, t.tot
+    FROM tudo t
+   ORDER BY t.ord, t.competencia DESC;
+END;
+$$;
+
+
+-- ---------------------------------------------------------------------------
+-- 4.24 COPIAR O ORÇAMENTO DE UMA COMPETÊNCIA PARA OUTRA (bônus B1, 18/09/2026)
+-- ---------------------------------------------------------------------------
+--
+-- 📖 Sem isto, montar o orçamento de outubro significa redigitar as mesmas 15
+-- contas de setembro, uma a uma, todo mês. É o bônus de maior retorno da
+-- rodada.
+--
+-- ⚠️ `p_substituir` TEM `false` COMO PADRÃO, e isso é regra deste projeto: o
+-- padrão de um parâmetro que decide se algo é SOBRESCRITO tem de ser o
+-- comportamento inofensivo. Esquecer o argumento não pode apagar o valor que
+-- alguém já ajustou à mão no mês de destino.
+--
+-- ⚠️ E A CÓPIA É UMA INSTRUÇÃO SÓ, não um laço no TypeScript. Queda de conexão
+-- no meio de um laço deixaria metade copiada, sem ninguém saber qual metade.
+CREATE OR REPLACE FUNCTION public.fin_copiar_orcamento(
+  p_tenant_id  uuid,
+  p_origem     date,
+  p_destino    date,
+  p_substituir boolean DEFAULT false
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_origem   date := date_trunc('month', p_origem)::date;
+  v_destino  date := date_trunc('month', p_destino)::date;
+  v_copiados int := 0;
+  v_ja       int := 0;
+  v_na_origem int := 0;
+BEGIN
+  IF NOT public.fin_pode(p_tenant_id, 'orc_gravar') THEN
+    RAISE EXCEPTION 'Sem permissao para gravar orcamento.' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_origem IS NULL OR p_destino IS NULL THEN
+    RAISE EXCEPTION 'Informe a competencia de origem e a de destino.' USING ERRCODE = '22023';
+  END IF;
+
+  IF v_origem = v_destino THEN
+    RAISE EXCEPTION 'A competencia de origem e a de destino sao a mesma.' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT count(*) INTO v_na_origem
+    FROM public.fin_orcamentos
+   WHERE tenant_id = p_tenant_id AND competencia = v_origem;
+
+  INSERT INTO public.fin_orcamentos
+         (tenant_id, competencia, conta_identificadora_id, valor_centavos, observacao, criado_por)
+  SELECT o.tenant_id, v_destino, o.conta_identificadora_id, o.valor_centavos, o.observacao, auth.uid()
+    FROM public.fin_orcamentos o
+   WHERE o.tenant_id = p_tenant_id AND o.competencia = v_origem
+     ON CONFLICT (tenant_id, competencia, conta_identificadora_id) DO UPDATE
+        SET valor_centavos = CASE WHEN p_substituir THEN EXCLUDED.valor_centavos
+                                  ELSE public.fin_orcamentos.valor_centavos END,
+            observacao     = CASE WHEN p_substituir THEN EXCLUDED.observacao
+                                  ELSE public.fin_orcamentos.observacao END;
+
+  GET DIAGNOSTICS v_copiados = ROW_COUNT;
+
+  SELECT count(*) INTO v_ja
+    FROM public.fin_orcamentos d
+   WHERE d.tenant_id = p_tenant_id AND d.competencia = v_destino
+     AND EXISTS (SELECT 1 FROM public.fin_orcamentos o
+                  WHERE o.tenant_id = p_tenant_id AND o.competencia = v_origem
+                    AND o.conta_identificadora_id = d.conta_identificadora_id);
+
+  RETURN json_build_object(
+    'success', true,
+    'na_origem', v_na_origem,
+    'no_destino', v_ja,
+    'substituiu', p_substituir);
+END;
+$$;
+
+
+-- ---------------------------------------------------------------------------
+-- 4.25 DINHEIRO DO PERÍODO — o orçado contra o realizado (18/09/2026)
+-- ---------------------------------------------------------------------------
+--
+-- 📖 A peça central desta rodada. Devolve, por conta identificadora orçada
+-- naquela competência: quanto se planejou, quanto de fato aconteceu, o saldo e
+-- o consumo em percentual — já na ordem RECEITA → DESPESA → OUTRAS, com os
+-- totais, a linha de RESULTADO e o bloco do gasto FORA do orçamento.
+--
+-- ===========================================================================
+-- ⚠️ NO MODO PERCENTUAL, O VALOR **NÃO SAI DAQUI** — E ESSE É O PONTO
+-- ===========================================================================
+-- O jeito óbvio de implementar "o dependente vê só o percentual" seria devolver
+-- tudo e a TELA esconder os valores. Isso não esconde coisa nenhuma: os números
+-- atravessariam a internet e ficariam dentro do navegador dele, legíveis com a
+-- tecla F12 na aba de rede, em texto puro. Não é preciso saber programar; é
+-- preciso saber clicar. É exatamente o erro do `sessionStorage.dev_vip_access`
+-- que este projeto já documentou.
+--
+-- Por isso quem decide é ESTA função: no modo percentual ela devolve
+-- `orcado`, `realizado` e `saldo` em NULL, e só o `consumo_percentual`. A tela
+-- não precisa esconder nada porque não há o que esconder.
+--
+-- ⚠️ E O PERCENTUAL SAI ARREDONDADO PARA INTEIRO. "78%" não permite deduzir os
+-- valores; "77,9412%" reduziria muito as combinações possíveis para quem
+-- soubesse o realizado por outro caminho. Custa nada, e fecha a fresta.
+--
+-- ⚠️ MAS ISSO NÃO É UM COFRE, E ESTÁ ESCRITO NO ESTUDO: quem tiver
+-- `extrato_ver`, `lc_ver_todos`, `imprimir`, `orc_ver` ou `cm_ver` chega aos
+-- mesmos valores por outra tela. O modo percentual só é sigilo de verdade se o
+-- dependente não tiver nenhuma dessas cinco — e a tela de CONFIGURAÇÕES avisa
+-- quando esse for o caso.
+--
+-- ===========================================================================
+-- ⚠️ O REALIZADO SEGUE AS MESMAS QUATRO REGRAS DO RESTO DO MÓDULO
+-- ===========================================================================
+--   1. só regime CAIXA (RN-19) — senão o mesmo mês mostraria dois valores em
+--      duas telas do mesmo sistema;
+--   2. soma PRÓPRIO e TERCEIROS — o orçamento é da conta, não da propriedade;
+--   3. na DESPESA conta `saidas - entradas` (um reembolso REDUZ a despesa),
+--      igual ao dashboard 2 — é o que faz os dois mostrarem o MESMO número;
+--   4. realizado negativo devolve consumo 0, e não um percentual negativo:
+--      barra de largura negativa não existe, e o valor negativo é escrito ao
+--      lado pela tela.
+CREATE OR REPLACE FUNCTION public.fin_dinheiro_do_periodo(
+  p_tenant_id   uuid,
+  p_competencia date
+)
+RETURNS TABLE (
+  bloco              text,     -- RECEITA | DESPESA | RESULTADO | OUTRAS | FORA
+  linha_tipo         text,     -- CONTA | TOTAL
+  conta_id           uuid,
+  nome               text,
+  tipo               text,
+  orcado_centavos    bigint,   -- NULL no modo percentual
+  realizado_centavos bigint,   -- NULL no modo percentual
+  saldo_centavos     bigint,   -- NULL no modo percentual
+  consumo_percentual integer,  -- NULL quando não há orçamento (bloco FORA)
+  estourou           boolean
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_cfg        json;
+  v_ve_valores boolean;
+  v_liberadas  uuid[];
+  v_de         date;
+  v_ate        date;
+BEGIN
+  -- A permissão é conferida dentro de `fin_config_dinheiro`, que estoura 42501.
+  v_cfg := public.fin_config_dinheiro(p_tenant_id);
+  v_ve_valores := (v_cfg ->> 've_valores')::boolean;
+
+  IF p_competencia IS NULL THEN
+    RAISE EXCEPTION 'Informe a competencia.' USING ERRCODE = '22023';
+  END IF;
+
+  v_de  := date_trunc('month', p_competencia)::date;
+  v_ate := (v_de + INTERVAL '1 month - 1 day')::date;
+
+  -- ⚠️ `contas_liberadas` NULO = todas. `[]` = nenhuma. A diferença é
+  -- preservada até aqui dentro: um `COALESCE` para array vazio transformaria
+  -- "não escolhi" em "nada", e o dependente veria uma tela em branco.
+  IF (v_cfg -> 'contas_liberadas') IS NULL
+     OR json_typeof(v_cfg -> 'contas_liberadas') <> 'array' THEN
+    v_liberadas := NULL;
+  ELSE
+    SELECT COALESCE(array_agg((x #>> '{}')::uuid), '{}'::uuid[])
+      INTO v_liberadas
+      FROM json_array_elements(v_cfg -> 'contas_liberadas') x;
+  END IF;
+
+  RETURN QUERY
+  WITH orcado AS (
+    SELECT o.conta_identificadora_id AS conta_id, ci.nome, ci.tipo,
+           o.valor_centavos AS orcado
+      FROM public.fin_orcamentos o
+      JOIN public.fin_contas_identificadoras ci ON ci.id = o.conta_identificadora_id
+     WHERE o.tenant_id = p_tenant_id
+       AND o.competencia = v_de
+       AND (v_liberadas IS NULL OR o.conta_identificadora_id = ANY(v_liberadas))
+  ),
+  realizado AS (
+    SELECT l.conta_identificadora_id AS conta_id,
+           (CASE WHEN ci.tipo = 'DESPESA'
+                 THEN COALESCE(SUM(l.valor_centavos) FILTER (WHERE l.tipo_movimento = 'SAIDA'),   0)
+                    - COALESCE(SUM(l.valor_centavos) FILTER (WHERE l.tipo_movimento = 'ENTRADA'), 0)
+                 ELSE COALESCE(SUM(l.valor_centavos) FILTER (WHERE l.tipo_movimento = 'ENTRADA'), 0)
+                    - COALESCE(SUM(l.valor_centavos) FILTER (WHERE l.tipo_movimento = 'SAIDA'),   0)
+            END)::bigint AS realizado,
+           ci.nome, ci.tipo
+      FROM public.fin_lancamentos l
+      JOIN public.fin_contas_identificadoras ci ON ci.id = l.conta_identificadora_id
+     WHERE l.tenant_id = p_tenant_id
+       AND l.regime = 'CAIXA'
+       AND l.data_movimento BETWEEN v_de AND v_ate
+       AND (v_liberadas IS NULL OR l.conta_identificadora_id = ANY(v_liberadas))
+     GROUP BY l.conta_identificadora_id, ci.nome, ci.tipo
+  ),
+  linha AS (
+    SELECT o.conta_id, o.nome, o.tipo, o.orcado,
+           COALESCE(r.realizado, 0)::bigint AS realizado,
+           (o.orcado - COALESCE(r.realizado, 0))::bigint AS saldo,
+           -- realizado negativo vira 0% (regra 4 do cabeçalho)
+           GREATEST(0, ROUND(COALESCE(r.realizado, 0)::numeric * 100 / o.orcado))::integer AS consumo
+      FROM orcado o
+      LEFT JOIN realizado r ON r.conta_id = o.conta_id
+  ),
+  -- 🎁 BÔNUS B2 — o gasto que ninguém planejou. Sem este bloco, uma conta em
+  -- que se gastou e não se orçou simplesmente SOME da tela, e é justamente o
+  -- gasto imprevisto que se precisa ver.
+  fora AS (
+    SELECT r.conta_id, r.nome, r.tipo, r.realizado
+      FROM realizado r
+     WHERE NOT EXISTS (SELECT 1 FROM orcado o WHERE o.conta_id = r.conta_id)
+       AND r.realizado <> 0
+  ),
+  totais AS (
+    SELECT l.tipo AS bloco,
+           SUM(l.orcado)::bigint AS orcado,
+           SUM(l.realizado)::bigint AS realizado
+      FROM linha l
+     GROUP BY l.tipo
+  ),
+  tudo AS (
+    SELECT 1 AS ord, l.tipo AS bloco, 'CONTA'::text AS lt, l.conta_id, l.nome, l.tipo,
+           l.orcado, l.realizado, l.saldo, l.consumo,
+           (l.realizado > l.orcado) AS estourou
+      FROM linha l
+    UNION ALL
+    SELECT 2, t.bloco, 'TOTAL'::text, NULL::uuid, NULL::text, NULL::text,
+           t.orcado, t.realizado, (t.orcado - t.realizado)::bigint,
+           GREATEST(0, ROUND(t.realizado::numeric * 100 / NULLIF(t.orcado, 0)))::integer,
+           (t.realizado > t.orcado)
+      FROM totais t
+    UNION ALL
+    -- 🎁 BÔNUS B3 — o RESULTADO orçado contra o realizado. "Planejei sobrar
+    -- 5.700,00 e estou sobrando 3.348,00" é a pergunta que a tela provoca.
+    --
+    -- ⚠️ ELE IGNORA O BLOCO OUTRAS, como no dashboard 2: aporte de sócio e
+    -- transferência não são resultado do negócio.
+    SELECT 3, 'RESULTADO'::text, 'TOTAL'::text, NULL::uuid, NULL::text, NULL::text,
+           (COALESCE((SELECT t.orcado FROM totais t WHERE t.bloco = 'RECEITA'), 0)
+          - COALESCE((SELECT t.orcado FROM totais t WHERE t.bloco = 'DESPESA'), 0))::bigint,
+           (COALESCE((SELECT t.realizado FROM totais t WHERE t.bloco = 'RECEITA'), 0)
+          - COALESCE((SELECT t.realizado FROM totais t WHERE t.bloco = 'DESPESA'), 0))::bigint,
+           NULL::bigint, NULL::integer, false
+     WHERE EXISTS (SELECT 1 FROM totais)
+    UNION ALL
+    SELECT 4, 'FORA'::text, 'CONTA'::text, f.conta_id, f.nome, f.tipo,
+           NULL::bigint, f.realizado, NULL::bigint, NULL::integer, false
+      FROM fora f
+  )
+  SELECT t.bloco, t.lt, t.conta_id, t.nome, t.tipo,
+         -- ⚠️ É AQUI que o modo percentual acontece: o valor vira NULL ANTES
+         -- de sair do banco. Não há tela envolvida nesta decisão.
+         CASE WHEN v_ve_valores THEN t.orcado    END,
+         CASE WHEN v_ve_valores THEN t.realizado END,
+         CASE WHEN v_ve_valores THEN t.saldo     END,
+         t.consumo,
+         t.estourou
+    FROM tudo t
+   ORDER BY CASE t.bloco
+              WHEN 'RECEITA'   THEN 1
+              WHEN 'DESPESA'   THEN 2
+              WHEN 'RESULTADO' THEN 3
+              WHEN 'OUTRAS'    THEN 4
+              ELSE 5
+            END,
+            t.ord, t.nome NULLS LAST;
+END;
+$$;
+
+
+-- ---------------------------------------------------------------------------
 -- 4.18 APAGAR TODOS OS DADOS DO MÓDULO NUMA EMPRESA (RN-28)
 -- ---------------------------------------------------------------------------
 --
@@ -2753,6 +3407,15 @@ CREATE POLICY "Fechamentos da empresa" ON public.fin_fechamentos
 FOR SELECT TO authenticated
 USING (public.check_is_tenant_member(tenant_id) OR public.check_is_tenant_owner(tenant_id));
 
+-- ⚠️ 18/09/2026 — A POLICY DO ORÇAMENTO É DE LEITURA, E COM `TO authenticated`.
+-- Sem o `TO`, o padrão do PostgreSQL é PUBLIC, e foi assim que a lista de
+-- usuários ficou aberta até a v9. Escrita continua sem policy nenhuma: grava-se
+-- só por função `SECURITY DEFINER`, que confere `fin_pode()` por dentro.
+DROP POLICY IF EXISTS "Orcamentos da empresa" ON public.fin_orcamentos;
+CREATE POLICY "Orcamentos da empresa" ON public.fin_orcamentos
+FOR SELECT TO authenticated
+USING (public.check_is_tenant_member(tenant_id) OR public.check_is_tenant_owner(tenant_id));
+
 
 -- ===========================================================================
 -- 6. TRIGGERS
@@ -2794,6 +3457,15 @@ DROP TRIGGER IF EXISTS audit_fin_fech ON public.fin_fechamentos;
 CREATE TRIGGER audit_fin_fech AFTER UPDATE OR DELETE ON public.fin_fechamentos
   FOR EACH ROW EXECUTE PROCEDURE public.registrar_auditoria();
 
+-- 18/09/2026 — os dois gatilhos do orçamento.
+DROP TRIGGER IF EXISTS set_updated_at_fin_orc ON public.fin_orcamentos;
+CREATE TRIGGER set_updated_at_fin_orc BEFORE UPDATE ON public.fin_orcamentos
+  FOR EACH ROW EXECUTE PROCEDURE public.marcar_atualizacao();
+
+DROP TRIGGER IF EXISTS audit_fin_orc ON public.fin_orcamentos;
+CREATE TRIGGER audit_fin_orc AFTER UPDATE OR DELETE ON public.fin_orcamentos
+  FOR EACH ROW EXECUTE PROCEDURE public.registrar_auditoria();
+
 
 -- ===========================================================================
 -- 7. PRIVILÉGIOS
@@ -2802,12 +3474,14 @@ REVOKE ALL ON public.fin_contas_movimento       FROM anon, authenticated;
 REVOKE ALL ON public.fin_contas_identificadoras FROM anon, authenticated;
 REVOKE ALL ON public.fin_lancamentos            FROM anon, authenticated;
 REVOKE ALL ON public.fin_fechamentos            FROM anon, authenticated;
+REVOKE ALL ON public.fin_orcamentos             FROM anon, authenticated;
 
 -- Leitura filtrada pela RLS; escrita, nenhuma.
 GRANT SELECT ON public.fin_contas_movimento       TO authenticated;
 GRANT SELECT ON public.fin_contas_identificadoras TO authenticated;
 GRANT SELECT ON public.fin_lancamentos            TO authenticated;
 GRANT SELECT ON public.fin_fechamentos            TO authenticated;
+GRANT SELECT ON public.fin_orcamentos             TO authenticated;
 
 -- ---------------------------------------------------------------------------
 -- ⚠️ AS 17 FUNÇÕES PRECISAM DE UM `REVOKE ... FROM PUBLIC` ANTES DO GRANT.
@@ -2874,6 +3548,14 @@ REVOKE EXECUTE ON FUNCTION public.fin_saldos_mensais_movimento(uuid, integer)   
 REVOKE EXECUTE ON FUNCTION public.fin_movimentos_mensais_identificadora(uuid, integer)    FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_extrato_identificadora(uuid, uuid, date, date)      FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_extrato_consolidado(uuid, uuid[], date, date)       FROM PUBLIC, anon, authenticated;
+-- 18/09/2026 — o orçamento e o dinheiro do período.
+REVOKE EXECUTE ON FUNCTION public.fin_config_dinheiro(uuid)                               FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_gravar_orcamento(uuid, uuid, date, uuid, bigint, text) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_excluir_orcamento(uuid, uuid)                       FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_listar_orcamento(uuid, date)                        FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_competencias_orcadas(uuid, date, date, uuid)        FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_copiar_orcamento(uuid, date, date, boolean)         FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_dinheiro_do_periodo(uuid, date)                     FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_apagar_dados_da_empresa(uuid)                      FROM PUBLIC, anon, authenticated;
 
 GRANT EXECUTE ON FUNCTION public.fin_normalizar(text)                                   TO authenticated;
@@ -2915,6 +3597,21 @@ GRANT EXECUTE ON FUNCTION public.fin_saldos_mensais_movimento(uuid, integer)    
 GRANT EXECUTE ON FUNCTION public.fin_movimentos_mensais_identificadora(uuid, integer)    TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_extrato_identificadora(uuid, uuid, date, date)      TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_extrato_consolidado(uuid, uuid[], date, date)       TO authenticated;
+
+-- 18/09/2026 — as sete do orçamento e do dinheiro do período.
+--
+-- ⚠️ TODAS CONFEREM A PERMISSÃO POR DENTRO (`orc_ver`, `orc_gravar`,
+-- `orc_excluir` ou `dp_ver`), e a `fin_dinheiro_do_periodo` faz mais: ela lê o
+-- MODO daquele membro e, no modo percentual, devolve os valores em NULL. O
+-- filtro e o sigilo moram aqui dentro porque a tela não é lugar de decidir
+-- isso — o que a tela esconde continua tendo viajado até o navegador.
+GRANT EXECUTE ON FUNCTION public.fin_config_dinheiro(uuid)                               TO authenticated;
+GRANT EXECUTE ON FUNCTION public.fin_gravar_orcamento(uuid, uuid, date, uuid, bigint, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.fin_excluir_orcamento(uuid, uuid)                       TO authenticated;
+GRANT EXECUTE ON FUNCTION public.fin_listar_orcamento(uuid, date)                        TO authenticated;
+GRANT EXECUTE ON FUNCTION public.fin_competencias_orcadas(uuid, date, date, uuid)        TO authenticated;
+GRANT EXECUTE ON FUNCTION public.fin_copiar_orcamento(uuid, date, date, boolean)         TO authenticated;
+GRANT EXECUTE ON FUNCTION public.fin_dinheiro_do_periodo(uuid, date)                     TO authenticated;
 
 -- ⚠️ `fin_apagar_dados_da_empresa` NÃO recebe GRANT para `authenticated`: ela é
 -- chamada de dentro de `admin_apagar_dados_do_modulo`, que roda como dono do

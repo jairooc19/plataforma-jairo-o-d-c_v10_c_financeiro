@@ -5,13 +5,15 @@ import {
   permissaoFinanceiroService, extratoService, cadastroFinanceiroService,
   PERMISSOES_FINANCEIRO, ROTULO_DA_PERMISSAO, PERMISSOES_PADRAO_DEPENDENTE,
   formatarDataBR,
-  type PermissaoFinanceiro, type MembroDoModulo, type ContaMovimento, type FechamentoDaConta,
+  type PermissaoFinanceiro, type MembroDoModulo, type ContaMovimento, type ContaIdentificadora,
+  type FechamentoDaConta,
 } from "@jairo/core";
 import { useEmpresaAtiva } from "@/components/financeiro/useEmpresaAtiva";
 import IconeFin from "@/components/financeiro/IconeFin";
 import ExclusaoPorPeriodo from "@/components/financeiro/manutencao/ExclusaoPorPeriodo";
 import LixeiraDeLancamentos from "@/components/financeiro/manutencao/LixeiraDeLancamentos";
 import HistoricoDeFechamentos from "@/components/financeiro/manutencao/HistoricoDeFechamentos";
+import AcessoAoDinheiro from "@/components/financeiro/orcamento/AcessoAoDinheiro";
 
 /**
  * 🔑 TELA: DEPENDENTES E FECHAMENTO DE PERÍODO (PJODC v10)
@@ -38,6 +40,8 @@ export default function DependentesPage() {
   const [aviso, setAviso] = useState<string | null>(null);
 
   const [contas, setContas] = useState<ContaMovimento[]>([]);
+  /** As identificadoras, para o seletor de contas liberadas do dinheiro do período. */
+  const [categorias, setCategorias] = useState<ContaIdentificadora[]>([]);
   const [fechamentos, setFechamentos] = useState<FechamentoDaConta[]>([]);
   const [contaFechar, setContaFechar] = useState("");
   const [dataFechar, setDataFechar] = useState("");
@@ -57,12 +61,13 @@ export default function DependentesPage() {
 
   const carregar = useCallback(async () => {
     if (!tenantId) return;
-    const [ms, cs, fs] = await Promise.all([
+    const [ms, cs, cis, fs] = await Promise.all([
       permissaoFinanceiroService.listarMembros(tenantId),
       cadastroFinanceiroService.listarContasMovimento(tenantId),
+      cadastroFinanceiroService.listarIdentificadoras(tenantId, { incluirInativos: true }),
       extratoService.fechamentos(tenantId),
     ]);
-    setMembros(ms); setContas(cs); setFechamentos(fs);
+    setMembros(ms); setContas(cs); setCategorias(cis); setFechamentos(fs);
   }, [tenantId]);
 
   // ⚠️ O `await` dentro da função interna não é enfeite: `react-hooks/
@@ -120,6 +125,45 @@ export default function DependentesPage() {
       await carregar();
     } catch (e) {
       setErro(e instanceof Error ? e.message : "FALHA AO GRAVAR A PERMISSÃO.");
+    }
+  };
+
+  /**
+   * O acesso ao DINHEIRO DO PERÍODO: as contas liberadas e o modo.
+   *
+   * ⚠️ AS PERMISSÕES VÃO JUNTO, INTACTAS. Sem elas na chamada, `definirAcesso`
+   * gravaria as PADRÃO — e mexer no seletor de contas apagaria em silêncio tudo
+   * o que o Proprietário tivesse configurado à mão.
+   */
+  const definirAcessoAoDinheiro = async (
+    m: MembroDoModulo,
+    params: { dinheiroContas?: string[] | null; dinheiroPercentual?: boolean },
+  ) => {
+    if (!tenantId) return;
+    setErro(null);
+    try {
+      await permissaoFinanceiroService.definirAcesso({
+        tenantId, memberId: m.member_id, ativo: m.modulo_ativo, permissoes: m.permissoes, ...params,
+      });
+      await carregar();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "FALHA AO GRAVAR O ACESSO.");
+    }
+  };
+
+  /** Desliga de uma vez as permissões que revelam o valor por outra tela. */
+  const retirarPermissoes = async (m: MembroDoModulo, lista: PermissaoFinanceiro[]) => {
+    if (!tenantId) return;
+    setErro(null); setAviso(null);
+    try {
+      await permissaoFinanceiroService.definirAcesso({
+        tenantId, memberId: m.member_id, ativo: m.modulo_ativo,
+        permissoes: m.permissoes.filter((x) => !lista.includes(x)),
+      });
+      setAviso(`${lista.length} PERMISSÃO(ÕES) RETIRADA(S) DE ${m.email}.`);
+      await carregar();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "FALHA AO RETIRAR AS PERMISSÕES.");
     }
   };
 
@@ -240,15 +284,29 @@ export default function DependentesPage() {
               </div>
 
               {m.modulo_ativo && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                  {PERMISSOES_FINANCEIRO.map((p) => (
-                    <label key={p} className="flex items-center gap-2 text-[11px] font-bold uppercase text-slate-600">
-                      <input type="checkbox" checked={m.permissoes.includes(p)}
-                             onChange={() => alternarPermissao(m, p)} className="w-4 h-4" />
-                      {ROTULO_DA_PERMISSAO[p]}
-                    </label>
-                  ))}
-                </div>
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                    {PERMISSOES_FINANCEIRO.map((p) => (
+                      <label key={p} className="flex items-center gap-2 text-[11px] font-bold uppercase text-slate-600">
+                        <input type="checkbox" checked={m.permissoes.includes(p)}
+                               onChange={() => alternarPermissao(m, p)} className="w-4 h-4" />
+                        {ROTULO_DA_PERMISSAO[p]}
+                      </label>
+                    ))}
+                  </div>
+
+                  {/* ⚠️ 18/09/2026 — o que ele enxerga no DINHEIRO DO PERÍODO.
+                      Não é permissão: é uma LISTA (quais contas) e um MODO (com
+                      ou sem valores). Ver `AcessoAoDinheiro.tsx`, e em especial
+                      o aviso de que o modo percentual não esconde de quem tem
+                      outras permissões. */}
+                  <AcessoAoDinheiro
+                    membro={m}
+                    categorias={categorias}
+                    aoGravar={(params) => definirAcessoAoDinheiro(m, params)}
+                    aoRetirarPermissoes={(lista) => retirarPermissoes(m, lista)}
+                  />
+                </>
               )}
             </div>
           ))}

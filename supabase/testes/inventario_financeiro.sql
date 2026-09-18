@@ -31,9 +31,9 @@
 -- MUDE-OS JUNTO.
 -- ---------------------------------------------------------------------------
 --
--- São as linhas 1 a 5, a 9 e a 16: tabelas (4), funções (29), policies (4),
--- triggers (8), índices (16), funções alcançáveis pelo app (27) e chaves para a
--- plataforma (8) — mais a LISTA DE ASSINATURAS da linha 17, que entrou em
+-- São as linhas 1 a 5, a 9 e a 16: tabelas (5), funções (36), policies (5),
+-- triggers (10), índices (19), funções alcançáveis pelo app (34) e chaves para a
+-- plataforma (10) — mais a LISTA DE ASSINATURAS da linha 17, que entrou em
 -- 17/09/2026. **Eles não podem ser deduzidos do catálogo** — deduzi-los
 -- seria perguntar ao banco se o banco
 -- concorda consigo mesmo, e a resposta seria sempre sim. Eles são a AFIRMAÇÃO
@@ -181,7 +181,7 @@ internas AS (
 -- O PLACAR
 -- ---------------------------------------------------------------------------
 -- ---------------------------------------------------------------------------
--- A LISTA DE ASSINATURAS QUE O SCHEMA AFIRMA CRIAR — 29 linhas (18/09/2026)
+-- A LISTA DE ASSINATURAS QUE O SCHEMA AFIRMA CRIAR — 36 linhas (18/09/2026)
 -- ---------------------------------------------------------------------------
 -- ⚠️ AO MUDAR A ASSINATURA DE UMA FUNÇÃO, MUDE A LINHA CORRESPONDENTE AQUI.
 -- É de propósito que isto dê trabalho: assinatura de função é contrato, e
@@ -199,7 +199,12 @@ assinaturas_esperadas (nome, args) AS (
   ('fin_apagar_dados_da_empresa', 'p_tenant_id uuid'),
   ('fin_buscar_contas_movimento', 'p_tenant_id uuid, p_texto text'),
   ('fin_buscar_identificadoras', 'p_tenant_id uuid, p_texto text'),
+  ('fin_competencias_orcadas', 'p_tenant_id uuid, p_de date, p_ate date, p_conta_identificadora_id uuid'),
+  ('fin_config_dinheiro', 'p_tenant_id uuid'),
+  ('fin_copiar_orcamento', 'p_tenant_id uuid, p_origem date, p_destino date, p_substituir boolean'),
+  ('fin_dinheiro_do_periodo', 'p_tenant_id uuid, p_competencia date'),
   ('fin_excluir_lancamento', 'p_tenant_id uuid, p_id uuid'),
+  ('fin_excluir_orcamento', 'p_tenant_id uuid, p_id uuid'),
   ('fin_excluir_lancamentos_por_periodo', 'p_tenant_id uuid, p_conta_movimento_id uuid, p_data_inicial date, p_data_final date, p_simular boolean, p_ids uuid[]'),
   ('fin_extrato', 'p_tenant_id uuid, p_conta_movimento_id uuid, p_data_inicial date, p_data_final date'),
   ('fin_extrato_consolidado', 'p_tenant_id uuid, p_conta_movimento_ids uuid[], p_data_inicial date, p_data_final date'),
@@ -208,11 +213,13 @@ assinaturas_esperadas (nome, args) AS (
   ('fin_gravar_conta_movimento', 'p_tenant_id uuid, p_id uuid, p_nome text, p_tipo text, p_saldo_abertura_centavos bigint, p_is_active boolean'),
   ('fin_gravar_identificadora', 'p_tenant_id uuid, p_id uuid, p_nome text, p_tipo text, p_is_active boolean'),
   ('fin_gravar_lancamento', 'p_tenant_id uuid, p_id uuid, p_conta_movimento_id uuid, p_conta_identificadora_id uuid, p_data_movimento date, p_ordem_extrato integer, p_tipo_movimento text, p_propriedade text, p_regime text, p_valor_centavos bigint, p_historico text'),
+  ('fin_gravar_orcamento', 'p_tenant_id uuid, p_id uuid, p_competencia date, p_conta_identificadora_id uuid, p_valor_centavos bigint, p_observacao text'),
   ('fin_historico_fechamentos', 'p_tenant_id uuid, p_limite integer'),
   ('fin_importar_contas_movimento', 'p_tenant_id uuid, p_tipo text, p_nomes text[]'),
   ('fin_importar_identificadoras', 'p_tenant_id uuid, p_tipo text, p_nomes text[]'),
   ('fin_limpar_lixeira', 'p_tenant_id uuid, p_audit_ids bigint[], p_simular boolean'),
   ('fin_listar_exclusoes', 'p_tenant_id uuid, p_desde timestamp with time zone, p_limite integer'),
+  ('fin_listar_orcamento', 'p_tenant_id uuid, p_competencia date'),
   ('fin_marcar_conferido', 'p_tenant_id uuid, p_id uuid, p_conferido boolean'),
   ('fin_movimentos_mensais_identificadora', 'p_tenant_id uuid, p_ano integer'),
   ('fin_normalizar', 'p_texto text'),
@@ -229,19 +236,19 @@ assinaturas_esperadas (nome, args) AS (
 placar AS (
   SELECT 1 AS n, 'CONTAGEM' AS bloco,
          'Tabelas do modulo (fin_*)' AS o_que_foi_conferido,
-         '4' AS esperado, (SELECT count(*)::text FROM tabelas) AS encontrado
+         '5' AS esperado, (SELECT count(*)::text FROM tabelas) AS encontrado
   UNION ALL
   SELECT 2, 'CONTAGEM', 'Funcoes do modulo (fin_*)',
-         '29', (SELECT count(*)::text FROM funcoes)
+         '36', (SELECT count(*)::text FROM funcoes)
   UNION ALL
   SELECT 3, 'CONTAGEM', 'Policies de RLS nas tabelas do modulo',
-         '4', (SELECT count(*)::text FROM politicas)
+         '5', (SELECT count(*)::text FROM politicas)
   UNION ALL
   SELECT 4, 'CONTAGEM', 'Triggers nas tabelas do modulo',
-         '8', (SELECT count(*)::text FROM gatilhos)
+         '10', (SELECT count(*)::text FROM gatilhos)
   UNION ALL
   SELECT 5, 'CONTAGEM', 'Indices nas tabelas do modulo (chaves primarias incluidas)',
-         '16', (SELECT count(*)::text FROM indices)
+         '19', (SELECT count(*)::text FROM indices)
   UNION ALL
   SELECT 6, 'CATALOGO', 'Linha do modulo em platform_modules (sem ela, fin_pode() nega tudo)',
          '1', (SELECT count(*)::text FROM public.platform_modules WHERE id = 'financeiro')
@@ -254,7 +261,7 @@ placar AS (
          '0', (SELECT count(*)::text FROM alcance WHERE por_anon OR por_public)
   UNION ALL
   SELECT 9, 'CAMINHO FELIZ', 'Funcoes de cliente alcancaveis pelo app (authenticated)',
-         '27', (SELECT count(*)::text FROM alcance WHERE por_app)
+         '34', (SELECT count(*)::text FROM alcance WHERE por_app)
   UNION ALL
   SELECT 10, 'PORTA INTERNA', 'Funcoes internas que receberam GRANT indevido',
          '0', (SELECT count(*)::text FROM alcance a JOIN internas i USING (proname) WHERE a.por_app)
@@ -280,7 +287,7 @@ placar AS (
          '0', (SELECT count(*)::text FROM fks_do_modulo WHERE colunas < 2)
   UNION ALL
   SELECT 16, 'AMARRAS', 'Chaves das tabelas do modulo para a plataforma (tenants/users)',
-         '8', (SELECT count(*)::text FROM fks_para_a_plataforma)
+         '10', (SELECT count(*)::text FROM fks_para_a_plataforma)
   UNION ALL
   -- -------------------------------------------------------------------------
   -- 17 — ASSINATURA (17/09/2026)

@@ -27,6 +27,8 @@
 -- ---------------------------------------------------------------------------
 -- LIMPEZA PRÉVIA
 -- ---------------------------------------------------------------------------
+DELETE FROM public.fin_orcamentos
+ WHERE tenant_id IN ('aa000000-0000-0000-0000-0000000000a1','bb000000-0000-0000-0000-0000000000b1');
 DELETE FROM public.fin_lancamentos
  WHERE tenant_id IN ('aa000000-0000-0000-0000-0000000000a1','bb000000-0000-0000-0000-0000000000b1');
 DELETE FROM public.fin_fechamentos
@@ -2183,6 +2185,558 @@ END;
 $$;
 
 
+-- ===========================================================================
+-- PREPARAÇÃO DO BLOCO DO ORÇAMENTO (18/09/2026) — testes 42 a 50
+-- ===========================================================================
+--
+-- Reaproveita a competência de MARÇO/2026 montada para os dashboards. O
+-- realizado de março já está medido pelas travas 39 e 41:
+--
+--   DASH VENDA   (RECEITA)  710.000 próprio + 200.000 de terceiros = 910.000
+--                           ⚠️ o ORÇAMENTO soma as duas propriedades: ele é da
+--                           CONTA, não da propriedade.
+--   DASH ENERGIA (DESPESA)  498.000 pagos − 50.000 estornados      = 448.000
+--
+-- E orçamos:
+--   DASH VENDA   1.000.000  → consumo 91%
+--   DASH ENERGIA   400.000  → consumo 112%, ESTOUROU
+--   RESULTADO orçado 600.000 · realizado 462.000
+--
+-- ⚠️ A CONTA DO BLOCO "FORA" É DE TIPO **OUTRAS**, E ISSO É DE PROPÓSITO. Ela
+-- precisa ter movimento em março e nenhum orçamento. Se fosse de DESPESA,
+-- entraria no TOTAL DESPESAS do dashboard 2 e derrubaria as travas 39 e 41 —
+-- que nada têm a ver com orçamento, e mandariam quem investigasse para o lugar
+-- errado. É a mesma precaução da receita de terceiros, na rodada anterior.
+DO $$
+DECLARE
+  v_ou uuid; v_rec uuid; v_des uuid; v_fora uuid;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+
+  SELECT id INTO v_ou   FROM public.fin_contas_movimento        WHERE tenant_id='aa000000-0000-0000-0000-0000000000a1' AND nome='DASH OUTRA';
+  SELECT id INTO v_rec  FROM public.fin_contas_identificadoras  WHERE tenant_id='aa000000-0000-0000-0000-0000000000a1' AND nome='DASH VENDA';
+  SELECT id INTO v_des  FROM public.fin_contas_identificadoras  WHERE tenant_id='aa000000-0000-0000-0000-0000000000a1' AND nome='DASH ENERGIA';
+
+  v_fora := (public.fin_gravar_identificadora('aa000000-0000-0000-0000-0000000000a1', NULL, 'ORC SEM ORCAMENTO', 'OUTRAS', true)->>'id')::uuid;
+
+  -- o gasto que ninguém planejou (bônus B2)
+  PERFORM public.fin_gravar_lancamento('aa000000-0000-0000-0000-0000000000a1', NULL, v_ou, v_fora,
+          DATE '2026-03-20', NULL, 'SAIDA','PROPRIO','CAIXA', 15000, 'ORC FORA DO ORCAMENTO');
+
+  PERFORM public.fin_gravar_orcamento('aa000000-0000-0000-0000-0000000000a1', NULL, DATE '2026-03-01', v_rec, 1000000, 'ORC META DE VENDAS');
+  PERFORM public.fin_gravar_orcamento('aa000000-0000-0000-0000-0000000000a1', NULL, DATE '2026-03-01', v_des,  400000, NULL);
+
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 42 — o orçamento recusa o que não pode existir
+-- ===========================================================================
+--
+-- ⚠️ TRÊS RECUSAS NUMA TRAVA SÓ, e cada uma protege uma coisa diferente:
+--   • a DUPLICATA impede a mesma conta duas vezes na mesma competência — o
+--     defeito seria mudo, a tela somaria 850,00 onde há 400,00 e 450,00;
+--   • o DIA 1 impede duas "MARÇO / 2026" no banco, que a tela mostraria como o
+--     mesmo mês com valores diferentes;
+--   • o VALOR ZERO impede uma divisão por zero no consumo — e um orçamento de
+--     zero não quer dizer nada.
+DO $$
+DECLARE
+  v_rec uuid; v_dup text := 'nenhum'; v_dia text := 'nenhum'; v_zero text := 'nenhum';
+BEGIN
+  SELECT id INTO v_rec FROM public.fin_contas_identificadoras
+   WHERE tenant_id='aa000000-0000-0000-0000-0000000000a1' AND nome='DASH VENDA';
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+
+  BEGIN PERFORM public.fin_gravar_orcamento('aa000000-0000-0000-0000-0000000000a1', NULL, DATE '2026-03-01', v_rec, 555000, NULL);
+  EXCEPTION WHEN OTHERS THEN v_dup := SQLSTATE; END;
+
+  BEGIN PERFORM public.fin_gravar_orcamento('aa000000-0000-0000-0000-0000000000a1', NULL, DATE '2026-04-17', v_rec, 555000, NULL);
+  EXCEPTION WHEN OTHERS THEN v_dia := SQLSTATE; END;
+
+  BEGIN PERFORM public.fin_gravar_orcamento('aa000000-0000-0000-0000-0000000000a1', NULL, DATE '2026-05-01', v_rec, 0, NULL);
+  EXCEPTION WHEN OTHERS THEN v_zero := SQLSTATE; END;
+
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    42,
+    CASE WHEN v_dup = '23505' AND v_dia = '22023' AND v_zero = '23514'
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-02/15',
+    'Orcamento recusa duplicata na competencia, competencia fora do dia 1 e valor zero',
+    format('duplicata=%s (esp 23505); competencia 17/04=%s (esp 22023); valor zero=%s (esp 23514)',
+           v_dup, v_dia, v_zero));
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 43 — a conferência lista na ordem pedida, com os totais do banco
+-- ===========================================================================
+DO $$
+DECLARE
+  v_primeiro text; v_segundo text; v_total_rec bigint; v_total_des bigint; v_linhas int;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+
+  SELECT bloco INTO v_primeiro FROM public.fin_listar_orcamento('aa000000-0000-0000-0000-0000000000a1', DATE '2026-03-01') LIMIT 1;
+
+  SELECT bloco INTO v_segundo FROM (
+    SELECT bloco, row_number() OVER () AS n
+      FROM public.fin_listar_orcamento('aa000000-0000-0000-0000-0000000000a1', DATE '2026-03-01')) x
+   WHERE x.n = 3;
+
+  SELECT valor_centavos INTO v_total_rec FROM public.fin_listar_orcamento('aa000000-0000-0000-0000-0000000000a1', DATE '2026-03-01')
+   WHERE linha_tipo = 'TOTAL' AND bloco = 'RECEITA';
+
+  SELECT valor_centavos INTO v_total_des FROM public.fin_listar_orcamento('aa000000-0000-0000-0000-0000000000a1', DATE '2026-03-01')
+   WHERE linha_tipo = 'TOTAL' AND bloco = 'DESPESA';
+
+  SELECT count(*) INTO v_linhas FROM public.fin_listar_orcamento('aa000000-0000-0000-0000-0000000000a1', DATE '2026-03-01');
+
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    43,
+    CASE WHEN v_primeiro = 'RECEITA' AND v_segundo = 'DESPESA'
+          AND v_total_rec = 1000000 AND v_total_des = 400000 AND v_linhas = 4
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-03',
+    'Conferencia do orcamento vem ordenada RECEITA->DESPESA->OUTRAS, com os totais do banco',
+    format('1a linha=%s (esp RECEITA); 3a linha=%s (esp DESPESA); TOTAL RECEITAS=%s (esp 1000000); TOTAL DESPESAS=%s (esp 400000); linhas=%s (esp 4 = 2 contas + 2 totais)',
+           v_primeiro, v_segundo, v_total_rec, v_total_des, v_linhas));
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 44 — o dinheiro do período: orçado, realizado e consumo
+-- ===========================================================================
+--
+-- ⚠️ ESTA É A TRAVA QUE LIGA O ORÇAMENTO AO RESTO DO SISTEMA. O realizado tem
+-- de seguir as MESMAS quatro regras do dashboard 2: só regime CAIXA, soma
+-- próprio e terceiros, e na despesa conta `saidas - entradas`. Se divergir, a
+-- mesma conta mostraria dois números em duas telas do mesmo sistema.
+DO $$
+DECLARE
+  v_orc_rec bigint; v_real_rec bigint; v_cons_rec int;
+  v_orc_des bigint; v_real_des bigint; v_cons_des int; v_estourou boolean;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+
+  SELECT orcado_centavos, realizado_centavos, consumo_percentual
+    INTO v_orc_rec, v_real_rec, v_cons_rec
+    FROM public.fin_dinheiro_do_periodo('aa000000-0000-0000-0000-0000000000a1', DATE '2026-03-01')
+   WHERE linha_tipo = 'CONTA' AND nome = 'DASH VENDA';
+
+  SELECT orcado_centavos, realizado_centavos, consumo_percentual, estourou
+    INTO v_orc_des, v_real_des, v_cons_des, v_estourou
+    FROM public.fin_dinheiro_do_periodo('aa000000-0000-0000-0000-0000000000a1', DATE '2026-03-01')
+   WHERE linha_tipo = 'CONTA' AND nome = 'DASH ENERGIA';
+
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    44,
+    CASE WHEN v_orc_rec = 1000000 AND v_real_rec = 910000 AND v_cons_rec = 91
+          AND v_orc_des = 400000  AND v_real_des = 448000 AND v_cons_des = 112
+          AND v_estourou = true
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-19',
+    'Dinheiro do periodo: realizado segue a regra do dashboard 2, e o consumo sai arredondado',
+    format('RECEITA orcado=%s realizado=%s (esp 910000 = 710000 proprio + 200000 terceiros) consumo=%s%% (esp 91); DESPESA orcado=%s realizado=%s (esp 448000 = 498000 - 50000) consumo=%s%% (esp 112) estourou=%s (esp t)',
+           v_orc_rec, v_real_rec, v_cons_rec, v_orc_des, v_real_des, v_cons_des, v_estourou));
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 45 — o bloco FORA e a linha RESULTADO (bônus B2 e B3)
+-- ===========================================================================
+--
+-- ⚠️ SEM O BLOCO "FORA", UMA CONTA EM QUE SE GASTOU E NÃO SE ORÇOU SOME DA
+-- TELA — e é justamente o gasto que ninguém planejou. A pessoa somaria as
+-- barras e chegaria a um número menor que a realidade.
+--
+-- ⚠️ E O RESULTADO IGNORA O BLOCO OUTRAS, como no dashboard 2: aporte de sócio
+-- e transferência não são resultado do negócio.
+DO $$
+DECLARE
+  v_fora_nome text; v_fora_real bigint; v_fora_orc bigint;
+  v_res_orc bigint; v_res_real bigint;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+
+  SELECT nome, realizado_centavos, orcado_centavos
+    INTO v_fora_nome, v_fora_real, v_fora_orc
+    FROM public.fin_dinheiro_do_periodo('aa000000-0000-0000-0000-0000000000a1', DATE '2026-03-01')
+   WHERE bloco = 'FORA';
+
+  SELECT orcado_centavos, realizado_centavos INTO v_res_orc, v_res_real
+    FROM public.fin_dinheiro_do_periodo('aa000000-0000-0000-0000-0000000000a1', DATE '2026-03-01')
+   WHERE bloco = 'RESULTADO';
+
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    45,
+    CASE WHEN v_fora_nome = 'ORC SEM ORCAMENTO' AND v_fora_real = -15000 AND v_fora_orc IS NULL
+          AND v_res_orc = 600000 AND v_res_real = 462000
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-13',
+    'O gasto FORA do orcamento aparece, e o RESULTADO e receitas menos despesas (sem OUTRAS)',
+    format('bloco FORA: conta=%s realizado=%s (esp -15000, saida numa conta de tipo OUTRAS) orcado=%s (esp nulo); RESULTADO orcado=%s (esp 600000) realizado=%s (esp 462000 = 910000 - 448000)',
+           v_fora_nome, v_fora_real, coalesce(v_fora_orc::text,'nulo'), v_res_orc, v_res_real));
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 46 — ⚠️ O MODO PERCENTUAL: O VALOR **NÃO SAI DO BANCO**
+-- ===========================================================================
+--
+-- ⚠️ ESTA É A TRAVA MAIS IMPORTANTE DESTA RODADA, e ela existe por causa de um
+-- jeito errado que é o jeito natural de implementar.
+--
+-- O caminho óbvio seria o banco devolver tudo e a TELA esconder os valores.
+-- Isso não esconderia nada: os números atravessariam a internet e ficariam
+-- dentro do navegador do dependente, legíveis com a tecla F12 na aba de rede,
+-- em texto puro. Não é preciso saber programar; é preciso saber clicar. É o
+-- mesmo erro do `sessionStorage.dev_vip_access` que este projeto já documentou.
+--
+-- Por isso a trava confere o que chega do BANCO, e não o que a tela desenha:
+-- no modo percentual, `orcado`, `realizado` e `saldo` têm de vir NULOS, e só o
+-- percentual atravessa.
+--
+-- ⚠️ ELA TIRA E DEVOLVE A CONFIGURAÇÃO DO DEPENDENTE. Sem devolver, os testes
+-- seguintes herdariam um dependente diferente do que o arquivo montou.
+DO $$
+DECLARE
+  v_orc bigint; v_real bigint; v_saldo bigint; v_cons int;
+  v_orc_depois bigint;
+BEGIN
+  -- o Dependente ganha `dp_ver` E o modo percentual
+  UPDATE public.tenant_members
+     SET module_configs = jsonb_build_object('financeiro', jsonb_build_object(
+           'ativo', true,
+           'permissoes', jsonb_build_array('cm_ver','ci_ver','lc_ver_todos','lc_criar',
+                                           'lc_editar_proprios','extrato_ver','imprimir',
+                                           'lc_excluir_proprios','lc_excluir_todos',
+                                           'orc_ver','dp_ver'),
+           'dinheiro_percentual', true))
+   WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1'
+     AND user_id = 'd1000000-0000-0000-0000-0000000000d1';
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"d1000000-0000-0000-0000-0000000000d1","role":"authenticated"}', true);
+
+  SELECT orcado_centavos, realizado_centavos, saldo_centavos, consumo_percentual
+    INTO v_orc, v_real, v_saldo, v_cons
+    FROM public.fin_dinheiro_do_periodo('aa000000-0000-0000-0000-0000000000a1', DATE '2026-03-01')
+   WHERE linha_tipo = 'CONTA' AND nome = 'DASH ENERGIA';
+  RESET ROLE;
+
+  -- devolve o modo normal e confere que os valores voltam
+  UPDATE public.tenant_members
+     SET module_configs = jsonb_build_object('financeiro', jsonb_build_object(
+           'ativo', true,
+           'permissoes', jsonb_build_array('cm_ver','ci_ver','lc_ver_todos','lc_criar',
+                                           'lc_editar_proprios','extrato_ver','imprimir',
+                                           'lc_excluir_proprios','lc_excluir_todos',
+                                           'orc_ver','dp_ver')))
+   WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1'
+     AND user_id = 'd1000000-0000-0000-0000-0000000000d1';
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"d1000000-0000-0000-0000-0000000000d1","role":"authenticated"}', true);
+  SELECT orcado_centavos INTO v_orc_depois
+    FROM public.fin_dinheiro_do_periodo('aa000000-0000-0000-0000-0000000000a1', DATE '2026-03-01')
+   WHERE linha_tipo = 'CONTA' AND nome = 'DASH ENERGIA';
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    46,
+    CASE WHEN v_orc IS NULL AND v_real IS NULL AND v_saldo IS NULL
+          AND v_cons = 112 AND v_orc_depois = 400000
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-25',
+    'Modo percentual: o VALOR nao sai do banco - so o percentual atravessa',
+    format('no modo percentual: orcado=%s realizado=%s saldo=%s (os tres tem de ser NULOS) e consumo=%s%% (esp 112); com o modo normal devolvido, orcado=%s (esp 400000)',
+           coalesce(v_orc::text,'nulo'), coalesce(v_real::text,'nulo'), coalesce(v_saldo::text,'nulo'),
+           v_cons, coalesce(v_orc_depois::text,'nulo')));
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 47 — a lista de contas liberadas: `[]` NÃO é ausente
+-- ===========================================================================
+--
+-- ⚠️ A MESMA LIÇÃO, NO TERCEIRO LUGAR DESTE MÓDULO:
+--     ausente / null → "não estou escolhendo": TODAS as contas
+--     []             → "desmarquei tudo": NENHUMA conta
+-- Confundi-los faria o botão DESMARCAR TODAS liberar o orçamento inteiro — o
+-- contrário exato do que a pessoa acabou de pedir.
+DO $$
+DECLARE
+  v_sem_lista int; v_vazia int; v_so_uma int; v_nome_unico text;
+  v_des uuid;
+BEGIN
+  SELECT id INTO v_des FROM public.fin_contas_identificadoras
+   WHERE tenant_id='aa000000-0000-0000-0000-0000000000a1' AND nome='DASH ENERGIA';
+
+  -- (a) sem o campo: vê tudo
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"d1000000-0000-0000-0000-0000000000d1","role":"authenticated"}', true);
+  SELECT count(*) INTO v_sem_lista
+    FROM public.fin_dinheiro_do_periodo('aa000000-0000-0000-0000-0000000000a1', DATE '2026-03-01')
+   WHERE linha_tipo = 'CONTA' AND bloco <> 'FORA';
+  RESET ROLE;
+
+  -- (b) lista VAZIA: não vê nada
+  UPDATE public.tenant_members
+     SET module_configs = jsonb_set(module_configs, '{financeiro,dinheiro_contas}', '[]'::jsonb)
+   WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1'
+     AND user_id = 'd1000000-0000-0000-0000-0000000000d1';
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"d1000000-0000-0000-0000-0000000000d1","role":"authenticated"}', true);
+  SELECT count(*) INTO v_vazia
+    FROM public.fin_dinheiro_do_periodo('aa000000-0000-0000-0000-0000000000a1', DATE '2026-03-01')
+   WHERE linha_tipo = 'CONTA';
+  RESET ROLE;
+
+  -- (c) lista com UMA conta: vê só ela
+  UPDATE public.tenant_members
+     SET module_configs = jsonb_set(module_configs, '{financeiro,dinheiro_contas}',
+                                    jsonb_build_array(v_des::text))
+   WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1'
+     AND user_id = 'd1000000-0000-0000-0000-0000000000d1';
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"d1000000-0000-0000-0000-0000000000d1","role":"authenticated"}', true);
+  SELECT count(*) INTO v_so_uma
+    FROM public.fin_dinheiro_do_periodo('aa000000-0000-0000-0000-0000000000a1', DATE '2026-03-01')
+   WHERE linha_tipo = 'CONTA' AND bloco <> 'FORA';
+  SELECT nome INTO v_nome_unico
+    FROM public.fin_dinheiro_do_periodo('aa000000-0000-0000-0000-0000000000a1', DATE '2026-03-01')
+   WHERE linha_tipo = 'CONTA' AND bloco <> 'FORA';
+  RESET ROLE;
+
+  -- devolve o dependente ao estado do arquivo
+  UPDATE public.tenant_members
+     SET module_configs = module_configs #- '{financeiro,dinheiro_contas}'
+   WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1'
+     AND user_id = 'd1000000-0000-0000-0000-0000000000d1';
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    47,
+    CASE WHEN v_sem_lista = 2 AND v_vazia = 0 AND v_so_uma = 1 AND v_nome_unico = 'DASH ENERGIA'
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-25/27',
+    'Lista de contas liberadas: ausente = TODAS, [] = NENHUMA, uma = so ela',
+    format('sem o campo=%s conta(s) (esp 2); lista []=%s (esp 0, e NAO todas); lista com uma=%s (esp 1) e e a %s (esp DASH ENERGIA)',
+           v_sem_lista, v_vazia, v_so_uma, coalesce(v_nome_unico,'nenhuma')));
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 48 — copiar o orçamento de uma competência para outra (bônus B1)
+-- ===========================================================================
+--
+-- ⚠️ `p_substituir` TEM `false` COMO PADRÃO, e esta trava fixa isso: esquecer o
+-- argumento não pode apagar o valor que alguém já ajustou à mão no destino. É a
+-- mesma regra da simulação na exclusão em lote — o caminho seguro tem de ser o
+-- caminho preguiçoso.
+DO $$
+DECLARE
+  v_rec uuid; v_r1 json; v_r2 json;
+  v_valor_apos_copia bigint; v_valor_apos_substituir bigint; v_contas int;
+BEGIN
+  SELECT id INTO v_rec FROM public.fin_contas_identificadoras
+   WHERE tenant_id='aa000000-0000-0000-0000-0000000000a1' AND nome='DASH VENDA';
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+
+  -- abril recebe UM orçamento ajustado à mão, diferente do de março
+  PERFORM public.fin_gravar_orcamento('aa000000-0000-0000-0000-0000000000a1', NULL, DATE '2026-04-01', v_rec, 777000, NULL);
+
+  -- copia março → abril SEM substituir: o 777000 tem de sobreviver
+  v_r1 := public.fin_copiar_orcamento('aa000000-0000-0000-0000-0000000000a1', DATE '2026-03-01', DATE '2026-04-01');
+
+  SELECT valor_centavos INTO v_valor_apos_copia
+    FROM public.fin_orcamentos
+   WHERE tenant_id='aa000000-0000-0000-0000-0000000000a1' AND competencia=DATE '2026-04-01'
+     AND conta_identificadora_id = v_rec;
+
+  SELECT count(*) INTO v_contas FROM public.fin_orcamentos
+   WHERE tenant_id='aa000000-0000-0000-0000-0000000000a1' AND competencia=DATE '2026-04-01';
+
+  -- agora SUBSTITUINDO: o valor de março tem de vencer
+  v_r2 := public.fin_copiar_orcamento('aa000000-0000-0000-0000-0000000000a1', DATE '2026-03-01', DATE '2026-04-01', true);
+
+  SELECT valor_centavos INTO v_valor_apos_substituir
+    FROM public.fin_orcamentos
+   WHERE tenant_id='aa000000-0000-0000-0000-0000000000a1' AND competencia=DATE '2026-04-01'
+     AND conta_identificadora_id = v_rec;
+
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    48,
+    CASE WHEN v_valor_apos_copia = 777000 AND v_contas = 2 AND v_valor_apos_substituir = 1000000
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-25',
+    'Copiar orcamento: sem substituir preserva o valor ajustado a mao; com substituir, sobrescreve',
+    format('apos copiar SEM substituir=%s (esp 777000, o ajuste sobrevive); contas em abril=%s (esp 2, a nova entrou); apos copiar COM substituir=%s (esp 1000000, o de marco venceu); relatorios=%s / %s',
+           v_valor_apos_copia, v_contas, v_valor_apos_substituir, v_r1::text, v_r2::text));
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 49 — as sete funções novas não atravessam a fronteira da empresa
+-- ===========================================================================
+DO $$
+DECLARE
+  v_e text[] := '{}'; v_n int; v_rec uuid; v_erro text;
+BEGIN
+  SELECT id INTO v_rec FROM public.fin_contas_identificadoras
+   WHERE tenant_id='aa000000-0000-0000-0000-0000000000a1' AND nome='DASH VENDA';
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"b1000000-0000-0000-0000-0000000000b1","role":"authenticated"}', true);
+
+  v_erro := 'nenhum';
+  BEGIN PERFORM public.fin_config_dinheiro('aa000000-0000-0000-0000-0000000000a1');
+  EXCEPTION WHEN OTHERS THEN v_erro := SQLSTATE; END;  v_e := v_e || v_erro;
+
+  v_erro := 'nenhum';
+  BEGIN PERFORM public.fin_gravar_orcamento('aa000000-0000-0000-0000-0000000000a1', NULL, DATE '2026-06-01', v_rec, 100, NULL);
+  EXCEPTION WHEN OTHERS THEN v_erro := SQLSTATE; END;  v_e := v_e || v_erro;
+
+  v_erro := 'nenhum';
+  BEGIN PERFORM public.fin_excluir_orcamento('aa000000-0000-0000-0000-0000000000a1', gen_random_uuid());
+  EXCEPTION WHEN OTHERS THEN v_erro := SQLSTATE; END;  v_e := v_e || v_erro;
+
+  v_erro := 'nenhum';
+  BEGIN SELECT count(*) INTO v_n FROM public.fin_listar_orcamento('aa000000-0000-0000-0000-0000000000a1', DATE '2026-03-01');
+  EXCEPTION WHEN OTHERS THEN v_erro := SQLSTATE; END;  v_e := v_e || v_erro;
+
+  v_erro := 'nenhum';
+  BEGIN SELECT count(*) INTO v_n FROM public.fin_competencias_orcadas('aa000000-0000-0000-0000-0000000000a1', DATE '2026-01-01', DATE '2026-12-01', NULL);
+  EXCEPTION WHEN OTHERS THEN v_erro := SQLSTATE; END;  v_e := v_e || v_erro;
+
+  v_erro := 'nenhum';
+  BEGIN PERFORM public.fin_copiar_orcamento('aa000000-0000-0000-0000-0000000000a1', DATE '2026-03-01', DATE '2026-07-01');
+  EXCEPTION WHEN OTHERS THEN v_erro := SQLSTATE; END;  v_e := v_e || v_erro;
+
+  v_erro := 'nenhum';
+  BEGIN SELECT count(*) INTO v_n FROM public.fin_dinheiro_do_periodo('aa000000-0000-0000-0000-0000000000a1', DATE '2026-03-01');
+  EXCEPTION WHEN OTHERS THEN v_erro := SQLSTATE; END;  v_e := v_e || v_erro;
+
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    49,
+    CASE WHEN v_e = ARRAY['42501','42501','42501','42501','42501','42501','42501']
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-27',
+    'Dono da EMPRESA B nao alcanca nenhuma das sete funcoes de orcamento da EMPRESA A',
+    format('respostas=%s (esperado 42501 nas sete)', v_e::text));
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 50 — sem as permissões novas, as funções recusam
+-- ===========================================================================
+DO $$
+DECLARE
+  v_ver text := 'nenhum'; v_gravar text := 'nenhum'; v_excluir text := 'nenhum'; v_dp text := 'nenhum';
+  v_com_permissao int; v_rec uuid; v_n int;
+BEGIN
+  SELECT id INTO v_rec FROM public.fin_contas_identificadoras
+   WHERE tenant_id='aa000000-0000-0000-0000-0000000000a1' AND nome='DASH VENDA';
+
+  -- o Dependente PERDE as quatro permissões novas
+  UPDATE public.tenant_members
+     SET module_configs = jsonb_build_object('financeiro', jsonb_build_object(
+           'ativo', true,
+           'permissoes', jsonb_build_array('cm_ver','ci_ver','lc_ver_todos','lc_criar',
+                                           'lc_editar_proprios','extrato_ver','imprimir',
+                                           'lc_excluir_proprios','lc_excluir_todos')))
+   WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1'
+     AND user_id = 'd1000000-0000-0000-0000-0000000000d1';
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"d1000000-0000-0000-0000-0000000000d1","role":"authenticated"}', true);
+
+  BEGIN SELECT count(*) INTO v_n FROM public.fin_listar_orcamento('aa000000-0000-0000-0000-0000000000a1', DATE '2026-03-01');
+  EXCEPTION WHEN OTHERS THEN v_ver := SQLSTATE; END;
+
+  BEGIN PERFORM public.fin_gravar_orcamento('aa000000-0000-0000-0000-0000000000a1', NULL, DATE '2026-08-01', v_rec, 100, NULL);
+  EXCEPTION WHEN OTHERS THEN v_gravar := SQLSTATE; END;
+
+  BEGIN PERFORM public.fin_excluir_orcamento('aa000000-0000-0000-0000-0000000000a1', gen_random_uuid());
+  EXCEPTION WHEN OTHERS THEN v_excluir := SQLSTATE; END;
+
+  BEGIN SELECT count(*) INTO v_n FROM public.fin_dinheiro_do_periodo('aa000000-0000-0000-0000-0000000000a1', DATE '2026-03-01');
+  EXCEPTION WHEN OTHERS THEN v_dp := SQLSTATE; END;
+
+  RESET ROLE;
+
+  -- devolve as permissões e confere que agora responde
+  UPDATE public.tenant_members
+     SET module_configs = jsonb_build_object('financeiro', jsonb_build_object(
+           'ativo', true,
+           'permissoes', jsonb_build_array('cm_ver','ci_ver','lc_ver_todos','lc_criar',
+                                           'lc_editar_proprios','extrato_ver','imprimir',
+                                           'lc_excluir_proprios','lc_excluir_todos',
+                                           'orc_ver','dp_ver')))
+   WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1'
+     AND user_id = 'd1000000-0000-0000-0000-0000000000d1';
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"d1000000-0000-0000-0000-0000000000d1","role":"authenticated"}', true);
+  SELECT count(*) INTO v_com_permissao
+    FROM public.fin_listar_orcamento('aa000000-0000-0000-0000-0000000000a1', DATE '2026-03-01');
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    50,
+    CASE WHEN v_ver = '42501' AND v_gravar = '42501' AND v_excluir = '42501' AND v_dp = '42501'
+          AND v_com_permissao > 0
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-25',
+    'As quatro permissoes novas (orc_ver, orc_gravar, orc_excluir, dp_ver) recusam quando faltam',
+    format('sem elas: listar=%s gravar=%s excluir=%s dinheiro=%s (esperado 42501 nas quatro); com orc_ver devolvido: %s linha(s) (esperado > 0)',
+           v_ver, v_gravar, v_excluir, v_dp, v_com_permissao));
+END;
+$$;
+
+
 -- ---------------------------------------------------------------------------
 -- LIMPEZA FINAL
 -- ---------------------------------------------------------------------------
@@ -2197,6 +2751,8 @@ DELETE FROM public.audit_log
    AND COALESCE(dados_antes, dados_depois)->>'tenant_id' IN
        ('aa000000-0000-0000-0000-0000000000a1','bb000000-0000-0000-0000-0000000000b1');
 
+DELETE FROM public.fin_orcamentos
+ WHERE tenant_id IN ('aa000000-0000-0000-0000-0000000000a1','bb000000-0000-0000-0000-0000000000b1');
 DELETE FROM public.fin_lancamentos
  WHERE tenant_id IN ('aa000000-0000-0000-0000-0000000000a1','bb000000-0000-0000-0000-0000000000b1');
 DELETE FROM public.fin_fechamentos
