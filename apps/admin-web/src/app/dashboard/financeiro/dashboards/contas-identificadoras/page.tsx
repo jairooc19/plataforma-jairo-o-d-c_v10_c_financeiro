@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { anoInteiro, mesDoAno, type LinhaDaGrade } from "@jairo/core";
 import { useDashboard } from "@/components/financeiro/dashboard/useDashboard";
@@ -12,8 +13,8 @@ import IconeFin from "@/components/financeiro/IconeFin";
  * 📊 DASHBOARD 2 — MOVIMENTO POR CONTA IDENTIFICADORA (PJODC v10)
  * Local: apps/admin-web/src/app/dashboard/financeiro/dashboards/contas-identificadoras/page.tsx
  *
- * Quatro blocos, na ordem pedida: RECEITAS (com total), DESPESAS (com total),
- * RESULTADO, e OUTRAS (com total).
+ * Cinco blocos, na ordem pedida: RECEITAS PRÓPRIAS (com total), RECEITAS DE
+ * TERCEIROS (com total), DESPESAS (com total), RESULTADO, e OUTRAS (com total).
  *
  * ===========================================================================
  * ⚠️ AQUI NÃO EXISTE "SALDO", E A DIFERENÇA É DE CONCEITO
@@ -32,11 +33,33 @@ import IconeFin from "@/components/financeiro/IconeFin";
  * como se lê um relatório ("ENERGIA 380,00", não "−380,00") e é contabilmente
  * correto — a RN-13 permite de propósito lançar ENTRADA numa conta de DESPESA.
  *
- * ⚠️ A LINHA `RESULTADO` IGNORA O BLOCO OUTRAS. Aporte de sócio e transferência
- * entre contas não são resultado do negócio; somá-los daria um número que se
- * parece com lucro e não é.
+ * ⚠️ A RECEITA SÃO DOIS BLOCOS desde a 2ª rodada de 18/09/2026: PRÓPRIAS e DE
+ * TERCEIROS, separadas pela `propriedade` do LANÇAMENTO — não do cadastro. Por
+ * isso **a mesma conta pode aparecer nos dois**, com valores diferentes. Não é
+ * duplicidade: é a informação que o pedido quer.
+ *
+ * ⚠️ A LINHA `RESULTADO` USA SÓ AS RECEITAS PRÓPRIAS, e ignora o bloco OUTRAS.
+ * Dinheiro de terceiros entra no SALDO (está na conta) mas não é receita do
+ * negócio; somá-lo — como somar aporte de sócio ou transferência — daria um
+ * número que se parece com lucro e não é.
+ *
+ * ⚠️ O `<Suspense>` ABAIXO É OBRIGATÓRIO DESDE QUE O ANO PASSOU A CABER NA URL
+ * (18/09/2026). Quem lê a URL é `useSearchParams()`, dentro de `useDashboard`,
+ * e sem um `<Suspense>` ACIMA dele o `npm run build` FALHA — não avisa, falha:
+ * "Missing Suspense boundary with useSearchParams". E ele tem de ficar FORA do
+ * componente que chama o hook: pôr o `<Suspense>` dentro dele não resolve nada,
+ * porque o erro acontece ao renderizá-lo, antes de o `<Suspense>` existir na
+ * árvore. Por isso a página está partida em duas.
  */
 export default function DashboardContasIdentificadorasPage() {
+  return (
+    <Suspense fallback={<Girando />}>
+      <ConteudoDoDashboard />
+    </Suspense>
+  );
+}
+
+function ConteudoDoDashboard() {
   const d = useDashboard("identificadora");
   const router = useRouter();
   const { pode, nomeEmpresa, carregando: carregandoContexto, erro: erroContexto } = d.ctx;
@@ -52,9 +75,12 @@ export default function DashboardContasIdentificadorasPage() {
      * do que não o oferecer.
      */
     if (linha.ehTotal || !linha.contaId) return;
+    // O `voltar` leva o ano e o filtro — ver o comentário gêmeo no dashboard 1.
     router.push(
       `/dashboard/financeiro/conferencia-identificadora?${new URLSearchParams({
-        conta: linha.contaId, ...periodo,
+        conta: linha.contaId,
+        ...periodo,
+        voltar: d.enderecoAtual("/dashboard/financeiro/dashboards/contas-identificadoras"),
       })}`,
     );
   };
@@ -100,6 +126,8 @@ export default function DashboardContasIdentificadorasPage() {
         <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400 max-w-3xl">
           CADA CÉLULA É O MOVIMENTO LÍQUIDO DAQUELE MÊS — NÃO É SALDO, E NÃO ACUMULA ·
           A DESPESA APARECE POSITIVA, E UM REEMBOLSO A REDUZ ·
+          A RECEITA É SEPARADA POR PROPRIEDADE DO LANÇAMENTO, ENTÃO A MESMA CONTA PODE APARECER
+          NOS DOIS BLOCOS ·
           CLIQUE NO NOME PARA CONFERIR O ANO, OU NA CÉLULA PARA CONFERIR O MÊS · SÓ REGIME CAIXA
         </p>
 

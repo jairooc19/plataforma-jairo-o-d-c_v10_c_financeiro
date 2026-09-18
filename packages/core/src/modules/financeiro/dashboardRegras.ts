@@ -65,6 +65,20 @@ export interface CelulaDoDashboard {
   /** Só o dashboard 1 usa: o mês inteiro já está trancado (RN-24). */
   fechado: boolean;
   /**
+   * Houve ALGUM lançamento naquele mês, naquela linha.
+   *
+   * ⚠️ ELE É DERIVADO DE `entradas + saidas > 0`, e isso é exato: a RN-15 não
+   * deixa gravar lançamento de valor zero, então movimento nenhum é a única
+   * forma de os dois darem zero. Um mês em que entrou 100 e saiu 100 tem
+   * líquido zero mas `temLancamento = true` — e é isso que se quer dizer.
+   *
+   * ⚠️ QUEM O USA É O DASHBOARD 1, a pedido do dono do projeto em 18/09/2026:
+   * "o mês só deve apresentar saldo se existir lançamento para o mesmo". O
+   * saldo continua ACUMULANDO por dentro (abril sem movimento ainda carrega
+   * março); o que muda é só o que a célula MOSTRA.
+   */
+  temLancamento: boolean;
+  /**
    * O mês ainda não terminou, ou nem começou.
    *
    * ⚠️ ELE EXISTE PORQUE O SISTEMA ACEITA LANÇAMENTO COM DATA À FRENTE (o
@@ -100,7 +114,8 @@ export interface BlocoDaGrade {
 const ROTULO_DO_BLOCO: Record<string, string> = {
   CAIXA_BANCO: 'CAIXA E BANCO',
   OUTRAS: 'OUTRAS',
-  RECEITA: 'RECEITAS',
+  RECEITA_PROPRIO: 'RECEITAS PRÓPRIAS',
+  RECEITA_TERCEIROS: 'RECEITAS DE TERCEIROS',
   DESPESA: 'DESPESAS',
   RESULTADO: 'RESULTADO DO MÊS',
 };
@@ -108,9 +123,10 @@ const ROTULO_DO_BLOCO: Record<string, string> = {
 const ROTULO_DO_TOTAL: Record<string, string> = {
   CAIXA_BANCO: 'TOTAL CAIXA E BANCO',
   OUTRAS: 'TOTAL OUTRAS',
-  RECEITA: 'TOTAL RECEITAS',
+  RECEITA_PROPRIO: 'TOTAL RECEITAS PRÓPRIAS',
+  RECEITA_TERCEIROS: 'TOTAL RECEITAS DE TERCEIROS',
   DESPESA: 'TOTAL DESPESAS',
-  RESULTADO: 'RESULTADO (RECEITAS − DESPESAS)',
+  RESULTADO: 'RESULTADO (RECEITAS PRÓPRIAS − DESPESAS)',
 };
 
 /** O nome do bloco como ele aparece no cabeçalho da tabela. */
@@ -138,6 +154,7 @@ function celulasVazias(ano: number, hoje: string): CelulaDoDashboard[] {
     entradasCentavos: 0,
     saidasCentavos: 0,
     fechado: false,
+    temLancamento: false,
     futuro: ehMesFuturo(ano, i + 1, hoje),
   }));
 }
@@ -199,14 +216,21 @@ export function montarGradeDeSaldos(
 /**
  * DASHBOARD 2 — a grade dos movimentos por conta identificadora.
  *
- * Quatro blocos, na ordem pedida: RECEITAS (com total), DESPESAS (com total),
- * RESULTADO e OUTRAS (com total).
+ * Cinco blocos, na ordem pedida: RECEITAS PRÓPRIAS (com total), RECEITAS DE
+ * TERCEIROS (com total), DESPESAS (com total), RESULTADO e OUTRAS (com total).
+ *
+ * ⚠️ A MESMA CONTA PODE APARECER NOS DOIS BLOCOS DE RECEITA — a divisão é por
+ * `propriedade` do LANÇAMENTO, não do cadastro. Por isso a chave da linha
+ * inclui o bloco: sem isso, as duas linhas da mesma conta colidiriam no `Map`
+ * e uma delas some, levando junto os valores dela.
  */
 export function montarGradeDeMovimentos(
   linhas: LinhaMovimentoMensal[],
   ctx: Contexto & { ocultarTransferencias?: boolean },
 ): BlocoDaGrade[] {
-  const ordem: BlocoDaIdentificadora[] = ['RECEITA', 'DESPESA', 'RESULTADO', 'OUTRAS'];
+  const ordem: BlocoDaIdentificadora[] = [
+    'RECEITA_PROPRIO', 'RECEITA_TERCEIROS', 'DESPESA', 'RESULTADO', 'OUTRAS',
+  ];
 
   /**
    * ⚠️ OCULTAR A TRANSFERÊNCIA ESCONDE A LINHA, MAS **NÃO** REFAZ O TOTAL.
@@ -265,7 +289,11 @@ function montarBloco<T extends { linha_tipo: 'CONTA' | 'TOTAL'; mes: number }>(
   for (const l of linhas) {
     const d = extrair(l);
     const ehTotal = l.linha_tipo === 'TOTAL';
-    const chave = ehTotal ? `TOTAL:${bloco}` : `CONTA:${d.contaId ?? d.nome ?? '?'}`;
+    // ⚠️ O BLOCO ENTRA NA CHAVE porque a MESMA conta identificadora aparece
+    // nos dois blocos de receita (própria e de terceiros). Sem ele, as duas
+    // linhas teriam a mesma identidade — e o dia em que alguém juntar os blocos
+    // numa lista só, uma delas some levando os valores junto.
+    const chave = ehTotal ? `TOTAL:${bloco}` : `CONTA:${bloco}:${d.contaId ?? d.nome ?? '?'}`;
 
     let linha = porChave.get(chave);
     if (!linha) {
@@ -288,6 +316,7 @@ function montarBloco<T extends { linha_tipo: 'CONTA' | 'TOTAL'; mes: number }>(
       entradasCentavos: d.entradas,
       saidasCentavos: d.saidas,
       fechado: d.fechado,
+      temLancamento: d.entradas + d.saidas > 0,
     });
   }
 

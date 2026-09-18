@@ -2201,8 +2201,9 @@ $$;
 -- ---------------------------------------------------------------------------
 --
 -- 📖 O QUE ELA RESPONDE: "quanto passou por cada conta identificadora em cada
--- mês do ano?" — receitas primeiro, depois despesas, o RESULTADO dos dois, e
--- por fim as de tipo OUTRAS. Cada bloco com o seu total mensal.
+-- mês do ano?" — receitas primeiro (divididas em PRÓPRIAS e DE TERCEIROS),
+-- depois despesas, o RESULTADO, e por fim as de tipo OUTRAS. Cada bloco com o
+-- seu total mensal.
 --
 -- ===========================================================================
 -- ⚠️ AQUI NÃO EXISTE "SALDO", E A DIFERENÇA É DE CONCEITO, NÃO DE NOME
@@ -2224,24 +2225,41 @@ $$;
 -- comportamento contábil correto — a RN-13 permite de propósito lançar uma
 -- ENTRADA numa conta de DESPESA (estorno), apenas avisando na tela.
 --
--- ⚠️ A LINHA `RESULTADO` IGNORA O BLOCO `OUTRAS`, DE PROPÓSITO. Aporte de sócio
--- e transferência entre contas não são resultado do negócio; somá-los daria um
--- número que se parece com lucro e não é.
+-- ===========================================================================
+-- ⚠️ 18/09/2026 (2ª rodada) — A RECEITA VIROU DOIS BLOCOS, POR `propriedade`
+-- ===========================================================================
+-- Pedido do dono do projeto depois de ver a tela funcionando: separar
+-- RECEITAS PRÓPRIAS de RECEITAS DE TERCEIROS. A distinção já existia no
+-- lançamento (a coluna `propriedade`) e não aparecia em relatório nenhum.
+--
+-- ⚠️ A DIVISÃO É POR LANÇAMENTO, NÃO POR CADASTRO — e a consequência precisa
+-- ficar dita: **a MESMA conta identificadora pode aparecer nos DOIS blocos**,
+-- com valores diferentes, se ela tiver recebido dinheiro próprio num mês e de
+-- terceiros noutro. Isso não é duplicidade: é a informação que o pedido quer.
+--
+-- ⚠️ E POR ISSO O `RETURNS TABLE` MUDOU — o que obriga o `DROP FUNCTION` logo
+-- abaixo. `CREATE OR REPLACE` recusa mudança de tipo de retorno com
+-- "cannot change return type of existing function", e o arquivo idempotente
+-- pararia no meio. O DROP leva os PARÂMETROS (que não mudaram), porque é por
+-- eles que o PostgreSQL identifica a função.
 --
 -- ⚠️ A CONTA "TRANSFERÊNCIA ENTRE CONTAS" (RN-30, `is_sistema`) aparece no
 -- bloco OUTRAS e tende a somar ZERO todo mês — uma perna entra, a outra sai, do
 -- mesmo valor (RN-23). Isso não é defeito: é a prova de que transferir não cria
 -- nem destrói dinheiro. A tela oferece uma caixa para ocultá-la.
+DROP FUNCTION IF EXISTS public.fin_movimentos_mensais_identificadora(uuid, integer);
+
 CREATE OR REPLACE FUNCTION public.fin_movimentos_mensais_identificadora(
   p_tenant_id uuid,
   p_ano       integer
 )
 RETURNS TABLE (
-  bloco             text,      -- RECEITA | DESPESA | RESULTADO | OUTRAS
+  bloco             text,      -- RECEITA_PROPRIO | RECEITA_TERCEIROS | DESPESA | RESULTADO | OUTRAS
   linha_tipo        text,      -- CONTA | TOTAL
   conta_id          uuid,
   nome              text,
   tipo              text,
+  propriedade       text,      -- PROPRIO | TERCEIROS (nulo nas linhas de total)
   is_active         boolean,
   is_sistema        boolean,
   mes               integer,   -- 1 a 12
@@ -2287,6 +2305,7 @@ BEGIN
   ),
   movimento AS (
     SELECT l.conta_identificadora_id AS id,
+           l.propriedade,
            EXTRACT(MONTH FROM l.data_movimento)::integer AS mes,
            COALESCE(SUM(l.valor_centavos) FILTER (WHERE l.tipo_movimento = 'ENTRADA'), 0)::bigint AS entradas,
            COALESCE(SUM(l.valor_centavos) FILTER (WHERE l.tipo_movimento = 'SAIDA'),   0)::bigint AS saidas
@@ -2294,19 +2313,43 @@ BEGIN
      WHERE l.tenant_id = p_tenant_id
        AND l.regime = 'CAIXA'
        AND l.data_movimento BETWEEN v_de AND v_ate
-     GROUP BY 1, 2
+     GROUP BY 1, 2, 3
+  ),
+  -- ⚠️ AS LINHAS DA GRADE SÃO (conta × propriedade), E SÓ PARA A RECEITA.
+  -- Despesa e OUTRAS continuam com uma linha por conta: dividi-las também
+  -- dobraria a tela sem responder a pergunta nenhuma que alguém tenha feito.
+  --
+  -- Para a RECEITA, entram as combinações que TÊM lançamento no ano; e a conta
+  -- de receita que não teve nenhum (mas está ativa) entra uma vez, como
+  -- PRÓPRIO — senão ela sumiria da tela sem explicação.
+  linha_base AS (
+    SELECT c.id, c.nome, c.tipo, c.is_active, c.is_sistema,
+           CASE WHEN c.tipo = 'RECEITA' THEN mv.propriedade ELSE NULL END AS propriedade
+      FROM categoria c
+      JOIN movimento mv ON mv.id = c.id
+     GROUP BY c.id, c.nome, c.tipo, c.is_active, c.is_sistema,
+              CASE WHEN c.tipo = 'RECEITA' THEN mv.propriedade ELSE NULL END
+    UNION
+    SELECT c.id, c.nome, c.tipo, c.is_active, c.is_sistema,
+           CASE WHEN c.tipo = 'RECEITA' THEN 'PROPRIO' ELSE NULL END
+      FROM categoria c
+     WHERE NOT EXISTS (SELECT 1 FROM movimento mv WHERE mv.id = c.id)
   ),
   grade AS (
-    SELECT c.tipo AS bloco, c.id, c.nome, c.tipo, c.is_active, c.is_sistema, m.mes,
+    SELECT CASE WHEN b.tipo = 'RECEITA' THEN 'RECEITA_' || b.propriedade ELSE b.tipo END AS bloco,
+           b.id, b.nome, b.tipo, b.propriedade, b.is_active, b.is_sistema, m.mes,
            COALESCE(mv.entradas, 0)::bigint AS entradas,
            COALESCE(mv.saidas,   0)::bigint AS saidas,
-           (CASE WHEN c.tipo = 'DESPESA'
+           (CASE WHEN b.tipo = 'DESPESA'
                  THEN COALESCE(mv.saidas, 0)   - COALESCE(mv.entradas, 0)
                  ELSE COALESCE(mv.entradas, 0) - COALESCE(mv.saidas,   0)
             END)::bigint AS liquido
-      FROM categoria c
+      FROM linha_base b
       CROSS JOIN mes_do_ano m
-      LEFT JOIN movimento mv ON mv.id = c.id AND mv.mes = m.mes
+      LEFT JOIN movimento mv
+             ON mv.id = b.id
+            AND mv.mes = m.mes
+            AND (b.propriedade IS NULL OR mv.propriedade = b.propriedade)
   ),
   totais AS (
     SELECT g.bloco, g.mes,
@@ -2318,32 +2361,39 @@ BEGIN
   ),
   tudo AS (
     SELECT 1 AS ord_linha, g.bloco, 'CONTA'::text AS lt,
-           g.id, g.nome, g.tipo, g.is_active, g.is_sistema, g.mes,
+           g.id, g.nome, g.tipo, g.propriedade, g.is_active, g.is_sistema, g.mes,
            g.entradas, g.saidas, g.liquido
       FROM grade g
     UNION ALL
     SELECT 2, t.bloco, 'TOTAL'::text,
-           NULL::uuid, NULL::text, NULL::text, NULL::boolean, NULL::boolean, t.mes,
+           NULL::uuid, NULL::text, NULL::text, NULL::text, NULL::boolean, NULL::boolean, t.mes,
            t.entradas, t.saidas, t.liquido
       FROM totais t
     UNION ALL
-    -- A linha RESULTADO: receitas menos despesas, mês a mês.
+    -- A linha RESULTADO: receitas PRÓPRIAS menos despesas, mês a mês.
+    --
+    -- ⚠️ ELA IGNORA AS RECEITAS DE TERCEIROS, E ISSO É DECISÃO, NÃO DESCUIDO.
+    -- Dinheiro de terceiros entra no SALDO (está na conta) mas não é receita do
+    -- negócio — somá-lo aqui daria um número que se parece com lucro e não é.
+    -- Pelo mesmo motivo o bloco OUTRAS (aporte de sócio, transferência) também
+    -- fica de fora.
     SELECT 2, 'RESULTADO'::text, 'TOTAL'::text,
-           NULL::uuid, NULL::text, NULL::text, NULL::boolean, NULL::boolean, m.mes,
-           COALESCE((SELECT t.entradas FROM totais t WHERE t.bloco = 'RECEITA' AND t.mes = m.mes), 0)::bigint,
-           COALESCE((SELECT t.saidas   FROM totais t WHERE t.bloco = 'DESPESA' AND t.mes = m.mes), 0)::bigint,
-           (COALESCE((SELECT t.liquido FROM totais t WHERE t.bloco = 'RECEITA' AND t.mes = m.mes), 0)
-          - COALESCE((SELECT t.liquido FROM totais t WHERE t.bloco = 'DESPESA' AND t.mes = m.mes), 0))::bigint
+           NULL::uuid, NULL::text, NULL::text, NULL::text, NULL::boolean, NULL::boolean, m.mes,
+           COALESCE((SELECT t.entradas FROM totais t WHERE t.bloco = 'RECEITA_PROPRIO' AND t.mes = m.mes), 0)::bigint,
+           COALESCE((SELECT t.saidas   FROM totais t WHERE t.bloco = 'DESPESA'         AND t.mes = m.mes), 0)::bigint,
+           (COALESCE((SELECT t.liquido FROM totais t WHERE t.bloco = 'RECEITA_PROPRIO' AND t.mes = m.mes), 0)
+          - COALESCE((SELECT t.liquido FROM totais t WHERE t.bloco = 'DESPESA'         AND t.mes = m.mes), 0))::bigint
       FROM mes_do_ano m
   )
-  SELECT t.bloco, t.lt, t.id, t.nome, t.tipo, t.is_active, t.is_sistema, t.mes,
+  SELECT t.bloco, t.lt, t.id, t.nome, t.tipo, t.propriedade, t.is_active, t.is_sistema, t.mes,
          t.entradas, t.saidas, t.liquido
     FROM tudo t
    ORDER BY CASE t.bloco
-              WHEN 'RECEITA'   THEN 1
-              WHEN 'DESPESA'   THEN 2
-              WHEN 'RESULTADO' THEN 3
-              ELSE 4
+              WHEN 'RECEITA_PROPRIO'   THEN 1
+              WHEN 'RECEITA_TERCEIROS' THEN 2
+              WHEN 'DESPESA'           THEN 3
+              WHEN 'RESULTADO'         THEN 4
+              ELSE 5
             END,
             t.ord_linha, t.nome NULLS LAST, t.mes;
 END;

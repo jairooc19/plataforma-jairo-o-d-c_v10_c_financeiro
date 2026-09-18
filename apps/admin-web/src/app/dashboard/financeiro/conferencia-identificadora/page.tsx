@@ -8,6 +8,7 @@ import ExtratoDaIdentificadora from "@/components/financeiro/ExtratoDaIdentifica
 import AtalhosDeMes from "@/components/financeiro/AtalhosDeMes";
 import SelecaoComBusca from "@/components/financeiro/SelecaoComBusca";
 import IconeFin from "@/components/financeiro/IconeFin";
+import BotaoVoltar from "@/components/financeiro/conferencia/BotaoVoltar";
 import { abrirImpressao } from "@/components/financeiro/prepararImpressao";
 
 /**
@@ -96,6 +97,10 @@ function Conteudo() {
           )}
         </div>
 
+        <div className="flex flex-wrap items-center gap-3">
+        {/* O mesmo par de botões da outra conferência, na mesma ordem. */}
+        <BotaoVoltar />
+
         {pode("imprimir") && (
           <button type="button" onClick={imprimir} disabled={c.linhas.length === 0}
                   title={c.linhas.length === 0
@@ -107,6 +112,7 @@ function Conteudo() {
             IMPRIMIR
           </button>
         )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

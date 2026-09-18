@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { anoInteiro, mesDoAno, type BlocoDaGrade, type LinhaDaGrade } from "@jairo/core";
 import { useDashboard } from "@/components/financeiro/dashboard/useDashboard";
@@ -33,9 +34,31 @@ import IconeFin from "@/components/financeiro/IconeFin";
  * conta). É o que garante que a tela, o papel impresso e o .TSV mostrem o
  * mesmo número.
  *
+ * ⚠️ O MÊS SEM LANÇAMENTO APARECE EM BRANCO (2ª rodada de 18/09/2026), a
+ * pedido do dono do projeto. O saldo continua ACUMULANDO por dentro — o que
+ * muda é só o que a célula mostra. A consequência está escrita em
+ * `CelulaDoMes.tsx`: a soma das células visíveis de um mês pode não bater com a
+ * linha de TOTAL, que é o saldo REAL do bloco.
+ *
  * 📖 Estudo: `_estudos/estudo-2026-09-18-dashboards-saldos-por-mes.html`.
+ *
+ * ⚠️ O `<Suspense>` ABAIXO É OBRIGATÓRIO DESDE QUE O ANO PASSOU A CABER NA URL
+ * (18/09/2026). Quem lê a URL é `useSearchParams()`, dentro de `useDashboard`,
+ * e sem um `<Suspense>` ACIMA dele o `npm run build` FALHA — não avisa, falha:
+ * "Missing Suspense boundary with useSearchParams". E ele tem de ficar FORA do
+ * componente que chama o hook: pôr o `<Suspense>` dentro dele não resolve nada,
+ * porque o erro acontece ao renderizá-lo, antes de o `<Suspense>` existir na
+ * árvore. Por isso a página está partida em duas.
  */
 export default function DashboardContasMovimentoPage() {
+  return (
+    <Suspense fallback={<Girando />}>
+      <ConteudoDoDashboard />
+    </Suspense>
+  );
+}
+
+function ConteudoDoDashboard() {
   const d = useDashboard("movimento");
   const router = useRouter();
   const { pode, nomeEmpresa, carregando: carregandoContexto, erro: erroContexto } = d.ctx;
@@ -50,7 +73,12 @@ export default function DashboardContasMovimentoPage() {
    * apenas `extrato_ver`.
    */
   const irParaConferencia = (params: Record<string, string>) => {
-    router.push(`/dashboard/financeiro/conferencia?${new URLSearchParams(params)}`);
+    // ⚠️ O `voltar` LEVA O ANO JUNTO. Sem ele, o botão VOLTAR traria o
+    // dashboard certo com o ano errado — e quem tivesse navegado até 2023
+    // recomeçaria o caminho, que é exatamente a reclamação que isto conserta.
+    const destino = new URLSearchParams(params);
+    destino.set("voltar", d.enderecoAtual("/dashboard/financeiro/dashboards/contas-movimento"));
+    router.push(`/dashboard/financeiro/conferencia?${destino}`);
   };
 
   /** Os ids das contas de um bloco — o que a linha de TOTAL abre. */
@@ -89,7 +117,11 @@ export default function DashboardContasMovimentoPage() {
             ano={d.ano}
             podeImprimir={pode("imprimir")}
             nomeDoArquivo="saldos-por-conta-movimento"
-            avisos={["CADA CÉLULA É O SALDO NO ÚLTIMO DIA DO MÊS (ACUMULADO)"]}
+            ocultarSemLancamento
+            avisos={[
+              "CADA CÉLULA É O SALDO NO ÚLTIMO DIA DO MÊS (ACUMULADO)",
+              "MÊS EM BRANCO = NENHUM LANÇAMENTO NAQUELE MÊS",
+            ]}
           />
         }
       />
@@ -102,6 +134,7 @@ export default function DashboardContasMovimentoPage() {
 
       <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
         CADA CÉLULA É O SALDO NO ÚLTIMO DIA DAQUELE MÊS, ACUMULADO DESDE A ABERTURA DA CONTA ·
+        MÊS SEM LANÇAMENTO APARECE COMO “—” (O SALDO NÃO MUDOU, E CONTINUA CONTANDO NO TOTAL) ·
         CLIQUE NO NOME PARA CONFERIR O ANO INTEIRO, OU NA CÉLULA PARA CONFERIR AQUELE MÊS ·
         SÓ REGIME CAIXA
       </p>
@@ -115,6 +148,7 @@ export default function DashboardContasMovimentoPage() {
           blocos={d.blocos}
           comTotalDoAno={false}
           mostrarCadeado
+          ocultarSemLancamento
           aoClicarNaConta={(linha, bloco) => abrir(linha, bloco, anoInteiro(d.ano))}
           aoClicarNaCelula={(linha, bloco, mes) => abrir(linha, bloco, mesDoAno(d.ano, mes))}
         />

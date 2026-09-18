@@ -75,6 +75,14 @@ export function montarRelatorio(
     /** `formatarBRL(v, { semSimbolo: true })`, normalmente. */
     formatarValor: (centavos: number) => string;
     comTotalDoAno: boolean;
+    /**
+     * Mês sem lançamento sai em branco, como na tela (dashboard dos saldos).
+     *
+     * ⚠️ O PAPEL TEM DE CONCORDAR COM A TELA. Se a célula está vazia no monitor
+     * e cheia na impressão, a pessoa passa a não confiar em nenhuma das duas —
+     * e não há como saber qual das duas estava certa olhando só uma.
+     */
+    ocultarSemLancamento?: boolean;
     /** Sufixo do nome da conta desativada. Padrão: " (INATIVA)". */
     marcaDeInativa?: string;
   },
@@ -96,7 +104,8 @@ export function montarRelatorio(
       if (linha.ehTotal) destaques.push(linhas.length);
       linhas.push([
         linha.nome + (linha.inativa ? marca : ''),
-        ...linha.celulas.map((c) => formatarValor(c.valorCentavos)),
+        ...linha.celulas.map((c) =>
+          (opcoes.ocultarSemLancamento && !c.temLancamento) ? '' : formatarValor(c.valorCentavos)),
         ...(comTotalDoAno
           ? [linha.totalDoAnoCentavos === null ? '' : formatarValor(linha.totalDoAnoCentavos)]
           : []),

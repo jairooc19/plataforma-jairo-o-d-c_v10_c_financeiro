@@ -48,7 +48,10 @@ function saldos(
     is_active: true,
     mes: i + 1,
     saldo_centavos: v,
-    entradas_centavos: 0,
+    // ⚠️ Uma entrada simbólica para `temLancamento` ser verdadeiro nos meses
+    // que o teste descreve. Quem quiser um mês SEM movimento monta a linha à
+    // mão, com entradas e saídas em zero.
+    entradas_centavos: 1,
     saidas_centavos: 0,
     fechado: false,
     ...extra,
@@ -57,20 +60,25 @@ function saldos(
 
 function movimentos(
   nome: string,
-  bloco: 'RECEITA' | 'DESPESA' | 'OUTRAS' | 'RESULTADO',
+  bloco: 'RECEITA_PROPRIO' | 'RECEITA_TERCEIROS' | 'DESPESA' | 'OUTRAS' | 'RESULTADO',
   valores: number[],
   extra: Partial<LinhaMovimentoMensal> = {},
 ): LinhaMovimentoMensal[] {
+  const tipo = bloco.startsWith('RECEITA') ? 'RECEITA' : bloco === 'DESPESA' ? 'DESPESA' : 'OUTRAS';
   return valores.map((v, i) => ({
     bloco,
     linha_tipo: 'CONTA',
     conta_id: `id-${nome}`,
     nome,
-    tipo: bloco === 'RESULTADO' ? 'OUTRAS' : bloco,
+    tipo,
+    propriedade: bloco === 'RECEITA_TERCEIROS' ? 'TERCEIROS' : 'PROPRIO',
     is_active: true,
     is_sistema: false,
     mes: i + 1,
-    entradas_centavos: 0,
+    // ⚠️ As entradas existem para o `temLancamento` ser verdadeiro; o líquido é
+    // que carrega o valor conferido. Os testes que precisam de um mês SEM
+    // lançamento passam entradas e saídas zeradas de propósito.
+    entradas_centavos: Math.abs(v),
     saidas_centavos: 0,
     liquido_centavos: v,
     ...extra,
@@ -151,14 +159,39 @@ test('o movimento GANHA a coluna de total do ano — fluxo se soma', () => {
   assert.equal(colunasDoRelatorio(MESES, true).length, 14);
 });
 
-test('a ordem dos blocos é receitas, despesas, resultado e outras', () => {
+test('a ordem dos blocos é receitas próprias, de terceiros, despesas, resultado e outras', () => {
   const grade = montarGradeDeMovimentos([
     ...movimentos('OUTRA COISA', 'OUTRAS', [500]),
     ...movimentos('ENERGIA', 'DESPESA', [380]),
-    ...movimentos('VENDA', 'RECEITA', [1000]),
+    ...movimentos('VENDA', 'RECEITA_PROPRIO', [1000]),
+    ...movimentos('COBRANÇA DE TERCEIRO', 'RECEITA_TERCEIROS', [200]),
     ...movimentos('', 'RESULTADO', [620], { linha_tipo: 'TOTAL', conta_id: null, nome: null }),
   ], ctx);
-  assert.deepEqual(grade.map((b) => b.chave), ['RECEITA', 'DESPESA', 'RESULTADO', 'OUTRAS']);
+  assert.deepEqual(grade.map((b) => b.chave),
+    ['RECEITA_PROPRIO', 'RECEITA_TERCEIROS', 'DESPESA', 'RESULTADO', 'OUTRAS']);
+});
+
+test('a MESMA conta aparece nos dois blocos de receita, sem uma comer a outra', () => {
+  // A divisão é por PROPRIEDADE DO LANÇAMENTO, não do cadastro: quem vendeu à
+  // vista e também cobrou por conta de terceiro tem a mesma identificadora nos
+  // dois lugares, com valores diferentes. Se as duas linhas tivessem a mesma
+  // identidade, uma sumiria levando os valores junto.
+  const grade = montarGradeDeMovimentos([
+    ...movimentos('VENDA', 'RECEITA_PROPRIO', [710000]),
+    ...movimentos('VENDA', 'RECEITA_TERCEIROS', [200000]),
+  ], ctx);
+
+  assert.equal(grade.length, 2);
+  assert.equal(grade[0].linhas[0].nome, 'VENDA');
+  assert.equal(grade[1].linhas[0].nome, 'VENDA');
+  assert.equal(grade[0].linhas[0].celulas[0].valorCentavos, 710000);
+  assert.equal(grade[1].linhas[0].celulas[0].valorCentavos, 200000);
+  assert.notEqual(grade[0].linhas[0].chave, grade[1].linhas[0].chave);
+});
+
+test('os rótulos separam as duas receitas, na tela e no total', () => {
+  assert.equal(rotuloDoBloco('RECEITA_PROPRIO'), 'RECEITAS PRÓPRIAS');
+  assert.equal(rotuloDoBloco('RECEITA_TERCEIROS'), 'RECEITAS DE TERCEIROS');
 });
 
 test('ocultar a transferência esconde a linha e NÃO mexe no total', () => {
@@ -169,7 +202,7 @@ test('ocultar a transferência esconde a linha e NÃO mexe no total', () => {
     ...movimentos('TRANSFERÊNCIA ENTRE CONTAS', 'OUTRAS', [0], { is_sistema: true }),
     {
       bloco: 'OUTRAS', linha_tipo: 'TOTAL', conta_id: null, nome: null, tipo: null,
-      is_active: null, is_sistema: null, mes: 1,
+      propriedade: null, is_active: null, is_sistema: null, mes: 1,
       entradas_centavos: 0, saidas_centavos: 0, liquido_centavos: 500000,
     },
   ];
@@ -187,8 +220,41 @@ test('ocultar a transferência esconde a linha e NÃO mexe no total', () => {
 
 test('rotuloDoBloco traduz os blocos e devolve o próprio nome no que não conhece', () => {
   assert.equal(rotuloDoBloco('CAIXA_BANCO'), 'CAIXA E BANCO');
-  assert.equal(rotuloDoBloco('RECEITA'), 'RECEITAS');
+  assert.equal(rotuloDoBloco('DESPESA'), 'DESPESAS');
   assert.equal(rotuloDoBloco('INVENTADO'), 'INVENTADO');
+});
+
+// ===========================================================================
+// O MÊS SEM LANÇAMENTO — pedido do dono do projeto em 18/09/2026
+// ===========================================================================
+
+test('temLancamento vem de entradas + saidas, não do valor da célula', () => {
+  // Um mês em que entrou 100 e saiu 100 tem LÍQUIDO ZERO e teve movimento.
+  // Olhar só o valor confundiria "nada aconteceu" com "aconteceu e empatou".
+  const grade = montarGradeDeSaldos([
+    {
+      bloco: 'CAIXA_BANCO', linha_tipo: 'CONTA', conta_id: 'c1', nome: 'CAIXA',
+      tipo: 'CAIXA', is_active: true, mes: 1,
+      saldo_centavos: 5000, entradas_centavos: 10000, saidas_centavos: 10000, fechado: false,
+    },
+    {
+      bloco: 'CAIXA_BANCO', linha_tipo: 'CONTA', conta_id: 'c1', nome: 'CAIXA',
+      tipo: 'CAIXA', is_active: true, mes: 2,
+      saldo_centavos: 5000, entradas_centavos: 0, saidas_centavos: 0, fechado: false,
+    },
+  ], ctx);
+
+  const celulas = grade[0].linhas[0].celulas;
+  assert.equal(celulas[0].temLancamento, true);   // entrou e saiu: houve movimento
+  assert.equal(celulas[0].valorCentavos, 5000);   // o saldo continua sendo o saldo
+  assert.equal(celulas[1].temLancamento, false);  // fevereiro parado
+  assert.equal(celulas[1].valorCentavos, 5000);   // e o saldo dele AINDA acumula
+});
+
+test('o mês que o banco não devolveu nasce sem lançamento', () => {
+  const grade = montarGradeDeSaldos(saldos('CAIXA', 'CAIXA_BANCO', [100]), ctx);
+  assert.equal(grade[0].linhas[0].celulas[0].temLancamento, true);
+  assert.equal(grade[0].linhas[0].celulas[5].temLancamento, false);
 });
 
 // ===========================================================================
@@ -237,4 +303,34 @@ test('a conta inativa leva a marca para o papel', () => {
 test('as colunas de dinheiro são todas menos a primeira', () => {
   assert.deepEqual(colunasNumericas(MESES, false), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
   assert.deepEqual(colunasNumericas(MESES, true),  [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
+});
+
+test('o relatório deixa o mês sem lançamento em branco, como a tela', () => {
+  // O papel tem de concordar com o monitor. Célula vazia numa ponta e cheia na
+  // outra faz a pessoa deixar de confiar nas duas.
+  const grade = montarGradeDeSaldos([
+    {
+      bloco: 'CAIXA_BANCO', linha_tipo: 'CONTA', conta_id: 'c1', nome: 'CAIXA',
+      tipo: 'CAIXA', is_active: true, mes: 1,
+      saldo_centavos: 125000, entradas_centavos: 500000, saidas_centavos: 475000, fechado: false,
+    },
+    {
+      bloco: 'CAIXA_BANCO', linha_tipo: 'CONTA', conta_id: 'c1', nome: 'CAIXA',
+      tipo: 'CAIXA', is_active: true, mes: 2,
+      saldo_centavos: 125000, entradas_centavos: 0, saidas_centavos: 0, fechado: false,
+    },
+  ], ctx);
+
+  const com = montarRelatorio(grade, {
+    meses: MESES, formatarValor: formatar, comTotalDoAno: false, ocultarSemLancamento: true,
+  });
+  const sem = montarRelatorio(grade, {
+    meses: MESES, formatarValor: formatar, comTotalDoAno: false,
+  });
+
+  assert.equal(com.linhas[1][1], '1250,00');  // janeiro teve movimento
+  assert.equal(com.linhas[1][2], '');         // fevereiro não teve
+  assert.equal(sem.linhas[1][2], '1250,00');  // sem a opção, o saldo aparece
+  // a largura não muda: a célula fica VAZIA, ela não some
+  assert.equal(com.linhas[1].length, com.colunas.length);
 });

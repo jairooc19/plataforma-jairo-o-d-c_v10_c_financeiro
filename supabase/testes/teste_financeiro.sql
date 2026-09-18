@@ -1776,6 +1776,15 @@ BEGIN
   -- recebeu 500,00 de volta no mesmo mês → a despesa do mês é 4.480,00.
   PERFORM public.fin_gravar_lancamento('aa000000-0000-0000-0000-0000000000a1', NULL, v_cx, v_des, DATE '2026-03-25', NULL, 'ENTRADA','PROPRIO','CAIXA', 50000, 'DASH ESTORNO');
 
+  -- 18/09/2026 (2ª rodada): uma receita DE TERCEIROS, para as travas 39 e 41.
+  --
+  -- ⚠️ ELA CAI NA CONTA "DASH OUTRA", E NÃO NA "DASH CAIXA", DE PROPÓSITO.
+  -- Na DASH CAIXA ela mudaria o saldo de março e derrubaria as travas 35 e 36,
+  -- que nada têm a ver com este assunto — e a pessoa que fosse investigar
+  -- começaria pelo lugar errado. A DASH OUTRA vive no bloco OUTRAS do
+  -- dashboard 1, longe do total de CAIXA+BANCO que aquelas duas conferem.
+  PERFORM public.fin_gravar_lancamento('aa000000-0000-0000-0000-0000000000a1', NULL, v_ou, v_rec, DATE '2026-03-28', NULL, 'ENTRADA','TERCEIROS','CAIXA', 200000, 'DASH RECEITA DE TERCEIROS');
+
   RESET ROLE;
   PERFORM set_config('request.jwt.claims','{}', true);
 END;
@@ -2009,9 +2018,13 @@ BEGIN
     FROM public.fin_movimentos_mensais_identificadora('aa000000-0000-0000-0000-0000000000a1', 2026)
    WHERE linha_tipo = 'CONTA' AND nome = 'DASH ENERGIA' AND mes = 3;
 
+  -- ⚠️ O FILTRO POR BLOCO É OBRIGATÓRIO DESDE QUE A RECEITA VIROU DOIS.
+  -- Sem ele, "DASH VENDA no mês 3" devolve DUAS linhas (própria e de
+  -- terceiros) e o `SELECT ... INTO` fica com a primeira que vier — um teste
+  -- que passa ou falha conforme a ordenação, que é o pior tipo de teste.
   SELECT liquido_centavos INTO v_receita
     FROM public.fin_movimentos_mensais_identificadora('aa000000-0000-0000-0000-0000000000a1', 2026)
-   WHERE linha_tipo = 'CONTA' AND nome = 'DASH VENDA' AND mes = 3;
+   WHERE linha_tipo = 'CONTA' AND bloco = 'RECEITA_PROPRIO' AND nome = 'DASH VENDA' AND mes = 3;
 
   SELECT liquido_centavos INTO v_total_desp
     FROM public.fin_movimentos_mensais_identificadora('aa000000-0000-0000-0000-0000000000a1', 2026)
@@ -2104,6 +2117,71 @@ BEGIN
            v_acumulado, v_celula, v_linhas_nulo, v_linhas_vazio, v_saldo_vazio));
 END;
 $$;
+
+-- ===========================================================================
+-- TESTE 41 — a receita dividida em PRÓPRIA e DE TERCEIROS (18/09/2026)
+-- ===========================================================================
+--
+-- ⚠️ A DIVISÃO É POR LANÇAMENTO, NÃO POR CADASTRO — e é isso que esta trava
+-- fixa. A MESMA conta identificadora ("DASH VENDA") aparece nos DOIS blocos,
+-- com valores diferentes, porque recebeu dinheiro próprio numa conta e de
+-- terceiros noutra. Alguém que ache isso "duplicidade" e resolva juntar as
+-- duas linhas vai encontrar este teste vermelho, e o motivo escrito aqui.
+--
+-- ⚠️ E O RESULTADO **NÃO** MUDA COM A RECEITA DE TERCEIROS. Dinheiro de
+-- terceiros entra no SALDO (está na conta) mas não é receita do negócio;
+-- somá-lo ao resultado daria um número que se parece com lucro e não é.
+-- 262000 antes de existir a receita de terceiros, 262000 depois.
+DO $$
+DECLARE
+  v_propria bigint; v_terceiros bigint;
+  v_total_p bigint; v_total_t bigint; v_resultado bigint;
+  v_linhas int;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+
+  SELECT liquido_centavos INTO v_propria
+    FROM public.fin_movimentos_mensais_identificadora('aa000000-0000-0000-0000-0000000000a1', 2026)
+   WHERE linha_tipo = 'CONTA' AND bloco = 'RECEITA_PROPRIO' AND nome = 'DASH VENDA' AND mes = 3;
+
+  SELECT liquido_centavos INTO v_terceiros
+    FROM public.fin_movimentos_mensais_identificadora('aa000000-0000-0000-0000-0000000000a1', 2026)
+   WHERE linha_tipo = 'CONTA' AND bloco = 'RECEITA_TERCEIROS' AND nome = 'DASH VENDA' AND mes = 3;
+
+  SELECT liquido_centavos INTO v_total_p
+    FROM public.fin_movimentos_mensais_identificadora('aa000000-0000-0000-0000-0000000000a1', 2026)
+   WHERE linha_tipo = 'TOTAL' AND bloco = 'RECEITA_PROPRIO' AND mes = 3;
+
+  SELECT liquido_centavos INTO v_total_t
+    FROM public.fin_movimentos_mensais_identificadora('aa000000-0000-0000-0000-0000000000a1', 2026)
+   WHERE linha_tipo = 'TOTAL' AND bloco = 'RECEITA_TERCEIROS' AND mes = 3;
+
+  SELECT liquido_centavos INTO v_resultado
+    FROM public.fin_movimentos_mensais_identificadora('aa000000-0000-0000-0000-0000000000a1', 2026)
+   WHERE bloco = 'RESULTADO' AND mes = 3;
+
+  -- a mesma conta, nos dois blocos
+  SELECT count(*) INTO v_linhas
+    FROM public.fin_movimentos_mensais_identificadora('aa000000-0000-0000-0000-0000000000a1', 2026)
+   WHERE linha_tipo = 'CONTA' AND nome = 'DASH VENDA' AND mes = 3;
+
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    41,
+    CASE WHEN v_propria = 710000 AND v_terceiros = 200000
+          AND v_total_p = 710000 AND v_total_t = 200000
+          AND v_resultado = 262000 AND v_linhas = 2
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-13',
+    'Receita dividida por PROPRIEDADE: a mesma conta nos dois blocos, e o RESULTADO ignora terceiros',
+    format('propria=%s (esp 710000); de terceiros=%s (esp 200000); TOTAL PROPRIAS=%s (esp 710000); TOTAL TERCEIROS=%s (esp 200000); RESULTADO=%s (esp 262000, SEM os terceiros); linhas de DASH VENDA em marco=%s (esp 2, uma por propriedade)',
+           v_propria, v_terceiros, v_total_p, v_total_t, v_resultado, v_linhas));
+END;
+$$;
+
 
 -- ---------------------------------------------------------------------------
 -- LIMPEZA FINAL

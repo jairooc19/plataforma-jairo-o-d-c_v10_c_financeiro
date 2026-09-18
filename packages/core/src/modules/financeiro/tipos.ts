@@ -220,11 +220,24 @@ export type BlocoDoMovimento = 'CAIXA_BANCO' | 'OUTRAS';
 /**
  * Os blocos do dashboard das identificadoras.
  *
- * `RESULTADO` não é um tipo de conta: é a linha "receitas menos despesas" que o
- * banco devolve pronta, e que ignora o bloco `OUTRAS` de propósito (aporte de
- * sócio e transferência não são resultado do negócio).
+ * ⚠️ A RECEITA SÃO DOIS BLOCOS DESDE 18/09/2026 (2ª rodada), separados pela
+ * `propriedade` do LANÇAMENTO — não do cadastro. A consequência precisa ficar
+ * dita: **a MESMA conta identificadora pode aparecer nos dois**, com valores
+ * diferentes, se tiver recebido dinheiro próprio num mês e de terceiros noutro.
+ * Isso não é duplicidade: é a informação que o pedido quer.
+ *
+ * `RESULTADO` não é um tipo de conta: é a linha "receitas PRÓPRIAS menos
+ * despesas" que o banco devolve pronta. Ela ignora as receitas de TERCEIROS e o
+ * bloco `OUTRAS` de propósito — dinheiro de terceiros entra no saldo (está na
+ * conta) mas não é receita do negócio, e somá-lo daria um número que se parece
+ * com lucro e não é.
  */
-export type BlocoDaIdentificadora = 'RECEITA' | 'DESPESA' | 'RESULTADO' | 'OUTRAS';
+export type BlocoDaIdentificadora =
+  | 'RECEITA_PROPRIO'
+  | 'RECEITA_TERCEIROS'
+  | 'DESPESA'
+  | 'RESULTADO'
+  | 'OUTRAS';
 
 /**
  * Uma célula do DASHBOARD 1, como `fin_saldos_mensais_movimento` a devolve.
@@ -264,6 +277,8 @@ export interface LinhaMovimentoMensal {
   conta_id: string | null;
   nome: string | null;
   tipo: TipoContaIdentificadora | null;
+  /** De quem é o dinheiro daquela linha. Nulo nas linhas de total. */
+  propriedade: Propriedade | null;
   is_active: boolean | null;
   /** `true` na categoria "TRANSFERÊNCIA ENTRE CONTAS" (RN-30). */
   is_sistema: boolean | null;

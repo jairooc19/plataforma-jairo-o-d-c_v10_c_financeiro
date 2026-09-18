@@ -56,7 +56,7 @@ apps/admin-web/src/app/dashboard/financeiro/     as telas (13 rotas)
 apps/admin-web/src/components/financeiro/        os componentes
 packages/core/src/modules/financeiro/            regras de negócio + manifesto
 supabase/criar-bd-financeiro/                    o banco (4 tabelas, 29 funções)
-supabase/testes/teste_financeiro.sql             as travas do módulo (40 testes)
+supabase/testes/teste_financeiro.sql             as travas do módulo (41 testes)
 supabase/testes/inventario_financeiro.sql        o inventário do módulo (17 linhas, só lê)
 ```
 

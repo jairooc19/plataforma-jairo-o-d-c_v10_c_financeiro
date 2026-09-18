@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   dashboardFinanceiroService, montarGradeDeSaldos, montarGradeDeMovimentos,
   anoAtual, hojeISO, type BlocoDaGrade,
@@ -24,6 +25,25 @@ import { useEmpresaAtiva } from "../useEmpresaAtiva";
  * ⚠️ E A BUSCA É UMA FUNÇÃO `async` DENTRO DO EFEITO, com o estado mudando só
  * depois do `await` (regra `react-hooks/set-state-in-effect`). Não se cala essa
  * regra com `eslint-disable` neste projeto.
+ *
+ * ===========================================================================
+ * ⚠️ O ANO E O FILTRO CABEM NA URL — 18/09/2026 (2ª rodada)
+ * ===========================================================================
+ * Pedido do dono do projeto: "ao clicar e abrir a conferência, seria possível
+ * ter função para retornar para a tela que estava antes? Atualmente preciso
+ * iniciar todo o caminho do zero".
+ *
+ * Voltar pelo histórico do navegador (`router.back()`) traria a página de
+ * volta, mas o ANO e a caixa de ocultar transferências são ESTADO DE COMPONENTE
+ * — eles se perdem na remontagem, e a pessoa voltaria para 2026 depois de ter
+ * navegado até 2023. Por isso os dois moram na URL: o endereço passa a
+ * descrever a tela inteira, e o botão VOLTAR da conferência só precisa
+ * reabri-lo.
+ *
+ * ⚠️ A URL É O PADRÃO DO ESTADO, NÃO UMA CÓPIA DELE. O estado nasce `null`
+ * ("ainda não mexi nisto") e o valor em uso é `estado ?? o que veio na URL`.
+ * Copiar num `useEffect` seria recusado pelo ESLint e desfaria, na renderização
+ * seguinte, o ano que a pessoa acabou de escolher.
  */
 export type VarianteDoDashboard = "movimento" | "identificadora";
 
@@ -31,8 +51,14 @@ export function useDashboard(variante: VarianteDoDashboard) {
   const ctx = useEmpresaAtiva();
   const { tenantId } = ctx;
 
-  const [ano, setAno] = useState<number>(anoAtual());
-  const [ocultarTransferencias, setOcultarTransferencias] = useState(false);
+  const parametros = useSearchParams();
+  const [anoEscolhido, setAno] = useState<number | null>(null);
+  const [ocultarEscolhido, setOcultarTransferencias] = useState<boolean | null>(null);
+
+  const anoDaUrl = Number(parametros?.get("ano"));
+  const ano = anoEscolhido
+    ?? (Number.isInteger(anoDaUrl) && anoDaUrl >= 1900 && anoDaUrl <= 2999 ? anoDaUrl : anoAtual());
+  const ocultarTransferencias = ocultarEscolhido ?? parametros?.get("semtransf") === "1";
   const [blocos, setBlocos] = useState<BlocoDaGrade[]>([]);
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -79,10 +105,24 @@ export function useDashboard(variante: VarianteDoDashboard) {
    */
   const vazio = !carregando && blocos.length === 0;
 
+  /**
+   * O endereço desta tela, exatamente como ela está agora.
+   *
+   * É o que vai no `?voltar=` do clique, para a conferência saber como desfazer
+   * o caminho. Inclui o ano e o filtro — sem eles, voltar traria a tela certa
+   * com o conteúdo errado.
+   */
+  const enderecoAtual = (rota: string) => {
+    const q = new URLSearchParams({ ano: String(ano) });
+    if (ocultarTransferencias) q.set("semtransf", "1");
+    return `${rota}?${q}`;
+  };
+
   return {
     ctx,
     ano,
     setAno,
+    enderecoAtual,
     blocos,
     carregando,
     erro,

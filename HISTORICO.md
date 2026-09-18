@@ -17,6 +17,78 @@ todas foram pagas com um defeito em produção.
 
 ---
 
+**2026-09-18 (segunda rodada) — v10: voltar de onde se veio, o mês em branco, e a receita em dois blocos**
+
+Ele rodou o SQL (17/17 e 40/40), testou os dashboards no publicado — *"estão funcionando
+lindamente"* — e pediu três ajustes de uso real, todos nascidos de olhar a tela pronta.
+
+**1. VOLTAR de onde se veio.** *"Ao clicar e abrir a conferência, seria possível ter função
+para retornar para a tela que estava antes? Atualmente preciso iniciar todo o caminho do
+zero."*
+
+> ⚠️ **`router.back()` SOZINHO NÃO RESOLVERIA, e é aí que estava a armadilha.** Ele traz a
+> página de volta, mas **remonta o componente** — e o ANO e a caixa de ocultar transferências
+> eram estado de componente. Quem tivesse navegado até 2023 voltaria para o ano corrente, ou
+> seja, quase o mesmo atrito que ele reclamou. A saída foi mover o que DESCREVE A TELA para a
+> URL (`?ano=2023&semtransf=1`): o endereço passou a descrever o dashboard inteiro, e o
+> clique leva esse endereço junto, em `?voltar=`. O botão só o reabre.
+
+O `back()` continua sendo a rede de segurança para quem chegou por link colado ou favorito, e
+o endereço de volta é validado antes de ser usado — ele vem da URL, que qualquer um escreve, e
+um `//site.externo` levaria a pessoa para fora do sistema com um clique que parece inofensivo.
+
+**2. O mês só mostra saldo se houve lançamento.** *"Em SALDOS POR CONTA MOVIMENTO o mês só
+deve apresentar saldo se existir lançamento para o mesmo."* Mês parado passou a aparecer como
+"—".
+
+> ⚠️ **O SALDO CONTINUA ACUMULANDO POR DENTRO** — o que mudou é só o que a célula MOSTRA. Se
+> março fechou em 2.600,00 e abril não teve movimento, abril aparece vazio e MAIO continua
+> partindo de 2.600,00. A conta não "reinicia" por causa da célula em branco.
+
+> ⚠️ **E A CONSEQUÊNCIA PRECISA FICAR DITA: a soma das células visíveis de um mês pode não
+> bater com a linha de TOTAL daquele mês.** O total é o saldo REAL do bloco, contando também
+> as contas que ficaram em branco porque não se mexeram. Não é divergência — é a diferença
+> entre "o que andou" e "o que há" —, mas só não vira defeito porque a dica do mouse e o
+> cabeçalho da tela explicam. E o papel impresso e o .TSV seguem a tela: célula vazia numa
+> ponta e cheia na outra faria a pessoa deixar de confiar nas duas.
+
+A célula vazia também deixou de ser clicável: abrir uma conferência de um mês sem lançamento
+nenhum mostraria o saldo inicial e mais nada.
+
+**3. A receita virou dois blocos: PRÓPRIAS e DE TERCEIROS.** A distinção já existia no
+lançamento (a coluna `propriedade`) e não aparecia em relatório nenhum.
+
+> ⚠️ **A DIVISÃO É POR LANÇAMENTO, NÃO POR CADASTRO — e a MESMA conta identificadora aparece
+> nos DOIS blocos**, com valores diferentes, se tiver recebido dinheiro próprio numa conta e
+> de terceiros noutra. Isso não é duplicidade: é a informação pedida. No Core, o bloco passou
+> a entrar na CHAVE da linha; sem isso as duas linhas teriam a mesma identidade e uma sumiria
+> levando os valores junto.
+
+> ⚠️ **O RESULTADO PASSOU A USAR SÓ AS RECEITAS PRÓPRIAS.** Dinheiro de terceiros entra no
+> SALDO (está na conta) mas não é receita do negócio; somá-lo daria um número que se parece
+> com lucro e não é — o mesmo motivo pelo qual o bloco OUTRAS (aporte, transferência) já
+> ficava de fora. A trava 41 fixa isso: 262.000 antes de existir a receita de terceiros,
+> 262.000 depois.
+
+A mudança exigiu `DROP FUNCTION` antes do `CREATE` — o `RETURNS TABLE` ganhou a coluna
+`propriedade`, e `CREATE OR REPLACE` recusa mudança de tipo de retorno com *"cannot change
+return type of existing function"*, parando o arquivo idempotente no meio.
+
+**A armadilha da rodada, e ela é de JavaScript puro:**
+
+> ⚠️ **`$$` NUMA STRING DE SUBSTITUIÇÃO DO `String.replace` VIRA UM CIFRÃO SÓ.** O script que
+> inseriu a trava 41 no arquivo de teste gravou `DO $` onde devia gravar `DO $$` — e o psql
+> respondeu com **dez erros de sintaxe seguidos, nenhum deles apontando para a causa**
+> ("erro de sintaxe em ou próximo a $", depois "v_terceiros não existe", depois "Sem permissao
+> para ver saldos"). A correção é passar uma FUNÇÃO: `s.replace(a, () => b)` entrega o texto
+> cru. Vale igual para `$&` e `$1`.
+
+**Placar:** `npm test` **95/95** · `teste_financeiro.sql` **41/41** · `teste_rls.sql`
+**16/16** · `inventario_financeiro.sql` **17/17** · LEGO 0 violações · lint e build limpos ·
+ensaio de upgrade sem sobrecarga · **a trava 41 vista FALHAR por dois motivos diferentes**
+(a receita deixando de se dividir, e o RESULTADO passando a usar a receita errada).
+---
+
 **2026-09-18 — v10: os dois dashboards de saldos por mês, e as duas conferências que eles abrem**
 
 Ele pediu dois dashboards de janeiro a dezembro: um com o **saldo final de cada conta

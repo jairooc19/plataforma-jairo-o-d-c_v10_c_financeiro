@@ -12,6 +12,7 @@ import DetalheDoLancamento from "@/components/financeiro/lancamento/DetalheDoLan
 import AtalhosDeMes from "@/components/financeiro/AtalhosDeMes";
 import SelecaoComBusca from "@/components/financeiro/SelecaoComBusca";
 import IconeFin from "@/components/financeiro/IconeFin";
+import BotaoVoltar from "@/components/financeiro/conferencia/BotaoVoltar";
 import { abrirImpressao } from "@/components/financeiro/prepararImpressao";
 
 /**
@@ -130,6 +131,12 @@ function ConteudoDaConferencia() {
           )}
         </div>
 
+        <div className="flex flex-wrap items-center gap-3">
+        {/* ⚠️ O VOLTAR VEM ANTES DO IMPRIMIR, e não depois: ele desfaz o
+            caminho, e desfazer é o gesto que se procura primeiro quando a
+            resposta já foi encontrada. */}
+        <BotaoVoltar />
+
         {pode("imprimir") && (
           <button type="button" onClick={imprimir} disabled={linhasVisiveis.length === 0}
                   title={linhasVisiveis.length === 0
@@ -141,6 +148,7 @@ function ConteudoDaConferencia() {
             IMPRIMIR
           </button>
         )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

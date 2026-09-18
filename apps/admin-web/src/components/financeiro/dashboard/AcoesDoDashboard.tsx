@@ -27,7 +27,8 @@ import { baixarTSVGenerico } from "../exportarTSV";
  * botão que some confunde; botão apagado ensina que falta algo.
  */
 export default function AcoesDoDashboard({
-  blocos, comTotalDoAno, titulo, empresa, ano, podeImprimir, nomeDoArquivo, avisos = [],
+  blocos, comTotalDoAno, titulo, empresa, ano, podeImprimir, nomeDoArquivo,
+  avisos = [], ocultarSemLancamento = false,
 }: {
   blocos: BlocoDaGrade[];
   comTotalDoAno: boolean;
@@ -39,6 +40,14 @@ export default function AcoesDoDashboard({
   nomeDoArquivo: string;
   /** Linhas extras no cabeçalho do papel (o regime, um filtro ligado…). */
   avisos?: string[];
+  /**
+   * Mês sem lançamento sai em branco, como na tela.
+   *
+   * ⚠️ O PAPEL TEM DE CONCORDAR COM A TELA. Célula vazia no monitor e cheia na
+   * impressão faz a pessoa deixar de confiar nas duas — e não há como saber
+   * qual estava certa olhando só uma.
+   */
+  ocultarSemLancamento?: boolean;
 }) {
   if (!podeImprimir) return null;
 
@@ -48,6 +57,7 @@ export default function AcoesDoDashboard({
     meses: MESES_CURTOS,
     formatarValor: (c) => formatarBRL(c, { semSimbolo: true }),
     comTotalDoAno,
+    ocultarSemLancamento,
   });
 
   const imprimir = () => {

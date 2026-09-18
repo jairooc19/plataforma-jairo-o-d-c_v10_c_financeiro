@@ -23,7 +23,8 @@ import CelulaDoMes from "./CelulaDoMes";
  * extrato, e não um quadro morto.
  */
 export default function GradeDoDashboard({
-  blocos, comTotalDoAno, aoClicarNaConta, aoClicarNaCelula, mostrarCadeado = false,
+  blocos, comTotalDoAno, aoClicarNaConta, aoClicarNaCelula,
+  mostrarCadeado = false, ocultarSemLancamento = false,
 }: {
   blocos: BlocoDaGrade[];
   comTotalDoAno: boolean;
@@ -31,6 +32,14 @@ export default function GradeDoDashboard({
   aoClicarNaConta?: (linha: LinhaDaGrade, bloco: BlocoDaGrade) => void;
   aoClicarNaCelula?: (linha: LinhaDaGrade, bloco: BlocoDaGrade, mes: number) => void;
   mostrarCadeado?: boolean;
+  /**
+   * Mês sem lançamento fica em branco (só o dashboard dos saldos).
+   *
+   * ⚠️ A LINHA DE TOTAL SEGUE A MESMA REGRA, e por isso ela também pode ficar
+   * em branco num mês em que nenhuma conta do bloco se mexeu — o que é honesto:
+   * se nada aconteceu no bloco inteiro, não há o que mostrar ali.
+   */
+  ocultarSemLancamento?: boolean;
 }) {
   return (
     <div className="space-y-8">
@@ -102,6 +111,7 @@ export default function GradeDoDashboard({
                           celula={c}
                           ehTotal={linha.ehTotal}
                           mostrarCadeado={mostrarCadeado}
+                          ocultarSemLancamento={ocultarSemLancamento}
                           aoClicar={aoClicarNaCelula ? () => aoClicarNaCelula(linha, bloco, c.mes) : undefined}
                         />
                       ))}
