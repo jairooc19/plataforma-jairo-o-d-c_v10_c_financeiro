@@ -17,6 +17,51 @@ todas foram pagas com um defeito em produção.
 
 ---
 
+**2026-09-18 (terceira rodada) — v10: quem decide se o mês aparece é a COLUNA, não a linha**
+
+Ele rodou o SQL de novo (17/17 e 41/41), testou, e pediu um ajuste único — que é, na verdade,
+a correção do buraco que a rodada anterior tinha aberto e que eu havia apenas **avisado**:
+
+> *"Em SALDOS POR CONTA MOVIMENTO a coluna referente ao mês só deve apresentar saldo se
+> existir algum lançamento em pelo menos uma das contas movimento. Se em um determinado mês
+> não existir NENHUM lançamento, todas as contas são apresentadas com saldo zero, 0,00. Se
+> existir um ou mais lançamentos para este mês em QUALQUER das contas, apresentar os saldos
+> finais para TODAS as contas individualmente, mesmo se a conta neste mês não existir
+> lançamento."*
+
+> ⚠️ **A 2ª RODADA ESCONDIA A CÉLULA CONTA A CONTA, E ISSO QUEBRAVA A SOMA.** Num mês em que
+> só o CAIXA se mexeu, o BANCO ficava em branco — mas o dinheiro dele continuava dentro da
+> linha de TOTAL. A pessoa via três células e um total que não era a soma delas, e tinha de
+> acreditar num número que a tela não mostrava como se formava. Eu documentei isso como
+> "consequência assumida" e avisei na entrega; **ele resolveu de um jeito melhor do que o meu
+> aviso**: mover a decisão da LINHA para a COLUNA faz os dois casos fecharem.
+
+| Situação | O que a coluna mostra | A soma bate? |
+|---|---|---|
+| Nenhum lançamento no mês, em conta nenhuma | `0,00` em todas as contas **e no total** | sim: 0+0+0 = 0 |
+| Um ou mais lançamentos em qualquer conta | o saldo de **todas** as contas, inclusive as paradas | sim |
+
+A célula ganhou um segundo campo: `temLancamento` continua sendo a verdade da LINHA (aquela
+conta, naquele mês) e alimenta a dica do mouse — *"esta conta não teve lançamento neste
+mês"* —, enquanto `mesTeveLancamento` é a verdade da COLUNA e é quem decide o que aparece.
+
+> ⚠️ **O MÊS PARADO MOSTRA `0,00`, E NÃO O VAZIO.** Foi o que ele pediu, e tem razão: coluna
+> em branco parece tabela quebrada e some na impressão sem dizer por quê; uma coluna inteira
+> de zeros — total incluído — se lê de relance como "neste mês não houve movimento nenhum". O
+> zero sai em cinza claro, e a dica do mouse informa o **saldo real** da conta, que continua
+> acumulando por dentro.
+
+> ⚠️ **OS DOIS BLOCOS DECIDEM JUNTOS.** Um mês em que só uma conta de tipo OUTRAS se mexeu é
+> um mês COM movimento, e o bloco CAIXA E BANCO também mostra os saldos dele — senão as duas
+> tabelas da mesma tela contariam histórias diferentes sobre o mesmo período.
+
+**Placar:** `npm test` **98/98** · `teste_financeiro.sql` **41/41** · `teste_rls.sql`
+**16/16** · `inventario_financeiro.sql` **17/17** · LEGO 0 violações · lint e build limpos ·
+ensaio de upgrade sem sobrecarga · **os 3 testes novos vistos FALHAR**, com a regra revertida
+para a da 2ª rodada (decidir pela linha). Nenhuma mudança no banco: a regra é de exibição, e
+os números continuam vindo prontos de `fin_saldos_mensais_movimento`.
+---
+
 **2026-09-18 (segunda rodada) — v10: voltar de onde se veio, o mês em branco, e a receita em dois blocos**
 
 Ele rodou o SQL (17/17 e 40/40), testou os dashboards no publicado — *"estão funcionando

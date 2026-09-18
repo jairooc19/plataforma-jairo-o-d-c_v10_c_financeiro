@@ -85,6 +85,24 @@ function movimentos(
   }));
 }
 
+
+/**
+ * Uma célula de saldo escrita à mão — é o jeito de descrever um mês PARADO
+ * (entradas e saídas em zero) sem depender do helper `saldos`, que sempre
+ * inventa uma entrada simbólica.
+ */
+function saldoDe(
+  nome: string, mes: number, saldo: number, entradas: number, saidas = 0,
+  over: Partial<LinhaSaldoMensal> = {},
+): LinhaSaldoMensal {
+  return {
+    bloco: 'CAIXA_BANCO', linha_tipo: 'CONTA', conta_id: `id-${nome}`, nome,
+    tipo: 'CAIXA', is_active: true, mes,
+    saldo_centavos: saldo, entradas_centavos: entradas, saidas_centavos: saidas,
+    fechado: false, ...over,
+  };
+}
+
 // ===========================================================================
 // A GRADE DE SALDOS
 // ===========================================================================
@@ -232,22 +250,14 @@ test('temLancamento vem de entradas + saidas, não do valor da célula', () => {
   // Um mês em que entrou 100 e saiu 100 tem LÍQUIDO ZERO e teve movimento.
   // Olhar só o valor confundiria "nada aconteceu" com "aconteceu e empatou".
   const grade = montarGradeDeSaldos([
-    {
-      bloco: 'CAIXA_BANCO', linha_tipo: 'CONTA', conta_id: 'c1', nome: 'CAIXA',
-      tipo: 'CAIXA', is_active: true, mes: 1,
-      saldo_centavos: 5000, entradas_centavos: 10000, saidas_centavos: 10000, fechado: false,
-    },
-    {
-      bloco: 'CAIXA_BANCO', linha_tipo: 'CONTA', conta_id: 'c1', nome: 'CAIXA',
-      tipo: 'CAIXA', is_active: true, mes: 2,
-      saldo_centavos: 5000, entradas_centavos: 0, saidas_centavos: 0, fechado: false,
-    },
+    saldoDe('CAIXA', 1, 5000, 10000, 10000),
+    saldoDe('CAIXA', 2, 5000, 0, 0),
   ], ctx);
 
   const celulas = grade[0].linhas[0].celulas;
   assert.equal(celulas[0].temLancamento, true);   // entrou e saiu: houve movimento
   assert.equal(celulas[0].valorCentavos, 5000);   // o saldo continua sendo o saldo
-  assert.equal(celulas[1].temLancamento, false);  // fevereiro parado
+  assert.equal(celulas[1].temLancamento, false);  // fevereiro parado nesta conta
   assert.equal(celulas[1].valorCentavos, 5000);   // e o saldo dele AINDA acumula
 });
 
@@ -255,6 +265,71 @@ test('o mês que o banco não devolveu nasce sem lançamento', () => {
   const grade = montarGradeDeSaldos(saldos('CAIXA', 'CAIXA_BANCO', [100]), ctx);
   assert.equal(grade[0].linhas[0].celulas[0].temLancamento, true);
   assert.equal(grade[0].linhas[0].celulas[5].temLancamento, false);
+});
+
+test('QUEM DECIDE É A COLUNA: um lançamento em qualquer conta acende o mês inteiro', () => {
+  // O pedido: "se existir um ou mais lançamentos em QUALQUER das contas
+  // movimento, apresentar os saldos finais para TODAS as contas
+  // individualmente, mesmo se a conta neste mês não existir lançamento".
+  //
+  // Em janeiro só o CAIXA se mexeu. O BANCO ficou parado — e mesmo assim o
+  // saldo dele tem de aparecer, senão a soma do que se vê não bate com o total.
+  const grade = montarGradeDeSaldos([
+    saldoDe('CAIXA', 1, 5000, 10000),
+    saldoDe('BANCO', 1, 70000, 0, 0),
+    saldoDe('CAIXA', 2, 5000, 0, 0),
+    saldoDe('BANCO', 2, 70000, 0, 0),
+  ], ctx);
+
+  const caixa = grade[0].linhas.find((l) => l.nome === 'CAIXA')!.celulas;
+  const banco = grade[0].linhas.find((l) => l.nome === 'BANCO')!.celulas;
+
+  // JANEIRO: o CAIXA se mexeu, então a COLUNA inteira aparece
+  assert.equal(caixa[0].temLancamento, true);
+  assert.equal(banco[0].temLancamento, false);        // esta conta ficou parada
+  assert.equal(banco[0].mesTeveLancamento, true);     // mas o MÊS teve movimento
+  assert.equal(caixa[0].mesTeveLancamento, true);
+
+  // FEVEREIRO: ninguém se mexeu — a coluna inteira some
+  assert.equal(caixa[1].mesTeveLancamento, false);
+  assert.equal(banco[1].mesTeveLancamento, false);
+});
+
+test('a conta de OUTRAS acende o mês também para o bloco CAIXA E BANCO', () => {
+  // As duas tabelas são a mesma tela: se elas discordassem sobre um mês, uma
+  // mostraria saldos e a outra zeros para o mesmo período.
+  const grade = montarGradeDeSaldos([
+    saldoDe('CAIXA', 3, 5000, 0, 0),
+    saldoDe('CARTEIRA', 3, 900, 900, 0, { bloco: 'OUTRAS', tipo: 'OUTRAS', conta_id: 'id-CARTEIRA' }),
+  ], ctx);
+
+  const caixaBanco = grade.find((b) => b.chave === 'CAIXA_BANCO')!;
+  const outras = grade.find((b) => b.chave === 'OUTRAS')!;
+
+  assert.equal(caixaBanco.linhas[0].celulas[2].temLancamento, false);
+  assert.equal(caixaBanco.linhas[0].celulas[2].mesTeveLancamento, true);
+  assert.equal(outras.linhas[0].celulas[2].mesTeveLancamento, true);
+});
+
+test('a linha de TOTAL segue a mesma coluna das contas', () => {
+  // É o que faz 0+0+0 = 0 no mês parado, e a soma bater no mês com movimento.
+  const grade = montarGradeDeSaldos([
+    saldoDe('CAIXA', 1, 5000, 10000),
+    {
+      bloco: 'CAIXA_BANCO', linha_tipo: 'TOTAL', conta_id: null, nome: null, tipo: null,
+      is_active: null, mes: 1, saldo_centavos: 5000,
+      entradas_centavos: 10000, saidas_centavos: 0, fechado: false,
+    },
+    {
+      bloco: 'CAIXA_BANCO', linha_tipo: 'TOTAL', conta_id: null, nome: null, tipo: null,
+      is_active: null, mes: 2, saldo_centavos: 5000,
+      entradas_centavos: 0, saidas_centavos: 0, fechado: false,
+    },
+  ], ctx);
+
+  const total = grade[0].linhas.find((l) => l.ehTotal)!.celulas;
+  assert.equal(total[0].mesTeveLancamento, true);
+  assert.equal(total[1].mesTeveLancamento, false);
 });
 
 // ===========================================================================
@@ -305,20 +380,17 @@ test('as colunas de dinheiro são todas menos a primeira', () => {
   assert.deepEqual(colunasNumericas(MESES, true),  [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
 });
 
-test('o relatório deixa o mês sem lançamento em branco, como a tela', () => {
-  // O papel tem de concordar com o monitor. Célula vazia numa ponta e cheia na
+test('o relatório zera o mês parado e mostra o mês com movimento, como a tela', () => {
+  // O papel tem de concordar com o monitor. Célula zerada numa ponta e cheia na
   // outra faz a pessoa deixar de confiar nas duas.
+  //
+  // Janeiro: o CAIXA se mexeu e o BANCO não → OS DOIS aparecem.
+  // Fevereiro: ninguém se mexeu → a coluna inteira sai 0,00.
   const grade = montarGradeDeSaldos([
-    {
-      bloco: 'CAIXA_BANCO', linha_tipo: 'CONTA', conta_id: 'c1', nome: 'CAIXA',
-      tipo: 'CAIXA', is_active: true, mes: 1,
-      saldo_centavos: 125000, entradas_centavos: 500000, saidas_centavos: 475000, fechado: false,
-    },
-    {
-      bloco: 'CAIXA_BANCO', linha_tipo: 'CONTA', conta_id: 'c1', nome: 'CAIXA',
-      tipo: 'CAIXA', is_active: true, mes: 2,
-      saldo_centavos: 125000, entradas_centavos: 0, saidas_centavos: 0, fechado: false,
-    },
+    saldoDe('CAIXA', 1, 125000, 500000, 475000),
+    saldoDe('BANCO', 1, 70000, 0, 0),
+    saldoDe('CAIXA', 2, 125000, 0, 0),
+    saldoDe('BANCO', 2, 70000, 0, 0),
   ], ctx);
 
   const com = montarRelatorio(grade, {
@@ -328,9 +400,16 @@ test('o relatório deixa o mês sem lançamento em branco, como a tela', () => {
     meses: MESES, formatarValor: formatar, comTotalDoAno: false,
   });
 
-  assert.equal(com.linhas[1][1], '1250,00');  // janeiro teve movimento
-  assert.equal(com.linhas[1][2], '');         // fevereiro não teve
-  assert.equal(sem.linhas[1][2], '1250,00');  // sem a opção, o saldo aparece
-  // a largura não muda: a célula fica VAZIA, ela não some
-  assert.equal(com.linhas[1].length, com.colunas.length);
+  const linhaDe = (r: typeof com, nome: string) => r.linhas.find((l) => l[0] === nome)!;
+
+  // JANEIRO — as duas contas aparecem, inclusive a que ficou parada
+  assert.equal(linhaDe(com, 'CAIXA')[1], '1250,00');
+  assert.equal(linhaDe(com, 'BANCO')[1], '700,00');
+  // FEVEREIRO — mês parado: a coluna inteira sai zerada
+  assert.equal(linhaDe(com, 'CAIXA')[2], '0,00');
+  assert.equal(linhaDe(com, 'BANCO')[2], '0,00');
+  // sem a opção, o saldo real aparece nos dois meses
+  assert.equal(linhaDe(sem, 'CAIXA')[2], '1250,00');
+  // a largura não muda: a célula é ZERADA, ela não some
+  assert.equal(linhaDe(com, 'CAIXA').length, com.colunas.length);
 });

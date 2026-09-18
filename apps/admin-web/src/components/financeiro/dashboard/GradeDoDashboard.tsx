@@ -33,11 +33,12 @@ export default function GradeDoDashboard({
   aoClicarNaCelula?: (linha: LinhaDaGrade, bloco: BlocoDaGrade, mes: number) => void;
   mostrarCadeado?: boolean;
   /**
-   * Mês sem lançamento fica em branco (só o dashboard dos saldos).
+   * Mês sem lançamento em conta nenhuma sai zerado (só o dashboard dos saldos).
    *
-   * ⚠️ A LINHA DE TOTAL SEGUE A MESMA REGRA, e por isso ela também pode ficar
-   * em branco num mês em que nenhuma conta do bloco se mexeu — o que é honesto:
-   * se nada aconteceu no bloco inteiro, não há o que mostrar ali.
+   * ⚠️ QUEM DECIDE É A COLUNA, E A LINHA DE TOTAL SEGUE JUNTO. Num mês em que
+   * ninguém se mexeu, a coluna inteira mostra 0,00 — contas e total —, e a soma
+   * do que se vê continua fechando. Num mês com movimento em qualquer conta,
+   * TODAS mostram o saldo, inclusive as paradas.
    */
   ocultarSemLancamento?: boolean;
 }) {

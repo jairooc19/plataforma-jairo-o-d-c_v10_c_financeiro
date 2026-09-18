@@ -65,19 +65,40 @@ export interface CelulaDoDashboard {
   /** Só o dashboard 1 usa: o mês inteiro já está trancado (RN-24). */
   fechado: boolean;
   /**
-   * Houve ALGUM lançamento naquele mês, naquela linha.
+   * Houve ALGUM lançamento naquele mês **nesta linha** (esta conta).
    *
    * ⚠️ ELE É DERIVADO DE `entradas + saidas > 0`, e isso é exato: a RN-15 não
    * deixa gravar lançamento de valor zero, então movimento nenhum é a única
    * forma de os dois darem zero. Um mês em que entrou 100 e saiu 100 tem
    * líquido zero mas `temLancamento = true` — e é isso que se quer dizer.
    *
-   * ⚠️ QUEM O USA É O DASHBOARD 1, a pedido do dono do projeto em 18/09/2026:
-   * "o mês só deve apresentar saldo se existir lançamento para o mesmo". O
-   * saldo continua ACUMULANDO por dentro (abril sem movimento ainda carrega
-   * março); o que muda é só o que a célula MOSTRA.
+   * ⚠️ ELE **NÃO** É O QUE DECIDE SE A CÉLULA APARECE. Quem decide é o
+   * `mesTeveLancamento` abaixo. Este aqui serve à dica do mouse, para a pessoa
+   * saber que a conta ficou parada num mês em que as outras se mexeram.
    */
   temLancamento: boolean;
+  /**
+   * Houve algum lançamento naquele mês em **QUALQUER conta do dashboard**.
+   *
+   * ===========================================================================
+   * ⚠️ É A COLUNA QUE DECIDE, E NÃO A LINHA — 18/09/2026 (3ª rodada)
+   * ===========================================================================
+   * A primeira versão deste ajuste escondia a célula CONTA A CONTA, e isso
+   * criava um problema real: num mês em que só o CAIXA se mexeu, o BANCO ficava
+   * em branco — mas o dinheiro dele continuava dentro da linha de TOTAL. **A
+   * soma das células visíveis deixava de bater com o total**, e a pessoa tinha
+   * de acreditar num número que a tela não mostrava como se formava.
+   *
+   * O pedido do dono do projeto conserta exatamente isso: *"se em um determinado
+   * mês existir um ou mais lançamentos em QUALQUER das contas movimento,
+   * apresentar os saldos finais para TODAS as contas individualmente, mesmo se
+   * a conta neste mês não existir lançamento"*.
+   *
+   * Com a decisão na COLUNA, os dois casos voltam a fechar:
+   *   • mês com movimento → todas as contas mostram o saldo, e a soma bate;
+   *   • mês sem movimento nenhum → a coluna inteira mostra 0,00, e 0+0+0 = 0.
+   */
+  mesTeveLancamento: boolean;
   /**
    * O mês ainda não terminou, ou nem começou.
    *
@@ -155,6 +176,7 @@ function celulasVazias(ano: number, hoje: string): CelulaDoDashboard[] {
     saidasCentavos: 0,
     fechado: false,
     temLancamento: false,
+    mesTeveLancamento: false,
     futuro: ehMesFuturo(ano, i + 1, hoje),
   }));
 }
@@ -191,7 +213,7 @@ export function montarGradeDeSaldos(
   ctx: Contexto,
 ): BlocoDaGrade[] {
   const ordem: BlocoDoMovimento[] = ['CAIXA_BANCO', 'OUTRAS'];
-  return ordem
+  const blocos = ordem
     .map((bloco) => montarBloco(
       bloco,
       linhas.filter((l) => l.bloco === bloco),
@@ -211,6 +233,40 @@ export function montarGradeDeSaldos(
       false,
     ))
     .filter((b) => b.linhas.length > 0);
+
+  return marcarMesesComMovimento(blocos);
+}
+
+/**
+ * Descobre em quais meses houve movimento em QUALQUER conta e carimba a
+ * resposta em todas as células daquele mês — inclusive nas contas paradas e nas
+ * linhas de total.
+ *
+ * ⚠️ ELE OLHA AS LINHAS DE CONTA, E NÃO AS DE TOTAL. As de total também
+ * carregam entradas e saídas somadas, e dariam a mesma resposta — mas só
+ * existem se o banco as devolver. Percorrer as contas responde sozinho.
+ *
+ * ⚠️ E ELE OLHA OS DOIS BLOCOS JUNTOS. Um mês em que só uma conta de tipo
+ * OUTRAS se mexeu é um mês COM movimento, e o bloco CAIXA E BANCO tem de
+ * mostrar os saldos dele — senão as duas tabelas da mesma tela contariam
+ * histórias diferentes sobre o mesmo mês.
+ */
+function marcarMesesComMovimento(blocos: BlocoDaGrade[]): BlocoDaGrade[] {
+  const comMovimento = new Set<number>();
+  for (const bloco of blocos) {
+    for (const linha of bloco.linhas) {
+      if (linha.ehTotal) continue;
+      for (const c of linha.celulas) if (c.temLancamento) comMovimento.add(c.mes);
+    }
+  }
+
+  for (const bloco of blocos) {
+    for (const linha of bloco.linhas) {
+      for (const c of linha.celulas) c.mesTeveLancamento = comMovimento.has(c.mes);
+    }
+  }
+
+  return blocos;
 }
 
 /**
@@ -243,7 +299,7 @@ export function montarGradeDeMovimentos(
     ? linhas.filter((l) => !(l.linha_tipo === 'CONTA' && l.is_sistema === true))
     : linhas;
 
-  return ordem
+  const blocos = ordem
     .map((bloco) => montarBloco(
       bloco,
       visiveis.filter((l) => l.bloco === bloco),
@@ -263,6 +319,14 @@ export function montarGradeDeMovimentos(
       true,
     ))
     .filter((b) => b.linhas.length > 0);
+
+  /**
+   * ⚠️ O CARIMBO DO MÊS TAMBÉM É FEITO AQUI, mesmo que o dashboard 2 não o use
+   * hoje (ele não esconde mês nenhum). Deixá-lo em `false` seria plantar uma
+   * armadilha: bastaria alguém ligar `ocultarSemLancamento` nesta tela para ela
+   * zerar o ano inteiro, sem erro nenhum que denunciasse o motivo.
+   */
+  return marcarMesesComMovimento(blocos);
 }
 
 interface Extraido {

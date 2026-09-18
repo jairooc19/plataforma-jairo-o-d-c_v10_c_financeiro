@@ -41,9 +41,9 @@ export default function AcoesDoDashboard({
   /** Linhas extras no cabeçalho do papel (o regime, um filtro ligado…). */
   avisos?: string[];
   /**
-   * Mês sem lançamento sai em branco, como na tela.
+   * Mês sem lançamento em conta nenhuma sai zerado, como na tela.
    *
-   * ⚠️ O PAPEL TEM DE CONCORDAR COM A TELA. Célula vazia no monitor e cheia na
+   * ⚠️ O PAPEL TEM DE CONCORDAR COM A TELA. Célula zerada no monitor e cheia na
    * impressão faz a pessoa deixar de confiar nas duas — e não há como saber
    * qual estava certa olhando só uma.
    */

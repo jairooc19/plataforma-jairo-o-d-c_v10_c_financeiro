@@ -34,11 +34,13 @@ import IconeFin from "@/components/financeiro/IconeFin";
  * conta). É o que garante que a tela, o papel impresso e o .TSV mostrem o
  * mesmo número.
  *
- * ⚠️ O MÊS SEM LANÇAMENTO APARECE EM BRANCO (2ª rodada de 18/09/2026), a
- * pedido do dono do projeto. O saldo continua ACUMULANDO por dentro — o que
- * muda é só o que a célula mostra. A consequência está escrita em
- * `CelulaDoMes.tsx`: a soma das células visíveis de um mês pode não bater com a
- * linha de TOTAL, que é o saldo REAL do bloco.
+ * ⚠️ QUEM DECIDE SE O MÊS APARECE É A COLUNA, NÃO A LINHA (3ª rodada de
+ * 18/09/2026). Basta UM lançamento em QUALQUER conta para que TODAS mostrem o
+ * saldo daquele mês, inclusive as que ficaram paradas; e um mês sem lançamento
+ * nenhum sai com a coluna inteira em 0,00. É o que faz a soma das células
+ * bater com a linha de TOTAL nos dois casos — a 2ª rodada decidia conta a
+ * conta, e ali o total contava um dinheiro que a tela não mostrava. O porquê
+ * longo está em `CelulaDoMes.tsx`.
  *
  * 📖 Estudo: `_estudos/estudo-2026-09-18-dashboards-saldos-por-mes.html`.
  *
@@ -120,7 +122,7 @@ function ConteudoDoDashboard() {
             ocultarSemLancamento
             avisos={[
               "CADA CÉLULA É O SALDO NO ÚLTIMO DIA DO MÊS (ACUMULADO)",
-              "MÊS EM BRANCO = NENHUM LANÇAMENTO NAQUELE MÊS",
+              "MÊS ZERADO NA COLUNA INTEIRA = NENHUM LANÇAMENTO NAQUELE MÊS, EM CONTA NENHUMA",
             ]}
           />
         }
@@ -134,7 +136,8 @@ function ConteudoDoDashboard() {
 
       <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
         CADA CÉLULA É O SALDO NO ÚLTIMO DIA DAQUELE MÊS, ACUMULADO DESDE A ABERTURA DA CONTA ·
-        MÊS SEM LANÇAMENTO APARECE COMO “—” (O SALDO NÃO MUDOU, E CONTINUA CONTANDO NO TOTAL) ·
+        MÊS SEM LANÇAMENTO EM CONTA NENHUMA APARECE ZERADO NA COLUNA INTEIRA; BASTA UM LANÇAMENTO
+        EM QUALQUER CONTA PARA TODAS MOSTRAREM O SALDO DAQUELE MÊS ·
         CLIQUE NO NOME PARA CONFERIR O ANO INTEIRO, OU NA CÉLULA PARA CONFERIR AQUELE MÊS ·
         SÓ REGIME CAIXA
       </p>

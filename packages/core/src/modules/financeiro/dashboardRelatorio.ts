@@ -76,11 +76,16 @@ export function montarRelatorio(
     formatarValor: (centavos: number) => string;
     comTotalDoAno: boolean;
     /**
-     * Mês sem lançamento sai em branco, como na tela (dashboard dos saldos).
+     * Mês SEM lançamento em conta nenhuma sai zerado, como na tela (dashboard
+     * dos saldos).
      *
-     * ⚠️ O PAPEL TEM DE CONCORDAR COM A TELA. Se a célula está vazia no monitor
+     * ⚠️ O PAPEL TEM DE CONCORDAR COM A TELA. Se a célula está zerada no monitor
      * e cheia na impressão, a pessoa passa a não confiar em nenhuma das duas —
      * e não há como saber qual das duas estava certa olhando só uma.
+     *
+     * ⚠️ E O QUE SAI É `0,00`, NÃO O VAZIO. Coluna em branco no papel some sem
+     * dizer por quê; uma coluna inteira de zeros — total incluído — se lê de
+     * relance como "neste mês não houve movimento nenhum".
      */
     ocultarSemLancamento?: boolean;
     /** Sufixo do nome da conta desativada. Padrão: " (INATIVA)". */
@@ -105,7 +110,9 @@ export function montarRelatorio(
       linhas.push([
         linha.nome + (linha.inativa ? marca : ''),
         ...linha.celulas.map((c) =>
-          (opcoes.ocultarSemLancamento && !c.temLancamento) ? '' : formatarValor(c.valorCentavos)),
+          formatarValor(
+            (opcoes.ocultarSemLancamento && !c.mesTeveLancamento) ? 0 : c.valorCentavos,
+          )),
         ...(comTotalDoAno
           ? [linha.totalDoAnoCentavos === null ? '' : formatarValor(linha.totalDoAnoCentavos)]
           : []),

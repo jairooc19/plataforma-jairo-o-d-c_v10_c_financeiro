@@ -25,24 +25,27 @@ import IconeFin from "../IconeFin";
  *    Responde "o que aconteceu aqui?" sem sair da tela, e não custa nenhuma ida
  *    a mais ao banco: os dois números já vêm na mesma consulta.
  *
- * ⬜ CÉLULA EM BRANCO = NENHUM LANÇAMENTO NAQUELE MÊS (18/09/2026, 2ª rodada).
- *    Pedido do dono do projeto: "o mês só deve apresentar saldo se existir
- *    lançamento para o mesmo".
+ * 0️⃣ MÊS PARADO = A COLUNA INTEIRA MOSTRA 0,00 (18/09/2026, 3ª rodada).
+ *    Pedido do dono do projeto: *"se em um determinado mês não existir NENHUM
+ *    lançamento, todas as contas são apresentadas com saldo zero; se existir um
+ *    ou mais lançamentos em QUALQUER das contas, apresentar os saldos finais
+ *    para TODAS as contas, mesmo as que não tiveram lançamento naquele mês"*.
  *
- *    ⚠️ O SALDO CONTINUA ACUMULANDO POR DENTRO — o que muda é só o que a célula
- *    MOSTRA. Se março fechou em 2.600,00 e abril não teve movimento, abril
- *    aparece vazio e MAIO, se tiver movimento, continua partindo de 2.600,00.
- *    A conta não "reinicia" por causa da célula em branco.
+ *    ⚠️ QUEM DECIDE É A COLUNA, NÃO A LINHA — e foi isso que a 3ª rodada
+ *    corrigiu. Na 2ª, a célula sumia CONTA A CONTA: num mês em que só o CAIXA
+ *    se mexeu, o BANCO ficava em branco mas o dinheiro dele continuava dentro
+ *    da linha de TOTAL, e **a soma do que se via deixava de bater com o
+ *    total**. Com a decisão na coluna, os dois casos fecham: mês com movimento
+ *    mostra tudo e soma certo; mês parado mostra zeros, e 0+0+0 = 0.
  *
- *    ⚠️ E A CONSEQUÊNCIA PRECISA FICAR DITA: **a soma das células visíveis de um
- *    mês pode não bater com a linha de TOTAL daquele mês**. O total é o saldo
- *    REAL do bloco, somando também as contas que ficaram em branco porque não
- *    se mexeram. Não é divergência: é a diferença entre "o que andou" e "o que
- *    há". A dica ao passar o mouse na célula vazia diz isso.
+ *    ⚠️ O SALDO CONTINUA ACUMULANDO POR DENTRO. O 0,00 de um mês parado é o que
+ *    a célula MOSTRA, não o que a conta TEM: se março fechou em 2.600,00 e
+ *    abril inteiro ficou parado, maio (se tiver movimento) continua partindo de
+ *    2.600,00. A conta não reinicia. A dica do mouse diz o saldo verdadeiro.
  *
- *    ⚠️ CÉLULA VAZIA NÃO É CLICÁVEL. Abrir uma conferência de um mês sem
- *    lançamento nenhum mostraria uma tela com o saldo inicial e mais nada —
- *    prometer um clique e entregar isso é pior do que não oferecer o clique.
+ *    ⚠️ CÉLULA DE MÊS PARADO NÃO É CLICÁVEL. Abrir uma conferência de um mês
+ *    sem lançamento nenhum mostraria o saldo inicial e mais nada — prometer um
+ *    clique e entregar isso é pior do que não oferecer o clique.
  *
  * ⚠️ ELA NÃO FORMATA DINHEIRO POR CONTA PRÓPRIA. `formatarBRL` é do Core, onde
  * mora a regra dos centavos inteiros — a mesma que o extrato e a impressão usam.
@@ -60,14 +63,19 @@ export default function CelulaDoMes({
   ocultarSemLancamento?: boolean;
 }) {
   const negativo = celula.valorCentavos < 0;
-  const emBranco = ocultarSemLancamento && !celula.temLancamento;
-  const abrir = emBranco ? undefined : aoClicar;
+  /** O MÊS inteiro ficou parado — em todas as contas do dashboard. */
+  const mesParado = ocultarSemLancamento && !celula.mesTeveLancamento;
+  const abrir = mesParado ? undefined : aoClicar;
 
-  const dica = emBranco
-    ? "NENHUM LANÇAMENTO NESTE MÊS · O SALDO DA CONTA NÃO MUDOU (E CONTINUA CONTANDO NO TOTAL)"
+  const dica = mesParado
+    ? `NENHUM LANÇAMENTO NESTE MÊS, EM CONTA NENHUMA · O SALDO REAL DA CONTA CONTINUA ${
+        formatarBRL(celula.valorCentavos)}`
     : [
         `ENTRADAS ${formatarBRL(celula.entradasCentavos)}`,
         `SAÍDAS ${formatarBRL(celula.saidasCentavos)}`,
+        // A conta parada num mês em que as OUTRAS se mexeram: o saldo dela
+        // aparece (é o que o pedido manda), e a dica explica de onde ele vem.
+        !celula.temLancamento ? "ESTA CONTA NÃO TEVE LANÇAMENTO NESTE MÊS" : null,
         celula.fechado ? "PERÍODO FECHADO" : null,
         celula.futuro ? "MÊS AINDA NÃO ENCERRADO — VALOR PREVISTO" : null,
         abrir ? "CLIQUE PARA CONFERIR ESTE MÊS" : null,
@@ -83,14 +91,16 @@ export default function CelulaDoMes({
         "px-2 py-2 text-right font-mono whitespace-nowrap border-b border-slate-100",
         celula.futuro ? "bg-slate-50/80" : "",
         ehTotal ? "font-black" : "",
-        negativo ? "text-red-700" : "text-slate-800",
+        mesParado ? "text-slate-300" : negativo ? "text-red-700" : "text-slate-800",
         abrir ? "cursor-pointer hover:bg-blue-50" : "",
       ].join(" ")}
     >
-      {emBranco ? (
-        /* Um traço apagado, e não o vazio absoluto: célula sem nada nenhum
-           parece tabela quebrada, e some ao imprimir sem dizer por quê. */
-        <span className="text-slate-300 select-none">—</span>
+      {mesParado ? (
+        /* ⚠️ ZERO APAGADO, E NÃO CÉLULA VAZIA. O pedido foi "apresentadas com
+           saldo zero, 0,00"; e uma coluna inteira de zeros — total incluído —
+           se lê de relance como "neste mês não houve movimento", enquanto uma
+           coluna vazia parece tabela quebrada. */
+        <span className="select-none">{formatarBRL(0, { semSimbolo: true })}</span>
       ) : (
         <span className="inline-flex items-center justify-end gap-1">
           {mostrarCadeado && celula.fechado && (
