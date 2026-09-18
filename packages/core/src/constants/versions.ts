@@ -8,7 +8,7 @@
 export const WEB_VERSION = "v10 - 2026-09-18-04";
 
 // Versão do Aplicativo Mobile (Android/iOS)
-export const APP_VERSION = "v10 - 2026-09-18-01";
+export const APP_VERSION = "v10 - 2026-09-18-04";
 
 /**
  * Nota: Ao atualizar o sistema, altere apenas este arquivo. 
