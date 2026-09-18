@@ -2039,7 +2039,597 @@ END;
 $$;
 
 -- ---------------------------------------------------------------------------
--- 4.14 APAGAR TODOS OS DADOS DO MÓDULO NUMA EMPRESA (RN-28)
+-- 4.14 OS SALDOS MENSAIS DAS CONTAS MOVIMENTO — o DASHBOARD 1 (18/09/2026)
+-- ---------------------------------------------------------------------------
+--
+-- 📖 O QUE ELA RESPONDE: "quanto havia em cada conta no último dia de cada mês
+-- do ano?". Uma chamada devolve a grade inteira — contas, doze meses e as
+-- linhas de TOTAL de cada bloco.
+--
+-- ⚠️ POR QUE ELA EXISTE, EM VEZ DE CHAMAR `fin_extrato` DOZE VEZES POR CONTA.
+-- Numa empresa com 20 contas seriam 240 idas e voltas até o banco só para
+-- desenhar uma tela. Aqui é UMA. É o mesmo princípio já escrito no CLAUDE.md
+-- para a gravação em lote ("uma função que recebe o array faz uma viagem só"),
+-- aplicado à leitura.
+--
+-- ⚠️ A LINHA DE TOTAL VEM DAQUI, E ISSO NÃO É DETALHE. Se a tela somasse as
+-- colunas por conta própria, existiriam duas contas para o mesmo número: a do
+-- banco e a da tela. No dia em que uma fosse corrigida e a outra não, o papel
+-- impresso divergiria da tela. É a mesma regra que o CLAUDE.md já impõe à
+-- exclusão em lote: quem conta tem de ser quem executa.
+--
+-- ⚠️ SALDO É ACUMULADO — cada mês carrega tudo o que veio antes. Mês sem
+-- lançamento nenhum REPETE o saldo do mês anterior (não zera, não some). É por
+-- isso que existe o `CROSS JOIN meses`: sem ele, abril sem movimento
+-- desapareceria da grade.
+--
+-- ⚠️ CONTA DESATIVADA COM MOVIMENTO CONTINUA NA LISTA. A RN-06 manda o inativo
+-- sumir das listas de LANÇAMENTO, e está certa — ninguém deve lançar numa conta
+-- encerrada. Num RELATÓRIO de saldos seria o oposto: encerrar em julho uma
+-- conta com R$ 6.800,00 dentro faria o TOTAL de janeiro a julho ficar R$
+-- 6.800,00 menor que a realidade, em silêncio. A tela marca essas contas como
+-- INATIVA; ocultá-las faria o relatório mentir.
+--
+-- ⚠️ SÓ REGIME CAIXA (RN-19), igual ao `fin_extrato`. Tem de ser a MESMA regra:
+-- é ela que garante que o número da célula de março seja idêntico ao saldo
+-- final do extrato de 01/03 a 31/03. Se as duas divergissem, o clique na
+-- célula levaria a um número diferente do que estava na tela.
+CREATE OR REPLACE FUNCTION public.fin_saldos_mensais_movimento(
+  p_tenant_id uuid,
+  p_ano       integer
+)
+RETURNS TABLE (
+  bloco             text,      -- CAIXA_BANCO | OUTRAS
+  linha_tipo        text,      -- CONTA | TOTAL
+  conta_id          uuid,
+  nome              text,
+  tipo              text,
+  is_active         boolean,
+  mes               integer,   -- 1 a 12
+  saldo_centavos    bigint,    -- ACUMULADO: o saldo no último dia do mês
+  entradas_centavos bigint,    -- o que entrou NAQUELE mês (para a dica do mouse)
+  saidas_centavos   bigint,    -- o que saiu NAQUELE mês
+  fechado           boolean    -- o mês inteiro já está trancado? (RN-24)
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_de  date;
+  v_ate date;
+BEGIN
+  IF NOT public.fin_pode(p_tenant_id, 'extrato_ver') THEN
+    RAISE EXCEPTION 'Sem permissao para ver saldos.' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_ano IS NULL OR p_ano < 1900 OR p_ano > 2999 THEN
+    RAISE EXCEPTION 'Informe um ano entre 1900 e 2999.' USING ERRCODE = '22023';
+  END IF;
+
+  v_de  := make_date(p_ano,  1,  1);
+  v_ate := make_date(p_ano, 12, 31);
+
+  RETURN QUERY
+  WITH conta AS (
+    SELECT c.id, c.nome, c.tipo, c.is_active, c.saldo_abertura_centavos,
+           CASE WHEN c.tipo IN ('CAIXA', 'BANCO') THEN 'CAIXA_BANCO' ELSE 'OUTRAS' END AS bloco
+      FROM public.fin_contas_movimento c
+     WHERE c.tenant_id = p_tenant_id
+       AND (
+             c.is_active
+          OR c.saldo_abertura_centavos <> 0
+          OR EXISTS (SELECT 1 FROM public.fin_lancamentos l
+                      WHERE l.conta_movimento_id = c.id
+                        AND l.regime = 'CAIXA'
+                        AND l.data_movimento <= v_ate)
+           )
+  ),
+  mes_do_ano AS (
+    SELECT generate_series(1, 12) AS mes
+  ),
+  -- O ponto de partida da escada: o saldo em 31/12 do ano ANTERIOR.
+  partida AS (
+    SELECT c.id,
+           (c.saldo_abertura_centavos + COALESCE((
+              SELECT SUM(CASE WHEN l.tipo_movimento = 'ENTRADA' THEN l.valor_centavos
+                              ELSE -l.valor_centavos END)
+                FROM public.fin_lancamentos l
+               WHERE l.conta_movimento_id = c.id
+                 AND l.regime = 'CAIXA'
+                 AND l.data_movimento < v_de), 0))::bigint AS saldo
+      FROM conta c
+  ),
+  -- O movimento do ano agrupado por conta e mês, numa passada só pela tabela.
+  --
+  -- ⚠️ O `::bigint` NÃO É ENFEITE: no PostgreSQL `SUM()` sobre `bigint` devolve
+  -- `numeric`, e sem a conversão a função é recusada com "structure of query
+  -- does not match function result type". A mesma armadilha já comentada no
+  -- `fin_extrato`.
+  movimento AS (
+    SELECT l.conta_movimento_id AS id,
+           EXTRACT(MONTH FROM l.data_movimento)::integer AS mes,
+           COALESCE(SUM(l.valor_centavos) FILTER (WHERE l.tipo_movimento = 'ENTRADA'), 0)::bigint AS entradas,
+           COALESCE(SUM(l.valor_centavos) FILTER (WHERE l.tipo_movimento = 'SAIDA'),   0)::bigint AS saidas
+      FROM public.fin_lancamentos l
+     WHERE l.tenant_id = p_tenant_id
+       AND l.regime = 'CAIXA'
+       AND l.data_movimento BETWEEN v_de AND v_ate
+     GROUP BY 1, 2
+  ),
+  grade AS (
+    SELECT c.bloco, c.id, c.nome, c.tipo, c.is_active, m.mes,
+           COALESCE(mv.entradas, 0)::bigint AS entradas,
+           COALESCE(mv.saidas,   0)::bigint AS saidas,
+           (p.saldo + SUM(COALESCE(mv.entradas, 0) - COALESCE(mv.saidas, 0))
+                        OVER (PARTITION BY c.id ORDER BY m.mes
+                              ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW))::bigint AS saldo
+      FROM conta c
+      CROSS JOIN mes_do_ano m
+      JOIN partida p ON p.id = c.id
+      LEFT JOIN movimento mv ON mv.id = c.id AND mv.mes = m.mes
+  ),
+  tudo AS (
+    SELECT 1 AS ord_linha, g.bloco, 'CONTA'::text AS lt,
+           g.id, g.nome, g.tipo, g.is_active, g.mes, g.saldo, g.entradas, g.saidas,
+           -- O mês só conta como FECHADO quando o corte cobre o ÚLTIMO dia dele.
+           EXISTS (SELECT 1 FROM public.fin_fechamentos f
+                    WHERE f.tenant_id = p_tenant_id
+                      AND f.conta_movimento_id = g.id
+                      AND (make_date(p_ano, g.mes, 1) + INTERVAL '1 month - 1 day')::date <= f.fechado_ate
+                  ) AS fechado
+      FROM grade g
+    UNION ALL
+    SELECT 2, g.bloco, 'TOTAL'::text,
+           NULL::uuid, NULL::text, NULL::text, NULL::boolean, g.mes,
+           SUM(g.saldo)::bigint, SUM(g.entradas)::bigint, SUM(g.saidas)::bigint, false
+      FROM grade g
+     GROUP BY g.bloco, g.mes
+  )
+  SELECT t.bloco, t.lt, t.id, t.nome, t.tipo, t.is_active, t.mes,
+         t.saldo, t.entradas, t.saidas, t.fechado
+    FROM tudo t
+   ORDER BY CASE t.bloco WHEN 'CAIXA_BANCO' THEN 1 ELSE 2 END,
+            t.ord_linha, t.nome NULLS LAST, t.mes;
+END;
+$$;
+
+
+-- ---------------------------------------------------------------------------
+-- 4.15 OS MOVIMENTOS MENSAIS DAS IDENTIFICADORAS — o DASHBOARD 2 (18/09/2026)
+-- ---------------------------------------------------------------------------
+--
+-- 📖 O QUE ELA RESPONDE: "quanto passou por cada conta identificadora em cada
+-- mês do ano?" — receitas primeiro, depois despesas, o RESULTADO dos dois, e
+-- por fim as de tipo OUTRAS. Cada bloco com o seu total mensal.
+--
+-- ===========================================================================
+-- ⚠️ AQUI NÃO EXISTE "SALDO", E A DIFERENÇA É DE CONCEITO, NÃO DE NOME
+-- ===========================================================================
+-- A conta movimento tem `saldo_abertura_centavos`: ela GUARDA dinheiro, e por
+-- isso tem saldo. A conta identificadora não tem coluna nenhuma de saldo — ela
+-- EXPLICA dinheiro. "ENERGIA ELÉTRICA" não tem saldo, do mesmo jeito que o
+-- motivo de uma viagem não tem quilometragem.
+--
+-- Por isso cada célula aqui é o MOVIMENTO LÍQUIDO DO MÊS, e não um acumulado.
+-- Março mostra o que aconteceu em março. É o oposto exato do dashboard 1, e é
+-- essa diferença que faz a coluna "TOTAL DO ANO" ter sentido aqui (somar doze
+-- fluxos dá o fluxo do ano) e NÃO ter sentido lá (somar doze saldos daria um
+-- número que nunca existiu).
+--
+-- ⚠️ O SINAL SEGUE A NATUREZA DA CONTA. Despesa sai positiva (`saidas -
+-- entradas`), porque é assim que se lê um relatório: "ENERGIA 380,00", não
+-- "ENERGIA −380,00". E um reembolso recebido REDUZ a despesa do mês, que é o
+-- comportamento contábil correto — a RN-13 permite de propósito lançar uma
+-- ENTRADA numa conta de DESPESA (estorno), apenas avisando na tela.
+--
+-- ⚠️ A LINHA `RESULTADO` IGNORA O BLOCO `OUTRAS`, DE PROPÓSITO. Aporte de sócio
+-- e transferência entre contas não são resultado do negócio; somá-los daria um
+-- número que se parece com lucro e não é.
+--
+-- ⚠️ A CONTA "TRANSFERÊNCIA ENTRE CONTAS" (RN-30, `is_sistema`) aparece no
+-- bloco OUTRAS e tende a somar ZERO todo mês — uma perna entra, a outra sai, do
+-- mesmo valor (RN-23). Isso não é defeito: é a prova de que transferir não cria
+-- nem destrói dinheiro. A tela oferece uma caixa para ocultá-la.
+CREATE OR REPLACE FUNCTION public.fin_movimentos_mensais_identificadora(
+  p_tenant_id uuid,
+  p_ano       integer
+)
+RETURNS TABLE (
+  bloco             text,      -- RECEITA | DESPESA | RESULTADO | OUTRAS
+  linha_tipo        text,      -- CONTA | TOTAL
+  conta_id          uuid,
+  nome              text,
+  tipo              text,
+  is_active         boolean,
+  is_sistema        boolean,
+  mes               integer,   -- 1 a 12
+  entradas_centavos bigint,
+  saidas_centavos   bigint,
+  liquido_centavos  bigint     -- na direção natural do tipo (ver acima)
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_de  date;
+  v_ate date;
+BEGIN
+  IF NOT public.fin_pode(p_tenant_id, 'extrato_ver') THEN
+    RAISE EXCEPTION 'Sem permissao para ver saldos.' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_ano IS NULL OR p_ano < 1900 OR p_ano > 2999 THEN
+    RAISE EXCEPTION 'Informe um ano entre 1900 e 2999.' USING ERRCODE = '22023';
+  END IF;
+
+  v_de  := make_date(p_ano,  1,  1);
+  v_ate := make_date(p_ano, 12, 31);
+
+  RETURN QUERY
+  WITH categoria AS (
+    SELECT ci.id, ci.nome, ci.tipo, ci.is_active, ci.is_sistema
+      FROM public.fin_contas_identificadoras ci
+     WHERE ci.tenant_id = p_tenant_id
+       AND (
+             ci.is_active
+          OR EXISTS (SELECT 1 FROM public.fin_lancamentos l
+                      WHERE l.conta_identificadora_id = ci.id
+                        AND l.regime = 'CAIXA'
+                        AND l.data_movimento BETWEEN v_de AND v_ate)
+           )
+  ),
+  mes_do_ano AS (
+    SELECT generate_series(1, 12) AS mes
+  ),
+  movimento AS (
+    SELECT l.conta_identificadora_id AS id,
+           EXTRACT(MONTH FROM l.data_movimento)::integer AS mes,
+           COALESCE(SUM(l.valor_centavos) FILTER (WHERE l.tipo_movimento = 'ENTRADA'), 0)::bigint AS entradas,
+           COALESCE(SUM(l.valor_centavos) FILTER (WHERE l.tipo_movimento = 'SAIDA'),   0)::bigint AS saidas
+      FROM public.fin_lancamentos l
+     WHERE l.tenant_id = p_tenant_id
+       AND l.regime = 'CAIXA'
+       AND l.data_movimento BETWEEN v_de AND v_ate
+     GROUP BY 1, 2
+  ),
+  grade AS (
+    SELECT c.tipo AS bloco, c.id, c.nome, c.tipo, c.is_active, c.is_sistema, m.mes,
+           COALESCE(mv.entradas, 0)::bigint AS entradas,
+           COALESCE(mv.saidas,   0)::bigint AS saidas,
+           (CASE WHEN c.tipo = 'DESPESA'
+                 THEN COALESCE(mv.saidas, 0)   - COALESCE(mv.entradas, 0)
+                 ELSE COALESCE(mv.entradas, 0) - COALESCE(mv.saidas,   0)
+            END)::bigint AS liquido
+      FROM categoria c
+      CROSS JOIN mes_do_ano m
+      LEFT JOIN movimento mv ON mv.id = c.id AND mv.mes = m.mes
+  ),
+  totais AS (
+    SELECT g.bloco, g.mes,
+           SUM(g.entradas)::bigint AS entradas,
+           SUM(g.saidas)::bigint   AS saidas,
+           SUM(g.liquido)::bigint  AS liquido
+      FROM grade g
+     GROUP BY g.bloco, g.mes
+  ),
+  tudo AS (
+    SELECT 1 AS ord_linha, g.bloco, 'CONTA'::text AS lt,
+           g.id, g.nome, g.tipo, g.is_active, g.is_sistema, g.mes,
+           g.entradas, g.saidas, g.liquido
+      FROM grade g
+    UNION ALL
+    SELECT 2, t.bloco, 'TOTAL'::text,
+           NULL::uuid, NULL::text, NULL::text, NULL::boolean, NULL::boolean, t.mes,
+           t.entradas, t.saidas, t.liquido
+      FROM totais t
+    UNION ALL
+    -- A linha RESULTADO: receitas menos despesas, mês a mês.
+    SELECT 2, 'RESULTADO'::text, 'TOTAL'::text,
+           NULL::uuid, NULL::text, NULL::text, NULL::boolean, NULL::boolean, m.mes,
+           COALESCE((SELECT t.entradas FROM totais t WHERE t.bloco = 'RECEITA' AND t.mes = m.mes), 0)::bigint,
+           COALESCE((SELECT t.saidas   FROM totais t WHERE t.bloco = 'DESPESA' AND t.mes = m.mes), 0)::bigint,
+           (COALESCE((SELECT t.liquido FROM totais t WHERE t.bloco = 'RECEITA' AND t.mes = m.mes), 0)
+          - COALESCE((SELECT t.liquido FROM totais t WHERE t.bloco = 'DESPESA' AND t.mes = m.mes), 0))::bigint
+      FROM mes_do_ano m
+  )
+  SELECT t.bloco, t.lt, t.id, t.nome, t.tipo, t.is_active, t.is_sistema, t.mes,
+         t.entradas, t.saidas, t.liquido
+    FROM tudo t
+   ORDER BY CASE t.bloco
+              WHEN 'RECEITA'   THEN 1
+              WHEN 'DESPESA'   THEN 2
+              WHEN 'RESULTADO' THEN 3
+              ELSE 4
+            END,
+            t.ord_linha, t.nome NULLS LAST, t.mes;
+END;
+$$;
+
+
+-- ---------------------------------------------------------------------------
+-- 4.16 A CONFERÊNCIA DA CONTA IDENTIFICADORA (18/09/2026)
+-- ---------------------------------------------------------------------------
+--
+-- 📖 É a irmã espelhada do `fin_extrato`: em vez de "os lançamentos desta conta
+-- movimento", devolve "os lançamentos desta identificadora, em QUALQUER conta
+-- movimento". É o destino do clique no nome ou na célula do dashboard 2.
+--
+-- ⚠️ NÃO HÁ LINHA DE "SALDO INICIAL", E ISSO É PROPOSITAL. No extrato de uma
+-- conta movimento a primeira linha diz quanto havia ANTES do período — o
+-- dinheiro estava lá. Aqui não existe "quanto havia de energia elétrica em 28
+-- de fevereiro": a identificadora não acumula. Inventar essa linha somando
+-- todos os anos anteriores produziria um número que ninguém pediu.
+--
+-- ⚠️ A COLUNA SE CHAMA `acumulado_centavos`, E NÃO "saldo". Ela começa em ZERO
+-- na primeira linha e fecha igual ao total do período. Chamá-la de saldo
+-- ensinaria a coisa errada, e um dia alguém levaria esse número para um
+-- balanço.
+--
+-- ⚠️ O ACUMULADO SEGUE A DIREÇÃO NATURAL DO TIPO, exatamente como o dashboard
+-- 2: numa DESPESA ele soma as saídas e desconta as entradas. É isso que faz o
+-- rodapé desta tela ser IDÊNTICO à célula do mês no dashboard — que é o
+-- propósito inteiro de uma conferência.
+--
+-- ⚠️ `LEFT JOIN` PARA `public.users`, NUNCA `JOIN` SIMPLES. A RLS de `users` só
+-- deixa cada um ver o próprio perfil; com `JOIN` comum, as linhas dos colegas
+-- SUMIRIAM da lista e o total deixaria de bater com o que se vê. Com `LEFT`, a
+-- linha fica e a coluna vem vazia. Proibição absoluta no CLAUDE.md.
+CREATE OR REPLACE FUNCTION public.fin_extrato_identificadora(
+  p_tenant_id               uuid,
+  p_conta_identificadora_id uuid,
+  p_data_inicial            date,
+  p_data_final              date
+)
+RETURNS TABLE (
+  linha_tipo         text,     -- LANCAMENTO | TOTAL
+  lancamento_id      uuid,
+  data_movimento     date,
+  ordem_extrato      integer,
+  conta_movimento    text,     -- o espelho: aqui aparece ONDE o dinheiro andou
+  entrada_centavos   bigint,
+  saida_centavos     bigint,
+  acumulado_centavos bigint,
+  historico          text,
+  conferido          boolean,
+  usuario            text
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_tipo text;
+BEGIN
+  IF NOT public.fin_pode(p_tenant_id, 'extrato_ver') THEN
+    RAISE EXCEPTION 'Sem permissao para ver o extrato.' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_data_inicial IS NULL OR p_data_final IS NULL THEN
+    RAISE EXCEPTION 'Informe a data inicial e a data final.' USING ERRCODE = '22023';  -- RN-17
+  END IF;
+
+  SELECT ci.tipo INTO v_tipo
+    FROM public.fin_contas_identificadoras ci
+   WHERE ci.id = p_conta_identificadora_id AND ci.tenant_id = p_tenant_id;
+
+  IF v_tipo IS NULL THEN
+    RAISE EXCEPTION 'Conta identificadora inexistente nesta empresa.' USING ERRCODE = '23503';
+  END IF;
+
+  RETURN QUERY
+  WITH movimento AS (
+    SELECT l.id,
+           l.data_movimento,
+           l.ordem_extrato,
+           cm.nome AS conta_movimento,
+           CASE WHEN l.tipo_movimento = 'ENTRADA' THEN l.valor_centavos ELSE 0 END AS entrada,
+           CASE WHEN l.tipo_movimento = 'SAIDA'   THEN l.valor_centavos ELSE 0 END AS saida,
+           -- A direção natural do tipo — ver a advertência no cabeçalho.
+           CASE
+             WHEN v_tipo = 'DESPESA' THEN
+               CASE WHEN l.tipo_movimento = 'SAIDA' THEN l.valor_centavos ELSE -l.valor_centavos END
+             ELSE
+               CASE WHEN l.tipo_movimento = 'ENTRADA' THEN l.valor_centavos ELSE -l.valor_centavos END
+           END AS delta,
+           l.historico,
+           l.conferido,
+           l.created_at,
+           u.email AS usuario
+      FROM public.fin_lancamentos l
+      JOIN public.fin_contas_movimento cm ON cm.id = l.conta_movimento_id
+      LEFT JOIN public.users u ON u.id = l.criado_por
+     WHERE l.conta_identificadora_id = p_conta_identificadora_id
+       AND l.tenant_id = p_tenant_id
+       AND l.regime = 'CAIXA'
+       AND l.data_movimento BETWEEN p_data_inicial AND p_data_final
+  ),
+  com_acumulado AS (
+    SELECT m.*,
+           SUM(m.delta) OVER (
+             -- RN-21: data → ordem (vazios por último) → instante de criação.
+             ORDER BY m.data_movimento, m.ordem_extrato NULLS LAST, m.created_at
+             ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+           )::bigint AS acumulado
+      FROM movimento m
+  ),
+  tudo AS (
+    SELECT 1 AS bloco, 'LANCAMENTO'::text AS lt, a.id AS lid, a.data_movimento AS dt,
+           a.ordem_extrato AS ord, a.conta_movimento AS cmov,
+           NULLIF(a.entrada, 0)::bigint AS ent, NULLIF(a.saida, 0)::bigint AS sai,
+           a.acumulado AS acu, a.historico AS hist, a.conferido AS conf,
+           a.usuario AS usu, a.created_at AS criado
+      FROM com_acumulado a
+    UNION ALL
+    SELECT 2, 'TOTAL'::text, NULL::uuid, p_data_final, NULL::integer,
+           'TOTAIS DO PERIODO'::text,
+           COALESCE((SELECT SUM(entrada) FROM com_acumulado), 0)::bigint,
+           COALESCE((SELECT SUM(saida)   FROM com_acumulado), 0)::bigint,
+           COALESCE((SELECT SUM(delta)   FROM com_acumulado), 0)::bigint,
+           NULL::text, NULL::boolean, NULL::text, NULL::timestamptz
+  )
+  SELECT t.lt, t.lid, t.dt, t.ord, t.cmov, t.ent, t.sai, t.acu, t.hist, t.conf, t.usu
+    FROM tudo t
+   ORDER BY t.bloco, t.dt, t.ord NULLS LAST, t.criado;
+END;
+$$;
+
+
+-- ---------------------------------------------------------------------------
+-- 4.17 A CONFERÊNCIA DE VÁRIAS CONTAS SOMADAS (18/09/2026)
+-- ---------------------------------------------------------------------------
+--
+-- 📖 É o destino do clique na LINHA DE TOTAL do dashboard 1: "de onde vem este
+-- total de CAIXA + BANCO?". Devolve o extrato consolidado de um conjunto de
+-- contas movimento, com uma coluna a mais dizendo de qual conta é cada linha.
+--
+-- ⚠️ `NULL` E `[]` SÃO COISAS DIFERENTES NESTE PARÂMETRO, e confundi-los seria
+-- repetir um defeito que este projeto já documentou em 17/09/2026:
+--
+--     p_conta_movimento_ids = NULL  → "não estou escolhendo": TODAS as contas
+--     p_conta_movimento_ids = '{}'  → "desmarquei tudo": NENHUMA conta
+--
+-- Tratar os dois como "todas" faria um DESMARCAR TODOS mostrar o extrato
+-- inteiro da empresa — o contrário exato do que a pessoa pediu.
+--
+-- ⚠️ O SALDO INICIAL É A SOMA DAS ABERTURAS mais tudo o que é anterior ao
+-- período, nas contas escolhidas. É o mesmo cálculo do `fin_extrato`, feito
+-- sobre um conjunto em vez de sobre uma conta.
+CREATE OR REPLACE FUNCTION public.fin_extrato_consolidado(
+  p_tenant_id            uuid,
+  p_conta_movimento_ids  uuid[],
+  p_data_inicial         date,
+  p_data_final           date
+)
+RETURNS TABLE (
+  linha_tipo       text,      -- INICIAL | LANCAMENTO | TOTAL
+  lancamento_id    uuid,
+  data_movimento   date,
+  ordem_extrato    integer,
+  conta_movimento  text,
+  identificadora   text,
+  entrada_centavos bigint,
+  saida_centavos   bigint,
+  saldo_centavos   bigint,
+  historico        text,
+  conferido        boolean,
+  usuario          text
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_saldo_inicial bigint;
+  v_ids           uuid[];
+BEGIN
+  IF NOT public.fin_pode(p_tenant_id, 'extrato_ver') THEN
+    RAISE EXCEPTION 'Sem permissao para ver o extrato.' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_data_inicial IS NULL OR p_data_final IS NULL THEN
+    RAISE EXCEPTION 'Informe a data inicial e a data final.' USING ERRCODE = '22023';  -- RN-17
+  END IF;
+
+  -- NULL = todas as contas da empresa; '{}' = nenhuma (ver o cabeçalho).
+  IF p_conta_movimento_ids IS NULL THEN
+    SELECT COALESCE(array_agg(c.id), '{}'::uuid[]) INTO v_ids
+      FROM public.fin_contas_movimento c
+     WHERE c.tenant_id = p_tenant_id;
+  ELSE
+    -- ⚠️ A LISTA RECEBIDA É FILTRADA PELA EMPRESA, e isso não é redundância:
+    -- ela chega de fora, e uma chamada forjada poderia trazer o id de uma conta
+    -- de OUTRA empresa. O `tenant_id` é o escudo, como em todo o módulo.
+    SELECT COALESCE(array_agg(c.id), '{}'::uuid[]) INTO v_ids
+      FROM public.fin_contas_movimento c
+     WHERE c.tenant_id = p_tenant_id
+       AND c.id = ANY(p_conta_movimento_ids);
+  END IF;
+
+  SELECT COALESCE(SUM(c.saldo_abertura_centavos), 0)::bigint
+       + COALESCE((
+           SELECT SUM(CASE WHEN l.tipo_movimento = 'ENTRADA' THEN l.valor_centavos
+                           ELSE -l.valor_centavos END)
+             FROM public.fin_lancamentos l
+            WHERE l.conta_movimento_id = ANY(v_ids)
+              AND l.tenant_id = p_tenant_id
+              AND l.regime = 'CAIXA'
+              AND l.data_movimento < p_data_inicial
+         ), 0)
+    INTO v_saldo_inicial
+    FROM public.fin_contas_movimento c
+   WHERE c.id = ANY(v_ids) AND c.tenant_id = p_tenant_id;
+
+  v_saldo_inicial := COALESCE(v_saldo_inicial, 0);
+
+  RETURN QUERY
+  WITH movimento AS (
+    SELECT l.id,
+           l.data_movimento,
+           l.ordem_extrato,
+           cm.nome AS conta_movimento,
+           ci.nome AS identificadora,
+           CASE WHEN l.tipo_movimento = 'ENTRADA' THEN l.valor_centavos ELSE 0 END AS entrada,
+           CASE WHEN l.tipo_movimento = 'SAIDA'   THEN l.valor_centavos ELSE 0 END AS saida,
+           CASE WHEN l.tipo_movimento = 'ENTRADA' THEN l.valor_centavos
+                ELSE -l.valor_centavos END AS delta,
+           l.historico,
+           l.conferido,
+           l.created_at,
+           u.email AS usuario
+      FROM public.fin_lancamentos l
+      JOIN public.fin_contas_movimento cm ON cm.id = l.conta_movimento_id
+      JOIN public.fin_contas_identificadoras ci ON ci.id = l.conta_identificadora_id
+      LEFT JOIN public.users u ON u.id = l.criado_por
+     WHERE l.conta_movimento_id = ANY(v_ids)
+       AND l.tenant_id = p_tenant_id
+       AND l.regime = 'CAIXA'
+       AND l.data_movimento BETWEEN p_data_inicial AND p_data_final
+  ),
+  com_saldo AS (
+    SELECT m.*,
+           (v_saldo_inicial + SUM(m.delta) OVER (
+             ORDER BY m.data_movimento, m.ordem_extrato NULLS LAST, m.created_at
+             ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+           ))::bigint AS saldo
+      FROM movimento m
+  ),
+  tudo AS (
+    SELECT 1 AS bloco, 'INICIAL'::text AS lt, NULL::uuid AS lid,
+           (p_data_inicial - 1) AS dt, NULL::integer AS ord,
+           ''::text AS cmov, 'SALDO INICIAL'::text AS ident,
+           NULL::bigint AS ent, NULL::bigint AS sai, v_saldo_inicial AS sal,
+           NULL::text AS hist, NULL::boolean AS conf, NULL::text AS usu,
+           NULL::timestamptz AS criado
+    UNION ALL
+    SELECT 2, 'LANCAMENTO'::text, s.id, s.data_movimento, s.ordem_extrato,
+           s.conta_movimento, s.identificadora,
+           NULLIF(s.entrada, 0), NULLIF(s.saida, 0), s.saldo,
+           s.historico, s.conferido, s.usuario, s.created_at
+      FROM com_saldo s
+    UNION ALL
+    SELECT 3, 'TOTAL'::text, NULL::uuid, p_data_final, NULL::integer,
+           ''::text, 'TOTAIS DO PERIODO'::text,
+           COALESCE((SELECT SUM(entrada) FROM com_saldo), 0)::bigint,
+           COALESCE((SELECT SUM(saida)   FROM com_saldo), 0)::bigint,
+           (v_saldo_inicial + COALESCE((SELECT SUM(delta) FROM com_saldo), 0))::bigint,
+           NULL::text, NULL::boolean, NULL::text, NULL::timestamptz
+  )
+  SELECT t.lt, t.lid, t.dt, t.ord, t.cmov, t.ident, t.ent, t.sai, t.sal,
+         t.hist, t.conf, t.usu
+    FROM tudo t
+   ORDER BY t.bloco, t.dt, t.ord NULLS LAST, t.criado;
+END;
+$$;
+
+
+-- ---------------------------------------------------------------------------
+-- 4.18 APAGAR TODOS OS DADOS DO MÓDULO NUMA EMPRESA (RN-28)
 -- ---------------------------------------------------------------------------
 --
 -- ⚠️ É ESTA A FUNÇÃO QUE O BOTÃO DO PAINEL DE ENGENHARIA CHAMA, pelo nome
@@ -2229,6 +2819,11 @@ REVOKE EXECUTE ON FUNCTION public.fin_fechar_periodo(uuid, uuid, date, text)    
 REVOKE EXECUTE ON FUNCTION public.fin_reabrir_periodo(uuid, uuid)                        FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_extrato(uuid, uuid, date, date)                    FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_saldo_atual(uuid, uuid)                            FROM PUBLIC, anon, authenticated;
+-- 18/09/2026 — os dois dashboards e as duas conferências novas.
+REVOKE EXECUTE ON FUNCTION public.fin_saldos_mensais_movimento(uuid, integer)             FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_movimentos_mensais_identificadora(uuid, integer)    FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_extrato_identificadora(uuid, uuid, date, date)      FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_extrato_consolidado(uuid, uuid[], date, date)       FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_apagar_dados_da_empresa(uuid)                      FROM PUBLIC, anon, authenticated;
 
 GRANT EXECUTE ON FUNCTION public.fin_normalizar(text)                                   TO authenticated;
@@ -2257,6 +2852,19 @@ GRANT EXECUTE ON FUNCTION public.fin_fechar_periodo(uuid, uuid, date, text)     
 GRANT EXECUTE ON FUNCTION public.fin_reabrir_periodo(uuid, uuid)                        TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_extrato(uuid, uuid, date, date)                    TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_saldo_atual(uuid, uuid)                            TO authenticated;
+
+-- 18/09/2026 — as quatro funções dos dashboards e das conferências.
+--
+-- ⚠️ TODAS CONFEREM `fin_pode(tenant, 'extrato_ver')` POR DENTRO, e é por isso
+-- que o GRANT é seguro: ele apenas deixa o app CHAMAR; quem decide se responde
+-- é a função, com a sessão de quem chamou. NENHUMA PERMISSÃO NOVA FOI CRIADA —
+-- `extrato_ver` já se chama, na tela de permissões, "VER A CONFERÊNCIA DA CONTA
+-- (SALDOS)", que é exatamente o que um dashboard de saldos mostra. Continuam
+-- sendo 18 permissões, e ninguém precisa reconfigurar a equipe.
+GRANT EXECUTE ON FUNCTION public.fin_saldos_mensais_movimento(uuid, integer)             TO authenticated;
+GRANT EXECUTE ON FUNCTION public.fin_movimentos_mensais_identificadora(uuid, integer)    TO authenticated;
+GRANT EXECUTE ON FUNCTION public.fin_extrato_identificadora(uuid, uuid, date, date)      TO authenticated;
+GRANT EXECUTE ON FUNCTION public.fin_extrato_consolidado(uuid, uuid[], date, date)       TO authenticated;
 
 -- ⚠️ `fin_apagar_dados_da_empresa` NÃO recebe GRANT para `authenticated`: ela é
 -- chamada de dentro de `admin_apagar_dados_do_modulo`, que roda como dono do

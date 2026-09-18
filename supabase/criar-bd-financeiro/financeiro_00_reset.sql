@@ -136,6 +136,17 @@ DROP TABLE IF EXISTS public.fin_contas_identificadoras CASCADE;
 -- funções das extensões e a rede de segurança do ambiente (`rls_auto_enable`).
 -- ===========================================================================
 DROP FUNCTION IF EXISTS public.fin_apagar_dados_da_empresa(uuid) CASCADE;
+
+-- 18/09/2026 — os dois dashboards e as duas conferências novas.
+--
+-- ⚠️ ELAS ENTRARAM AQUI NO MESMO COMMIT EM QUE NASCERAM, e isso é regra desde
+-- 17/09/2026: as duas funções de importação ficaram de fora desta lista por
+-- quatro dias, e o reset dizia "pronto" deixando duas funções `fin_*` vivas no
+-- `public`. Quem acrescenta função ao módulo acrescenta a baixa dela junto.
+DROP FUNCTION IF EXISTS public.fin_extrato_consolidado(uuid, uuid[], date, date) CASCADE;
+DROP FUNCTION IF EXISTS public.fin_extrato_identificadora(uuid, uuid, date, date) CASCADE;
+DROP FUNCTION IF EXISTS public.fin_movimentos_mensais_identificadora(uuid, integer) CASCADE;
+DROP FUNCTION IF EXISTS public.fin_saldos_mensais_movimento(uuid, integer) CASCADE;
 DROP FUNCTION IF EXISTS public.fin_saldo_atual(uuid, uuid) CASCADE;
 DROP FUNCTION IF EXISTS public.fin_extrato(uuid, uuid, date, date) CASCADE;
 DROP FUNCTION IF EXISTS public.fin_reabrir_periodo(uuid, uuid) CASCADE;

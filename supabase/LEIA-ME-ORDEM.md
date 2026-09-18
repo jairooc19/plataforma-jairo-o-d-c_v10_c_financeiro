@@ -195,7 +195,19 @@ Dois pares de arquivos, com propósitos diferentes. **Rode sempre os dois tipos.
 | `testes/inventario.sql` | *"as peças da plataforma estão lá?"* | Não | todas OK |
 | `testes/inventario_financeiro.sql` | *"as peças do módulo estão lá?"* | Não | **17 linhas OK** |
 | `testes/teste_rls.sql` | *"as regras da plataforma funcionam?"* | **Sim** | **16/16 PASSOU** |
-| `testes/teste_financeiro.sql` | *"as regras do módulo funcionam?"* | **Sim** | **34/34 PASSOU** |
+| `testes/teste_financeiro.sql` | *"as regras do módulo funcionam?"* | **Sim** | **40/40 PASSOU** |
+
+> ⚠️ **ESSES DOIS NÚMEROS SÃO ESCRITOS À MÃO E JÁ ENVELHECERAM** (o do módulo dizia
+> 34 quando eram 40, em 18/09/2026). **Conte antes de confiar:**
+>
+> ```bash
+> grep -c "INSERT INTO public.resultado_teste_rls VALUES"        testes/teste_rls.sql
+> grep -c "INSERT INTO public.resultado_teste_financeiro VALUES" testes/teste_financeiro.sql
+> ```
+>
+> E, na máquina de quem escreve o código, `npm run ensaio` (na raiz) roda os quatro
+> num banco descartável e ainda faz o ensaio de upgrade — ver o README de
+> `testes/ambiente-local/`.
 
 **Comece pelos inventários.** Eles não escrevem nada e levam um segundo; se uma
 peça estiver faltando, os testes falhariam por um motivo que a mensagem deles

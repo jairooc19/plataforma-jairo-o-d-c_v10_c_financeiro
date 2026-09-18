@@ -31,8 +31,8 @@
 -- MUDE-OS JUNTO.
 -- ---------------------------------------------------------------------------
 --
--- São as linhas 1 a 5, a 9 e a 16: tabelas (4), funções (25), policies (4),
--- triggers (8), índices (16), funções alcançáveis pelo app (23) e chaves para a
+-- São as linhas 1 a 5, a 9 e a 16: tabelas (4), funções (29), policies (4),
+-- triggers (8), índices (16), funções alcançáveis pelo app (27) e chaves para a
 -- plataforma (8) — mais a LISTA DE ASSINATURAS da linha 17, que entrou em
 -- 17/09/2026. **Eles não podem ser deduzidos do catálogo** — deduzi-los
 -- seria perguntar ao banco se o banco
@@ -181,7 +181,7 @@ internas AS (
 -- O PLACAR
 -- ---------------------------------------------------------------------------
 -- ---------------------------------------------------------------------------
--- A LISTA DE ASSINATURAS QUE O SCHEMA AFIRMA CRIAR — 24 linhas (17/09/2026)
+-- A LISTA DE ASSINATURAS QUE O SCHEMA AFIRMA CRIAR — 29 linhas (18/09/2026)
 -- ---------------------------------------------------------------------------
 -- ⚠️ AO MUDAR A ASSINATURA DE UMA FUNÇÃO, MUDE A LINHA CORRESPONDENTE AQUI.
 -- É de propósito que isto dê trabalho: assinatura de função é contrato, e
@@ -202,6 +202,8 @@ assinaturas_esperadas (nome, args) AS (
   ('fin_excluir_lancamento', 'p_tenant_id uuid, p_id uuid'),
   ('fin_excluir_lancamentos_por_periodo', 'p_tenant_id uuid, p_conta_movimento_id uuid, p_data_inicial date, p_data_final date, p_simular boolean, p_ids uuid[]'),
   ('fin_extrato', 'p_tenant_id uuid, p_conta_movimento_id uuid, p_data_inicial date, p_data_final date'),
+  ('fin_extrato_consolidado', 'p_tenant_id uuid, p_conta_movimento_ids uuid[], p_data_inicial date, p_data_final date'),
+  ('fin_extrato_identificadora', 'p_tenant_id uuid, p_conta_identificadora_id uuid, p_data_inicial date, p_data_final date'),
   ('fin_fechar_periodo', 'p_tenant_id uuid, p_conta_movimento_id uuid, p_fechado_ate date, p_observacao text'),
   ('fin_gravar_conta_movimento', 'p_tenant_id uuid, p_id uuid, p_nome text, p_tipo text, p_saldo_abertura_centavos bigint, p_is_active boolean'),
   ('fin_gravar_identificadora', 'p_tenant_id uuid, p_id uuid, p_nome text, p_tipo text, p_is_active boolean'),
@@ -212,6 +214,7 @@ assinaturas_esperadas (nome, args) AS (
   ('fin_limpar_lixeira', 'p_tenant_id uuid, p_audit_ids bigint[], p_simular boolean'),
   ('fin_listar_exclusoes', 'p_tenant_id uuid, p_desde timestamp with time zone, p_limite integer'),
   ('fin_marcar_conferido', 'p_tenant_id uuid, p_id uuid, p_conferido boolean'),
+  ('fin_movimentos_mensais_identificadora', 'p_tenant_id uuid, p_ano integer'),
   ('fin_normalizar', 'p_texto text'),
   ('fin_periodo_fechado', 'p_tenant_id uuid, p_conta_id uuid, p_data date'),
   ('fin_pode', 'p_tenant_id uuid, p_permissao text'),
@@ -219,6 +222,7 @@ assinaturas_esperadas (nome, args) AS (
   ('fin_reabrir_periodo', 'p_tenant_id uuid, p_conta_movimento_id uuid'),
   ('fin_restaurar_lancamento', 'p_tenant_id uuid, p_audit_id bigint'),
   ('fin_saldo_atual', 'p_tenant_id uuid, p_conta_movimento_id uuid'),
+  ('fin_saldos_mensais_movimento', 'p_tenant_id uuid, p_ano integer'),
   ('fin_transferir', 'p_tenant_id uuid, p_conta_origem_id uuid, p_conta_destino_id uuid, p_data date, p_valor_centavos bigint, p_historico text, p_ordem_origem integer, p_ordem_destino integer')
 ),
 
@@ -228,7 +232,7 @@ placar AS (
          '4' AS esperado, (SELECT count(*)::text FROM tabelas) AS encontrado
   UNION ALL
   SELECT 2, 'CONTAGEM', 'Funcoes do modulo (fin_*)',
-         '25', (SELECT count(*)::text FROM funcoes)
+         '29', (SELECT count(*)::text FROM funcoes)
   UNION ALL
   SELECT 3, 'CONTAGEM', 'Policies de RLS nas tabelas do modulo',
          '4', (SELECT count(*)::text FROM politicas)
@@ -250,7 +254,7 @@ placar AS (
          '0', (SELECT count(*)::text FROM alcance WHERE por_anon OR por_public)
   UNION ALL
   SELECT 9, 'CAMINHO FELIZ', 'Funcoes de cliente alcancaveis pelo app (authenticated)',
-         '23', (SELECT count(*)::text FROM alcance WHERE por_app)
+         '27', (SELECT count(*)::text FROM alcance WHERE por_app)
   UNION ALL
   SELECT 10, 'PORTA INTERNA', 'Funcoes internas que receberam GRANT indevido',
          '0', (SELECT count(*)::text FROM alcance a JOIN internas i USING (proname) WHERE a.por_app)

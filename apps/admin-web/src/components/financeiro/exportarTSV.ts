@@ -84,3 +84,48 @@ export function baixarTSV(linhas: LinhaExportavel[], nomeDaEmpresa = "") {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+// ===========================================================================
+// O EXPORTADOR GENÉRICO — 18/09/2026, para os dashboards
+// ===========================================================================
+//
+// ⚠️ POR QUE O DE CIMA NÃO SERVIA, E POR QUE ELE NÃO FOI ALTERADO. O
+// `montarTSV` tem as 14 colunas do LANÇAMENTO escritas à mão, e recebe uma
+// lista de lançamentos. Um dashboard não tem lançamentos: tem contas e meses.
+// Não é questão de configurar — é outro formato. Mexer no antigo para caber os
+// dois deixaria a tela PESQUISAR refém de uma mudança que ela não pediu.
+//
+// ⚠️ MAS AS QUATRO PROTEÇÕES SÃO AS MESMAS, e elas são a parte valiosa: a
+// tabulação em vez da vírgula, o BOM para o Excel não comer os acentos, o
+// apóstrofo que impede `=`/`+`/`-`/`@` de virarem fórmula, e a limpeza de
+// tabulação e quebra de linha dentro da célula. Quem as aplica é a função
+// `celula()` logo acima, agora usada pelos dois.
+
+/** Monta um TSV a partir de um cabeçalho e de linhas JÁ formatadas. */
+export function montarTSVGenerico(colunas: string[], linhas: string[][]): string {
+  const cabecalho = colunas.map(celula).join("\t");
+  const corpo = linhas.map((l) => l.map(celula).join("\t"));
+  return [cabecalho, ...corpo].join("\r\n");
+}
+
+/**
+ * Gera o arquivo e entrega ao navegador.
+ *
+ * ⚠️ O NOME DO ARQUIVO VEM DE FORA. O exportador de lançamentos fixa
+ * "lancamentos-<data>.tsv"; aqui quem chama diz "saldos-por-conta-movimento-
+ * 2026". Numa pasta de downloads com doze exportações, o nome é a única coisa
+ * que diz qual é qual.
+ */
+export function baixarTSVGenerico(nomeDoArquivo: string, colunas: string[], linhas: string[][]) {
+  const conteudo = montarTSVGenerico(colunas, linhas);
+  // ⚠️ O BOM (﻿) é o que faz o Excel mostrar os acentos corretamente.
+  const blob = new Blob(["\ufeff" + conteudo], { type: "text/tab-separated-values;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = nomeDoArquivo.endsWith(".tsv") ? nomeDoArquivo : `${nomeDoArquivo}.tsv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}

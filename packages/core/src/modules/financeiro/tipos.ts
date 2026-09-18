@@ -200,3 +200,115 @@ export interface ConfiguracaoDoMembro {
   ativo: boolean;
   permissoes: PermissaoFinanceiro[];
 }
+
+// ===========================================================================
+// OS DOIS DASHBOARDS — 18/09/2026
+// ===========================================================================
+//
+// ⚠️ AS LINHAS CHEGAM "LONGAS": UMA LINHA POR CONTA **E POR MÊS**. Doze linhas
+// por conta, mais as linhas de TOTAL. Quem as arruma em grade de 12 colunas é
+// `dashboardRegras.ts`, que tem teste — a tela só desenha o que receber.
+//
+// ⚠️ E AS LINHAS DE TOTAL VÊM DO BANCO, junto com as das contas, distinguidas
+// por `linha_tipo`. É o mesmo desenho do `fin_extrato` (INICIAL / LANCAMENTO /
+// TOTAL na mesma lista) e existe pelo mesmo motivo: a tela, o papel impresso e
+// o arquivo .TSV mostram o MESMO número porque nenhum dos três soma nada.
+
+/** Os dois blocos do dashboard das contas movimento. */
+export type BlocoDoMovimento = 'CAIXA_BANCO' | 'OUTRAS';
+
+/**
+ * Os blocos do dashboard das identificadoras.
+ *
+ * `RESULTADO` não é um tipo de conta: é a linha "receitas menos despesas" que o
+ * banco devolve pronta, e que ignora o bloco `OUTRAS` de propósito (aporte de
+ * sócio e transferência não são resultado do negócio).
+ */
+export type BlocoDaIdentificadora = 'RECEITA' | 'DESPESA' | 'RESULTADO' | 'OUTRAS';
+
+/**
+ * Uma célula do DASHBOARD 1, como `fin_saldos_mensais_movimento` a devolve.
+ *
+ * ⚠️ `saldo_centavos` É ACUMULADO: o valor no ÚLTIMO DIA do mês, carregando
+ * tudo o que veio antes. Março já contém janeiro e fevereiro dentro dele. Mês
+ * sem lançamento repete o saldo do mês anterior.
+ */
+export interface LinhaSaldoMensal {
+  bloco: BlocoDoMovimento;
+  linha_tipo: 'CONTA' | 'TOTAL';
+  conta_id: string | null;
+  nome: string | null;
+  tipo: TipoContaMovimento | null;
+  /** `false` = conta desativada que continua no relatório porque tem dinheiro. */
+  is_active: boolean | null;
+  mes: number;
+  saldo_centavos: number;
+  entradas_centavos: number;
+  saidas_centavos: number;
+  /** O mês inteiro já está trancado para esta conta (RN-24). */
+  fechado: boolean;
+}
+
+/**
+ * Uma célula do DASHBOARD 2, como `fin_movimentos_mensais_identificadora` a
+ * devolve.
+ *
+ * ⚠️ `liquido_centavos` NÃO É ACUMULADO — é o mês sozinho. Conta identificadora
+ * não guarda dinheiro, explica dinheiro: não existe "saldo de energia elétrica".
+ * E o sinal segue a natureza do tipo: numa DESPESA o valor sai POSITIVO
+ * (`saídas − entradas`), de modo que um reembolso REDUZ a despesa do mês.
+ */
+export interface LinhaMovimentoMensal {
+  bloco: BlocoDaIdentificadora;
+  linha_tipo: 'CONTA' | 'TOTAL';
+  conta_id: string | null;
+  nome: string | null;
+  tipo: TipoContaIdentificadora | null;
+  is_active: boolean | null;
+  /** `true` na categoria "TRANSFERÊNCIA ENTRE CONTAS" (RN-30). */
+  is_sistema: boolean | null;
+  mes: number;
+  entradas_centavos: number;
+  saidas_centavos: number;
+  liquido_centavos: number;
+}
+
+/**
+ * Uma linha da CONFERÊNCIA DA CONTA IDENTIFICADORA.
+ *
+ * ⚠️ A COLUNA SE CHAMA `acumulado_centavos`, E NÃO "saldo". Ela começa em ZERO
+ * na primeira linha do período e fecha igual ao total — a identificadora não
+ * tem saldo de abertura, então não existe linha de "SALDO INICIAL" aqui. Chamar
+ * de saldo ensinaria a coisa errada, e um dia alguém levaria esse número para
+ * um balanço.
+ */
+export interface LinhaDoExtratoIdentificadora {
+  linha_tipo: 'LANCAMENTO' | 'TOTAL';
+  lancamento_id: string | null;
+  data_movimento: string;
+  ordem_extrato: number | null;
+  /** O espelho do extrato comum: aqui aparece ONDE o dinheiro andou. */
+  conta_movimento: string;
+  entrada_centavos: number | null;
+  saida_centavos: number | null;
+  acumulado_centavos: number;
+  historico: string | null;
+  conferido: boolean | null;
+  usuario: string | null;
+}
+
+/** Uma linha do extrato de VÁRIAS contas somadas (o clique na linha de TOTAL). */
+export interface LinhaDoExtratoConsolidado {
+  linha_tipo: 'INICIAL' | 'LANCAMENTO' | 'TOTAL';
+  lancamento_id: string | null;
+  data_movimento: string;
+  ordem_extrato: number | null;
+  conta_movimento: string;
+  identificadora: string;
+  entrada_centavos: number | null;
+  saida_centavos: number | null;
+  saldo_centavos: number;
+  historico: string | null;
+  conferido: boolean | null;
+  usuario: string | null;
+}

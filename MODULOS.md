@@ -52,12 +52,23 @@ CLAUDE.md · MODULOS.md · README.md
 **As 5 pastas do Controle Financeiro** (apagar estas cinco = desplugar a peça):
 
 ```
-apps/admin-web/src/app/dashboard/financeiro/     as telas (9 rotas)
+apps/admin-web/src/app/dashboard/financeiro/     as telas (13 rotas)
 apps/admin-web/src/components/financeiro/        os componentes
 packages/core/src/modules/financeiro/            regras de negócio + manifesto
-supabase/criar-bd-financeiro/                    o banco (4 tabelas, 20 funções)
-supabase/testes/teste_financeiro.sql             as travas do módulo (21 testes)
-supabase/testes/inventario_financeiro.sql        o inventário do módulo (16 linhas, só lê)
+supabase/criar-bd-financeiro/                    o banco (4 tabelas, 29 funções)
+supabase/testes/teste_financeiro.sql             as travas do módulo (40 testes)
+supabase/testes/inventario_financeiro.sql        o inventário do módulo (17 linhas, só lê)
+```
+
+> ⚠️ **ESTES SEIS NÚMEROS JÁ ESTIVERAM ERRADOS TODOS AO MESMO TEMPO** (media-se
+> 20 funções, 21 testes, 16 linhas e 9 rotas em 18/09/2026, quando eram 29, 40,
+> 17 e 13). Número escrito à mão envelhece em silêncio e não quebra nada — só
+> ensina o errado. **Conte antes de citar**, com estes comandos:
+>
+> ```bash
+> find apps/admin-web/src/app/dashboard/financeiro -name page.tsx | wc -l
+> grep -c "^CREATE OR REPLACE FUNCTION" supabase/criar-bd-financeiro/financeiro_01_schema.sql
+> grep -c "INSERT INTO public.resultado_teste_financeiro VALUES" supabase/testes/teste_financeiro.sql
 ```
 
 E a documentação dele, que também é do módulo:
@@ -67,7 +78,16 @@ E a documentação dele, que também é do módulo:
 > continua sendo o estado de referência do verificador. A prova foi medida no
 > ambiente local antes desta conexão: depois do `financeiro_00_reset.sql`, o
 > banco ficou com **0 tabelas `fin_`, 0 funções `fin_`, 0 linhas no catálogo**, e
-> o `teste_rls.sql` da plataforma seguiu **14/14**.
+> o `teste_rls.sql` da plataforma seguiu **16/16** (eram 14 travas quando isto foi
+> medido pela primeira vez; as travas 15 e 16 entraram em 17/09/2026).
+
+> 🎭 **DESDE 18/09/2026 NADA DISSO PRECISA SER RODADO À MÃO.** O `npm run ensaio`
+> (`scripts/ensaio-geral.mjs`) faz as seis provas em sequência: testes do Core,
+> verificador de LEGO, lint, build, banco descartável com todas as travas, e o
+> **ensaio de upgrade** (o schema do último commit com o de agora aplicado por
+> cima, que é o que pega a SOBRECARGA de função). Ele descobre os módulos
+> plugados varrendo as pastas `supabase/criar-bd-<nome>` — não há nome de módulo
+> escrito dentro dele, e por isso ele continua sendo arquivo de plataforma.
 
 ---
 

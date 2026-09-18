@@ -216,3 +216,70 @@ export function rotuloDoMes(iso: DataISO = hojeISO()): string {
   const mes = new Intl.DateTimeFormat('pt-BR', { month: 'long' }).format(data);
   return `${mes.toUpperCase()} / ${data.getFullYear()}`;
 }
+
+// ===========================================================================
+// O ANO INTEIRO — 18/09/2026, para os dashboards de janeiro a dezembro
+// ===========================================================================
+//
+// ⚠️ POR QUE UMA CONTA TÃO SIMPLES MORA AQUI, E NÃO NA TELA. É a mesma regra
+// que trouxe os atalhos de mês para cá, e ela está escrita no CLAUDE.md:
+// "nunca escrever cálculo de data dentro de um componente de tela — no Core ele
+// é testável pelo `npm test`; na tela, só clicando".
+//
+// Parece exagero para "1º de janeiro a 31 de dezembro" — até lembrar que o
+// `setMonth` de fevereiro já custou um defeito a este projeto. O que é trivial
+// hoje é o que ninguém confere amanhã.
+
+/**
+ * Os 12 meses em três letras, na ordem, para o cabeçalho das colunas.
+ *
+ * ⚠️ É UMA LISTA FIXA, E NÃO `Intl`, DE PROPÓSITO. O `Intl.DateTimeFormat` com
+ * `month: 'short'` devolve "set." em pt-BR — com ponto, minúsculo e com largura
+ * variável entre os meses. Numa grade de 12 colunas isso desalinha o cabeçalho,
+ * e o ponto vira sujeira no papel impresso.
+ */
+export const MESES_CURTOS = [
+  'JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN',
+  'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ',
+] as const;
+
+/** O ano de hoje. */
+export function anoAtual(): number {
+  return new Date().getFullYear();
+}
+
+/** O ano de uma data de calendário: "2026-03-10" → 2026. */
+export function anoDe(iso: DataISO = hojeISO()): number {
+  return deDataISO(iso).getFullYear();
+}
+
+/**
+ * O ano inteiro: de 1º de janeiro a 31 de dezembro.
+ *
+ * É o período que o clique no NOME DA CONTA, no dashboard, leva para a
+ * conferência.
+ */
+export function anoInteiro(ano: number = anoAtual()): PeriodoDoMes {
+  return { de: `${ano}-01-01`, ate: `${ano}-12-31` };
+}
+
+/**
+ * Um mês específico de um ano, inteiro: `mesDoAno(2026, 3)` → 01/03 a 31/03.
+ *
+ * É o período que o clique NA CÉLULA leva para a conferência — e é por isso que
+ * ele não pode errar fevereiro. O último dia vem do "dia 0 do mês seguinte",
+ * que acerta 28, 29, 30 e 31 sem nenhuma tabela escrita à mão.
+ *
+ * ⚠️ O MÊS AQUI É DE 1 A 12, COMO A PESSOA CONTA — e não de 0 a 11, como o
+ * `Date` do JavaScript conta. A conversão acontece uma vez, aqui dentro; fora
+ * daqui ninguém precisa saber que ela existe.
+ */
+export function mesDoAno(ano: number, mes: number): PeriodoDoMes {
+  if (!Number.isInteger(mes) || mes < 1 || mes > 12) {
+    throw new Error(`Mês inválido: ${mes}. Use 1 a 12.`);
+  }
+  return {
+    de: dataLocalISO(new Date(ano, mes - 1, 1)),
+    ate: dataLocalISO(new Date(ano, mes, 0)),
+  };
+}

@@ -30,11 +30,14 @@ defeito em produção.
 pode entrar aqui é a **regra** que a mudança gerou, na seção de proibições. Este arquivo é
 o guia de instruções; aquele é a memória.
 
-**Onde o projeto está** (16/09/2026): plataforma v10 com o módulo `financeiro` plugado,
-publicado na Vercel e validado no Supabase real — `teste_rls.sql` **16/16** e
-`teste_financeiro.sql` **34/34**, este último rodado por inteiro no banco de produção em
-16/09, já com as travas 19, 20 e 21. Das 6 fases da especificação do módulo, 5 estão prontas;
-a fase 5 (DINHEIRO DO PERÍODO, DASHBOARDS, ORÇAMENTO) ainda avisa "EM DESENVOLVIMENTO".
+**Onde o projeto está** (18/09/2026): plataforma v10 com o módulo `financeiro` plugado e
+publicado na Vercel — `teste_rls.sql` **16/16**, `teste_financeiro.sql` **40/40**,
+`inventario_financeiro.sql` **17/17** e `npm test` **90/90**. Da fase 5 da especificação
+(DINHEIRO DO PERÍODO, DASHBOARDS, ORÇAMENTO), **os DASHBOARDS ficaram prontos em
+18/09/2026**; DINHEIRO DO PERÍODO e ORÇAMENTO ainda avisam "EM DESENVOLVIMENTO".
+
+⚠️ **TODO NÚMERO DESTE PARÁGRAFO ENVELHECE SOZINHO.** Antes de repeti-lo, rode
+`npm run ensaio` — ele recalcula os cinco de uma vez.
 
 ---
 
@@ -127,9 +130,10 @@ Na **raiz do repositório**:
 ```bash
 npm install          # Instala as dependências de todos os workspaces
 npm run web          # Inicia o admin-web em desenvolvimento (porta 3000)
-npm test             # 44 testes do Core (node:test, sem dependências)
-npm run modulos:verificar   # 🆕 o verificador de LEGO (plataforma × módulos)
+npm test             # 90 testes do Core (node:test, sem dependências)
+npm run modulos:verificar   # o verificador de LEGO (plataforma × módulos)
 npm run verificar    # testes + verificador + lint + build, em sequência
+npm run ensaio       # 🆕 O ENSAIO GERAL: as SEIS provas de uma vez, banco incluído
 ```
 
 > 🧪 **O SQL TAMBÉM PODE SER VALIDADO AQUI, E DEVE SER** (a partir de 2026-09-12):
@@ -139,6 +143,15 @@ npm run verificar    # testes + verificador + lint + build, em sequência
 > degrau, todo arquivo SQL ia para a mão do dono do projeto sem nunca ter sido executado.
 > O que o ambiente local **não** prova: GoTrue (login, OAuth), PostgREST e configurações
 > de painel. Ver o `README.md` daquela pasta.
+
+> 🎭 **DESDE 18/09/2026, UM COMANDO SÓ FAZ TUDO ISSO: `npm run ensaio`.**
+> `scripts/ensaio-geral.mjs` roda as SEIS provas em sequência — testes do Core, verificador
+> de LEGO, lint, build, banco PostgreSQL descartável com **todas** as travas (plataforma e
+> módulos) e, por fim, o **ENSAIO DE UPGRADE**: ele monta um banco com o schema do ÚLTIMO
+> COMMIT e aplica o de agora por cima, que é o que pega SOBRECARGA de função. Ele descobre
+> os módulos plugados varrendo as pastas `supabase/criar-bd-<nome>`; não há nome de módulo
+> escrito nele, e por isso continua sendo arquivo de plataforma. Sem PostgreSQL na máquina,
+> os dois últimos passos são PULADOS com aviso — nunca dados como aprovados.
 
 > ⚠️ **O DONO DO PROJETO NÃO RODA NADA DISSO** (dito em 2026-09-12): o ciclo dele é
 > **enviar ao GitHub → a Vercel constrói → ele abre o sistema publicado e testa**, e o
@@ -182,8 +195,18 @@ existe rede de proteção e convidava a entregar código sem rodar nada.
 **A verdade:** a **raiz** tem `npm test`, e ele roda **44 testes** de verdade:
 
 ```bash
-npm test     # node --test "packages/core/**/*.test.ts"  → 44 testes, sem dependência externa
+npm test     # node --test "packages/core/**/*.test.ts"  → 90 testes, sem dependência externa
 ```
+
+⚠️ **ESTE NÚMERO JÁ MENTIU DUAS VEZES** (dizia 44 quando eram 69, e depois quando eram
+90). **Conte antes de citar:** `npm test 2>&1 | grep "^. tests"`.
+
+⚠️ **ARQUIVO COM TESTE É ARQUIVO SEM DEPENDÊNCIA, NESTE PROJETO.** O `node --test` **não**
+resolve import sem extensão: `from '../../lib/datas'` dentro de um arquivo testado estoura
+com `ERR_MODULE_NOT_FOUND`. E escrever `'../../lib/datas.ts'` **quebra o build**, porque o
+`tsconfig.json` do admin-web não liga `allowImportingTsExtensions` (TS5097). Quando um
+arquivo testado precisa de algo de fora, **passe por parâmetro** — foi o que se fez com os
+rótulos dos meses em `dashboardRegras.ts`.
 
 Os arquivos de teste vivem **dentro do `packages/core`**, ao lado do que eles testam
 (padrão `*.test.ts`). Os **apps** (`admin-web` e `mobile-app`) é que não têm script de
@@ -446,6 +469,13 @@ src/app/
     ├── modulos/page.tsx            → Desenvolvedor: contratar/descontratar módulo por empresa
     └── tenants/page.tsx
 ```
+
+> 🧩 **AS ROTAS DO MÓDULO NÃO ENTRAM NA LISTA ACIMA** (são do MÓDULO), mas quatro delas
+> nasceram em 18/09/2026 e valem um registro aqui pelo que ensinam:
+> `dashboards/contas-movimento`, `dashboards/contas-identificadoras`, `conferencia` e
+> `conferencia-identificadora`. **As duas de conferência NÃO estão no menu**, e isso é
+> cumprimento da decisão de 13/09 (uma só porta por pergunta): só se chega a elas clicando
+> no dashboard.
 
 > ⚠️ **AS DUAS ÚLTIMAS LINHAS FORAM CORRIGIDAS EM 17/09/2026.** Esta listagem
 > anunciava um `dashboard/tenants/actions.ts` que **não existe** — e omitia
@@ -1029,6 +1059,9 @@ inclusive numa máquina limpa — foi por isso que a versão com bcrypt foi reve
 - ❌ Nunca tornar clicável a linha de uma tabela sem cortar a propagação (`stopPropagation`) nas células que JÁ têm ação própria — a caixa de conferir e o botão do menu sobem o clique até a `<tr>`, e a ação pedida some sob a janela que abriu por cima; não quebra build, não acusa erro e só aparece no dedo de quem usa
 - ❌ Nunca montar uma ficha de detalhe com os campos que a linha da lista já tem — a função do extrato devolve o recorte que serve para somar saldo, não o registro inteiro; busque por `id`, sob demanda, em vez de alargar o `RETURNS TABLE` e fazer toda a lista carregar o que quase ninguém abre
 - ❌ Nunca editar **o próprio `CLAUDE.md`** (nem o `HISTORICO.md`) com script Python em modo texto — os dois são **CRLF**, e `open(...).read()` + `"\n".join(...)` reescreve as ~1.100 quebras de linha em silêncio: em 17/09/2026 isso transformou um diff de **84 linhas** em **1.349**, escondendo a alteração real. Antes de editar por script, **meça**: `python -c "print(b'\r\n' in open('CLAUDE.md','rb').read())"`. Em arquivo CRLF, use a ferramenta de edição ou leia/escreva em binário
+- ❌ Nunca supor que um arquivo é LF porque a extensão dele "costuma ser" — **`financeiro_01_schema.sql`, `financeiro_00_reset.sql`, `teste_financeiro.sql` e `datas.test.ts` são CRLF**, e em 18/09/2026 um `head`+`cat`+`tail` e um `sed` do Git Bash os converteram para LF em silêncio: o diff do schema saiu com **2.885 linhas** onde a alteração real era de **611**. **MEÇA ANTES DE EDITAR POR SCRIPT, arquivo a arquivo**: `node -e "console.log(require('fs').readFileSync(process.argv[1]).includes(Buffer.from('\r\n')))" ARQUIVO`. E **confira depois**: `git diff --numstat` contra `git diff --numstat --ignore-cr-at-eol` — se os dois números não baterem, as quebras de linha foram reescritas
+- ❌ Nunca capturar a saída de `pg_ctl start` num `spawnSync` — o SERVIDOR que ele deixa de pé HERDA o pipe, e o `spawnSync` só retorna quando o pipe fecha, ou seja, quando o banco morre; medido em 18/09/2026, o script ficou **quinze minutos parado com 0% de CPU e sem mensagem nenhuma**. Use `stdio: 'ignore'`: a saída do servidor já vai para o arquivo do `-l`
+- ❌ Nunca tratar "o arquivo de prova não devolveu veredito nenhum" como aprovação — ou ele estourou antes do `SELECT` final, ou quem lê a saída está lendo errado (em 18/09/2026 o ensaio procurava `| OK |` num veredito que é a ÚLTIMA coluna e termina em `| OK`, sem barra); **"não sei" é vermelho**
 - ❌ Nunca editar os `.html` de `_estudos/` com script que leia em modo texto sem `newline=''` — eles são **CRLF** (os `.ts`/`.tsx` são LF), e a leitura em modo texto reescreve as ~2.400 quebras de linha em silêncio: o diff de uma alteração de quatro trechos vira 2.400 linhas e esconde a mudança real
 - ❌ Nunca tratar `[]` e `NULL` como a mesma coisa num parâmetro de SELEÇÃO — `NULL` quer dizer "não estou escolhendo, leve tudo" e `[]` quer dizer "desmarquei tudo, não leve nada"; confundi-los faz o botão DESMARCAR TODOS apagar o mês inteiro, que é o contrário exato do que a pessoa pediu (vale no SQL, no serviço do Core e na tela — os três têm trava para isso)
 - ❌ Nunca deixar um parâmetro que RESTRINGE uma operação destrutiva (uma lista de ids) SUBSTITUIR o filtro em vez de se somar a ele — os ids escolhem DENTRO da fronteira, nunca a dispensam; valendo sozinhos, uma chamada forjada apagaria qualquer registro da empresa, de qualquer data, driblando a conferência de período que a tela mostrou (trava 32 do `teste_financeiro.sql`)
@@ -1051,6 +1084,15 @@ inclusive numa máquina limpa — foi por isso que a versão com bcrypt foi reve
 - ❌ Nunca detectar "há módulo instalado" num arquivo da plataforma procurando o NOME de uma tabela de módulo (`to_regclass('public.fin_…')`) — seria uma quarta solda clandestina e ficaria cega para o segundo módulo; procure **o dano**: chave estrangeira de tabela que não é da plataforma apontando para tabela que o script vai derrubar, mais linha sobrando em `platform_modules`
 - ❌ Nunca escrever num documento um número que foi contado à mão sem, na mesma linha, o comando que o recalcula — em 17/09/2026 três números estavam errados ao mesmo tempo (CLAUDE.md dizia 25 funções onde há 27; `LEIA-ME-ORDEM.md` dizia "os 8 arquivos" listando 10; o README do ambiente local dizia "14 linhas, todas PASSOU" onde o teste tem 16) e nenhum deles quebra nada — eles só ensinam o errado
 - ❌ Nunca supor que o `npm run modulos:verificar` entende comentário de várias linhas — o `ehComentario` dele é **linha a linha** (`scripts/verificar-modulos.mjs`), então a linha de continuação de um `{/* … */}` que não começa com `//`, `*` ou `--` é acusada como código; é falso positivo, mas a correção certa é tirar o nome do módulo do comentário, nunca relaxar o verificador
+- ❌ Nunca somar SALDOS de meses diferentes — saldo é acumulado, e a soma de doze saldos finais é a soma de doze fotografias do MESMO dinheiro (como somar o peso de uma pessoa medido em doze meses e dizer que ela pesa 280 kg); o número do ano é a coluna de DEZEMBRO. Valor de FLUXO (o que passou no mês) se soma; valor ACUMULADO não
+- ❌ Nunca chamar de "saldo" um número de conta IDENTIFICADORA — ela não tem `saldo_abertura_centavos` no banco: ela explica dinheiro, não guarda; a coluna da conferência dela chama-se **ACUMULADO**, começa em zero e não tem linha de "SALDO INICIAL"
+- ❌ Nunca esconder cadastro DESATIVADO de um RELATÓRIO de saldos — a RN-06 manda o inativo sumir das listas de LANÇAMENTO, e está certa; num relatório, encerrar uma conta com dinheiro dentro faria o TOTAL encolher em silêncio (marque como INATIVA e mostre)
+- ❌ Nunca deixar a TELA somar as linhas de total de um dashboard — elas vêm do banco junto com as linhas das contas, marcadas por `linha_tipo`, exatamente como o `fin_extrato` já faz; com duas contas do mesmo número, um dia a tela e o papel divergem
+- ❌ Nunca fazer import de RUNTIME num arquivo do Core que tenha teste — o `node --test` não resolve caminho sem extensão (`ERR_MODULE_NOT_FOUND`) e o `.ts` explícito quebra o `next build` (TS5097, `allowImportingTsExtensions` desligado); o que vier de fora entra por PARÂMETRO
+- ❌ Nunca copiar parâmetro de URL para dentro do estado com `useEffect` — além de o ESLint recusar (`react-hooks/set-state-in-effect`), a cópia desfaz na renderização seguinte o que a pessoa acabou de digitar; o estado nasce `null` e o valor em uso é `estado ?? o que veio na URL`
+- ❌ Nunca escrever curinga de caminho terminado em asterisco-barra dentro de comentário de bloco — esse par FECHA o comentário, o resto do texto vira código, e o erro de sintaxe aparece dezenas de linhas depois da causa
+- ❌ Nunca usar `shell: true` no `spawnSync` com caminho ABSOLUTO no Windows — "C:\Program Files\..." quebra no espaço e o processo tenta rodar "C:\Program"; o `shell` só é necessário para comando de nome curto (`npm`, que lá é um `.cmd`)
+- ❌ Nunca mandar tabela de 13 ou 14 colunas para A4 em RETRATO — sobram 1,20 cm por coluna e "27.650,00" não cabe; use o campo `orientacao: "paisagem"` do `prepararImpressao.ts` (ausente = retrato, como sempre foi)
 - ❌ Nunca criar arquivo com múltiplas responsabilidades distintas
 - ❌ Nunca misturar lógica de plataforma com módulo, nem módulo com módulo
 - ❌ Nunca usar `toISOString()` para datas que precisam respeitar UTC-3

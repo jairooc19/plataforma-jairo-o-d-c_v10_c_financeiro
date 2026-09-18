@@ -25,6 +25,11 @@ import {
   mesAnterior,
   mesSeguinte,
   rotuloDoMes,
+  anoAtual,
+  anoDe,
+  anoInteiro,
+  mesDoAno,
+  MESES_CURTOS,
 } from './datas.ts';
 
 test('dataLocalISO usa o calendário local, não UTC', () => {
@@ -162,4 +167,51 @@ test('sem argumento, os atalhos partem de hoje', () => {
   assert.equal(atual.ate, ultimoDiaDoMes(hoje));
   assert.equal(somarDias(mesAnterior().ate, 1), atual.de);
   assert.equal(somarDias(atual.ate, 1), mesSeguinte().de);
+});
+
+// ===========================================================================
+// O ANO INTEIRO — 18/09/2026 (os dashboards de janeiro a dezembro)
+// ===========================================================================
+
+test('anoInteiro vai de 1º de janeiro a 31 de dezembro', () => {
+  assert.deepEqual(anoInteiro(2026), { de: '2026-01-01', ate: '2026-12-31' });
+  assert.deepEqual(anoInteiro(2024), { de: '2024-01-01', ate: '2024-12-31' });
+});
+
+test('mesDoAno acerta fevereiro, inclusive no ano bissexto', () => {
+  // É o caso em que a conta feita à mão erra, e erra em silêncio.
+  assert.deepEqual(mesDoAno(2026, 2), { de: '2026-02-01', ate: '2026-02-28' });
+  assert.deepEqual(mesDoAno(2024, 2), { de: '2024-02-01', ate: '2024-02-29' });
+});
+
+test('mesDoAno acerta os meses de 30 e de 31 dias', () => {
+  assert.deepEqual(mesDoAno(2026, 1),  { de: '2026-01-01', ate: '2026-01-31' });
+  assert.deepEqual(mesDoAno(2026, 4),  { de: '2026-04-01', ate: '2026-04-30' });
+  assert.deepEqual(mesDoAno(2026, 12), { de: '2026-12-01', ate: '2026-12-31' });
+});
+
+test('mesDoAno recusa mês fora de 1 a 12, em vez de devolver outro ano', () => {
+  // `new Date(2026, 12, 1)` seria JANEIRO DE 2027, sem erro nenhum — e a tela
+  // mostraria o mês errado com o rótulo certo. Recusar é a única saída honesta.
+  assert.throws(() => mesDoAno(2026, 0),  /Mês inválido/);
+  assert.throws(() => mesDoAno(2026, 13), /Mês inválido/);
+  assert.throws(() => mesDoAno(2026, 1.5), /Mês inválido/);
+});
+
+test('anoDe lê o ano da data de calendário, sem passar por UTC', () => {
+  assert.equal(anoDe('2026-01-01'), 2026);
+  // 31/12 é o caso que o fuso estragaria: em UTC viraria 1º de janeiro de 2027.
+  assert.equal(anoDe('2026-12-31'), 2026);
+});
+
+test('anoAtual concorda com hojeISO', () => {
+  assert.equal(anoAtual(), anoDe(hojeISO()));
+});
+
+test('MESES_CURTOS tem os 12 meses, em três letras e sem ponto', () => {
+  assert.equal(MESES_CURTOS.length, 12);
+  assert.equal(MESES_CURTOS[0], 'JAN');
+  assert.equal(MESES_CURTOS[11], 'DEZ');
+  // O ponto de "set." do Intl é justamente o que esta lista existe para evitar.
+  assert.ok(MESES_CURTOS.every((m) => m.length === 3 && m === m.toUpperCase()));
 });

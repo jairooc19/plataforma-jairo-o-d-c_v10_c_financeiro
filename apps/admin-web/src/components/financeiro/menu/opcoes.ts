@@ -86,7 +86,37 @@ export const OPCOES: ItemDeMenu[] = [
       },
     ],
   },
-  { rotulo: "DASHBOARDS", icone: "dashboards", emDesenvolvimento: true },
+  /**
+   * 📊 OS DOIS DASHBOARDS — 18/09/2026.
+   *
+   * ⚠️ AS DUAS TELAS DE CONFERÊNCIA QUE ELES ABREM **NÃO** ENTRAM NESTA LISTA,
+   * e isso é cumprimento da decisão escrita logo acima, em LANÇAMENTOS: não
+   * deve haver entrada de menu para uma terceira tela de extrato, porque criaria
+   * duas respostas para a mesma pergunta. Continua havendo UMA porta no menu; o
+   * que passou a existir é um ATALHO, alcançável só clicando no dashboard.
+   *
+   * ⚠️ OS DOIS EXIGEM `extrato_ver`, E NENHUMA PERMISSÃO NOVA FOI CRIADA. Ela
+   * já se chama, na tela de permissões, "VER A CONFERÊNCIA DA CONTA (SALDOS)" —
+   * que é exatamente o que um dashboard de saldos mostra. Continuam sendo 18.
+   */
+  {
+    rotulo: "DASHBOARDS",
+    icone: "dashboards",
+    filhos: [
+      {
+        rotulo: "SALDOS POR CONTA MOVIMENTO",
+        icone: "contaMovimento",
+        href: "/dashboard/financeiro/dashboards/contas-movimento",
+        exige: "extrato_ver",
+      },
+      {
+        rotulo: "MOVIMENTO POR CONTA IDENTIFICADORA",
+        icone: "contaIdentificadora",
+        href: "/dashboard/financeiro/dashboards/contas-identificadoras",
+        exige: "extrato_ver",
+      },
+    ],
+  },
   { rotulo: "ORÇAMENTO",  icone: "orcamento",  emDesenvolvimento: true },
 ];
 

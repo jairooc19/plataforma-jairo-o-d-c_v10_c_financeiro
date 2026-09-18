@@ -25,6 +25,12 @@ import IconeFin from "@/components/financeiro/IconeFin";
  * impressão, que também carimba a data e o endereço. Escrever "Página 1" fixo
  * no rodapé seria pior que não numerar: mentiria a partir da segunda folha.
  *
+ * ⚠️ 18/09/2026 — O PAPEL PODE SAIR DEITADO, e a regra do `@page` é gerada
+ * em JavaScript por causa disso. `size: A4 landscape` não pode ficar escrito
+ * fixo: a CONFERÊNCIA DA CONTA e a PESQUISAR continuam em pé, e só os
+ * dashboards pedem paisagem. Quem não manda `orientacao` recebe o retrato de
+ * sempre — mudança aditiva, sem efeito em quem não pediu.
+ *
  * ⚠️ E O `setTimeout` DE 100ms NÃO É SUPERSTIÇÃO: `window.print()` congela a
  * página no estado em que ela está. Sem a pausa, o navegador pode abrir o
  * diálogo antes de ter repintado com a classe nova — e sai colorido quando se
@@ -80,7 +86,7 @@ export default function ImprimirPage() {
   return (
     <>
       <style>{`
-        @page { size: A4; margin: 0.8cm 0.8cm 1.5cm; }
+        @page { size: A4 ${conteudo.orientacao === "paisagem" ? "landscape" : "portrait"}; margin: 0.8cm 0.8cm 1.5cm; }
         @media print {
           .print-container { display: none !important; }
           body { margin: 0; padding: 0; }
@@ -155,7 +161,10 @@ export default function ImprimirPage() {
           </thead>
           <tbody>
             {conteudo.linhas.map((linha, i) => (
-              <tr key={i} className={i % 2 === 1 ? "bg-slate-50" : ""}>
+              <tr key={i}
+                  className={`${i % 2 === 1 ? "bg-slate-50" : ""} ${
+                    conteudo.linhasDestaque?.includes(i) ? "font-black" : ""
+                  }`}>
                 {linha.map((celula, j) => (
                   <td key={j}
                       className={`px-2 py-1 border border-slate-300 ${

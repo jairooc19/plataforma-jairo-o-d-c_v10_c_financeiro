@@ -11,7 +11,8 @@
     "lint:web": "npm run lint -w @jairo/admin-web",
     "test": "node --test \"packages/core/**/*.test.ts\"",
     "modulos:verificar": "node scripts/verificar-modulos.mjs",
-    "verificar": "npm run test && npm run modulos:verificar && npm run lint:web && npm run build:web"
+    "verificar": "npm run test && npm run modulos:verificar && npm run lint:web && npm run build:web",
+    "ensaio": "node scripts/ensaio-geral.mjs"
   },
   "overrides": {
     "react": "19.2.3",

@@ -17,6 +17,155 @@ todas foram pagas com um defeito em produção.
 
 ---
 
+**2026-09-18 — v10: os dois dashboards de saldos por mês, e as duas conferências que eles abrem**
+
+Ele pediu dois dashboards de janeiro a dezembro: um com o **saldo final de cada conta
+movimento** (CAIXA e BANCO num bloco com total, OUTRAS noutro) e outro com o **movimento de
+cada conta identificadora** (receitas primeiro, despesas, e OUTRAS, cada tipo totalizado).
+Em ambos, clicar no nome da conta abre a conferência do ano; clicar na célula abre a do mês.
+Mais imprimir e exportar .TSV. Um estudo foi entregue antes
+(`_estudos/estudo-2026-09-18-dashboards-saldos-por-mes.html`), com seis perguntas; ele
+aceitou todas as recomendações e **todos os 12 bônus**.
+
+> 🧱 **O ACHADO DO DIA FOI UM MURO, NÃO UM PRESENTE.** A "CONFERÊNCIA DA CONTA" que ele
+> mandou abrir **não é uma tela**: é a coluna direita de "Novo Lançamento". E aquela tela
+> começa recusando quem não tem `lc_criar`, com a mensagem "VOCÊ NÃO TEM PERMISSÃO PARA
+> CRIAR LANÇAMENTOS". Ou seja: o contador ou o sócio que só confere — exatamente quem mais
+> precisa de um dashboard — clicaria numa célula e receberia uma recusa que **nem responde
+> ao que ele pediu**. Pior: com as permissões padrão de Dependente o defeito não aparece,
+> porque elas incluem `lc_criar`. Só apareceria com quem foi configurado à mão.
+
+A saída foi criar `/dashboard/financeiro/conferencia`, que exige apenas `extrato_ver`. Isso
+esbarra numa decisão de 13/09 escrita em `menu/opcoes.ts` ("não deve haver entrada de menu
+para uma terceira tela de extrato — criaria duas respostas para a mesma pergunta"), e ela
+**continua valendo ao pé da letra**: a tela nova **não entra no menu**; só se chega a ela
+clicando no dashboard. Continua havendo uma porta; o que nasceu foi um atalho. E não há
+segunda cópia de nada — a tabela é o mesmo `ExtratoDaConta.tsx`, os atalhos de mês são o
+mesmo `AtalhosDeMes.tsx`, e os números vêm da mesma `fin_extrato`.
+
+**A verdade incômoda sobre o segundo dashboard.** Ele pediu "saldos finais por conta
+identificadora", e a palavra não cabe: a conta movimento tem `saldo_abertura_centavos` —
+ela GUARDA dinheiro. A identificadora não tem coluna nenhuma de saldo: ela EXPLICA dinheiro.
+"ENERGIA ELÉTRICA" não tem saldo, como o motivo de uma viagem não tem quilometragem. Então
+cada célula ali é o **movimento líquido do mês**, sem acumular — e isso decide, sozinho, uma
+diferença visível entre as duas telas:
+
+| | Dashboard 1 (contas movimento) | Dashboard 2 (identificadoras) |
+|---|---|---|
+| A célula de março é | o saldo em **31/03** (acumulado) | o que passou **em março** |
+| Mês sem lançamento | **repete** o saldo anterior | fica em zero |
+| Coluna TOTAL DO ANO | **não existe** | **existe** |
+
+> ⚠️ **SOMAR DOZE SALDOS FINAIS DÁ UM NÚMERO QUE NUNCA EXISTIU.** É a soma de doze
+> fotografias do mesmo dinheiro — como somar o peso de uma pessoa medido em doze meses e
+> dizer que ela pesa 280 kg. O número do ano já está na tela: é a coluna DEZEMBRO. Já no
+> dashboard 2, somar doze fluxos dá "quanto gastei de energia no ano", que é provavelmente o
+> número mais útil daquela tela. A regra geral: **valor acumulado não se soma entre
+> períodos; valor de fluxo se soma.**
+
+**Quatro funções novas no banco** (25 → 29), e a primeira existe por aritmética: chamar
+`fin_extrato` doze vezes por conta seriam **240 idas ao banco** numa empresa com 20 contas,
+só para desenhar uma tela. Agora é uma.
+
+| Função | O que responde |
+|---|---|
+| `fin_saldos_mensais_movimento(tenant, ano)` | a grade inteira do dashboard 1, com as linhas de TOTAL já somadas |
+| `fin_movimentos_mensais_identificadora(tenant, ano)` | a do dashboard 2, com os totais e a linha RESULTADO |
+| `fin_extrato_identificadora(tenant, conta, de, ate)` | a conferência nova, espelhada |
+| `fin_extrato_consolidado(tenant, contas[], de, ate)` | o extrato de VÁRIAS contas somadas (o clique na linha de TOTAL) |
+
+> ⚠️ **AS LINHAS DE TOTAL VÊM DO BANCO, NÃO DA TELA.** É a mesma regra que a exclusão em
+> lote pagou em 17/09 ("quem conta tem de ser quem executa"), agora na leitura: a tela, o
+> papel impresso e o arquivo .TSV mostram o mesmo número porque **nenhum dos três soma**.
+
+> ⚠️ **A CONTA DESATIVADA CONTINUA NO RELATÓRIO, e isso contraria a RN-06 de propósito.**
+> A RN-06 manda o inativo sumir das listas — certíssimo para LANÇAR. Num relatório de saldos
+> seria desastre: encerrar em julho uma conta com R$ 6.800,00 dentro faria o TOTAL de
+> janeiro a julho encolher **em silêncio**. Ela aparece marcada como INATIVA. Trava 36.
+
+> ⚠️ **`[]` NÃO É `NULL`, AGORA TAMBÉM NA LEITURA.** Em `fin_extrato_consolidado`, `NULL`
+> quer dizer "não estou escolhendo, leve todas as contas" e `{}` quer dizer "desmarquei
+> tudo, não leve nada". Confundi-los faria um DESMARCAR TODOS mostrar o extrato inteiro da
+> empresa. É a lição de 17/09 repetida do outro lado. Trava 40.
+
+**As armadilhas encontradas construindo — todas medidas, nenhuma suposta:**
+
+1. **O `npm test` não resolve import sem extensão.** `from '../../lib/datas'` dentro de um
+   arquivo com teste estoura com `ERR_MODULE_NOT_FOUND` no `node --test`. E escrever
+   `'../../lib/datas.ts'` **quebraria o build**: o `tsconfig.json` do admin-web não liga
+   `allowImportingTsExtensions`, e o `next build` recusa com TS5097. Saída: os rótulos dos
+   meses **chegam por parâmetro** em `dashboardRegras.ts` e `dashboardRelatorio.ts`. Eles
+   continuam tendo uma casa só (`MESES_CURTOS`, em `lib/datas.ts`, com teste lá). É o mesmo
+   motivo pelo qual `importacao.ts` não importa nada: **arquivo com teste é arquivo sem
+   dependência**.
+
+2. **Copiar a URL para o estado é recusado pelo ESLint — e ele está certo.** A tentação era
+   um `useEffect` lendo `?conta=&de=&ate=` e chamando `setState`; além do
+   `react-hooks/set-state-in-effect`, ele precisaria de uma guarda de "só na primeira vez",
+   senão trocar o mês na tela seria **desfeito na renderização seguinte** pela URL antiga. O
+   desenho que ficou: o estado nasce `null` ("ainda não mexi nisto") e o valor em uso é
+   `estado ?? o que veio na URL`. Sem efeito, sem guarda, sem cópia.
+
+3. **Um curinga de caminho fechou um comentário de bloco.** Escrever a pasta de módulo com
+   asterisco e barra no fim, dentro de um `/** … */`, fecha o comentário ali — e o
+   `scripts/ensaio-geral.mjs` inteiro virou erro de sintaxe, apontado pelo Node **trinta
+   linhas depois da causa**.
+
+4. **`shell: true` no Windows quebra caminho com espaço.** `spawnSync` com
+   `"C:\Program Files\PostgreSQL\18\bin\initdb"` e `shell: true` tenta rodar
+   `"C:\Program"`. O sintoma foi mudo: "initdb falhou", sem dizer por quê. O `shell` agora
+   só entra em comando de nome curto (`npm`), que no Windows é um `.cmd`.
+
+5. **`pg_ctl start` com a saída capturada NUNCA RETORNA.** O servidor que ele deixa de pé
+   herda o pipe do `spawnSync`, e o `spawnSync` só volta quando o pipe fecha — ou seja,
+   quando o banco morre. O script ficou **quinze minutos parado, com 0% de CPU e sem
+   mensagem nenhuma**, com o PostgreSQL no ar. `stdio: "ignore"` resolve: sem pipe não há
+   o que esperar, e a saída do servidor já ia para o arquivo do `-l`.
+
+6. **Quatro arquivos que "deviam ser LF" eram CRLF, e o pipeline os converteu.** O diff do
+   `financeiro_01_schema.sql` saiu com **2.885 linhas** onde a alteração real era de
+   **611** — exatamente o estrago que a regra do `CLAUDE.md` já descrevia para o próprio
+   `CLAUDE.md` e para os `.html` de `_estudos`, agora em `.sql` e em `.test.ts`. A defesa
+   que ficou escrita como regra: comparar `git diff --numstat` com
+   `git diff --numstat --ignore-cr-at-eol`; se os números não baterem, as quebras de linha
+   foram reescritas e o diff está escondendo a alteração de verdade.
+
+7. **O ensaio deu vermelho nos dois inventários que estavam perfeitos.** Ele procurava
+   `| OK |` num veredito que é a ÚLTIMA coluna da tabela e termina em `| OK`, sem barra
+   depois. Ficou a regra: contagem zero de veredito é FALHA, nunca aprovação — um arquivo
+   de prova que não imprime veredito nenhum ou estourou, ou está sendo lido errado, e
+   "não sei" é vermelho.
+
+8. **A trava 39 nasceu errada e acusou na primeira execução.** Ela esperava receita de
+   6.100,00 em março, esquecendo que a mesma identificadora recebeu 1.000,00 noutra conta
+   movimento — e o dashboard 2 soma **todas** as contas, porque olha o dinheiro pelo motivo,
+   não pelo lugar. Foi o primeiro serviço que ela prestou, antes de existir tela.
+
+**O bônus que mais muda o dia a dia: `npm run ensaio`.** Ele roda as seis provas de uma vez
+— testes do Core, verificador de LEGO, lint, build, banco descartável com todas as travas,
+e o **ensaio de upgrade**: monta um banco com o schema do último commit e aplica o de agora
+por cima, que é o que pega a SOBRECARGA de função (já aconteceu três vezes neste projeto).
+Antes eram seis comandos à mão, um deles com nove passos numa folha de instruções — o que
+mais tomava tempo em todas as rodadas, e o mais fácil de pular na pressa.
+
+Os outros bônus aceitos: cadeado no mês fechado, vermelho no saldo negativo, primeira coluna
+congelada ao rolar, linha RESULTADO, caixa para ocultar a transferência (que **esconde a
+linha e não mexe no total**, porque o total tem de bater com a conferência), fundo
+acinzentado no mês futuro (saldo à frente é previsão, não fato), dica de entradas e saídas
+ao passar o mouse, aviso quando o ano está vazio, nome da empresa e exercício na tela, e o
+botão de imprimir visível-e-apagado em vez de escondido.
+
+**Nenhuma permissão nova.** `extrato_ver` já se chama, na tela de permissões, "VER A
+CONFERÊNCIA DA CONTA (SALDOS)" — continuam sendo 18, e ninguém precisa reconfigurar a
+equipe. O item DASHBOARDS do menu deixou de dizer "EM DESENVOLVIMENTO".
+
+**Placar:** `npm test` **90/90** · `teste_financeiro.sql` **40/40** · `teste_rls.sql`
+**16/16** · `inventario_financeiro.sql` **17/17** · LEGO 0 violações · lint e build limpos ·
+ensaio de upgrade sem sobrecarga · **as 6 travas novas vistas FALHAR**, cada uma por uma
+mutação diferente aplicada de propósito na função que ela protege.
+
+---
+
 **2026-09-17 (terceira rodada) — v10: marcar registro a registro, reabrir todas as contas e limpar a lixeira**
 
 Ele testou as telas da rodada anterior e pediu três coisas, todas nascidas do uso real:

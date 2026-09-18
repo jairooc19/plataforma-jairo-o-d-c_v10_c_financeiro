@@ -12,6 +12,31 @@ Esta pasta remove essa dependência. Com o PostgreSQL instalado na máquina, o
 > daria erro. O `00_supabase_falso.sql` só serve numa instância local e
 > descartável.
 
+## 🎭 ANTES DE TUDO: `npm run ensaio` faz o que está abaixo sozinho
+
+Desde 18/09/2026, **esta folha de instruções virou o plano B**. O comando
+
+```bash
+npm run ensaio
+```
+
+(`scripts/ensaio-geral.mjs`, na raiz) sobe a instância descartável, cria o banco,
+aplica a plataforma **e todos os módulos que encontrar**, roda todas as travas e
+todos os inventários, e ainda faz o passo que ninguém fazia à mão: o **ENSAIO DE
+UPGRADE** — monta um segundo banco com o schema do último commit e aplica o de
+agora por cima, que é o que pega SOBRECARGA de função. No fim, derruba tudo e
+apaga a pasta de dados.
+
+> ⚠️ **SEM PostgreSQL NA MÁQUINA, ELE PULA OS DOIS ÚLTIMOS PASSOS COM AVISO** —
+> nunca os dá como aprovados. Se o PostgreSQL estiver em lugar fora do comum,
+> aponte com `PGBIN=/caminho/para/bin npm run ensaio`.
+
+Os passos manuais abaixo continuam valendo para quando se quer **mexer no banco**
+depois de montado (rodar um SELECT, testar uma função à mão) — coisa que o ensaio,
+que limpa tudo no fim, não permite.
+
+---
+
 ## Subir uma instância descartável (não mexe no PostgreSQL que já está na máquina)
 
 ```bash

@@ -1707,6 +1707,404 @@ END;
 $$;
 
 
+
+-- ===========================================================================
+-- PREPARAÇÃO DO BLOCO DOS DASHBOARDS (18/09/2026) — testes 35 a 40
+-- ===========================================================================
+--
+-- ⚠️ ESTE BLOCO CRIA OS PRÓPRIOS CADASTROS, com nomes que começam por "DASH".
+-- É a regra escrita no CLAUDE.md: "nunca escrever teste que dependa do estado
+-- deixado por outro teste do mesmo arquivo — inserir um terceiro no meio quebra
+-- o primeiro, apontando para o lugar errado".
+--
+-- O ano usado é 2026, e os valores foram escolhidos para que a conta possa ser
+-- conferida a olho:
+--
+--   DASH CAIXA (CAIXA, abertura 1.000,00)
+--     JAN   entrou 5.000,00   saiu 4.750,00   →   +250,00  → saldo 1.250,00
+--     FEV   entrou 3.200,00   saiu 3.470,00   →   −270,00  → saldo   980,00
+--     MAR   entrou 6.100,00   saiu 4.980,00
+--           + estorno de 500,00 (ENTRADA numa conta de DESPESA — RN-13)
+--                                             → +1.620,00  → saldo 2.600,00
+--     ABR   (nenhum lançamento em CAIXA)                   → saldo 2.600,00
+--     ABR   9.999,00 em COMPETÊNCIA  → NÃO pode mexer em nada (RN-19)
+--
+--   DASH BANCO (BANCO, abertura 0)
+--     MAR   entrou 1.000,00                                → saldo 1.000,00
+--
+--   TOTAL CAIXA+BANCO de MARÇO = 2.600,00 + 1.000,00 = 3.600,00
+--
+--   E, do lado das identificadoras, MARÇO fica assim:
+--
+--   ⚠️ REPARE QUE A RECEITA SOMA AS DUAS CONTAS MOVIMENTO. A identificadora
+--   "DASH VENDA" recebeu 6.100,00 no CAIXA e 1.000,00 no BANCO, e o dashboard 2
+--   junta as duas: ele olha o dinheiro pelo MOTIVO, não pelo lugar. Esta linha
+--   do teste nasceu esperando 6.100,00 e ACUSOU na primeira execução — foi o
+--   primeiro serviço que a trava 39 prestou, antes mesmo de existir tela.
+--
+--     DASH VENDA   (RECEITA)  entrou 6.100,00 + 1.000,00    → líquido 7.100,00
+--     DASH ENERGIA (DESPESA)  saiu 4.980,00, voltou 500,00  → líquido 4.480,00
+--     RESULTADO de março = 7.100,00 − 4.480,00              =        2.620,00
+DO $$
+DECLARE
+  v_cx  uuid; v_bc uuid; v_ou uuid;
+  v_rec uuid; v_des uuid;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+
+  v_cx  := (public.fin_gravar_conta_movimento('aa000000-0000-0000-0000-0000000000a1', NULL, 'DASH CAIXA', 'CAIXA',  100000, true)->>'id')::uuid;
+  v_bc  := (public.fin_gravar_conta_movimento('aa000000-0000-0000-0000-0000000000a1', NULL, 'DASH BANCO', 'BANCO',       0, true)->>'id')::uuid;
+  v_ou  := (public.fin_gravar_conta_movimento('aa000000-0000-0000-0000-0000000000a1', NULL, 'DASH OUTRA', 'OUTRAS',      0, true)->>'id')::uuid;
+  v_rec := (public.fin_gravar_identificadora('aa000000-0000-0000-0000-0000000000a1', NULL, 'DASH VENDA',  'RECEITA', true)->>'id')::uuid;
+  v_des := (public.fin_gravar_identificadora('aa000000-0000-0000-0000-0000000000a1', NULL, 'DASH ENERGIA','DESPESA', true)->>'id')::uuid;
+
+  -- JANEIRO
+  PERFORM public.fin_gravar_lancamento('aa000000-0000-0000-0000-0000000000a1', NULL, v_cx, v_rec, DATE '2026-01-10', NULL, 'ENTRADA','PROPRIO','CAIXA', 500000, 'DASH JAN E');
+  PERFORM public.fin_gravar_lancamento('aa000000-0000-0000-0000-0000000000a1', NULL, v_cx, v_des, DATE '2026-01-20', NULL, 'SAIDA',  'PROPRIO','CAIXA', 475000, 'DASH JAN S');
+  -- FEVEREIRO
+  PERFORM public.fin_gravar_lancamento('aa000000-0000-0000-0000-0000000000a1', NULL, v_cx, v_rec, DATE '2026-02-10', NULL, 'ENTRADA','PROPRIO','CAIXA', 320000, 'DASH FEV E');
+  PERFORM public.fin_gravar_lancamento('aa000000-0000-0000-0000-0000000000a1', NULL, v_cx, v_des, DATE '2026-02-20', NULL, 'SAIDA',  'PROPRIO','CAIXA', 347000, 'DASH FEV S');
+  -- MARÇO
+  PERFORM public.fin_gravar_lancamento('aa000000-0000-0000-0000-0000000000a1', NULL, v_cx, v_rec, DATE '2026-03-10', NULL, 'ENTRADA','PROPRIO','CAIXA', 610000, 'DASH MAR E');
+  PERFORM public.fin_gravar_lancamento('aa000000-0000-0000-0000-0000000000a1', NULL, v_cx, v_des, DATE '2026-03-20', NULL, 'SAIDA',  'PROPRIO','CAIXA', 498000, 'DASH MAR S');
+  PERFORM public.fin_gravar_lancamento('aa000000-0000-0000-0000-0000000000a1', NULL, v_bc, v_rec, DATE '2026-03-15', NULL, 'ENTRADA','PROPRIO','CAIXA', 100000, 'DASH BANCO MAR');
+  -- ABRIL, em COMPETÊNCIA: não é dinheiro que andou, não pode entrar em saldo nenhum
+  PERFORM public.fin_gravar_lancamento('aa000000-0000-0000-0000-0000000000a1', NULL, v_cx, v_des, DATE '2026-04-10', NULL, 'SAIDA',  'PROPRIO','COMPETENCIA', 999900, 'DASH COMPETENCIA');
+
+  -- O estorno de março na despesa, para os testes 39 e 40: pagou 4.980,00 e
+  -- recebeu 500,00 de volta no mesmo mês → a despesa do mês é 4.480,00.
+  PERFORM public.fin_gravar_lancamento('aa000000-0000-0000-0000-0000000000a1', NULL, v_cx, v_des, DATE '2026-03-25', NULL, 'ENTRADA','PROPRIO','CAIXA', 50000, 'DASH ESTORNO');
+
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 35 — a escada do saldo, o mês vazio e o TOTAL do bloco
+-- ===========================================================================
+--
+-- ⚠️ ESTE É O TESTE MAIS IMPORTANTE DOS SEIS. Ele prova as três afirmações que
+-- o dashboard faz e que, se estiverem erradas, ninguém percebe olhando a tela:
+--   (a) o saldo ACUMULA (março já contém janeiro e fevereiro);
+--   (b) mês sem lançamento REPETE o saldo anterior, não zera nem some;
+--   (c) a linha TOTAL é a soma das contas daquele bloco NAQUELE mês.
+-- E, de quebra, que COMPETÊNCIA não entra em lugar nenhum (RN-19).
+DO $$
+DECLARE
+  v_jan bigint; v_fev bigint; v_mar bigint; v_abr bigint;
+  v_total_mar bigint; v_erro text := 'nenhum';
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+
+  SELECT max(saldo_centavos) FILTER (WHERE mes = 1),
+         max(saldo_centavos) FILTER (WHERE mes = 2),
+         max(saldo_centavos) FILTER (WHERE mes = 3),
+         max(saldo_centavos) FILTER (WHERE mes = 4)
+    INTO v_jan, v_fev, v_mar, v_abr
+    FROM public.fin_saldos_mensais_movimento('aa000000-0000-0000-0000-0000000000a1', 2026)
+   WHERE linha_tipo = 'CONTA' AND nome = 'DASH CAIXA';
+
+  SELECT saldo_centavos INTO v_total_mar
+    FROM public.fin_saldos_mensais_movimento('aa000000-0000-0000-0000-0000000000a1', 2026)
+   WHERE linha_tipo = 'TOTAL' AND bloco = 'CAIXA_BANCO' AND mes = 3;
+
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    35,
+    CASE WHEN v_jan = 125000 AND v_fev = 98000 AND v_mar = 260000
+          AND v_abr = 260000 AND v_total_mar = 360000
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-19',
+    'Dashboard 1: saldo acumula, mes vazio repete o anterior e o TOTAL soma o bloco',
+    format('jan=%s (esp 125000); fev=%s (esp 98000); mar=%s (esp 260000); abr SEM lancamento=%s (esp 260000, repetindo marco); TOTAL CAIXA+BANCO de marco=%s (esp 360000); erro=%s',
+           v_jan, v_fev, v_mar, v_abr, v_total_mar, v_erro));
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 36 — a conta DESATIVADA com movimento continua no relatório
+-- ===========================================================================
+--
+-- ⚠️ POR QUE ISTO PRECISA DE UMA TRAVA. A RN-06 manda o cadastro inativo sumir
+-- das listas — e está certa para LANÇAR: ninguém deve lançar numa conta
+-- encerrada. Num RELATÓRIO DE SALDOS é o oposto: encerrar uma conta com
+-- dinheiro dentro faria o TOTAL encolher em silêncio, e o relatório mentiria de
+-- um jeito difícil de perceber. A trava fixa a decisão contrária, de propósito.
+DO $$
+DECLARE
+  v_bc uuid; v_saldo bigint; v_ativa boolean; v_total_mar bigint;
+BEGIN
+  SELECT id INTO v_bc FROM public.fin_contas_movimento
+   WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1' AND nome = 'DASH BANCO';
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+
+  -- desativa a conta que tem 1.000,00 dentro
+  PERFORM public.fin_gravar_conta_movimento('aa000000-0000-0000-0000-0000000000a1', v_bc, 'DASH BANCO', 'BANCO', 0, false);
+
+  SELECT saldo_centavos, is_active INTO v_saldo, v_ativa
+    FROM public.fin_saldos_mensais_movimento('aa000000-0000-0000-0000-0000000000a1', 2026)
+   WHERE linha_tipo = 'CONTA' AND nome = 'DASH BANCO' AND mes = 3;
+
+  SELECT saldo_centavos INTO v_total_mar
+    FROM public.fin_saldos_mensais_movimento('aa000000-0000-0000-0000-0000000000a1', 2026)
+   WHERE linha_tipo = 'TOTAL' AND bloco = 'CAIXA_BANCO' AND mes = 3;
+
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    36,
+    CASE WHEN v_saldo = 100000 AND v_ativa = false AND v_total_mar = 360000
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-06',
+    'Conta DESATIVADA com movimento continua no dashboard, marcada como inativa',
+    format('saldo de marco=%s (esp 100000); is_active=%s (esp f, para a tela marcar INATIVA); TOTAL do bloco=%s (esp 360000, sem encolher)',
+           v_saldo, v_ativa, v_total_mar));
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 37 — as quatro funções novas não atravessam a fronteira da empresa
+-- ===========================================================================
+DO $$
+DECLARE
+  v_e1 text := 'nenhum'; v_e2 text := 'nenhum'; v_e3 text := 'nenhum'; v_e4 text := 'nenhum';
+  v_ci uuid; v_n int;
+BEGIN
+  SELECT id INTO v_ci FROM public.fin_contas_identificadoras
+   WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1' AND nome = 'DASH ENERGIA';
+
+  -- O dono da EMPRESA B tentando ler a EMPRESA A pelas quatro portas novas.
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"b1000000-0000-0000-0000-0000000000b1","role":"authenticated"}', true);
+
+  BEGIN SELECT count(*) INTO v_n FROM public.fin_saldos_mensais_movimento('aa000000-0000-0000-0000-0000000000a1', 2026);
+  EXCEPTION WHEN OTHERS THEN v_e1 := SQLSTATE; END;
+
+  BEGIN SELECT count(*) INTO v_n FROM public.fin_movimentos_mensais_identificadora('aa000000-0000-0000-0000-0000000000a1', 2026);
+  EXCEPTION WHEN OTHERS THEN v_e2 := SQLSTATE; END;
+
+  BEGIN SELECT count(*) INTO v_n FROM public.fin_extrato_identificadora('aa000000-0000-0000-0000-0000000000a1', v_ci, DATE '2026-01-01', DATE '2026-12-31');
+  EXCEPTION WHEN OTHERS THEN v_e3 := SQLSTATE; END;
+
+  BEGIN SELECT count(*) INTO v_n FROM public.fin_extrato_consolidado('aa000000-0000-0000-0000-0000000000a1', NULL, DATE '2026-01-01', DATE '2026-12-31');
+  EXCEPTION WHEN OTHERS THEN v_e4 := SQLSTATE; END;
+
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    37,
+    CASE WHEN v_e1 = '42501' AND v_e2 = '42501' AND v_e3 = '42501' AND v_e4 = '42501'
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-27',
+    'Dono da EMPRESA B nao alcanca os dashboards nem as conferencias da EMPRESA A',
+    format('saldos_mensais=%s; movimentos_mensais=%s; extrato_identificadora=%s; extrato_consolidado=%s (esperado 42501 nos quatro)',
+           v_e1, v_e2, v_e3, v_e4));
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 38 — sem `extrato_ver`, as quatro funções novas recusam
+-- ===========================================================================
+--
+-- ⚠️ ELE TIRA E DEVOLVE A PERMISSÃO DO DEPENDENTE. Sem devolver, os testes que
+-- viessem depois herdariam um dependente diferente do que o arquivo montou —
+-- exatamente o encadeamento que o CLAUDE.md proíbe.
+DO $$
+DECLARE
+  v_e1 text := 'nenhum'; v_e2 text := 'nenhum'; v_e3 text := 'nenhum'; v_e4 text := 'nenhum';
+  v_ci uuid; v_n int; v_depois int;
+BEGIN
+  SELECT id INTO v_ci FROM public.fin_contas_identificadoras
+   WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1' AND nome = 'DASH ENERGIA';
+
+  -- o Dependente PERDE `extrato_ver` (fica com o resto)
+  UPDATE public.tenant_members
+     SET module_configs = jsonb_build_object('financeiro', jsonb_build_object(
+           'ativo', true,
+           'permissoes', jsonb_build_array('cm_ver','ci_ver','lc_ver_todos','lc_criar',
+                                           'lc_editar_proprios','imprimir')))
+   WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1'
+     AND user_id = 'd1000000-0000-0000-0000-0000000000d1';
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"d1000000-0000-0000-0000-0000000000d1","role":"authenticated"}', true);
+
+  BEGIN SELECT count(*) INTO v_n FROM public.fin_saldos_mensais_movimento('aa000000-0000-0000-0000-0000000000a1', 2026);
+  EXCEPTION WHEN OTHERS THEN v_e1 := SQLSTATE; END;
+
+  BEGIN SELECT count(*) INTO v_n FROM public.fin_movimentos_mensais_identificadora('aa000000-0000-0000-0000-0000000000a1', 2026);
+  EXCEPTION WHEN OTHERS THEN v_e2 := SQLSTATE; END;
+
+  BEGIN SELECT count(*) INTO v_n FROM public.fin_extrato_identificadora('aa000000-0000-0000-0000-0000000000a1', v_ci, DATE '2026-01-01', DATE '2026-12-31');
+  EXCEPTION WHEN OTHERS THEN v_e3 := SQLSTATE; END;
+
+  BEGIN SELECT count(*) INTO v_n FROM public.fin_extrato_consolidado('aa000000-0000-0000-0000-0000000000a1', NULL, DATE '2026-01-01', DATE '2026-12-31');
+  EXCEPTION WHEN OTHERS THEN v_e4 := SQLSTATE; END;
+
+  RESET ROLE;
+
+  -- devolve a permissão e confirma que, com ela, o dashboard responde
+  UPDATE public.tenant_members
+     SET module_configs = jsonb_build_object('financeiro', jsonb_build_object(
+           'ativo', true,
+           'permissoes', jsonb_build_array('cm_ver','ci_ver','lc_ver_todos','lc_criar',
+                                           'lc_editar_proprios','extrato_ver','imprimir',
+                                           'lc_excluir_proprios','lc_excluir_todos')))
+   WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1'
+     AND user_id = 'd1000000-0000-0000-0000-0000000000d1';
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"d1000000-0000-0000-0000-0000000000d1","role":"authenticated"}', true);
+  SELECT count(*) INTO v_depois FROM public.fin_saldos_mensais_movimento('aa000000-0000-0000-0000-0000000000a1', 2026);
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    38,
+    CASE WHEN v_e1 = '42501' AND v_e2 = '42501' AND v_e3 = '42501' AND v_e4 = '42501'
+          AND v_depois > 0
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-25',
+    'Sem extrato_ver as quatro funcoes novas recusam; com ela, respondem',
+    format('sem a permissao: %s / %s / %s / %s (esperado 42501); com a permissao devolvida: %s linha(s) (esperado > 0)',
+           v_e1, v_e2, v_e3, v_e4, v_depois));
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 39 — o dashboard 2: despesa positiva, estorno que reduz, e o RESULTADO
+-- ===========================================================================
+--
+-- ⚠️ A CONTA IDENTIFICADORA NÃO TEM SALDO — ela não guarda dinheiro, explica
+-- dinheiro. Por isso cada célula aqui é o MOVIMENTO DO MÊS, e não um acumulado:
+-- março mostra o que aconteceu em março. É o oposto do dashboard 1, e este
+-- teste fixa essa diferença.
+--
+-- Março da DASH ENERGIA: saiu 4.980,00 e voltou 500,00 de estorno → 4.480,00.
+-- Março da DASH VENDA: entrou 6.100,00 no CAIXA e 1.000,00 no BANCO = 7.100,00
+-- (a identificadora soma TODAS as contas movimento — é o sentido do dashboard 2).
+-- RESULTADO de março = 7.100,00 − 4.480,00 = 2.620,00.
+DO $$
+DECLARE
+  v_despesa bigint; v_receita bigint; v_resultado bigint; v_total_desp bigint;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+
+  SELECT liquido_centavos INTO v_despesa
+    FROM public.fin_movimentos_mensais_identificadora('aa000000-0000-0000-0000-0000000000a1', 2026)
+   WHERE linha_tipo = 'CONTA' AND nome = 'DASH ENERGIA' AND mes = 3;
+
+  SELECT liquido_centavos INTO v_receita
+    FROM public.fin_movimentos_mensais_identificadora('aa000000-0000-0000-0000-0000000000a1', 2026)
+   WHERE linha_tipo = 'CONTA' AND nome = 'DASH VENDA' AND mes = 3;
+
+  SELECT liquido_centavos INTO v_total_desp
+    FROM public.fin_movimentos_mensais_identificadora('aa000000-0000-0000-0000-0000000000a1', 2026)
+   WHERE linha_tipo = 'TOTAL' AND bloco = 'DESPESA' AND mes = 3;
+
+  SELECT liquido_centavos INTO v_resultado
+    FROM public.fin_movimentos_mensais_identificadora('aa000000-0000-0000-0000-0000000000a1', 2026)
+   WHERE bloco = 'RESULTADO' AND mes = 3;
+
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    39,
+    CASE WHEN v_despesa = 448000 AND v_receita = 710000
+          AND v_total_desp = 448000 AND v_resultado = 262000
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-13',
+    'Dashboard 2: despesa sai POSITIVA, o estorno a reduz, e o RESULTADO = receitas - despesas',
+    format('despesa de marco=%s (esp 448000 = 498000 pagos menos 50000 estornados); receita=%s (esp 710000 = 610000 no CAIXA + 100000 no BANCO, as duas contas somadas); TOTAL DESPESAS=%s (esp 448000); RESULTADO=%s (esp 262000)',
+           v_despesa, v_receita, v_total_desp, v_resultado));
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 40 — a conferência bate com a célula, e `{}` não é `NULL`
+-- ===========================================================================
+--
+-- ⚠️ A PRIMEIRA METADE É A PROVA QUE MAIS IMPORTA DE TODAS. Se o total da
+-- conferência não for IDÊNTICO à célula do dashboard, o clique na célula leva a
+-- um número diferente do que estava na tela — e a tela deixa de ser uma
+-- conferência para virar uma segunda opinião.
+--
+-- ⚠️ A SEGUNDA METADE REPETE, NA LEITURA, A LIÇÃO DA EXCLUSÃO EM LOTE:
+-- `NULL` = "não estou escolhendo, leve tudo"; `{}` = "desmarquei tudo, não leve
+-- nada". Tratá-los como iguais faria um DESMARCAR TODOS mostrar o extrato
+-- inteiro da empresa.
+DO $$
+DECLARE
+  v_ci uuid;
+  v_acumulado bigint; v_celula bigint;
+  v_linhas_nulo int; v_linhas_vazio int; v_saldo_vazio bigint;
+BEGIN
+  SELECT id INTO v_ci FROM public.fin_contas_identificadoras
+   WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1' AND nome = 'DASH ENERGIA';
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+
+  -- (a) o rodapé da conferência de MARÇO
+  SELECT acumulado_centavos INTO v_acumulado
+    FROM public.fin_extrato_identificadora('aa000000-0000-0000-0000-0000000000a1', v_ci,
+                                           DATE '2026-03-01', DATE '2026-03-31')
+   WHERE linha_tipo = 'TOTAL';
+
+  -- (b) a célula de MARÇO no dashboard
+  SELECT liquido_centavos INTO v_celula
+    FROM public.fin_movimentos_mensais_identificadora('aa000000-0000-0000-0000-0000000000a1', 2026)
+   WHERE linha_tipo = 'CONTA' AND nome = 'DASH ENERGIA' AND mes = 3;
+
+  -- (c) consolidado com NULL = todas as contas
+  SELECT count(*) INTO v_linhas_nulo
+    FROM public.fin_extrato_consolidado('aa000000-0000-0000-0000-0000000000a1', NULL,
+                                        DATE '2026-03-01', DATE '2026-03-31')
+   WHERE linha_tipo = 'LANCAMENTO';
+
+  -- (d) consolidado com '{}' = nenhuma conta
+  SELECT count(*) INTO v_linhas_vazio
+    FROM public.fin_extrato_consolidado('aa000000-0000-0000-0000-0000000000a1', '{}'::uuid[],
+                                        DATE '2026-03-01', DATE '2026-03-31')
+   WHERE linha_tipo = 'LANCAMENTO';
+
+  SELECT saldo_centavos INTO v_saldo_vazio
+    FROM public.fin_extrato_consolidado('aa000000-0000-0000-0000-0000000000a1', '{}'::uuid[],
+                                        DATE '2026-03-01', DATE '2026-03-31')
+   WHERE linha_tipo = 'INICIAL';
+
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    40,
+    CASE WHEN v_acumulado = 448000 AND v_celula = 448000
+          AND v_linhas_nulo > 0 AND v_linhas_vazio = 0 AND v_saldo_vazio = 0
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-17/19',
+    'Conferencia da identificadora bate com a celula do dashboard; e {} nao e NULL',
+    format('rodape da conferencia=%s e celula do dashboard=%s (tem de ser iguais, 448000); consolidado com NULL=%s linha(s) (esp > 0); com {}=%s linha(s) e saldo inicial %s (esp 0 e 0)',
+           v_acumulado, v_celula, v_linhas_nulo, v_linhas_vazio, v_saldo_vazio));
+END;
+$$;
+
 -- ---------------------------------------------------------------------------
 -- LIMPEZA FINAL
 -- ---------------------------------------------------------------------------
