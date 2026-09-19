@@ -77,3 +77,39 @@ export function modulosDoMembro(permitidos: string[] | null | undefined): Manife
 export function manifestoDoModulo(id: string): ManifestoDeModulo | undefined {
   return MODULOS_INSTALADOS.find((modulo) => modulo.id === id);
 }
+
+/**
+ * O rótulo "MÓDULO: X" / "MÓDULOS: X · Y" desta instalação — ou `null` se não há
+ * nenhum módulo plugado.
+ *
+ * ===========================================================================
+ * ⚠️ POR QUE ESTA FUNÇÃO EXISTE, E POR QUE ELA É A CORREÇÃO DE UM ATALHO ERRADO
+ * ===========================================================================
+ * Em 19/09/2026 o dono do projeto pediu que a marca do aplicativo mostrasse, na
+ * linha abaixo do nome da plataforma, **"MÓDULO: CONTROLE FINANCEIRO"**.
+ *
+ * O caminho óbvio seria escrever essa frase na tela da guarita. Isso seria uma
+ * **quarta solda clandestina**: um arquivo da plataforma passaria a citar o nome
+ * de um módulo, o `npm run modulos:verificar` acusaria R1/R8 — com razão — e, pior
+ * que a violação formal, a frase **viraria mentira** em dois momentos previsíveis:
+ * quando um segundo módulo fosse plugado, e no dia em que o financeiro fosse
+ * desplugado (a marca continuaria anunciando um módulo que não existe mais).
+ *
+ * Aqui a frase é **derivada do registro**: o texto vem do `nome` de cada
+ * manifesto, que é do módulo. A plataforma pede o rótulo e desenha — sem saber
+ * quantos módulos são, nem quais. Plugar o segundo não exige tocar em tela
+ * nenhuma; desplugar o último faz a linha desaparecer sozinha.
+ *
+ * ⚠️ MAIÚSCULAS AQUI, E NÃO NA TELA. O aplicativo escreve rótulos em maiúsculas,
+ * e `textTransform` não existe em todos os componentes de todas as plataformas com
+ * o mesmo resultado. Fazendo no dado, o telefone e qualquer outro consumidor
+ * futuro leem a mesma coisa.
+ */
+export function rotuloDosModulosInstalados(): string | null {
+  if (MODULOS_INSTALADOS.length === 0) return null;
+
+  const nomes = MODULOS_INSTALADOS.map((modulo) => modulo.nome.toUpperCase()).join(' · ');
+  const prefixo = MODULOS_INSTALADOS.length === 1 ? 'MÓDULO' : 'MÓDULOS';
+
+  return `${prefixo}: ${nomes}`;
+}

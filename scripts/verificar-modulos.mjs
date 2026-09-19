@@ -147,6 +147,21 @@ function territorioDoModulo(id) {
     `apps/admin-web/src/app/dashboard/${id}/`,
     `apps/admin-web/src/components/${id}/`,
     `apps/mobile-app/src/modules/${id}/`,
+    // 19/09/2026 (degrau 08): AS ROTAS DO MÓDULO NO APLICATIVO.
+    //
+    // ⚠️ Ela é a irmã de `apps/admin-web/src/app/dashboard/${id}/`, lá em cima, e
+    // existe pelo mesmo motivo: no Expo Router, como no App Router do Next, **rota
+    // é arquivo** — o que não está em `app/` não existe para o roteador. Sem esta
+    // linha, a porta do módulo no telefone seria acusada como violação R1/R8, e a
+    // acusação estaria formalmente certa e praticamente errada.
+    //
+    // ⚠️ E A ALTERNATIVA ERA PIOR. Uma rota genérica da plataforma
+    // (`app/modulo/[id].tsx`) precisaria IMPORTAR o código do módulo para desenhar
+    // a tela — o que quebra a regra R1 de verdade, e volta a grudar as peças.
+    //
+    // ⚠️ NENHUM NOME DE MÓDULO É ESCRITO AQUI: o `${id}` chega por parâmetro, como
+    // em todas as outras linhas desta lista.
+    `apps/mobile-app/app/${id}/`,
     `packages/core/src/modules/${id}/`,
     `supabase/criar-bd-${id}/`,
     `supabase/testes/teste_${id}.sql`,

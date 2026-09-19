@@ -67,7 +67,7 @@ export default function AboutScreen() {
   return (
     <SafeAreaView style={estilos.raiz} edges={['bottom']}>
       <ScrollView contentContainerStyle={estilos.conteudo} showsVerticalScrollIndicator={false}>
-        <BrandMark legenda="Ecossistema de gestão multi-empresa." />
+        <BrandMark />
 
         <View style={estilos.metricas}>
           <StatCard

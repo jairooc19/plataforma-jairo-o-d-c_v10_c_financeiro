@@ -5,6 +5,116 @@ raiz do repositório; leia-o também.
 
 ---
 
+## 🧩 COMO UM MÓDULO SE CONECTA AO APLICATIVO (degrau 08 — 19/09/2026)
+
+> Esta seção existe porque a parte 2 do Controle Financeiro, e o segundo módulo,
+> vão repetir este caminho. Sem o registro, tudo aqui é redescoberto.
+
+### As duas pastas do módulo, e por que são duas
+
+```
+apps/mobile-app/app/<modulo>/          as ROTAS (Expo Router: rota é ARQUIVO)
+apps/mobile-app/src/modules/<modulo>/  o CÓDIGO (telas, hooks, estilos, ícones)
+```
+
+A segunda já estava prevista no `scripts/verificar-modulos.mjs` desde o degrau 5 e
+nunca havia sido usada. A primeira foi acrescentada ao território no degrau 08, pelo
+mesmo motivo que o site tem a sua (`app/dashboard/<modulo>/`): **no Expo Router, o que
+não está em `app/` não existe para o roteador.** O arquivo de rota é magro — reexporta
+a tela, como `app/(tabs)/perfil.tsx` faz com a `ProfileScreen`.
+
+⚠️ **A ALTERNATIVA ERA PIOR, e foi descartada com motivo.** Uma rota genérica da
+plataforma (`app/modulo/[id].tsx`) precisaria IMPORTAR o código do módulo para desenhar
+a tela — o que quebra a regra R1 de verdade e volta a grudar as peças.
+
+### Os pontos de contato com a plataforma (e só eles)
+
+| O que | Quem resolve | Nome de módulo escrito? |
+|---|---|---|
+| Para onde o cartão do painel leva | `rotaMobile`, no manifesto | não — é dado |
+| Quais módulos este membro pode abrir | `moduleService.modulosPermitidos()` → `modulos_do_membro()` | não |
+| Nome e descrição no cartão | `modulosDoMembro()`, do registro do Core | não |
+| O rótulo "MÓDULO: X" na marca | `rotuloDosModulosInstalados()`, do registro | não |
+| Cabeçalho e botão de voltar das telas | `app/<modulo>/_layout.tsx` — **do módulo** | sim, e pode: é território dele |
+
+⚠️ **O `app/_layout.tsx` DA RAIZ NÃO FOI TOCADO, e não deve ser.** Ele declara
+`screenOptions={{ headerShown: false }}` como padrão, e rota não declarada herda esse
+padrão — então o módulo traz a própria moldura. Escrever
+`<Stack.Screen name="financeiro">` lá seria uma quarta solda clandestina.
+
+⚠️ **A PASTA DO MÓDULO NÃO PODE FICAR DENTRO DE `app/(tabs)/`.** O `NativeTabs` monta
+um gatilho por rota do grupo — o módulo viraria uma ABA para todo mundo, inclusive para
+quem não o contratou. É a mesma razão de `central-comandos` e `ajustes-globais` ficarem
+fora daquele grupo.
+
+### O cast de rota, e por que ele não é o que o `CLAUDE.md` proíbe
+
+Com `experiments.typedRoutes: true`, o Expo Router exige que o destino do
+`router.push()` seja uma rota **conhecida**. O endereço vem do manifesto, que é dado —
+para o TypeScript, `string`. Existe **um** ponto de conversão, em
+`src/components/client/ClientDashboard.tsx`, com o motivo escrito ao lado.
+
+A proibição contra "contornar rota nova com `as Href`" continua valendo e trata de outra
+coisa: ela proíbe calar o erro quando a rota **não existe**. Aqui ela existe; o que o
+TypeScript não sabe é que a string é ela.
+
+### O que o módulo REUSA da plataforma, e o que ele traz próprio
+
+| Reusa da plataforma | Traz próprio |
+|---|---|
+| `BRAND`, `TIPOGRAFIA`, `ESPACO`, `PLATFORM` | `estilos.ts` (a composição) |
+| `MenuCard`, `Button`, `SafeAreaView` | `BarraDeConsumo`, `SeletorDeCompetencia`, `BotaoModoExibicao` |
+| `storageService` (genérico) | a CHAVE da preferência (`CHAVE_MODO_DINHEIRO`, no Core) |
+| — | `IconeFin.tsx`, o registro de ícones dele |
+
+⚠️ **O MÓDULO NÃO ESCREVE NO `src/components/icon/Icon.tsx`.** Aquele registro é da
+plataforma; acrescentar ali os ícones que só uma peça usa faria a base carregar o
+catálogo de cada módulo plugado, e desplugar um deixaria ícones órfãos para sempre.
+
+⚠️ **E A CHAVE DO COFRE MORA NO MÓDULO.** O `storageService` é arquivo de plataforma:
+escrever `'fin_...'` dentro dele seria solda clandestina. A chave é declarada no Core,
+no módulo, e passada por parâmetro.
+
+### Zero dependência nova — e por que isso importa mais aqui do que no site
+
+O degrau 08 não instalou nenhuma biblioteca: a barra de consumo é uma `View` com largura
+em percentagem, sem SVG e sem pacote de gráfico. **Consequência prática:** um
+*development build* só precisa ser refeito quando muda algo NATIVO. Mantendo o degrau em
+puro JavaScript/TypeScript, o aplicativo de desenvolvimento instalado continua servindo
+e o código novo chega pelo Metro.
+
+⚠️ **MAS ATENÇÃO AO QUE ESTÁ INSTALADO NO APARELHO.** Medido em 19/09/2026: os dois
+únicos builds da conta expo.dev são de **07/09/2026**, dos commits `80e0d79` e
+`a8c32e4`, que **não existem neste repositório** (ele começa em `d463721`, de 11/09).
+Eles foram construídos a partir do repositório da **v9**. O rodapé do `preview` diz
+"v9 – 2026-09-07-08" para sempre, porque num build `preview` o JavaScript vem embutido.
+Para ver o código de hoje: **development build + Metro**, ou um build novo.
+
+### As variáveis de ambiente — três lugares, e o que cada um alimenta
+
+| Onde | Alimenta | Estado em 19/09/2026 |
+|---|---|---|
+| `apps/mobile-app/.env` (local, fora do Git) | o **Metro**, no development build | ✅ criado no degrau 08 |
+| expo.dev › ambiente `development` | builds do perfil `development` | ✅ preenchido no degrau 08 |
+| expo.dev › `preview` e `production` | builds daqueles perfis | ✅ já estavam |
+
+⚠️ **SEM O `.env` LOCAL O APLICATIVO FALA COM `placeholder.supabase.co`** — é o valor de
+reserva do `packages/core/src/lib/supabase.ts`. O login falha e a mensagem de erro não
+menciona variável nenhuma. Foi o estado do repositório da v10 do dia 11/09 até 19/09.
+
+⚠️ **O METRO LÊ O `.env` AO ARRANCAR.** Alterar o arquivo com ele ligado não tem efeito:
+`Ctrl+C` e subir de novo.
+
+⚠️ **`EXPO_PUBLIC_API_URL` FOI APAGADA DO expo.dev EM 19/09/2026.** Ela apontava para a
+Vercel da **v9** e **nenhuma linha de código a lia** desde a v10. Não causava defeito;
+causava a próxima confusão.
+
+⚠️ **OS TRÊS PERFIS DO `eas.json` PASSARAM A DECLARAR `environment`.** Antes nenhum
+declarava, e qual ambiente a EAS escolhia por omissão era uma dúvida em aberto — a forma
+de acabar com ela é dizer, não deduzir.
+
+---
+
 ## 🔵 DOSSIÊ: LOGIN DO PROPRIETÁRIO POR GOOGLE
 
 > **Este dossiê existe porque o problema consumiu ~10 rodadas de depuração em

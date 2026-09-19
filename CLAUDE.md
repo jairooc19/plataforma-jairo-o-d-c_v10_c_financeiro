@@ -30,11 +30,16 @@ defeito em produção.
 pode entrar aqui é a **regra** que a mudança gerou, na seção de proibições. Este arquivo é
 o guia de instruções; aquele é a memória.
 
-**Onde o projeto está** (18/09/2026, 5ª rodada): plataforma v10 com o módulo `financeiro`
+**Onde o projeto está** (19/09/2026, degrau 08): plataforma v10 com o módulo `financeiro`
 plugado e publicado na Vercel — `teste_rls.sql` **16/16**, `teste_financeiro.sql` **52/52**,
-`inventario_financeiro.sql` **17/17** e `npm test` **124/124**. **A FASE 5 FECHOU EM 18/09/2026**: DASHBOARDS, ORÇAMENTO e DINHEIRO DO PERÍODO ficaram
-prontos no mesmo dia, em quatro rodadas. **Não resta nenhum "EM DESENVOLVIMENTO" no
-módulo** — o Controle Financeiro está inteiro.
+`inventario_financeiro.sql` **17/17** e `npm test` **137/137**. A FASE 5 fechou em
+18/09/2026 e **o Controle Financeiro está inteiro no site**.
+
+🆕 **DESDE 19/09/2026 O MÓDULO TAMBÉM EXISTE NO APLICATIVO**, em partes: a parte 1 é o
+**DINHEIRO DO PERÍODO**. Foi o degrau 08, e ele acrescentou duas pastas de módulo ao
+`apps/mobile-app` (rotas e código), o campo `rotaMobile` no manifesto, a **sétima prova**
+(`npm run typecheck:mobile`) e o botão "VALORES + %" × "SÓ %". Corrigiu também um defeito
+mudo: o aplicativo lia `allowed_modules` e mostrava "Nenhum módulo ativo" ao Proprietário.
 
 ⚠️ **TODO NÚMERO DESTE PARÁGRAFO ENVELHECE SOZINHO.** Antes de repeti-lo, rode
 `npm run ensaio` — ele recalcula os cinco de uma vez.
@@ -132,9 +137,20 @@ npm install          # Instala as dependências de todos os workspaces
 npm run web          # Inicia o admin-web em desenvolvimento (porta 3000)
 npm test             # 90 testes do Core (node:test, sem dependências)
 npm run modulos:verificar   # o verificador de LEGO (plataforma × módulos)
-npm run verificar    # testes + verificador + lint + build, em sequência
-npm run ensaio       # 🆕 O ENSAIO GERAL: as SEIS provas de uma vez, banco incluído
+npm run typecheck:mobile    # 🆕 tsc --noEmit do apps/mobile-app (a 7ª prova)
+npm run verificar    # testes + verificador + lint + build + tipos do mobile
+npm run ensaio       # 🆕 O ENSAIO GERAL: as SETE provas de uma vez, banco incluído
 ```
+
+> ⚠️ **A SÉTIMA PROVA ENTROU EM 19/09/2026, E A LACUNA ERA GRANDE:** até ali
+> **nenhuma** das provas olhava para o `apps/mobile-app`. Dava para entregar código do
+> aplicativo com erro de tipo, import quebrado ou nome de arquivo errado, e o ensaio
+> inteiro ficava verde. O site tinha quatro camadas; o aplicativo, zero.
+>
+> ⚠️ **ELA FICA MAIS RIGOROSA DEPOIS DO PRIMEIRO `npx expo start`.** O
+> `experiments.typedRoutes` do `app.json` **gera** `.expo/types/router.d.ts` com a
+> lista das rotas existentes — e essa pasta é ignorada pelo Git. Em máquina limpa a
+> prova confere tipos; em máquina que já rodou o Metro, confere tipos **e** rotas.
 
 > 🧪 **O SQL TAMBÉM PODE SER VALIDADO AQUI, E DEVE SER** (a partir de 2026-09-12):
 > `supabase/testes/ambiente-local/` sobe um PostgreSQL descartável, aplica o
@@ -1146,6 +1162,16 @@ inclusive numa máquina limpa — foi por isso que a versão com bcrypt foi reve
 - ❌ Nunca escrever na tela um número que o banco usa como PADRÃO ("os últimos 30 dias") sem oferecer a escolha — a função aceitava o período desde o começo, só a tela nunca passava; quem excluiu algo há 45 dias abria a lixeira, não encontrava e concluía que tinha sumido de vez
 - ❌ Nunca ler "o gatilho de auditoria não cobre INSERT" como "não dá para mostrar o primeiro registro" — o primeiro fechamento não está na auditoria **porque ainda está vivo na tabela**; a resposta é unir as duas fontes (linha viva + trilha), nunca mexer no gatilho da plataforma a pedido de um módulo
 - ❌ Nunca decidir a cor ou o estilo de uma linha comparando o TEXTO que veio do banco — `e.operacao.startsWith('EXCLUIU')` funciona até alguém reescrever a frase; quem decide é um campo de dado (`em_vigor`), que não muda quando a redação muda
+- ❌ Nunca ler `tenant_members.allowed_modules` para saber quais módulos alguém pode ABRIR — aquela coluna é a chave que o Proprietário entrega à EQUIPE dele, e **para ele mesmo está vazia**; quem responde é `modulos_do_membro()`, que dá ao OWNER tudo o que a EMPRESA contratou. O aplicativo fez isso errado da v10 até 19/09/2026 e o sintoma era mudo: o dono da empresa lia "Nenhum módulo ativo" com o módulo contratado, sem erro, sem log e sem pista. Passou onze dias invisível porque, sem módulo nenhum no telefone, os dois caminhos devolviam a mesma lista vazia
+- ❌ Nunca escrever o nome de um módulo numa tela da plataforma para anunciar qual módulo está instalado — DERIVE do registro (`rotuloDosModulosInstalados()`, em `modules/registro.ts`); a frase escrita à mão vira mentira quando o segundo módulo é plugado e quando o primeiro é desplugado, e o verificador de LEGO acusa antes disso
+- ❌ Nunca declarar `<Stack.Screen name="<modulo>">` no `app/_layout.tsx` do aplicativo — seria uma quarta solda clandestina; o módulo traz o próprio `app/<modulo>/_layout.tsx`, que é território dele, e o `Stack` da raiz já tem `headerShown: false` como padrão para rota não declarada
+- ❌ Nunca reaproveitar `rotaWeb` como endereço no aplicativo — são roteadores diferentes (`/dashboard/x` no Next, `/x` no Expo Router); use o campo `rotaMobile` do manifesto, e a AUSÊNCIA dele é o que permite ao módulo dizer "eu ainda não existo no telefone" em vez de levar a pessoa ao "Endereço não encontrado"
+- ❌ Nunca declarar `color` ANTES de espalhar um estilo de `TIPOGRAFIA` num `StyleSheet` do mobile — aqueles estilos trazem `color` própria, o espalhamento sobrescreve a sua, e a cor pedida não vale: em objeto literal **a última chave ganha**. O sintoma é o pior possível — a linha está escrita no arquivo, aparentemente cumprida, e a tela continua cinza
+- ❌ Nunca pintar de preto as DUAS paletas do `InstitutionalFooter` — a `ESCURO` atende o Painel de Engenharia, e preto sobre `#121212` não se lê; o rodapé sumiria numa das duas abas e nenhuma prova automática acusaria
+- ❌ Nunca tratar um botão que esconde valores na tela como se fosse segurança — o que protege é o banco NÃO ENVIAR (`fin_dinheiro_do_periodo` devolve os valores em NULO no modo percentual). O botão "VALORES + %" × "SÓ %" é CONFORTO de quem está olhando, e só pode existir por isso: ele nunca teve os valores em mãos para revelar. Quem decide se ele alterna é `exibicaoDoDinheiro()`, no Core, com teste — nunca a tela
+- ❌ Nunca guardar em estado de componente a preferência de exibição do aplicativo — sair da tela e voltar **remonta** o componente, e quem tivesse escondido os valores para mostrar o ecrã a alguém os veria reaparecer sozinhos; a preferência vai ao cofre do aparelho, com a chave declarada DENTRO do módulo (`CHAVE_MODO_DINHEIRO`) e passada por parâmetro ao `storageService`, que é da plataforma
+- ❌ Nunca supor que o APK instalado no telefone foi construído a partir DESTE repositório — medido em 19/09/2026: os dois únicos builds da conta expo.dev são de 07/09/2026 e vêm dos commits `80e0d79` e `a8c32e4`, que **não existem aqui** (este repositório começa em `d463721`, de 11/09). Eles são da v9; o rodapé deles diz "v9 – 2026-09-07-08" para sempre, porque o `preview` tem o JavaScript embutido
+- ❌ Nunca entregar código do `apps/mobile-app` sem rodar `npm run typecheck:mobile` — até 19/09/2026 NENHUMA das seis provas do `npm run ensaio` olhava para o aplicativo, e dava para entregar erro de tipo com tudo verde; a sétima prova fechou essa lacuna
 - ❌ Nunca criar arquivo com múltiplas responsabilidades distintas
 - ❌ Nunca misturar lógica de plataforma com módulo, nem módulo com módulo
 - ❌ Nunca usar `toISOString()` para datas que precisam respeitar UTC-3

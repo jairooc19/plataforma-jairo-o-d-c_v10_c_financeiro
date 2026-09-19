@@ -21,6 +21,12 @@ A definição é por exclusão de propósito: listar cada pasta da plataforma fa
 mapa envelhecer na primeira pasta nova. A plataforma se define por exclusão; os
 módulos, por enumeração — que é a lista curta e que muda raramente.
 
+> ⚠️ **ESTA LISTA DIZIA "`apps/mobile-app/` — o aplicativo inteiro" ATÉ 19/09/2026,
+> e deixou de ser verdade no degrau 08**, quando o primeiro módulo ganhou telas no
+> telemóvel. O aplicativo agora se divide como o site: as pastas acima são da
+> plataforma, e **`apps/mobile-app/app/<modulo>/`** (rotas) mais
+> **`apps/mobile-app/src/modules/<modulo>/`** (código) são do módulo.
+
 Em especial, pertencem sempre à plataforma:
 
 ```
@@ -30,7 +36,9 @@ apps/admin-web/src/app/dashboard/settings/   white-label
 apps/admin-web/src/app/dashboard/tenants/    triagem e empresas
 apps/admin-web/src/app/dashboard/modulos/    contratação de módulos por empresa
 apps/admin-web/src/components/{auth,dashboard,platform,providers}/
-apps/mobile-app/                             o aplicativo inteiro
+apps/mobile-app/app/{(auth),(tabs),auth}/    guarita, abas e retorno do OAuth
+apps/mobile-app/app/_layout.tsx              o porteiro (boot, sessão, biometria)
+apps/mobile-app/src/{components,constants,context,hooks,lib,screens,services}/
 packages/core/src/{lib,constants,analytics}/
 packages/core/src/services/platform/         auth, perfil, empresas, ajustes, módulos
 packages/core/src/modules/registro.ts        ⚡ O SOQUETE (ponto de solda 1)
@@ -49,16 +57,24 @@ CLAUDE.md · MODULOS.md · README.md
 |---|---|---|---|---|
 | **Controle Financeiro** | `financeiro` | `fin_` | 12/09/2026 | degrau 7 (2/3) — as soldas S1 e S2 |
 
-**As 5 pastas do Controle Financeiro** (apagar estas cinco = desplugar a peça):
+**As 7 pastas do Controle Financeiro** (apagar estas sete = desplugar a peça):
 
 ```
-apps/admin-web/src/app/dashboard/financeiro/     as telas (18 rotas)
-apps/admin-web/src/components/financeiro/        os componentes
+apps/admin-web/src/app/dashboard/financeiro/     as telas do SITE (18 rotas)
+apps/admin-web/src/components/financeiro/        os componentes do SITE
+apps/mobile-app/app/financeiro/                  🆕 as rotas do APLICATIVO (2 telas)
+apps/mobile-app/src/modules/financeiro/          🆕 o código do APLICATIVO
 packages/core/src/modules/financeiro/            regras de negócio + manifesto
 supabase/criar-bd-financeiro/                    o banco (5 tabelas, 36 funções)
 supabase/testes/teste_financeiro.sql             as travas do módulo (52 testes)
 supabase/testes/inventario_financeiro.sql        o inventário do módulo (17 linhas, só lê)
 ```
+
+> 🆕 **AS DUAS PASTAS DO APLICATIVO NASCERAM EM 19/09/2026 (degrau 08)**, quando o
+> DINHEIRO DO PERÍODO chegou ao telemóvel. `apps/mobile-app/src/modules/<id>/` já
+> estava prevista no `scripts/verificar-modulos.mjs` desde o degrau 5 e nunca havia
+> sido usada; `apps/mobile-app/app/<id>/` foi acrescentada ao território no mesmo
+> degrau, pelo mesmo motivo que o site tem a sua: no Expo Router, **rota é arquivo**.
 
 > ⚠️ **ESTES SEIS NÚMEROS JÁ ESTIVERAM ERRADOS TODOS AO MESMO TEMPO** (media-se
 > 20 funções, 21 testes, 16 linhas e 9 rotas em 18/09/2026, quando eram 29, 40,

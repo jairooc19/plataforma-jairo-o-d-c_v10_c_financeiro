@@ -17,6 +17,158 @@ todas foram pagas com um defeito em produção.
 
 ---
 
+**2026-09-19 — v10: DEGRAU 08, o módulo chega ao telemóvel (parte 1: DINHEIRO DO PERÍODO)**
+
+O primeiro módulo entrou no `apps/mobile-app`. Ele pediu em partes, e a parte 1 é o
+DINHEIRO DO PERÍODO. Um estudo foi entregue antes
+(`_estudos/estudo-2026-09-19-degrau-08-mobile-dinheiro-do-periodo.html`), e ele aceitou
+todas as recomendações e bônus, acrescentando dois pedidos: a marca em lockup horizontal
+e o botão que alterna entre "VALORES + %" e "SÓ %".
+
+> 🧱 **O MURO DO PEDIDO DA MARCA: "MÓDULO: CONTROLE FINANCEIRO" NA TELA DA GUARITA.**
+> O pedido era desenhar, sob o nome da plataforma, a linha "MÓDULO: CONTROLE FINANCEIRO".
+> O caminho óbvio — escrever a frase no `AuthScreen` — seria uma **quarta solda
+> clandestina**: um arquivo da plataforma passaria a citar o nome de um módulo, e o
+> `npm run modulos:verificar` acusaria R1/R8. Pior que a violação formal: a frase viraria
+> **mentira** em dois momentos previsíveis — quando o segundo módulo fosse plugado, e no
+> dia em que o financeiro fosse desplugado (a marca continuaria anunciando uma peça que
+> não existe mais).
+>
+> **A saída foi DERIVAR do registro.** `rotuloDosModulosInstalados()`, em
+> `modules/registro.ts`, monta o texto a partir do `nome` de cada manifesto: com um
+> módulo sai `MÓDULO: CONTROLE FINANCEIRO`, com dois sai `MÓDULOS: A · B`, com nenhum sai
+> `null` e a linha não existe. **O texto na tela é exatamente o que ele pediu** — e
+> nenhum arquivo da plataforma escreve nome de módulo.
+
+**O defeito mudo que este degrau encontrou, e que o teria matado em silêncio.** O
+`ClientDashboard.tsx` lia `tenantData.allowed_modules`. Essa coluna é **a chave que o
+Proprietário entrega à equipe dele** — para ele mesmo está vazia. Resultado: o dono da
+empresa abriria o aplicativo, com o módulo contratado, e leria *"Nenhum módulo ativo —
+Aguardando habilitação de recursos pelo Desenvolvedor"*. Sem erro, sem log, sem pista.
+
+> ⚠️ **ELE FICOU ONZE DIAS INVISÍVEL PELO MESMO MOTIVO QUE O TORNOU INOFENSIVO ATÉ AQUI:**
+> sem nenhum módulo no telefone, `allowed_modules` e `modulos_do_membro()` devolviam a
+> mesma lista vazia. O comentário do `OperationalDashboardView.tsx` chegava a dizer
+> *"o aplicativo já fazia certo desde a v10: ele lia allowed_modules"* — e estava errado
+> nos dois sentidos. Foi corrigido no mesmo commit.
+
+> ⚠️ **E O `CLAUDE.md` JÁ TINHA A PROIBIÇÃO ESCRITA** — *"nunca exigir `allowed_modules`
+> do PROPRIETÁRIO"* — desde o degrau 7. A regra existia, o código a violava, e nenhuma
+> prova olhava para lá. É o argumento da sétima prova, abaixo.
+
+**O botão "VALORES + %" × "SÓ %", e por que ele não conflita com o bloqueio.** Ele pediu
+o botão para os DOIS papéis, com a ressalva de que o bloqueio do Dependente
+(`dinheiro_percentual`) não pode ser quebrado. A resposta já estava construída desde
+18/09, e este degrau só precisou não a estragar:
+
+> ⚠️ **O BOTÃO NUNCA TEVE OS VALORES EM MÃOS PARA REVELAR.** No modo bloqueado, a
+> `fin_dinheiro_do_periodo` devolve `orcado`, `realizado` e `saldo` em **NULO** — os
+> números não atravessam a internet. Então, mesmo que alguém adultere o aplicativo e
+> force o modo VALORES, o que aparece é `—`. São duas coisas diferentes, e elas não
+> competem: **esconder o que já chegou é CONFORTO** (e é escolha de quem está olhando,
+> por exemplo para mostrar o ecrã a alguém ao lado); **não enviar o que não pode é
+> SEGURANÇA**, e mora no banco.
+>
+> É por isso que este botão não fere a proibição *"nunca implementar 'este usuário vê
+> menos' filtrando na TELA"*. Aquela proibição trata de esconder do usuário o que OUTRA
+> pessoa decidiu que ele não pode ver — e isso continua sendo feito no banco.
+
+**A decisão fica no Core, com 13 testes** (`modoDinheiroRegras.ts`, arquivo próprio para
+não levar o `orcamentoRegras.ts` de 184 a 295 linhas). As travas 4, 5 e 6 foram vistas
+**FALHAR** antes de a guarda existir — a mutação trocou `if (!veValores)` por
+`if (false)` e as três acusaram. A trava 5 é a central do pedido: uma escolha "VALORES"
+gravada à mão no cofre do aparelho **não vale** para quem está bloqueado.
+
+> ⚠️ **TRAVADO, O BOTÃO CONTINUA VISÍVEL — desligado, cinza e com o motivo ao lado.**
+> Esconder faria a pessoa concluir que a função não existe na conta dela; mostrar sem
+> explicação faria ela tocar e achar que o aplicativo travou. A terceira via é a única
+> honesta: mostrar, desligar, explicar.
+
+> ⚠️ **O RÓTULO ANUNCIA O DESTINO DO TOQUE, NÃO O ESTADO.** "SÓ %" enquanto o ecrã mostra
+> valores é ambíguo: metade das pessoas lê "estou em SÓ %" e a outra metade lê "toque
+> para ir a SÓ %". O estado atual já está à vista — são os próprios números.
+
+> ⚠️ **NO MODO "SÓ %" A FRASE DA LINHA É PEDIDA COM OS VALORES EM NULO**, reaproveitando
+> um caminho que a `situacaoDaLinha` já tinha testado: em vez de "SOBRAM 252,00" ela
+> escreve "79% CONSUMIDO" / "ESTOUROU (112%)". Esconder a frase inteira teria sido mais
+> fácil e tiraria o aviso de estouro, que é a informação mais útil da linha.
+
+**A SÉTIMA PROVA — a lacuna maior que o degrau fechou.** Medido: `npm run verificar` e
+`npm run ensaio` **não continham a palavra "mobile"**. Dava para entregar código do
+aplicativo com erro de tipo e o ensaio inteiro ficava verde — o site tinha quatro
+camadas de proteção, o aplicativo tinha zero. Entrou `npm run typecheck:mobile`
+(`tsc --noEmit`), e ela **nasceu no verde**.
+
+> ⚠️ **ELA FICA MAIS RIGOROSA DEPOIS DO PRIMEIRO `npx expo start`.** O
+> `experiments.typedRoutes` GERA `.expo/types/router.d.ts` com a lista das rotas
+> existentes, e essa pasta é ignorada pelo Git — medido em 19/09, ela **não existia** na
+> máquina. Em máquina limpa a prova confere tipos; em máquina que já rodou o Metro,
+> confere tipos **e** rotas.
+
+**O que estava faltando fora do repositório, e travava tudo.** Medido em 19/09: **não
+existia `apps/mobile-app/.env`** — só o `.env.example`. Sem ele, o
+`packages/core/src/lib/supabase.ts` cai no valor de reserva `placeholder.supabase.co`, o
+login falha, e a mensagem de erro não menciona variável nenhuma. O site nunca sofreu
+disso porque pega as variáveis da Vercel, e os builds da nuvem porque pegam do expo.dev.
+**A única máquina sem elas era a dele** — e é de lá que o Metro serve o código.
+
+> ⚠️ **E OS DOIS APKs DA CONTA expo.dev NÃO SÃO DESTE REPOSITÓRIO.** Medido: eles são de
+> 07/09/2026, dos commits `80e0d79` e `a8c32e4`, que **não existem aqui** (este
+> repositório começa em `d463721`, de 11/09). São da v9 — e é por isso que o rodapé do
+> `preview` diz "v9 – 2026-09-07-08" para sempre: num build `preview` o JavaScript vem
+> embutido. Para ver o código de hoje: **development build + Metro**, ou build novo.
+
+**Faxina no expo.dev, no mesmo degrau:** a `EXPO_PUBLIC_API_URL` foi apagada dos
+ambientes `preview` e `production` — ela apontava para a Vercel da **v9** e nenhuma linha
+de código a lia desde a v10. O ambiente `development`, que estava **vazio**, foi
+preenchido. E os três perfis do `eas.json` passaram a declarar `environment`, porque qual
+ambiente a EAS escolhia por omissão era dúvida em aberto — e a forma de acabar com uma
+dúvida é dizer, não deduzir.
+
+**As armadilhas de tela que este degrau pagou:**
+
+> ⚠️ **`color` ANTES DE ESPALHAR UM ESTILO DE `TIPOGRAFIA` NÃO VALE.** Aqueles estilos
+> trazem `color` própria; em objeto literal **a última chave ganha**. O sintoma é o pior
+> possível: a linha do preto está escrita no arquivo, aparentemente cumprida, e a tela
+> continua cinza. O rodapé em preto (pedido dele) exigiu a cor DEPOIS do espalhamento.
+
+> ⚠️ **O RODAPÉ ESCURO CONTINUOU CINZA, DE PROPÓSITO.** O `InstitutionalFooter` tem duas
+> paletas, e a escura atende o Painel de Engenharia: preto sobre `#121212` não se lê.
+> Pintar as duas apagaria o rodapé de uma das abas, e nenhuma prova acusaria.
+
+> ⚠️ **O SÍMBOLO DA MARCA ENCOLHEU DE 72pt PARA 48pt, e não foi escolha estética.** Num
+> lockup horizontal ele divide a largura com o nome: mantidos os 72pt, sobrariam ~256dp
+> num telefone de 360dp, e "PLATAFORMA JAIRO O D C" em maiúsculas quebraria em duas
+> linhas, desalinhando o nome em relação ao símbolo.
+
+> ⚠️ **O `alignItems: 'flex-start'` É O QUE CUMPRE "ALINHADO À ESQUERDA".** Sem ele, o
+> bloco herdaria o alinhamento do container (a guarita centra o conteúdo) e o lockup
+> voltaria ao meio da tela.
+
+> ⚠️ **A PREFERÊNCIA DE EXIBIÇÃO NÃO MORA EM ESTADO DE COMPONENTE.** Sair da tela e
+> voltar **remonta** o componente, e quem tivesse escondido os valores para mostrar o
+> ecrã a alguém os veria reaparecer sozinhos. Ela vai ao cofre do aparelho, com a chave
+> declarada DENTRO do módulo e passada por parâmetro ao `storageService`, que é da
+> plataforma — escrever `'fin_...'` dentro dele seria solda clandestina.
+
+> ⚠️ **ZERO DEPENDÊNCIA NOVA, E ISSO FOI REQUISITO.** A barra de consumo é uma `View` com
+> largura em percentagem, sem SVG e sem pacote de gráfico. Um *development build* só
+> precisa ser refeito quando muda algo NATIVO — mantendo o degrau em puro
+> TypeScript, o código novo chega pelo Metro ao aplicativo já instalado.
+
+**Placar:** `npm test` **137/137** (124 + 13 novos) · `teste_financeiro.sql` **52/52** ·
+`teste_rls.sql` **16/16** · `inventario_financeiro.sql` **17/17** · `inventario.sql`
+**4/4** · LEGO 0 violações · lint, build e **tipos do mobile** limpos · ensaio de upgrade
+**21 ok, 0 divergindo** · `npm run ensaio` **11 provas**.
+
+**Zero SQL neste degrau** — os números do banco são os mesmos de propósito: a
+`fin_dinheiro_do_periodo`, a `fin_config_dinheiro`, os GRANTs e o modo percentual já
+estavam prontos desde 18/09. O que faltava era só o corpo da tela.
+
+Módulo: **5 tabelas, 36 funções, 22 permissões, 18 rotas no site + 2 no aplicativo**.
+
+---
+
 **2026-09-18 (quinta rodada) — v10: a última função sem dono, e três buracos de tela**
 
 Rodada de dívida, não de funcionalidade: nenhuma tela nova. Ele pediu a correção da

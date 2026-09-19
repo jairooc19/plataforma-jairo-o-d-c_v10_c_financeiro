@@ -70,6 +70,31 @@ export interface ManifestoDeModulo {
   rotaConfiguracao?: string;
 
   /**
+   * (Opcional) Para onde o cartão do módulo leva **no aplicativo mobile**.
+   * Ex.: `/financeiro`. Tem de bater com a pasta real em `apps/mobile-app/app/`.
+   *
+   * ⚠️ POR QUE UM CAMPO SEPARADO, E NÃO O `rotaWeb`. Os endereços são de
+   * ferramentas diferentes: o site usa o App Router do Next.js (`/dashboard/x`)
+   * e o aplicativo usa o Expo Router (`/x`), onde `app/(tabs)` some da URL e
+   * `app/x/` não. Reaproveitar `rotaWeb` no telemóvel levaria a um endereço que
+   * não existe lá — e o Expo Router responde a isso com a tela
+   * "Endereço não encontrado", que a pessoa lê como aplicativo quebrado.
+   *
+   * ⚠️ A AUSÊNCIA TEM SIGNIFICADO, e é por isso que ele é opcional: módulo **sem**
+   * tela no aplicativo simplesmente omite o campo, e o painel do telemóvel
+   * desenha o cartão com o selo "EM BREVE" em vez de oferecer um caminho que não
+   * abre. Deduzir a rota a partir do `id` (`'/' + id`) pareceria mais esperto e
+   * tiraria justamente esta possibilidade: não haveria como um módulo dizer
+   * "eu ainda não existo no telefone".
+   *
+   * ⚠️ CONTINUA VALENDO A REGRA DO TOPO DESTE ARQUIVO: nunca acrescente aqui um
+   * campo que só um módulo usa. `rotaMobile` é genérico — qualquer módulo com
+   * tela no aplicativo tem uma. É o mesmo raciocínio que autorizou o
+   * `rotaConfiguracao` em 13/09/2026. `taxaDeJuros` seria a violação; isto não é.
+   */
+  rotaMobile?: string;
+
+  /**
    * O prefixo de TODAS as tabelas e funções do módulo no banco. Ex.: `fin_`.
    * É o que permite ao reset do módulo derrubar só o que é dele.
    */

@@ -45,7 +45,7 @@ export default function GuaritaScreen() {
   };
 
   return (
-    <AuthScreen legenda="Ecossistema de gestão multi-empresa.">
+    <AuthScreen>
       {mostrarAcessos ? (
         <AccessOptionsView onSelectRole={escolherPapel} onBack={() => setMostrarAcessos(false)} />
       ) : (

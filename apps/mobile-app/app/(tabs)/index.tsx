@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
 // 🔵 CÉREBRO ÚNICO: Serviços e Conexão
-import { authService, supabase, settingsService } from '@jairo/core';
+import { authService, supabase, settingsService, moduleService } from '@jairo/core';
 import { storageService } from '@/services/storageService';
 import { BRAND } from '@/constants/Colors';
 import InstitutionalFooter from '@/components/InstitutionalFooter';
@@ -41,6 +41,14 @@ export default function TabIndex() {
   const [contextData, setContextData] = useState<TenantMemberContext | null>(null);
   const [systemTitle, setSystemTitle] = useState('CARREGANDO...');
   const [sessionData, setSessionData] = useState<SessionUser>(SESSAO_VAZIA);
+  /**
+   * 🧩 OS MÓDULOS QUE ESTE MEMBRO PODE ABRIR NESTA EMPRESA (19/09/2026, degrau 08).
+   *
+   * ⚠️ QUEM CRUZA AS CONDIÇÕES É O BANCO (`modulos_do_membro`): liberado ao membro,
+   * contratado pela empresa e ativo no catálogo. É o mesmo desenho que o site já
+   * usa em `dashboard/page.tsx` — cruzar aqui poria a regra no aparelho.
+   */
+  const [modulosPermitidos, setModulosPermitidos] = useState<string[]>([]);
 
   const initDashboard = useCallback(async () => {
     try {
@@ -77,10 +85,39 @@ export default function TabIndex() {
         email: user.email ?? null,
       });
 
-      // 4. Contexto da empresa (módulos e permissões) — só para quem opera.
+      // 4. Contexto da empresa (papel e nome) — só para quem opera.
       if (!ehDesenvolvedor && tenantId) {
         const memberContext = await authService.getTenantMemberContext(tenantId, user.id);
         setContextData(memberContext as TenantMemberContext | null);
+
+        /**
+         * 5. A LISTA DE MÓDULOS, VINDA DO BANCO.
+         *
+         * ===================================================================
+         * ⚠️ CORRIGIDO EM 19/09/2026 — O APLICATIVO LIA A COLUNA ERRADA
+         * ===================================================================
+         * Até aqui o painel lia `tenantData.allowed_modules`. Essa coluna é **a
+         * chave que o Proprietário entrega à equipe dele** — para ele mesmo ela
+         * está vazia. Com um módulo contratado de verdade, o dono da empresa
+         * abriria o aplicativo e leria "Nenhum módulo ativo", sem erro nenhum,
+         * sem log e sem pista. Era o defeito mais silencioso que o degrau 08
+         * encontrou.
+         *
+         * A `modulos_do_membro()` trata os dois casos: ao OWNER devolve tudo o
+         * que a EMPRESA contratou; aos demais, o que foi marcado para eles. É
+         * exatamente a proibição do `CLAUDE.md` — "nunca exigir
+         * `allowed_modules` do PROPRIETÁRIO" — que estava sendo quebrada aqui.
+         *
+         * ⚠️ FALHA AQUI NÃO DERRUBA O PAINEL. Sem módulo, a tela mostra o estado
+         * vazio, que é honesto; mandar a pessoa de volta à guarita por causa de
+         * uma lista de cartões seria trocar um painel incompleto por nenhum.
+         */
+        try {
+          setModulosPermitidos(await moduleService.modulosPermitidos(tenantId));
+        } catch (erro) {
+          console.warn('[MAESTRO-DASHBOARD] Não foi possível ler os módulos:', erro);
+          setModulosPermitidos([]);
+        }
       }
     } catch (error) {
       console.error('[MAESTRO-DASHBOARD] Erro de sincronização:', error);
@@ -123,6 +160,7 @@ export default function TabIndex() {
         sessionData={sessionData}
         tenantData={contextData}
         systemTitle={systemTitle}
+        modulosPermitidos={modulosPermitidos}
       />
       <InstitutionalFooter />
     </View>

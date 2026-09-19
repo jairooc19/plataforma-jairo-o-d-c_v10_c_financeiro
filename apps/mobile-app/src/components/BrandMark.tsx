@@ -4,14 +4,17 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import Icon from '@/components/icon/Icon';
 import { BRAND, PLATFORM, elevacao } from '@/constants/Colors';
-import { TIPOGRAFIA } from '@/constants/Typography';
+import { TAMANHO, PESO } from '@/constants/Typography';
 import { ESPACO, ICONE, DURACAO } from '@/constants/Spacing';
 
 export interface BrandMarkProps {
-  /** Nome exibido sob o símbolo. Padrão: o nome da plataforma. */
+  /** Nome exibido ao lado do símbolo. Padrão: o nome da plataforma. */
   titulo?: string;
-  /** Frase de uma linha sob o nome. */
-  legenda?: string;
+  /**
+   * A linha de baixo. Hoje é o rótulo dos módulos plugados, vindo do registro do
+   * Core (`rotuloDosModulosInstalados()`) — nunca um texto escrito à mão numa tela.
+   */
+  subtitulo?: string | null;
   /** Sem animação de entrada — use quando a marca não abre a tela. */
   estatica?: boolean;
 }
@@ -20,35 +23,50 @@ export interface BrandMarkProps {
  * 🔷 A MARCA (PJODC v10)
  * Local: apps/mobile-app/src/components/BrandMark.tsx
  *
- * v9: [100% NATIVO — COMPONENTE]
+ * Símbolo e nome NA MESMA LINHA, alinhados à esquerda; abaixo, o rótulo dos
+ * módulos desta instalação.
  *
- * Símbolo, nome e legenda. Abre as telas da guarita, que antes começavam direto
- * no cartão de login — sem nada dizendo em que aplicativo o usuário está.
+ * ===========================================================================
+ * ⚠️ O QUE MUDOU EM 19/09/2026 (degrau 08), E POR QUÊ
+ * ===========================================================================
+ * Até aqui a marca era uma pilha CENTRADA de três andares: símbolo de 72pt, nome
+ * embaixo, e uma legenda ("Ecossistema de gestão multi-empresa."). Por pedido do
+ * dono do projeto ela virou um **lockup horizontal** — símbolo à esquerda, nome ao
+ * lado, na mesma linha — e a legenda saiu.
  *
- * 🎯 O SÍMBOLO É UM QUADRADO AZUL COM UM ÍCONE DENTRO, e não uma imagem. A
- * decisão é deliberada e tem três consequências boas: ele acompanha a cor da
- * marca sem alguém precisar reexportar um PNG, é nítido em qualquer densidade de
- * tela porque é vetor, e não acrescenta um único byte de recurso ao pacote. Um
- * logotipo de verdade, quando existir, entra AQUI — e nenhuma tela muda, porque
- * todas conhecem apenas `<BrandMark />`.
+ * 📐 O SÍMBOLO ENCOLHEU DE 72pt PARA 48pt, E NÃO FOI ESCOLHA ESTÉTICA. Num lockup
+ * horizontal ele divide a largura com o nome: num telefone de 360dp sobram ~280dp
+ * para o texto depois do símbolo e da folga. Mantidos os 72pt, sobrariam ~256dp, e
+ * "PLATAFORMA JAIRO O D C" em maiúsculas não caberia numa linha — quebraria em
+ * duas, desalinhando o nome em relação ao símbolo. 48pt é a medida de alvo de
+ * toque do projeto (`ALVO.medio`), o que mantém a marca coerente com o resto.
  *
- * ⚠️ NÃO É O ÍCONE DO APLICATIVO. Aquele vive em `src/assets/images/icon.png` e
- * é desenhado pelo sistema operacional na tela inicial e no seletor de apps —
- * não se confundem, e trocar um não troca o outro.
+ * 🔠 O NOME VAI EM MAIÚSCULAS, mas quem o entrega já em maiúsculas é quem o passa —
+ * aqui só se aplica `letterSpacing`. Maiúscula por `textTransform` no React Native
+ * tem comportamento desigual entre plataformas quando o texto quebra de linha.
  *
- * 📐 O QUADRADO TEM 72pt E O ÍCONE 40. A proporção de ~55% é a mesma que iOS e
- * Android usam nos seus próprios ícones de aplicativo: menos que isso e o
- * símbolo boia num campo azul vazio, mais e ele encosta nos cantos arredondados,
- * onde o arredondamento come o traço.
+ * 🎯 O SÍMBOLO É UM QUADRADO AZUL COM UM ÍCONE DENTRO, e não uma imagem — decisão
+ * mantida da v9. Ele acompanha a cor da marca sem ninguém reexportar um PNG, é
+ * nítido em qualquer densidade porque é vetor, e não acrescenta um byte de recurso
+ * ao pacote. Um logotipo de verdade, quando existir, entra AQUI — e nenhuma tela
+ * muda, porque todas conhecem apenas `<BrandMark />`.
+ *
+ * ⚠️ NÃO É O ÍCONE DO APLICATIVO. Aquele vive em `src/assets/images/icon.png` e é
+ * desenhado pelo sistema operacional na tela inicial — trocar um não troca o outro.
+ *
+ * ⚠️ O SUBTÍTULO NÃO É ESCRITO AQUI. Ele chega por prop, e quem o produz é o
+ * registro de módulos do Core. Escrever "MÓDULO: CONTROLE FINANCEIRO" neste arquivo
+ * seria pôr o nome de um módulo dentro da plataforma — o verificador de LEGO
+ * acusaria, e a frase viraria mentira no dia em que o módulo fosse desplugado.
  */
 function BrandMarkBase({
-  titulo = 'Plataforma Jairo O D C',
-  legenda,
+  titulo = 'PLATAFORMA JAIRO O D C',
+  subtitulo,
   estatica = false,
 }: BrandMarkProps) {
   /**
    * A marca inteira entra como UM bloco, e não elemento a elemento. Escalonar
-   * símbolo, nome e legenda separadamente faria a identidade do produto se
+   * símbolo, nome e subtítulo separadamente faria a identidade do produto se
    * montar em pedaços diante do usuário — o efeito é de tela carregando devagar,
    * não de tela viva.
    */
@@ -56,17 +74,26 @@ function BrandMarkBase({
 
   return (
     <Animated.View entering={entrada} style={estilos.raiz}>
-      <View style={estilos.simbolo}>
-        <Icon name="Raio" size={ICONE.grande} color={BRAND.onPrimary} strokeWidth={2.2} />
+      {/* O lockup: símbolo + nome, na mesma linha. */}
+      <View style={estilos.linha}>
+        <View style={estilos.simbolo}>
+          <Icon name="Raio" size={ICONE.medio} color={BRAND.onPrimary} strokeWidth={2.2} />
+        </View>
+
+        {/*
+          ⚠️ `flexShrink: 1` E DUAS LINHAS DE FOLGA. Sem o encolhimento, um título
+          mais longo (o white-label permite trocá-lo) empurraria o texto para fora
+          da tela em vez de quebrar — e em React Native o que sai da tela não
+          aparece cortado com reticências: simplesmente desaparece.
+        */}
+        <Text style={estilos.nome} numberOfLines={2}>
+          {titulo}
+        </Text>
       </View>
 
-      <Text style={estilos.nome} numberOfLines={2}>
-        {titulo}
-      </Text>
-
-      {!!legenda && (
-        <Text style={estilos.legenda} numberOfLines={2}>
-          {legenda}
+      {!!subtitulo && (
+        <Text style={estilos.subtitulo} numberOfLines={2}>
+          {subtitulo}
         </Text>
       )}
     </Animated.View>
@@ -74,31 +101,57 @@ function BrandMarkBase({
 }
 
 const estilos = StyleSheet.create({
+  /**
+   * ⚠️ `alignItems: 'flex-start'` É O QUE CUMPRE "ALINHADO À ESQUERDA". Sem ele, o
+   * bloco herdaria o alinhamento do container (a guarita centra o conteúdo) e o
+   * lockup voltaria ao meio da tela, que é exatamente o que saiu de cena.
+   */
   raiz: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    alignSelf: 'stretch',
     marginBottom: ESPACO.xxl,
   },
 
+  linha: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ESPACO.md,
+    alignSelf: 'stretch',
+  },
+
   simbolo: {
-    width: 72,
-    height: 72,
-    borderRadius: PLATFORM.radiusCard + 6,
+    width: 48,
+    height: 48,
+    borderRadius: PLATFORM.radiusField,
     backgroundColor: BRAND.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: ESPACO.lg,
     ...elevacao(3),
   },
 
+  /**
+   * ⚠️ NÃO USA `TIPOGRAFIA.titulo` (26pt). Aquele degrau foi desenhado para título
+   * de tela em pilha centrada; num lockup horizontal de 48pt ele briga com o
+   * símbolo pela largura e quebra em duas linhas no telefone estreito. 20pt com
+   * `letterSpacing` positivo é a medida que faz um nome em maiúsculas ler-se como
+   * marca, e não como frase.
+   */
   nome: {
-    ...TIPOGRAFIA.titulo,
-    textAlign: 'center',
+    flexShrink: 1,
+    fontSize: 20,
+    lineHeight: 25,
+    fontWeight: PESO.forte,
+    color: BRAND.text,
+    letterSpacing: 0.6,
   },
 
-  legenda: {
-    ...TIPOGRAFIA.legenda,
-    textAlign: 'center',
+  subtitulo: {
     marginTop: ESPACO.sm,
+    fontSize: TAMANHO.dica,
+    lineHeight: 16,
+    fontWeight: PESO.medio,
+    color: BRAND.primary,
+    letterSpacing: 1.2,
   },
 });
 

@@ -130,10 +130,23 @@ export const authStyles = StyleSheet.create({
   mensagemTexto: TIPOGRAFIA.legenda,
 
   rodape: { marginTop: ESPACO.xl, alignItems: 'center' },
+
+  /**
+   * ⚠️ A COR VEM DEPOIS DO ESPALHAMENTO, E TEM DE VIR (19/09/2026). `TIPOGRAFIA.dica`
+   * traz `color` própria (um cinza de apoio); declarar `color` ANTES do
+   * `...TIPOGRAFIA.dica` faria o espalhamento sobrescrevê-la e o rodapé continuaria
+   * cinza — sem erro, sem aviso, e com a linha do preto escrita no arquivo,
+   * aparentemente cumprida. Em objeto literal, a última chave ganha.
+   *
+   * 🖤 PRETO POR PEDIDO DO DONO DO PROJETO. `textStrong` é `#000000`; `BRAND.text`
+   * é `#1c1c1c` (o "quase preto" que o projeto usa para não vibrar em OLED). Aqui o
+   * pedido foi preto, e preto é `textStrong`.
+   */
   rodapeTexto: {
     ...TIPOGRAFIA.dica,
     fontSize: 10,
     textAlign: 'center',
+    color: BRAND.textStrong,
   },
 });
 

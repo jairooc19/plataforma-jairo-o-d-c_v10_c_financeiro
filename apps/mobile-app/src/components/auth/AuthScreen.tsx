@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, KeyboardAvoidingView, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { APP_VERSION } from '@jairo/core';
+import { APP_VERSION, rotuloDosModulosInstalados } from '@jairo/core';
 
 import { usePlatform } from '@/hooks/usePlatform';
 import { useKeyboardOpen } from '@/hooks/useKeyboardOpen';
@@ -17,9 +17,23 @@ export interface AuthScreenProps {
    * dobra.
    */
   semMarca?: boolean;
-  /** Frase de uma linha sob o nome da plataforma. */
-  legenda?: string;
 }
+
+/**
+ * 🧩 O RÓTULO DOS MÓDULOS DESTA INSTALAÇÃO, calculado UMA vez no carregamento do
+ * módulo JavaScript — não a cada renderização.
+ *
+ * ⚠️ POR QUE FORA DO COMPONENTE. `MODULOS_INSTALADOS` é uma constante do Core: a
+ * resposta é a mesma durante toda a vida do processo. Chamar a função dentro do
+ * corpo do componente a executaria em cada uma das sete telas da guarita, a cada
+ * toque de tecla que as re-renderizasse, para produzir sempre a mesma string.
+ *
+ * ⚠️ E NOTE O QUE ESTE ARQUIVO **NÃO** TEM: o nome de nenhum módulo. Ele pede o
+ * rótulo ao registro e desenha. Com um módulo plugado sai "MÓDULO: CONTROLE
+ * FINANCEIRO"; com dois, "MÓDULOS: A · B"; com nenhum, `null` — e a linha
+ * simplesmente não existe. Ver `packages/core/src/modules/registro.ts`.
+ */
+const ROTULO_DOS_MODULOS = rotuloDosModulosInstalados();
 
 /**
  * 🖼️ MOLDURA DAS TELAS DE AUTENTICAÇÃO (PJODC v10)
@@ -58,7 +72,7 @@ export interface AuthScreenProps {
  * campo deveria aparecer. A versão e o símbolo não são urgentes; o campo que se
  * está preenchendo é.
  */
-export default function AuthScreen({ children, semMarca = false, legenda }: AuthScreenProps) {
+export default function AuthScreen({ children, semMarca = false }: AuthScreenProps) {
   const { tokens } = usePlatform();
   const tecladoAberto = useKeyboardOpen();
 
@@ -74,7 +88,7 @@ export default function AuthScreen({ children, semMarca = false, legenda }: Auth
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {mostrarMarca && <BrandMark legenda={legenda} />}
+          {mostrarMarca && <BrandMark subtitulo={ROTULO_DOS_MODULOS} />}
 
           {children}
 

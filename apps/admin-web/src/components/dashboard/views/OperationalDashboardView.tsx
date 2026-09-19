@@ -23,7 +23,16 @@ interface OperationalDashboardViewProps {
  * Até aqui esta tela era um cartaz fixo: mostrava "Aguardando Liberação" para
  * todo mundo, sempre, e **ignorava** a lista de módulos do banco. Liberar um
  * módulo a um membro não mudava nada aqui — era a lacuna L3 do degrau 4.
- * (O aplicativo já fazia certo desde a v10: ele lia `allowed_modules`.)
+ *
+ * ⚠️ **CORRIGIDO EM 19/09/2026 (degrau 08).** Este parágrafo terminava com a frase
+ * "(O aplicativo já fazia certo desde a v10: ele lia `allowed_modules`.)" — e ela
+ * estava **errada nos dois sentidos**. Ler `allowed_modules` não era "certo": essa
+ * coluna é a chave que o Proprietário entrega à EQUIPE dele, e para o próprio dono
+ * da empresa está vazia. O aplicativo mostrava "Nenhum módulo ativo" ao
+ * Proprietário de uma empresa que tinha o módulo contratado, sem erro e sem pista.
+ * Passou despercebido porque, sem nenhum módulo plugado no telefone, os dois
+ * caminhos devolviam a mesma lista vazia. O aplicativo agora chama
+ * `modulos_do_membro()`, como esta tela.
  *
  * ⚠️ E NOTE O QUE ESTE ARQUIVO **NÃO** TEM: o nome de nenhum módulo. Ele recebe
  * identificadores do banco, pede os manifestos ao registro do Core e desenha um

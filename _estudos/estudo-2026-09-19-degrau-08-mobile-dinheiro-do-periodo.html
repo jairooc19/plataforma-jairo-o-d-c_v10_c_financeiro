@@ -1,0 +1,2418 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Degrau 08 — O Controle Financeiro no telemóvel (parte 1: DINHEIRO DO PERÍODO)</title>
+<style>
+/* ===================================================================
+   PALETA — fonte PRETA, fundos e destaques SUAVES
+   print-color-adjust: exact FORA de @media print, como pedido.
+   =================================================================== */
+* {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  box-sizing: border-box;
+}
+
+:root {
+  --azul:           #2c5282;
+  --azul-claro:     #f0f4f8;
+  --verde-claro:    #f0f9f7;
+  --ambar-claro:    #fef5e7;
+  --vermelho-claro: #fdf0ef;
+  --roxo-claro:     #f4f1fa;
+  --borda:          #d6dee8;
+  --texto:          #000000;
+  --cinza:          #55606e;
+}
+
+body {
+  font-family: Georgia, "Times New Roman", serif;
+  color: var(--texto);
+  background-color: #ffffff;
+  line-height: 1.7;
+  margin: 0;
+  padding: 0;
+  font-size: 16px;
+}
+
+.folha { max-width: 980px; margin: 0 auto; padding: 48px 32px 96px; }
+
+/* ---------- Cabeçalho ---------- */
+header.capa { border-bottom: 3px solid var(--azul); padding-bottom: 24px; margin-bottom: 8px; }
+header.capa .selo {
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase;
+  color: var(--azul); font-weight: 700;
+}
+h1 { font-size: 30px; line-height: 1.25; margin: 10px 0 6px; color: var(--texto); }
+header.capa .linha-fina { font-size: 15px; color: var(--cinza); font-style: italic; }
+
+/* ---------- Títulos ---------- */
+h2 {
+  font-size: 23px; margin: 46px 0 14px; padding: 10px 16px;
+  background-color: var(--azul-claro); border-left: 5px solid var(--azul); color: var(--texto);
+}
+h3 {
+  font-size: 18.5px; margin: 30px 0 10px; color: var(--azul);
+  border-bottom: 1px solid var(--borda); padding-bottom: 5px;
+}
+h4 { font-size: 16px; margin: 22px 0 8px; color: var(--texto); font-family: "Segoe UI", Arial, sans-serif; }
+
+p { margin: 12px 0; }
+ul, ol { margin: 12px 0; padding-left: 26px; }
+li { margin: 7px 0; }
+strong { font-weight: 700; }
+code {
+  font-family: "Consolas", "Courier New", monospace; font-size: 0.88em;
+  background-color: var(--azul-claro); padding: 1px 5px; border-radius: 3px; border: 1px solid var(--borda);
+}
+pre {
+  font-family: "Consolas", "Courier New", monospace; font-size: 13px; line-height: 1.55;
+  background-color: #f7f9fc; border: 1px solid var(--borda); border-left: 4px solid var(--azul);
+  padding: 14px 16px; overflow-x: auto; margin: 14px 0;
+  white-space: pre-wrap; word-break: break-word;
+}
+pre code { background: none; border: none; padding: 0; font-size: 13px; }
+pre.largo { white-space: pre; word-break: normal; font-size: 11.5px; line-height: 1.45; }
+
+/* ---------- Caixas ---------- */
+.caixa { padding: 16px 20px; margin: 18px 0; border-radius: 6px; border: 1px solid var(--borda); }
+.caixa > *:first-child { margin-top: 0; }
+.caixa > *:last-child  { margin-bottom: 0; }
+.caixa .rotulo {
+  font-family: "Segoe UI", Arial, sans-serif; font-size: 11px; font-weight: 700;
+  letter-spacing: 1.8px; text-transform: uppercase; display: block; margin-bottom: 7px;
+}
+.destaque      { background-color: var(--azul-claro);     border-left: 5px solid var(--azul); }
+.destaque .rotulo { color: var(--azul); }
+.feito         { background-color: var(--verde-claro);    border-left: 5px solid #2f7a68; }
+.feito .rotulo { color: #1f5347; }
+.armadilha     { background-color: var(--ambar-claro);    border-left: 5px solid #b07d2b; }
+.armadilha .rotulo { color: #855c15; }
+.perigo        { background-color: var(--vermelho-claro); border-left: 5px solid #a34b41; }
+.perigo .rotulo { color: #7d332b; }
+.exemplo       { background-color: var(--roxo-claro);     border-left: 5px solid #6a5aa0; }
+.exemplo .rotulo { color: #4c3f7d; }
+.honesto       { background-color: #f6f6f4;               border-left: 5px solid #5c5c56; }
+.honesto .rotulo { color: #43433e; }
+
+/* ---------- Tabelas ---------- */
+table {
+  width: 100%; border-collapse: collapse; margin: 18px 0;
+  font-size: 14.5px; font-family: "Segoe UI", Arial, sans-serif;
+}
+thead { background-color: var(--azul); }
+thead th {
+  color: #ffffff; text-align: left; padding: 9px 11px; font-size: 12.5px;
+  letter-spacing: 0.6px; text-transform: uppercase; font-weight: 700;
+}
+tbody td { padding: 9px 11px; border-bottom: 1px solid var(--borda); vertical-align: top; }
+tbody tr:nth-child(even) { background-color: #fafbfd; }
+td.certo  { color: #1f5347; font-weight: 700; }
+td.errado { color: #7d332b; font-weight: 700; }
+td.talvez { color: #855c15; font-weight: 700; }
+.num { text-align: center; font-variant-numeric: tabular-nums; }
+table.miuda { font-size: 12.5px; }
+table.miuda thead th { padding: 6px 7px; font-size: 11px; }
+table.miuda tbody td { padding: 6px 7px; }
+
+/* ---------- Barra de exemplo ---------- */
+.barra {
+  height: 16px; border: 1px solid var(--borda); border-radius: 8px;
+  background-color: #eef1f5; overflow: hidden; margin: 4px 0;
+}
+.barra span { display: block; height: 100%; }
+.b-verde  span { background-color: #7fb9a6; }
+.b-ambar  span { background-color: #e2be7a; }
+.b-vermelho span { background-color: #cf8d85; }
+
+/* ---------- Sumário ---------- */
+.toc {
+  background-color: #f7f9fc; border: 1px solid var(--borda);
+  border-radius: 6px; padding: 22px 26px; margin: 28px 0 10px;
+}
+.toc h2 { margin: 0 0 12px; padding: 0; background: none; border: none; font-size: 19px; }
+.toc ol { list-style: none; padding-left: 0; counter-reset: sec; }
+.toc ol > li {
+  counter-increment: sec; margin: 6px 0;
+  font-family: "Segoe UI", Arial, sans-serif; font-size: 14.5px;
+}
+.toc ol > li::before {
+  content: counter(sec) "."; font-weight: 700; color: var(--azul);
+  display: inline-block; min-width: 26px;
+}
+.toc ol ol { padding-left: 30px; counter-reset: sub; margin: 4px 0; }
+.toc ol ol > li { counter-increment: sub; font-size: 13.5px; color: var(--cinza); }
+.toc ol ol > li::before {
+  content: counter(sec) "." counter(sub); min-width: 34px; font-weight: 400; color: var(--cinza);
+}
+.toc a { color: inherit; text-decoration: none; }
+.toc a:hover { text-decoration: underline; color: var(--azul); }
+
+/* ---------- Placar ---------- */
+.placar { display: flex; flex-wrap: wrap; gap: 12px; margin: 18px 0; }
+.placar .item {
+  flex: 1 1 150px; background-color: var(--verde-claro); border: 1px solid var(--borda);
+  border-radius: 6px; padding: 12px 14px; font-family: "Segoe UI", Arial, sans-serif;
+}
+.placar .item .rot {
+  font-size: 10.5px; letter-spacing: 1.4px; text-transform: uppercase;
+  color: #1f5347; font-weight: 700;
+}
+.placar .item .val { font-size: 21px; font-weight: 700; margin-top: 3px; }
+
+/* ---------- Rodapé ---------- */
+footer.fim {
+  margin-top: 60px; border-top: 2px solid var(--borda); padding-top: 18px;
+  font-size: 13px; color: var(--cinza); font-family: "Segoe UI", Arial, sans-serif;
+}
+
+/* ===================================================================
+   BOTÃO DE IMPRESSÃO — fixo no canto superior direito
+   =================================================================== */
+.print-container {
+  position: fixed; top: 18px; right: 18px; z-index: 9999;
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+#printBtn {
+  background-color: var(--azul); color: #ffffff; border: none; border-radius: 6px;
+  padding: 11px 18px; font-size: 13px; font-weight: 700; letter-spacing: 0.8px;
+  text-transform: uppercase; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.22);
+}
+#printBtn:hover { background-color: #23415f; }
+#printMenu {
+  display: none; position: absolute; top: calc(100% + 6px); right: 0; min-width: 232px;
+  background-color: #ffffff; border: 1px solid var(--borda); border-radius: 6px;
+  box-shadow: 0 6px 22px rgba(0,0,0,0.20); overflow: hidden;
+}
+#printMenu.aberto { display: block; }
+#printMenu button {
+  display: block; width: 100%; text-align: left; background-color: #ffffff;
+  border: none; border-bottom: 1px solid var(--borda); padding: 13px 16px;
+  font-size: 13.5px; color: var(--texto); cursor: pointer;
+}
+#printMenu button:last-child { border-bottom: none; }
+#printMenu button:hover { background-color: var(--azul-claro); }
+#printMenu button .dica { display: block; font-size: 11px; color: var(--cinza); margin-top: 2px; }
+
+/* ===================================================================
+   CLASSE .print-bw — TODAS as cores para escala de cinza
+   (fica FORA do @media print, de propósito)
+   =================================================================== */
+.print-bw,
+.print-bw * {
+  color: #000000 !important;
+  background-color: #ffffff !important;
+  border-color: #000000 !important;
+  box-shadow: none !important;
+  fill: #000000 !important;
+  stroke: #000000 !important;
+}
+.print-bw h2 { background-color: #f2f2f2 !important; border-left-color: #000000 !important; }
+.print-bw h3 { color: #000000 !important; }
+.print-bw .caixa { background-color: #f7f7f7 !important; border-color: #000000 !important; }
+.print-bw .caixa .rotulo { color: #000000 !important; }
+.print-bw pre  { background-color: #f4f4f4 !important; }
+.print-bw code { background-color: #f0f0f0 !important; }
+.print-bw .toc { background-color: #f7f7f7 !important; }
+.print-bw .placar .item { background-color: #f4f4f4 !important; }
+.print-bw table thead,
+.print-bw .table thead { background-color: #333333 !important; }
+.print-bw table thead th,
+.print-bw .table thead th { color: #ffffff !important; background-color: #333333 !important; }
+.print-bw tbody tr:nth-child(even) { background-color: #f4f4f4 !important; }
+.print-bw td.certo,
+.print-bw td.errado,
+.print-bw td.talvez { color: #000000 !important; }
+.print-bw .barra { background-color: #ffffff !important; }
+.print-bw .barra span { background-color: #555555 !important; }
+
+/* ===================================================================
+   @media print — SÓ layout, quebras, margens e display.
+   NENHUMA cor aqui: quem decide cor é a tela ou a classe .print-bw.
+   =================================================================== */
+@media print {
+  @page { size: A4; margin: 0.5cm; }
+
+  .print-container { display: none !important; }
+
+  body   { margin: 0; padding: 0; }
+  .folha { max-width: 100%; margin: 0; padding: 0.3cm 0.4cm; }
+
+  section        { page-break-inside: avoid; }
+  section h2     { page-break-inside: avoid; page-break-after: avoid; }
+  h2, h3, h4     { page-break-after: avoid; }
+  .toc           { page-break-inside: avoid; }
+  .caixa         { page-break-inside: avoid; }
+  .destaque, .feito, .armadilha, .perigo, .exemplo, .honesto { page-break-inside: avoid; }
+  .bonus-section { page-break-inside: avoid; }
+  .example-box   { page-break-inside: avoid; }
+  .highlight-box { page-break-inside: avoid; }
+  .placar        { page-break-inside: avoid; }
+  table          { page-break-inside: avoid; }
+  tr             { page-break-inside: avoid; }
+  pre            { page-break-inside: avoid; overflow: visible; }
+
+  header.capa { page-break-after: avoid; }
+  footer.fim  { page-break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+
+
+<!-- ============ BOTÃO DE IMPRESSÃO ============ -->
+<div class="print-container" id="printContainer">
+  <button type="button" id="printBtn">Imprimir &#9662;</button>
+  <div id="printMenu">
+    <button type="button" id="btnCores">
+      Cores (A4)
+      <span class="dica">Mantém as cores exatas da tela</span>
+    </button>
+    <button type="button" id="btnPB">
+      Preto &amp; Branco (A4)
+      <span class="dica">Converte tudo para preto, cinzas e branco</span>
+    </button>
+  </div>
+</div>
+
+<div class="folha" id="folha">
+
+<header class="capa">
+  <span class="selo">Plataforma Jairo O D C · v10 · DEGRAU 08 · projeto · 19/09/2026</span>
+  <h1>Degrau 08 — o Controle Financeiro no telemóvel<br>Parte 1: DINHEIRO DO PERÍODO</h1>
+  <p class="linha-fina">
+    Projeto do degrau, escrito para quem está no nível zero de Expo. Tudo o que se afirma
+    aqui sobre o repositório foi <strong>medido hoje</strong>, com o comando ao lado do
+    número. O que eu não pude medir está dito como não medido, na seção 11.
+  </p>
+</header>
+
+<!-- ============ TRANSCRIÇÃO LITERAL DO PEDIDO ============ -->
+<div class="caixa honesto">
+  <span class="rotulo">Transcrição literal do seu pedido — 19/09/2026</span>
+  <pre>OK, ENTÃO O PRÓXIMO DEGRAU 08 SERÁ O apps/mobile-app NO CONTEXTO DE APESAR DE JÁ EXISTIR
+ALGO DESENVOLVIDO EU ESTOU NO NIVEL ZERO DE CONHECIMENTOS DE MANEJOS PARA O
+https://expo.dev/ ENTÃO SEMPRE VOU PRECISAR O QUE VOCÊ GERAR DE ORIENTAÇÕES E OU
+SOLICITAÇÕES QUE ENVOLVA https://expo.dev/ PRECISA CONSIDERAR MINHA CONDIÇÃO DE PRECISAR
+100% DE ORIENTAÇÕES INCLUINDO O IMPLÍCITO
+
+ATUALMENTE apps\mobile-app NÃO TEM MÓDULO CONECTADO E VAMOS CONECTAR O CONTROLE
+FINANCEIRO, MAS EM PARTES, A PRIMEIRA PARTE SERÁ "DINHEIRO DO PERÍODO"
+
+AGORA GERE PROJETO PARA O DEGRAU 08, E ENTREGUE O RESULTADO NO FORMATO HONESTIDADE: 100%
+HONESTA, SEM INVENÇÕES O PÚBLICO É PESSOA QUE PRECISA 100% DE ORIENTAÇÃO.
+
+ ESTILO DE ENSINO: EXPLICAR O ÓBVIO E IMPLÍCITO, COM EXEMPLOS PRÁTICOS, EM FORMATO
+INTUITIVO E DIDÁTICO.
+
+BONUS: SUGESTÕES DE ALTA RELEVÂNCIA NÃO MENCIONADAS NO PROMPT.
+
+FORMATO DE ENTREGA: CRIE UM ARQUIVO HTML COM: [sumário; corpo completo; design sóbrio com
+fontes pretas e fundos suaves; botão fixo de impressão no canto superior direito com menu
+de 2 opções — Cores (A4) e Preto &amp; Branco (A4) — e todos os requisitos técnicos de CSS e
+JavaScript descritos no pedido]</pre>
+</div>
+
+<!-- ============ SUMÁRIO ============ -->
+<nav class="toc">
+  <h2>Sumário</h2>
+  <ol>
+    <li><a href="#s1">Como este estudo foi feito — e o que “medido” significa aqui</a></li>
+    <li><a href="#s2">Expo do zero — o vocabulário mínimo, sem pular nada</a>
+      <ol>
+        <li><a href="#s2-1">As sete palavras que você precisa ter em mãos</a></li>
+        <li><a href="#s2-2">O mapa dos painéis: o que se configura onde</a></li>
+        <li><a href="#s2-3">O que já existe na SUA conta expo.dev (medido hoje)</a></li>
+        <li><a href="#s2-4">Os comandos que você vai digitar — e o que aparece na tela</a></li>
+        <li><a href="#s2-5">O implícito: Wi-Fi, firewall, e por que o telefone “não acha” o PC</a></li>
+      </ol>
+    </li>
+    <li><a href="#s3">O estado real do <code>apps/mobile-app</code> hoje (medido)</a>
+      <ol>
+        <li><a href="#s3-1">Os números</a></li>
+        <li><a href="#s3-2">O que funciona, o que nunca foi testado</a></li>
+        <li><a href="#s3-3">As TRÊS coisas que faltam e travam o degrau 08</a></li>
+        <li><a href="#s3-4">O ponto cego: nenhuma prova do projeto olha para o aplicativo</a></li>
+      </ol>
+    </li>
+    <li><a href="#s4">O que é o DINHEIRO DO PERÍODO — recapitulação para a tela pequena</a>
+      <ol>
+        <li><a href="#s4-1">A pergunta que a tela responde</a></li>
+        <li><a href="#s4-2">A barra, a cor e a marca do ritmo do mês</a></li>
+        <li><a href="#s4-3">O modo “só percentual”, e por que ele é decidido no BANCO</a></li>
+        <li><a href="#s4-4">O bloco FORA — o gasto que ninguém planejou</a></li>
+      </ol>
+    </li>
+    <li><a href="#s5">A boa notícia: o banco já está 100% pronto — zero SQL nesta parte</a></li>
+    <li><a href="#s6">As SEIS decisões que precisam ser tomadas antes do código</a></li>
+    <li><a href="#s7">O plano de execução, arquivo por arquivo</a>
+      <ol>
+        <li><a href="#s7-1">Fase A — pré-requisitos (você faz, eu oriento linha a linha)</a></li>
+        <li><a href="#s7-2">Fase B — a plataforma (3 arquivos pequenos)</a></li>
+        <li><a href="#s7-3">Fase C — o módulo dentro do aplicativo (9 arquivos novos)</a></li>
+        <li><a href="#s7-4">Fase D — as provas</a></li>
+        <li><a href="#s7-5">O que NÃO entra nesta parte (escopo, dito na cara)</a></li>
+      </ol>
+    </li>
+    <li><a href="#s8">Como VOCÊ vai testar, passo a passo, no seu telemóvel</a></li>
+    <li><a href="#s9">As armadilhas deste caminho — todas já pagas neste repositório</a></li>
+    <li><a href="#s10">BÔNUS — 14 sugestões que você não pediu</a></li>
+    <li><a href="#s11">O que eu NÃO sei e não pude medir</a></li>
+    <li><a href="#s12">As perguntas para você responder</a></li>
+    <li><a href="#s13">ADENDA de 19/09/2026 — os dois pedidos novos, e uma correção minha</a>
+      <ol>
+        <li><a href="#s13-1">A CORREÇÃO: os dois APKs não são deste repositório</a></li>
+        <li><a href="#s13-2">A MARCA: logotipo e nome na mesma linha</a></li>
+        <li><a href="#s13-3">O BOTÃO "VALORES + %" × "SÓ %"</a></li>
+        <li><a href="#s13-4">O que foi executado — a lista completa</a></li>
+        <li><a href="#s13-5">O que continua sendo seu, e nesta ordem</a></li>
+      </ol>
+    </li>
+  </ol>
+</nav>
+
+<!-- =================================================================== -->
+<section id="s1">
+<h2>1. Como este estudo foi feito — e o que “medido” significa aqui</h2>
+
+<p>
+  Você pediu honestidade de 100%. Então começo dizendo <strong>como cada afirmação deste
+  documento foi produzida</strong>, porque “honesto” sem isso é só uma palavra bonita.
+</p>
+
+<table>
+  <thead>
+    <tr><th style="width:22%">Marca</th><th>O que significa</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>MEDIDO</strong></td><td>Eu rodei um comando no seu repositório, ou na sua conta do expo.dev, e li o resultado. O comando fica escrito ao lado.</td></tr>
+    <tr><td><strong>LIDO</strong></td><td>Eu abri o arquivo e li o código. Digo o arquivo e, quando ajuda, a linha.</td></tr>
+    <tr><td><strong>EXPECTATIVA</strong></td><td>Raciocínio bem fundamentado, mas <em>sem prova</em>. Está sempre marcado assim. Nunca escrevo expectativa como se fosse fato.</td></tr>
+    <tr><td><strong>NÃO SEI</strong></td><td>Não medi e não tenho como medir daqui. A seção 11 lista tudo o que caiu nesta linha.</td></tr>
+  </tbody>
+</table>
+
+<div class="caixa feito">
+  <span class="rotulo">O que eu rodei hoje, 19/09/2026, para escrever este estudo</span>
+  <pre>npx tsc --noEmit            (dentro de apps/mobile-app)  → PASSOU, zero erros
+npx eas whoami                                          → jairoodc / jairooc19@gmail.com
+npx eas build:list --limit 8                            → 2 builds Android, ambos de 07/09/2026
+npx eas env:list production / preview / development      → ver seção 2.3
+ls -la apps/mobile-app/                                 → NÃO existe .env (só .env.example)
+find apps/mobile-app -name "*.ts" -o -name "*.tsx"      → 112 arquivos
+leitura completa de 14 arquivos do módulo e da plataforma → citados nas seções 3, 5 e 6</pre>
+</div>
+
+<div class="caixa armadilha">
+  <span class="rotulo">Uma ressalva de rota, antes de tudo</span>
+  <p>
+    A minha anotação deste projeto dizia que o aplicativo estava adiado porque
+    <em>“o Dependente não entra pelo celular”</em>. Isso <strong>está certo, e hoje eu medi
+    de novo</strong> (seção 3.3). O que vale acrescentar é que <strong>o degrau 08 anda sem
+    resolver isso</strong> — porque o Proprietário entra, e é ele quem vê o DINHEIRO DO
+    PERÍODO com os valores. A consequência é uma só, e é importante: <strong>o modo “só
+    percentual” não poderá ser testado no telemóvel nesta parte</strong>, porque quem o usa é
+    o Dependente. Está na lista do que fica de fora, seção 7.5.
+  </p>
+</div>
+</section>
+
+<!-- =================================================================== -->
+<section id="s2">
+<h2>2. Expo do zero — o vocabulário mínimo, sem pular nada</h2>
+
+<p>
+  Esta seção existe porque você disse, com todas as letras, que está no nível zero de
+  <code>expo.dev</code>. Não vou supor nada. Vou explicar até o que parece óbvio, porque o
+  “óbvio” do Expo é justamente onde se perde uma tarde.
+</p>
+
+<h3 id="s2-1">2.1 As sete palavras que você precisa ter em mãos</h3>
+
+<table>
+  <thead>
+    <tr><th style="width:20%">Palavra</th><th>O que é, em linguagem comum</th><th style="width:26%">A analogia</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>React Native</strong></td>
+      <td>A tecnologia que permite escrever a tela em TypeScript e o telefone desenhar com os componentes <em>nativos</em> dele. Não é um site dentro de um app: é app de verdade.</td>
+      <td>O mesmo desenho, executado pelo pintor do Android e pelo pintor do iOS.</td>
+    </tr>
+    <tr>
+      <td><strong>Expo</strong></td>
+      <td>Um conjunto de ferramentas <em>em volta</em> do React Native. Ele resolve o que ninguém quer resolver à mão: compilar, assinar, biometria, cofre, câmera, deep link. Aqui usamos o <strong>SDK 57</strong>.</td>
+      <td>A caixa de ferramentas. Você poderia trabalhar sem ela, martelando cada parafuso.</td>
+    </tr>
+    <tr>
+      <td><strong>expo.dev</strong></td>
+      <td><strong>O site/painel da Expo na internet.</strong> É lá que ficam: o seu projeto, o histórico de compilações, os arquivos <code>.apk</code> prontos e as variáveis de ambiente. É o equivalente do que a Vercel é para o site.</td>
+      <td>A Vercel do aplicativo.</td>
+    </tr>
+    <tr>
+      <td><strong>EAS</strong></td>
+      <td>“Expo Application Services”. É <em>o nome do serviço</em> que roda na nuvem da Expo e compila o seu app. O comando que fala com ele é o <code>eas</code>. Compilar um Android sem EAS exigiria Android Studio e ~10 GB na sua máquina.</td>
+      <td>A fábrica. Você manda o projeto; ela devolve o aplicativo instalável.</td>
+    </tr>
+    <tr>
+      <td><strong>Metro</strong></td>
+      <td>Um servidor que roda <strong>na sua máquina</strong> e serve o código JavaScript/TypeScript ao aplicativo <em>ao vivo</em>. Você salva o arquivo, o telefone recarrega em 1 segundo. É o que <code>npx expo start</code> liga.</td>
+      <td>O <code>npm run web</code> do aplicativo.</td>
+    </tr>
+    <tr>
+      <td><strong>Expo Go</strong></td>
+      <td>Um app pronto, baixado da Play Store, que <em>hospeda</em> projetos Expo sem compilar nada. Ótimo para começar — e <strong>inútil aqui</strong>, pelo motivo da caixa abaixo.</td>
+      <td>Uma casa alugada e mobiliada. Serve para dormir, não para instalar a sua porta.</td>
+    </tr>
+    <tr>
+      <td><strong>development build</strong></td>
+      <td><strong>O seu</strong> aplicativo, compilado pela EAS, com a sua identidade (<code>com.jairo.plataforma</code>) e o seu esquema de link (<code>plataformajairo://</code>), mas em modo de desenvolvimento: ele se conecta ao Metro da sua máquina.</td>
+      <td>A sua casa, ainda com andaimes. É a sua porta, a sua fechadura.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="caixa perigo">
+  <span class="rotulo">Por que o Expo Go NÃO serve para este projeto — já testado, não é opinião</span>
+  <p>
+    O Proprietário deste sistema entra <strong>só pelo Google</strong>. E o login do Google no
+    Expo Go <strong>não funciona neste projeto</strong>: dentro do Expo Go o endereço de retorno
+    é <code>exp://192.168.x.x:8081/--/auth/google</code>, e o servidor de autenticação do
+    Supabase (o GoTrue) <strong>recusa o esquema <code>exp://</code></strong> — foi testado
+    literal e com curinga, em 07/09/2026, e está documentado em
+    <code>apps/mobile-app/AGENTS.md</code>. Não existe configuração que resolva.
+  </p>
+  <p>
+    <strong>Consequência prática para você:</strong> o caminho deste degrau é o
+    <em>development build</em>. E a notícia boa está na seção 2.3 — <strong>você já tem
+    um</strong>.
+  </p>
+</div>
+
+<h3 id="s2-2">2.2 O mapa dos painéis: o que se configura onde</h3>
+
+<p>
+  Este é o pedaço que mais confunde, e não é culpa sua: são <strong>quatro painéis
+  diferentes</strong>, na internet, e cada um guarda uma coisa distinta. Quando algo não
+  funciona, o erro quase sempre aparece no painel errado.
+</p>
+
+<table>
+  <thead>
+    <tr><th style="width:22%">Painel</th><th>O que vive lá</th><th>Serve a quem</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>expo.dev</strong></td><td>O projeto do app, as compilações, os <code>.apk</code> e as <strong>variáveis de ambiente das compilações</strong></td><td>O aplicativo</td></tr>
+    <tr><td><strong>Vercel</strong></td><td>O site publicado e as variáveis de ambiente <em>dele</em></td><td>O site</td></tr>
+    <tr><td><strong>Supabase</strong></td><td>O banco, os usuários, e a lista de “Redirect URLs” (onde <code>plataformajairo://auth/google</code> está cadastrado)</td><td>Os dois</td></tr>
+    <tr><td><strong>Google Cloud Console</strong></td><td>O cadastro do OAuth. Recebe <strong>só o endereço do Supabase</strong>, nunca o do seu app</td><td>O login pelo Google</td></tr>
+  </tbody>
+</table>
+
+<div class="caixa armadilha">
+  <span class="rotulo">A regra de ouro para não errar de painel</span>
+  <p>
+    Pergunte sempre: <strong>“quem faz esta chamada?”</strong> O Google só conhece o Supabase,
+    porque é o Supabase que fala com ele. O seu <code>plataformajairo://</code> é assunto
+    entre você e o Supabase. Cadastrar <code>plataformajairo://</code> no Google é cadastrar
+    um valor que o Google nunca vai comparar com nada.
+  </p>
+</div>
+
+<h3 id="s2-3">2.3 O que já existe na SUA conta expo.dev — medido hoje, 19/09/2026</h3>
+
+<div class="caixa perigo">
+  <span class="rotulo">⚠️ LEIA A SEÇÃO 13.1 ANTES DESTA — uma afirmação desta seção precisou de ressalva</span>
+  <p>
+    Esta seção diz que você "já tem um development build" e que provavelmente não precisará
+    recompilar. Depois de escrevê-la, eu descobri que <strong>os dois APKs foram
+    construídos a partir do repositório da v9</strong>, que não é este — os commits deles
+    não existem aqui. A conclusão muda: o APK de desenvolvimento <em>pode</em> ainda servir,
+    mas com menos confiança do que está escrito abaixo. <strong>A medição e o remédio estão
+    na seção 13.1.</strong>
+  </p>
+</div>
+
+<p>
+  Eu consultei a sua conta com os comandos abaixo. <strong>Você está mais adiantado do que
+  parece</strong>: o projeto existe, está vinculado, e há dois aplicativos Android já
+  compilados.
+</p>
+
+<div class="caixa feito">
+  <span class="rotulo">MEDIDO — <code>npx eas whoami</code> e <code>npx eas build:list</code>, em apps/mobile-app</span>
+  <pre>Conta:    jairoodc  (jairooc19@gmail.com)     ← você está autenticado nesta máquina
+Projeto:  @jairoodc/plataforma-jairo-mobile
+projectId: f1ebc0ed-d5cc-4c06-81a8-d3b976289808   (está no app.json, campo extra.eas)
+eas-cli instalado: 23.2.0     (existe a 24.7.0; funciona sem atualizar)
+
+BUILDS EXISTENTES — dois, os dois Android, os dois "finished":
+  1) perfil "preview"      07/09/2026 16:44 → 17:03   commit 80e0d79   APK pronto
+  2) perfil "development"  07/09/2026 10:10 → 10:44   commit a8c32e4   APK pronto
+     ↑ ESTE é o que interessa: é o development build, o que conversa com o Metro.</pre>
+</div>
+
+<p>
+  <strong>Tradução do que isso significa:</strong> você não vai precisar aprender a compilar
+  para começar. O aplicativo de desenvolvimento já está construído e o link do
+  <code>.apk</code> continua na sua conta (o comando <code>eas build:list</code> imprime o
+  endereço). Se ele ainda estiver instalado no seu telefone, o degrau 08 começa
+  <strong>sem nenhuma compilação nova</strong>.
+</p>
+
+<div class="caixa destaque">
+  <span class="rotulo">Por que não precisa recompilar (e quando precisaria)</span>
+  <p>
+    Um <em>development build</em> só precisa ser refeito quando muda alguma coisa
+    <strong>nativa</strong>: uma biblioteca nova que tenha código Android/iOS, uma permissão
+    nova no <code>app.json</code>, uma troca de versão de SDK. O degrau 08, como está
+    desenhado aqui, <strong>não acrescenta nenhuma biblioteca</strong> — só arquivos
+    <code>.ts</code> e <code>.tsx</code>, que são JavaScript e chegam pelo Metro.
+  </p>
+  <p>
+    <strong>EXPECTATIVA, não medição:</strong> eu não consegui calcular a “impressão digital”
+    nativa do build antigo para provar a compatibilidade — o pacote
+    <code>expo-updates</code> não está instalado neste projeto e é ele que traz esse comando.
+    O teste barato é empírico: ligar o Metro, abrir o app antigo e ver se ele conecta. Se
+    conectar, está provado na prática. Se não, recompilamos — são ~35 minutos de fila na
+    nuvem, e eu escrevo o comando.
+  </p>
+</div>
+
+<h4>O achado incômodo: as variáveis de ambiente do expo.dev</h4>
+
+<div class="caixa perigo">
+  <span class="rotulo">MEDIDO — <code>npx eas env:list &lt;ambiente&gt;</code></span>
+  <pre>ambiente "production":
+    EXPO_PUBLIC_SUPABASE_URL       = https://fycgttkchgheohqxuzza.supabase.co   ✅
+    EXPO_PUBLIC_SUPABASE_ANON_KEY  = (a chave anon — não a reproduzo aqui)      ✅
+    EXPO_PUBLIC_API_URL            = https://...-v9-admin-web.vercel.app        ❌ MORTA
+
+ambiente "preview":
+    as mesmas três, incluindo a EXPO_PUBLIC_API_URL morta                       ❌
+
+ambiente "development":
+    "No variables found for this environment."                                  ⚠️ VAZIO</pre>
+</div>
+
+<p>Três leituras honestas disso:</p>
+
+<ol>
+  <li>
+    <strong><code>EXPO_PUBLIC_API_URL</code> é entulho, e entulho que engana.</strong> Ela
+    aponta para a Vercel da <strong>v9</strong>. O <code>CLAUDE.md</code> deste projeto diz que
+    ela foi removida na v10 e que <em>nenhuma linha de código a lê</em> — eu conferi, e é
+    verdade. Ela não causa defeito; causa a <em>próxima</em> confusão, quando alguém a vir e
+    concluir que o app fala com o site. Proposta: apagar (bônus B2).
+  </li>
+  <li>
+    <strong>O ambiente <code>development</code> está vazio.</strong> Isso <em>não</em> quebra o
+    seu dia a dia, porque num development build o código vem do Metro da sua máquina e as
+    variáveis vêm do arquivo <code>.env</code> local. Mas é uma cova aberta no caminho: no dia
+    em que algo resolver ler esse ambiente, o app sobe apontando para um endereço falso.
+    Proposta: preencher (bônus B3).
+  </li>
+  <li>
+    <strong>O <code>eas.json</code> não declara em qual ambiente cada perfil lê.</strong> LIDO:
+    os três perfis (<code>development</code>, <code>preview</code>, <code>production</code>) não
+    têm o campo <code>environment</code>. Eu <strong>não vou afirmar</strong> qual ambiente a
+    EAS escolhe por omissão — não medi. O jeito de acabar com a dúvida é declarar o campo
+    explicitamente, e é o que proponho no bônus B3.
+  </li>
+</ol>
+
+<h3 id="s2-4">2.4 Os comandos que você vai digitar — e o que aparece na tela</h3>
+
+<p>
+  Aqui está o implícito que nenhum tutorial diz: <strong>de qual pasta</strong> você digita cada
+  comando. Errar a pasta é o erro nº 1 de quem começa.
+</p>
+
+<table>
+  <thead>
+    <tr><th style="width:34%">Comando</th><th style="width:20%">De qual pasta</th><th>O que acontece / o que você vê</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>npm run start</code><br>(ou <code>npx expo start</code>)</td>
+      <td><code>apps/mobile-app</code></td>
+      <td>Liga o Metro. Aparece um <strong>QR code</strong> e uma linha tipo <code>Metro waiting on exp+...</code>. <strong>Esta janela fica aberta</strong> — é um servidor, não um comando que termina. Para desligar: <code>Ctrl+C</code>.</td>
+    </tr>
+    <tr>
+      <td><code>npx tsc --noEmit</code></td>
+      <td><code>apps/mobile-app</code></td>
+      <td>Confere os tipos do TypeScript sem gerar arquivo. <strong>Silêncio = tudo certo.</strong> Hoje passa limpo (MEDIDO).</td>
+    </tr>
+    <tr>
+      <td><code>npx eas build --platform android --profile development</code></td>
+      <td><code>apps/mobile-app</code></td>
+      <td>Manda compilar na nuvem. Devolve um link para acompanhar. <strong>Só se precisar</strong> — você já tem um build.</td>
+    </tr>
+    <tr>
+      <td><code>npx eas env:list production</code></td>
+      <td><code>apps/mobile-app</code></td>
+      <td>Lista as variáveis daquele ambiente. Só lê, não muda nada.</td>
+    </tr>
+    <tr>
+      <td><code>npm run ensaio</code></td>
+      <td>a <strong>raiz</strong> do repositório</td>
+      <td>As seis provas do projeto. Hoje <strong>nenhuma delas olha para o aplicativo</strong> — ver seção 3.4.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="caixa armadilha">
+  <span class="rotulo">O implícito sobre <code>npx</code></span>
+  <p>
+    <code>npx</code> quer dizer “rode este programa, baixando-o se não estiver aqui”. É por
+    isso que <code>npx eas ...</code> funciona sem você ter instalado nada. A primeira vez
+    demora alguns segundos a mais; depois fica em cache. E <strong>não</strong> é preciso
+    instalar o <code>eas-cli</code> globalmente — o seu já está disponível (MEDIDO: versão
+    23.2.0).
+  </p>
+</div>
+
+<h3 id="s2-5">2.5 O implícito: Wi-Fi, firewall, e por que o telefone “não acha” o PC</h3>
+
+<p>
+  Num <em>development build</em>, o telefone precisa <strong>alcançar o Metro pela rede</strong>.
+  Isso gera três tropeços que não têm nada a ver com o seu código:
+</p>
+
+<table>
+  <thead>
+    <tr><th style="width:30%">Sintoma</th><th>Causa real</th><th>O que fazer</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>O app abre e diz que não consegue conectar ao servidor de desenvolvimento</td>
+      <td>Telefone e PC em redes diferentes (ex.: o telefone no 4G, o PC no Wi-Fi)</td>
+      <td>Pôr os dois no <strong>mesmo Wi-Fi</strong>. Se a rede for “de visitante”, ela isola os aparelhos: trocar de rede.</td>
+    </tr>
+    <tr>
+      <td>Mesma rede e ainda assim não conecta</td>
+      <td>O Firewall do Windows está bloqueando a porta <strong>8081</strong></td>
+      <td>Na primeira execução, o Windows pergunta se permite o Node: responda <strong>permitir em redes privadas</strong>. Se você já negou antes, é preciso liberar nas regras do Firewall.</td>
+    </tr>
+    <tr>
+      <td>Nada resolve, ou você está fora de casa</td>
+      <td>—</td>
+      <td><code>npx expo start --tunnel</code>: o tráfego passa pela internet em vez da rede local. É mais lento e pede um pacote extra na primeira vez.</td>
+    </tr>
+    <tr>
+      <td>Erro estranho de módulo que “não existe”, depois de mexer em arquivos</td>
+      <td>Cache do Metro</td>
+      <td><code>npx expo start --clear</code>. É o primeiro remédio, sempre.</td>
+    </tr>
+  </tbody>
+</table>
+</section>
+
+<!-- =================================================================== -->
+<section id="s3">
+<h2>3. O estado real do <code>apps/mobile-app</code> hoje (medido)</h2>
+
+<h3 id="s3-1">3.1 Os números</h3>
+
+<div class="placar">
+  <div class="item"><div class="rot">Arquivos .ts / .tsx</div><div class="val">112</div></div>
+  <div class="item"><div class="rot">Rotas em app/</div><div class="val">20</div></div>
+  <div class="item"><div class="rot">Módulos conectados</div><div class="val">0</div></div>
+  <div class="item"><div class="rot">tsc --noEmit</div><div class="val">limpo</div></div>
+  <div class="item"><div class="rot">Builds na EAS</div><div class="val">2</div></div>
+</div>
+
+<p>
+  Para comparar: o site tem <strong>18 rotas só do módulo financeiro</strong>. O aplicativo
+  tem <strong>zero</strong>. Ou seja: o aplicativo é uma plataforma completa (login, perfil,
+  Painel de Engenharia, white-label) <strong>sem nenhuma peça de negócio encaixada</strong>.
+</p>
+
+<h3 id="s3-2">3.2 O que funciona, o que nunca foi testado</h3>
+
+<table>
+  <thead>
+    <tr><th style="width:38%">Parte do aplicativo</th><th style="width:16%">Estado</th><th>Base da afirmação</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Login do Proprietário por Google</td><td class="certo">funciona</td><td>Confirmado em aparelho Android real em 07/09/2026 (<code>AGENTS.md</code>)</td></tr>
+    <tr><td>Login do Desenvolvedor (e-mail + senha)</td><td class="certo">funciona</td><td>LIDO: <code>usePasswordLogin.ts</code>; o papel vem do banco (<code>is_superuser()</code>)</td></tr>
+    <tr><td>Login do Dependente</td><td class="errado">sem porta</td><td>Ver 3.3 — item 3</td></tr>
+    <tr><td>Meu Perfil, biometria, cofre da sessão</td><td class="certo">funciona</td><td>LIDO: <code>storageService.ts</code>, sessão fatiada no SecureStore</td></tr>
+    <tr><td>Painel de Engenharia (triagem, white-label)</td><td class="certo">funciona</td><td>LIDO: usa <code>tenantService</code> / <code>settingsService</code> do Core</td></tr>
+    <tr><td>Barra de abas nativa, gestos, menus do sistema</td><td class="certo">funciona</td><td>Entregue na v9</td></tr>
+    <tr><td>Qualquer coisa no <strong>iOS</strong></td><td class="talvez">nunca testado</td><td><code>AGENTS.md</code> é explícito: nenhum build de iOS foi feito</td></tr>
+    <tr><td>Build de loja (Play Store / App Store)</td><td class="errado">nunca feito</td><td>MEDIDO: os 2 builds são <code>internal</code>, nenhum <code>app-bundle</code> submetido</td></tr>
+  </tbody>
+</table>
+
+<h3 id="s3-3">3.3 As TRÊS coisas que faltam e travam o degrau 08</h3>
+
+<p>
+  Estas três não são “melhorias”. São <strong>pré-requisitos</strong>: sem elas, o degrau 08 não
+  tem como funcionar nem como ser visto funcionando.
+</p>
+
+<h4>Item 1 — não existe <code>.env</code> no aplicativo: ele fala com um banco que não existe</h4>
+
+<div class="caixa perigo">
+  <span class="rotulo">MEDIDO — <code>ls -la apps/mobile-app/</code></span>
+  <pre>apps/mobile-app/.env.example     ✅ existe (é o modelo, versionado no Git)
+apps/mobile-app/.env             ❌ NÃO EXISTE</pre>
+  <p>
+    E o que acontece sem ele está escrito no Core, em
+    <code>packages/core/src/lib/supabase.ts</code>:
+  </p>
+  <pre>const supabaseUrl =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  process.env.EXPO_PUBLIC_SUPABASE_URL ||
+  'https://placeholder.supabase.co';        &lt;&lt;&lt;&lt;&lt; É AQUI QUE ELE CAI HOJE</pre>
+  <p>
+    <strong>Tradução:</strong> hoje, se você ligar o Metro e abrir o aplicativo, ele tentará
+    conversar com <code>placeholder.supabase.co</code> — um endereço que não é o seu banco.
+    O login falha, e a mensagem de erro <em>não</em> vai dizer “falta o .env”.
+  </p>
+</div>
+
+<div class="caixa destaque">
+  <span class="rotulo">Por que isso não aparece na Vercel nem nos builds da EAS</span>
+  <p>
+    O site pega as variáveis da <strong>Vercel</strong>. Os aplicativos compilados
+    (<code>preview</code> e <code>production</code>) pegam do <strong>expo.dev</strong>, e lá elas
+    estão preenchidas (seção 2.3). O único lugar sem elas é a <strong>sua máquina</strong> — e é
+    exatamente de lá que o Metro serve o código no development build. Foi por isso que o
+    problema ficou invisível.
+  </p>
+</div>
+
+<h4>Item 2 — o aplicativo lê a lista de módulos do lugar errado</h4>
+
+<p>
+  Este é um <strong>defeito real</strong>, que eu encontrei hoje lendo o código, e ele mataria o
+  degrau 08 em silêncio. Vou explicar do começo, porque é a lição mais importante deste
+  estudo.
+</p>
+
+<p>
+  Para alguém abrir um módulo, o sistema exige <strong>duas chaves</strong>:
+</p>
+
+<ol>
+  <li><strong>a empresa contratou</strong> o módulo (tabela <code>tenant_modules</code>);</li>
+  <li><strong>o integrante foi liberado</strong> para ele (coluna <code>allowed_modules</code>, em <code>tenant_members</code>).</li>
+</ol>
+
+<p>
+  Quem cruza as duas é uma função do banco, a <code>modulos_do_membro()</code>. E ela tem uma
+  regra especial, que é o coração do problema — LIDO em
+  <code>supabase/criar-bd/plataforma_01_schema.sql</code>, linha 1189:
+</p>
+
+<pre>CASE
+  WHEN tmem.role = 'OWNER' THEN   -- o PROPRIETÁRIO recebe tudo o que a EMPRESA contratou
+    (SELECT array_agg(tmod.module_id) FROM tenant_modules tmod ...)
+  ELSE                            -- os demais recebem só o que foi marcado para eles
+    COALESCE(tmem.allowed_modules, '{}'::text[])
+END</pre>
+
+<div class="caixa perigo">
+  <span class="rotulo">O defeito, em uma frase</span>
+  <p>
+    A coluna <code>allowed_modules</code> é <strong>a chave que o Proprietário entrega à equipe
+    dele</strong> — para ele mesmo, ela normalmente está <strong>vazia</strong>. E o aplicativo lê
+    exatamente ela:
+  </p>
+  <pre>// apps/mobile-app/src/components/client/ClientDashboard.tsx, linha 70
+const modulos = tenantData?.allowed_modules ?? [];
+...
+{modulos.length === 0 ? ( ... "Nenhum módulo ativo" ... )}</pre>
+  <p>
+    <strong>Resultado se nada mudar:</strong> você entra no aplicativo como Proprietário, com a
+    empresa tendo contratado o Controle Financeiro, e o aplicativo diz
+    <em>“Nenhum módulo ativo — Aguardando habilitação de recursos pelo Desenvolvedor.”</em>
+    Nenhum erro, nenhum log, nenhuma pista. Só uma tela mentindo com muita elegância.
+  </p>
+</div>
+
+<div class="caixa feito">
+  <span class="rotulo">A correção — e ela já existe pronta no Core</span>
+  <p>
+    O site já faz certo: ele chama <code>moduleService.modulosPermitidos(tenantId)</code>, que
+    é a função do banco. É uma linha:
+  </p>
+  <pre>// em vez de ler allowed_modules:
+const permitidos = await moduleService.modulosPermitidos(tenantId);  // → modulos_do_membro()
+const modulos    = modulosDoMembro(permitidos);                      // → os manifestos</pre>
+  <p>
+    Curiosidade honesta: o próprio <code>CLAUDE.md</code> deste projeto já tem a proibição
+    escrita — <em>“Nunca exigir <code>allowed_modules</code> do PROPRIETÁRIO”</em> — e o
+    <code>OperationalDashboardView</code> do site tem um comentário dizendo
+    “<em>o aplicativo já fazia certo desde a v10: ele lia allowed_modules</em>”. Esse comentário
+    <strong>está errado</strong>: ler <code>allowed_modules</code> era o certo quando não havia
+    módulo nenhum e ninguém notou a diferença. Isso também vai ser corrigido.
+  </p>
+</div>
+
+<h4>Item 3 — o Dependente não tem porta no telemóvel</h4>
+
+<p>
+  LIDO em <code>apps/mobile-app/src/components/auth/AccessOptionsView.tsx</code> e
+  <code>src/hooks/auth/usePasswordLogin.ts</code>: no aplicativo, o Dependente é levado ao
+  formulário de <strong>e-mail + senha</strong>. Só que:
+</p>
+
+<ul>
+  <li>para ter senha ele precisaria se cadastrar;</li>
+  <li>o botão de cadastro saiu do menu na v7 (a tela <code>signup</code> existe, mas não é alcançável);</li>
+  <li>no <strong>site</strong>, isso foi corrigido em 13/09/2026 — o Dependente passou a entrar pelo <strong>Google</strong>, e a porta do Google cria a conta no primeiro acesso;</li>
+  <li>no <strong>aplicativo</strong>, essa correção <strong>nunca foi feita</strong>.</li>
+</ul>
+
+<div class="caixa armadilha">
+  <span class="rotulo">Por que isso importa MUITO para esta parte, e ainda assim não bloqueia</span>
+  <p>
+    O DINHEIRO DO PERÍODO tem um recurso desenhado <strong>especificamente para o
+    Dependente</strong>: o modo “só percentual”, em que o banco devolve os valores em
+    <strong>nulo</strong> e a pessoa vê apenas “68% consumido”. Sem a porta do Dependente no
+    telemóvel, <strong>esse modo não pode ser testado no aparelho</strong>.
+  </p>
+  <p>
+    O que <em>pode</em> ser testado, e vai ser: o caminho do Proprietário, com os valores. E
+    o modo percentual continua provado onde importa — no banco, pela trava 46 do
+    <code>teste_financeiro.sql</code>, que confere o que <strong>sai do banco</strong>, não o que
+    a tela desenha.
+  </p>
+  <p>
+    <strong>Decisão sua (pergunta 6, seção 12):</strong> consertar a porta do Dependente agora,
+    dentro do degrau 08, ou deixar para a parte 2.
+  </p>
+</div>
+
+<h3 id="s3-4">3.4 O ponto cego: nenhuma prova do projeto olha para o aplicativo</h3>
+
+<div class="caixa perigo">
+  <span class="rotulo">MEDIDO — <code>package.json</code> da raiz e <code>scripts/ensaio-geral.mjs</code></span>
+  <pre>npm run verificar  =  test  +  modulos:verificar  +  lint:web  +  build:web
+npm run ensaio     =  as 6 provas: testes do Core · LEGO · lint do site ·
+                      build do site · banco descartável · ensaio de upgrade
+
+Em NENHUM dos dois aparece a palavra "mobile".</pre>
+</div>
+
+<p>
+  Isto quer dizer, em português claro: <strong>eu poderia entregar código do aplicativo com
+  erro de tipo, de import ou de nome de arquivo, e todas as provas do projeto continuariam
+  verdes.</strong> O site é protegido por quatro camadas; o aplicativo, por zero.
+</p>
+
+<p>
+  E há um detalhe fino que eu medi e que vale ouro:
+</p>
+
+<div class="caixa armadilha">
+  <span class="rotulo">MEDIDO — a pasta <code>.expo/</code> não existe nesta máquina</span>
+  <p>
+    O <code>app.json</code> tem <code>experiments.typedRoutes: true</code>, que faz o Expo
+    <strong>gerar</strong> um arquivo de tipos com <em>a lista das rotas que existem</em>
+    (<code>.expo/types/router.d.ts</code>). Com ele, escrever
+    <code>router.push('/rota-que-nao-existe')</code> vira erro de TypeScript.
+  </p>
+  <p>
+    Essa pasta <strong>não existe hoje</strong> — o <code>npx expo start</code> nunca foi rodado
+    nesta cópia. Portanto o <code>npx tsc --noEmit</code> que passou limpo hoje passou com a
+    conferência de rotas <strong>desligada</strong>. Assim que você rodar o Metro uma vez, ela
+    liga e a conferência fica mais rigorosa. <strong>Isto não é um problema — é uma
+    ordem de operações</strong>, e está na Fase A do plano.
+  </p>
+</div>
+</section>
+
+<!-- =================================================================== -->
+<section id="s4">
+<h2>4. O que é o DINHEIRO DO PERÍODO — recapitulação para a tela pequena</h2>
+
+<p>
+  Você conhece esta tela no site. Recapitulo por dois motivos: para eu deixar registrado
+  <em>exatamente</em> o que vai ser portado, e porque <strong>um telefone não é um monitor</strong> —
+  algumas coisas terão de mudar de forma, e você precisa concordar com quais.
+</p>
+
+<h3 id="s4-1">4.1 A pergunta que a tela responde</h3>
+
+<p>
+  Uma pergunta só: <strong>“do que eu planejei gastar/receber neste mês, quanto já
+  aconteceu?”</strong> Ela compara o <strong>orçado</strong> (o plano, digitado na tela ORÇAMENTO)
+  com o <strong>realizado</strong> (os lançamentos que existem de fato), conta por conta.
+</p>
+
+<p>Os blocos aparecem sempre nesta ordem, e a ordem vem do banco, não da tela:</p>
+
+<table class="miuda">
+  <thead>
+    <tr><th style="width:18%">Bloco</th><th>O que é</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>RECEITA</strong></td><td>O que se planejou receber. Aqui bater 100% é <em>bom</em>.</td></tr>
+    <tr><td><strong>DESPESA</strong></td><td>O que se planejou gastar. Aqui bater 100% é <em>o limite</em>.</td></tr>
+    <tr><td><strong>RESULTADO</strong></td><td>Receitas planejadas menos despesas planejadas, contra o que de fato aconteceu. É uma linha só.</td></tr>
+    <tr><td><strong>OUTRAS</strong></td><td>Aporte e transferência. Não entram no resultado: não são resultado do negócio.</td></tr>
+    <tr><td><strong>FORA</strong></td><td>Contas que tiveram movimento e <strong>não estavam no orçamento</strong>. Não entram nos totais.</td></tr>
+  </tbody>
+</table>
+
+<h3 id="s4-2">4.2 A barra, a cor e a marca do ritmo do mês</h3>
+
+<p>
+  O pedido original era: <em>“de modo que o usuário só no olhar saberá que do valor orçado já
+  foi consumido X”</em>. A barra é isso — a cor responde antes de a pessoa ler qualquer número.
+</p>
+
+<div class="caixa exemplo">
+  <span class="rotulo">Exemplo prático — como se lê uma linha</span>
+  <p style="font-family:'Segoe UI',Arial,sans-serif;font-size:14px;margin-bottom:2px;">
+    <strong>COMBUSTÍVEL</strong> &nbsp;·&nbsp; ORÇADO 1.200,00 &nbsp;·&nbsp; REALIZADO 948,00
+  </p>
+  <div class="barra b-ambar" style="position:relative;"><span style="width:79%"></span></div>
+  <p style="font-family:'Segoe UI',Arial,sans-serif;font-size:13px;margin-top:4px;">
+    <strong>79%</strong> &nbsp;—&nbsp; sobram 252,00
+  </p>
+  <p>
+    A <strong>marca do ritmo</strong> é um risquinho vertical na barra, na posição de quanto do
+    mês já passou. Consumir 79% no dia 18 (60% do mês) é <em>um</em> recado; consumir 79% no dia
+    30 é outro completamente diferente. A barra sozinha não conta isso — a marca conta.
+  </p>
+</div>
+
+<div class="caixa destaque">
+  <span class="rotulo">A regra que erra em silêncio, e que já está resolvida no Core</span>
+  <p>
+    <strong>Nas RECEITAS o sentido se inverte.</strong> Numa despesa, 105% é vermelho (estourou).
+    Numa receita, 105% é verde (superou a meta). Pintar de vermelho uma meta cumprida seria
+    dizer o contrário do que aconteceu.
+  </p>
+  <p>
+    Quem decide cor, largura e a frase ao lado é <code>orcamentoRegras.ts</code>, no Core, com
+    <strong>teste</strong>. MEDIDO: o arquivo tem 184 linhas, importa <em>somente um tipo</em> e
+    nada de runtime — ou seja, <strong>funciona igual no telefone</strong>, sem nenhuma
+    adaptação. O aplicativo vai usar as mesmas quatro funções que o site usa:
+    <code>faixaDeConsumo</code>, <code>larguraDaBarra</code>, <code>situacaoDaLinha</code> e
+    <code>agruparEmBlocos</code>.
+  </p>
+</div>
+
+<h3 id="s4-3">4.3 O modo “só percentual”, e por que ele é decidido no BANCO</h3>
+
+<p>
+  Este é o muro que a quarta rodada de 18/09 derrubou, e eu preciso que ele fique claro
+  <strong>antes</strong> de escrever a tela do telefone, porque a tentação de repetir o erro é
+  enorme.
+</p>
+
+<div class="caixa perigo">
+  <span class="rotulo">O caminho errado — e por que ele NÃO esconde nada</span>
+  <p>
+    O jeito natural seria: o banco manda tudo, e a tela decide não mostrar os valores.
+    <strong>Isso não esconde nada.</strong> Os números atravessam a internet e ficam legíveis no
+    aparelho. Não é preciso saber programar — basta saber onde olhar.
+  </p>
+  <p><strong>Esconder numa tela é conforto. Não enviar é segurança.</strong></p>
+</div>
+
+<div class="caixa feito">
+  <span class="rotulo">O caminho certo, já construído — LIDO no schema, linha 3295</span>
+  <p>
+    A função <code>fin_dinheiro_do_periodo</code> lê o modo daquele integrante e, no modo
+    percentual, devolve <code>orcado_centavos</code>, <code>realizado_centavos</code> e
+    <code>saldo_centavos</code> em <strong>NULO</strong>. Só o percentual sai do banco.
+  </p>
+  <p>
+    <strong>Consequência para o aplicativo:</strong> a tela do telefone <strong>não vai ter
+    nenhuma linha escondendo valor</strong>. Ela só vai perguntar “o valor veio nulo?” e, se
+    veio, escrever <em>“VALORES OCULTOS — VOCÊ VÊ SOMENTE O PERCENTUAL”</em>. A decisão não é
+    dela. Se um dia alguém escrever um <code>if</code> de esconder valor na tela do telefone,
+    isso é um defeito, e este parágrafo é a prova de que era sabido.
+  </p>
+</div>
+
+<h3 id="s4-4">4.4 O bloco FORA — o gasto que ninguém planejou</h3>
+
+<p>
+  Uma conta em que se gastou e <strong>não</strong> se orçou some de qualquer relatório de
+  orçamento — e é justamente o gasto imprevisto que se precisa ver. O bloco FORA existe para
+  isso, com fundo diferente, uma frase explicando, e <strong>fora dos totais</strong>.
+</p>
+
+<div class="caixa armadilha">
+  <span class="rotulo">Detalhe que a tela do telefone tem de respeitar</span>
+  <p>
+    “Não ter orçamento” é diferente de “ter só o bloco FORA”. Se o FORA contasse como
+    orçamento, a tela mostraria só o gasto imprevisto e diria que o mês está orçado — o oposto
+    da verdade. A regra já está no site (<code>useDinheiroDoPeriodo.ts</code>) e vai junto:
+  </p>
+  <pre>const semOrcamento = !carregando && !linhas.some(
+  (l) =&gt; l.linha_tipo === "CONTA" &amp;&amp; l.bloco !== "FORA",
+);</pre>
+</div>
+</section>
+
+<!-- =================================================================== -->
+<section id="s5">
+<h2>5. A boa notícia: o banco já está 100% pronto — zero SQL nesta parte</h2>
+
+<p>
+  Esta seção é curta e é a melhor notícia do estudo. <strong>O degrau 08, parte 1, não toca
+  no banco de dados.</strong> Nada de colar SQL no Supabase, nada de novo teste, nada de
+  reset.
+</p>
+
+<table>
+  <thead>
+    <tr><th style="width:42%">Peça necessária</th><th style="width:14%">Estado</th><th>Onde eu conferi</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Função <code>fin_dinheiro_do_periodo(uuid, date)</code></td><td class="certo">existe</td><td><code>financeiro_01_schema.sql</code>, linha 3295</td></tr>
+    <tr><td>Função <code>fin_config_dinheiro(uuid)</code></td><td class="certo">existe</td><td>linha 2874</td></tr>
+    <tr><td>Permissão de execução para quem está logado</td><td class="certo">concedida</td><td>linhas 3721 e 3727 (<code>GRANT ... TO authenticated</code>), com o <code>REVOKE ... FROM PUBLIC</code> antes, nas linhas 3665 e 3671</td></tr>
+    <tr><td>Checagem de permissão por dentro (<code>dp_ver</code>)</td><td class="certo">existe</td><td>a função chama <code>fin_config_dinheiro</code>, que estoura <code>42501</code> sem permissão</td></tr>
+    <tr><td>Modo percentual decidido no banco</td><td class="certo">existe</td><td>linhas 3323–3324 e a trava 46 do <code>teste_financeiro.sql</code></td></tr>
+    <tr><td>Serviço do Core <code>orcamentoService.dinheiroDoPeriodo()</code></td><td class="certo">existe</td><td><code>packages/core/src/modules/financeiro/orcamentoService.ts</code>, linha 142</td></tr>
+    <tr><td>Regras de cor/largura/frase (com teste)</td><td class="certo">existem</td><td><code>orcamentoRegras.ts</code> (184 linhas) + <code>orcamentoRegras.test.ts</code> (194 linhas)</td></tr>
+    <tr><td>Formatação de dinheiro e de datas</td><td class="certo">existem</td><td><code>lib/dinheiro.ts</code> e <code>lib/datas.ts</code>, no Core</td></tr>
+  </tbody>
+</table>
+
+<div class="caixa feito">
+  <span class="rotulo">O que isso significa em esforço e em risco</span>
+  <p>
+    O <strong>cérebro</strong> desta tela está todo no lugar certo — no banco e no Core — e o
+    Core é compartilhado. O que falta é <strong>só o corpo</strong>: os componentes visuais em
+    React Native. Em número redondo: o site precisou de 5 arquivos para esta tela
+    (<code>page.tsx</code>, o hook, a barra, o seletor de competência e o contexto); o
+    aplicativo vai precisar de algo equivalente, e <strong>nenhuma regra de negócio será
+    reescrita</strong>.
+  </p>
+  <p>
+    Consequência direta e verificável: o telefone e o site <strong>mostram o mesmo número</strong>,
+    porque nenhum dos dois calcula nada.
+  </p>
+</div>
+
+<div class="caixa honesto">
+  <span class="rotulo">O placar do banco continua o de ontem, e continuará</span>
+  <p>
+    <code>teste_financeiro.sql</code> <strong>52/52</strong> ·
+    <code>inventario_financeiro.sql</code> <strong>17/17</strong> ·
+    <code>teste_rls.sql</code> <strong>16/16</strong> · <code>npm test</code>
+    <strong>124/124</strong>. Se o degrau 08 parte 1 mudar qualquer um desses números,
+    <strong>algo saiu do plano</strong> — e é assim que se detecta.
+  </p>
+</div>
+</section>
+
+<!-- =================================================================== -->
+<section id="s6">
+<h2>6. As SEIS decisões que precisam ser tomadas antes do código</h2>
+
+<p>
+  Aqui está o miolo do projeto. São seis perguntas de arquitetura. Em cada uma eu digo as
+  opções, digo <strong>qual eu recomendo e por quê</strong>, e digo o que se perde na outra. As
+  perguntas numeradas para você responder estão repetidas na seção 12.
+</p>
+
+<h3>D1 — Onde mora o código do módulo dentro do aplicativo?</h3>
+
+<p>
+  A regra R4 do <code>MODULOS.md</code> diz: <em>toda pasta e todo arquivo de módulo carregam o
+  nome do módulo</em>. No site, o módulo tem duas pastas próprias. No aplicativo, não tem
+  nenhuma — porque nunca houve módulo.
+</p>
+
+<div class="caixa feito">
+  <span class="rotulo">Achado que resolve a questão — MEDIDO em <code>scripts/verificar-modulos.mjs</code></span>
+  <p>
+    O verificador de LEGO <strong>já prevê a pasta</strong>. Está escrita nele, na função
+    <code>territorioDoModulo</code>:
+  </p>
+  <pre>function territorioDoModulo(id) {
+  return [
+    `apps/admin-web/src/app/dashboard/${id}/`,
+    `apps/admin-web/src/components/${id}/`,
+    `apps/mobile-app/src/modules/${id}/`,        &lt;&lt;&lt;&lt;&lt; JÁ ESTÁ AQUI
+    `packages/core/src/modules/${id}/`,
+    `supabase/criar-bd-${id}/`,
+    ...</pre>
+  <p>
+    Alguém (eu, num degrau anterior) deixou o soquete pronto e nunca o usou. Então
+    <strong>não há decisão a tomar aqui</strong>: o lugar é
+    <code>apps/mobile-app/src/modules/financeiro/</code>, e o verificador já o aceita.
+  </p>
+</div>
+
+<h3>D2 — Onde mora a ROTA (o endereço da tela) no aplicativo?</h3>
+
+<p>
+  No Expo Router, <strong>rota é arquivo</strong>: o que existe dentro da pasta <code>app/</code>
+  vira endereço. Um arquivo <code>app/financeiro/index.tsx</code> responde por
+  <code>/financeiro</code>. Isso não é negociável — é como a ferramenta funciona.
+</p>
+
+<p>
+  O problema: a pasta <code>app/</code> <strong>não</strong> está no território do módulo no
+  verificador. Se eu criar <code>app/financeiro/index.tsx</code> com um <code>import</code> de
+  <code>@/modules/financeiro/...</code>, o verificador vai acusar violação R1/R8 — e
+  <strong>estará certo em acusar</strong>, porque hoje a regra escrita diz que a pasta é da
+  plataforma.
+</p>
+
+<table>
+  <thead>
+    <tr><th style="width:8%">Opção</th><th style="width:38%">Como fica</th><th>O custo</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>A</strong><br>(recomendo)</td>
+      <td>Acrescentar <code>apps/mobile-app/app/${id}/</code> ao território, no verificador. É <strong>uma linha</strong>, genérica, <em>sem nome de módulo nenhum</em> — exatamente como a linha do site logo acima dela.</td>
+      <td>Duas linhas de documentação a corrigir: o <code>MODULOS.md</code> diz hoje “<code>apps/mobile-app/</code> — o aplicativo inteiro” na lista do que é plataforma, e isso deixa de ser verdade.</td>
+    </tr>
+    <tr>
+      <td><strong>B</strong></td>
+      <td>Uma rota genérica da plataforma, tipo <code>app/modulo/[id].tsx</code>, que descobre o módulo pelo endereço.</td>
+      <td><strong>Quebra a regra R1.</strong> Para desenhar a tela, esse arquivo da plataforma teria de importar o código do módulo. Volta a grudar as peças — o oposto do degrau 5.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="caixa feito">
+  <span class="rotulo">Boa notícia: a rota nova NÃO exige tocar no <code>_layout.tsx</code> da plataforma</span>
+  <p>
+    LIDO em <code>apps/mobile-app/app/_layout.tsx</code>, linha 234: o <code>Stack</code> raiz já
+    declara <code>screenOptions={{ headerShown: false }}</code> como padrão. Rota não declarada
+    <strong>herda esse padrão</strong> e funciona. Ou seja: a pasta do módulo traz o próprio
+    <code>_layout.tsx</code> (que é território do módulo) e a plataforma
+    <strong>não escreve o nome do módulo em lugar nenhum</strong>. A separação fica intacta.
+  </p>
+</div>
+
+<h3>D3 — O manifesto precisa de um campo <code>rotaMobile</code>?</h3>
+
+<p>
+  O manifesto é o cartão de visita que o módulo entrega à plataforma. Hoje ele tem
+  <code>rotaWeb: '/dashboard/financeiro'</code> — e mais nada sobre o aplicativo. Alguém tem de
+  dizer ao painel do telefone para onde o cartão leva.
+</p>
+
+<table>
+  <thead>
+    <tr><th style="width:8%">Opção</th><th style="width:38%">Como fica</th><th>O custo</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>A</strong><br>(recomendo)</td>
+      <td>Um campo novo, <strong>opcional</strong>: <code>rotaMobile?: string</code>. O módulo que tiver tela no telefone declara; quem não tiver omite, e o painel desenha o cartão como “EM BREVE”, que é a verdade.</td>
+      <td>Uma linha no tipo e uma no manifesto do financeiro.</td>
+    </tr>
+    <tr>
+      <td><strong>B</strong></td>
+      <td>Deduzir: “a rota é <code>/</code> + o id do módulo”.</td>
+      <td>Mágica implícita. E pior: <strong>não há como um módulo dizer “eu não tenho tela no telefone”</strong> — o painel ofereceria um cartão que leva a um endereço inexistente, e o usuário cairia no “Endereço não encontrado”.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="caixa destaque">
+  <span class="rotulo">Por que o campo novo NÃO viola a regra do tipo do manifesto</span>
+  <p>
+    O <code>tipos.ts</code> do manifesto tem um aviso forte: <em>nunca acrescente a este tipo um
+    campo que só um módulo usa</em>. <code>rotaMobile</code> passa no teste — é
+    <strong>genérico</strong>: qualquer módulo com tela no aplicativo tem uma. É o mesmo
+    raciocínio que já autorizou o <code>rotaConfiguracao</code> em 13/09/2026.
+    <code>taxaDeJuros</code> seria a violação; <code>rotaMobile</code> não é.
+  </p>
+</div>
+
+<div class="caixa armadilha">
+  <span class="rotulo">A fricção pequena que eu prefiro dizer agora do que descobrir depois</span>
+  <p>
+    Com <code>typedRoutes</code> ligado, o Expo Router exige que o endereço passado ao
+    <code>router.push()</code> seja uma rota <em>conhecida</em>. Uma string vinda do manifesto é,
+    para o TypeScript, apenas <code>string</code> — e vai exigir um <code>as Href</code>
+    naquele ponto.
+  </p>
+  <p>
+    O <code>CLAUDE.md</code> tem uma proibição contra “contornar rota nova com <code>as Href</code>”
+    — e ela continua certa: o que ela proíbe é usar o <code>as Href</code> para calar um erro
+    quando a rota <em>não existe</em>. Aqui a rota existe; o que o TypeScript não sabe é que a
+    <em>string</em> é ela. São coisas diferentes. Proposta: <strong>um</strong> ponto de conversão,
+    num arquivo só, com o comentário explicando exatamente isto. Se você preferir evitar o
+    cast por completo, a alternativa é o cartão receber a função de navegação já pronta, e aí
+    não há string atravessando fronteira — é mais código para o mesmo efeito. Sua escolha
+    (pergunta 3).
+  </p>
+</div>
+
+<h3>D4 — De onde o aplicativo lê a lista de módulos?</h3>
+
+<p>
+  Esta <strong>não é uma opção</strong>: é a correção do defeito da seção 3.3, item 2. Fica aqui
+  só para ficar registrado no plano. Sai <code>allowed_modules</code>, entra
+  <code>moduleService.modulosPermitidos(tenantId)</code>.
+</p>
+
+<h3>D5 — Quem guarda “em qual empresa eu estou” no telemóvel?</h3>
+
+<p>
+  No site, a empresa ativa vive no <code>sessionStorage</code> — que é <strong>por aba</strong> e
+  morre ao fechar o navegador. No telefone isso não existe. E a boa notícia é que o
+  aplicativo já resolveu o problema há muito tempo:
+</p>
+
+<div class="caixa feito">
+  <span class="rotulo">LIDO — <code>apps/mobile-app/src/services/storageService.ts</code></span>
+  <pre>const KEYS = {
+  AUTH_TOKEN:        'pjodc_auth_token',
+  ACTIVE_TENANT_ID:  'active_tenant_id',    &lt;&lt;&lt;&lt;&lt; a empresa ativa, já existe
+  USER_ROLE:         'user_role_context',
+};</pre>
+  <p>
+    E ela fica no <strong>SecureStore</strong> — o Keychain do iOS / Keystore do Android. Duas
+    diferenças de comportamento em relação ao site, que valem estar escritas:
+  </p>
+  <ul>
+    <li><strong>sobrevive ao fechar o aplicativo</strong> (no site, não sobrevive ao fechar o navegador);</li>
+    <li>é <strong>uma só</strong> por aparelho — não há “abas” com empresas diferentes ao mesmo tempo.</li>
+  </ul>
+  <p>
+    Portanto: o contexto do módulo no telefone lê daqui, e <strong>não</strong> reinventa nada.
+    Nenhuma decisão pendente.
+  </p>
+</div>
+
+<h3>D6 — A porta do Dependente: agora ou na parte 2?</h3>
+
+<p>
+  Já explicado na seção 3.3, item 3. Resumo da escolha:
+</p>
+
+<table>
+  <thead>
+    <tr><th style="width:8%">Opção</th><th style="width:34%">O que ganha</th><th>O que custa</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>A</strong></td>
+      <td>Consertar na parte 1: o modo “só percentual” passa a ser testável no aparelho, de ponta a ponta, por você.</td>
+      <td>Mais 2 arquivos e 1 alteração de roteamento na guarita do aplicativo; risco baixo (é espelhar o que o site já faz desde 13/09), mas <strong>é escopo a mais</strong> num degrau que já é o primeiro no aplicativo.</td>
+    </tr>
+    <tr>
+      <td><strong>B</strong><br>(recomendo)</td>
+      <td>Parte 1 enxuta: só o caminho do Proprietário. Menos peças novas, menos lugares onde algo pode dar errado na estreia do módulo no telefone.</td>
+      <td>O modo percentual fica provado <strong>só no banco</strong> (trava 46) nesta parte. Você não o verá no aparelho até a parte 2.</td>
+    </tr>
+  </tbody>
+</table>
+</section>
+
+<!-- =================================================================== -->
+<section id="s7">
+<h2>7. O plano de execução, arquivo por arquivo</h2>
+
+<p>
+  Quatro fases, em ordem obrigatória. A Fase A é sua (com orientação minha, comando por
+  comando). As fases B, C e D são minhas.
+</p>
+
+<h3 id="s7-1">7.1 Fase A — pré-requisitos (você faz, eu oriento linha a linha)</h3>
+
+<table>
+  <thead>
+    <tr><th style="width:6%">#</th><th style="width:34%">O que fazer</th><th>Detalhe, com o implícito</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>A1</strong></td>
+      <td>Criar o arquivo <code>apps/mobile-app/.env</code></td>
+      <td>
+        Duas linhas, com os <strong>mesmos valores</strong> que já estão na Vercel e no expo.dev.
+        <strong>Eu posso gerar este arquivo para você</strong> — ele não vai para o Git
+        (o <code>.gitignore</code> bloqueia <code>.env</code>, e isso está certo).
+        <br><br>
+        ⚠️ <strong>O implícito:</strong> o Metro lê o <code>.env</code> <em>ao arrancar</em>. Se
+        você criar o arquivo com o Metro já ligado, precisa desligar
+        (<code>Ctrl+C</code>) e ligar de novo. Ele não recarrega variável de ambiente.
+      </td>
+    </tr>
+    <tr>
+      <td><strong>A2</strong></td>
+      <td>Rodar <code>npx expo start</code> uma vez</td>
+      <td>
+        Faz três coisas de uma vez: prova que o <code>.env</code> foi lido, <strong>gera a pasta
+        <code>.expo/types/</code></strong> (as rotas tipadas — seção 3.4) e liga o Metro.
+        <br><br>
+        ⚠️ Deixe a janela aberta. É servidor, não comando.
+      </td>
+    </tr>
+    <tr>
+      <td><strong>A3</strong></td>
+      <td>Abrir o development build no telefone e <strong>entrar como Proprietário</strong></td>
+      <td>
+        Se o APK de 07/09 ainda estiver instalado, é só abrir. Se não estiver, o link do
+        <code>.apk</code> está na sua conta (<code>npx eas build:list</code>) — ou recompilamos.
+        <br><br>
+        ⚠️ Telefone e PC no <strong>mesmo Wi-Fi</strong>. Ver seção 2.5.
+        <br>
+        ✅ <strong>O que confirma sucesso:</strong> você consegue fazer o login pelo Google e
+        chega ao painel. Se chegou, o <code>.env</code> está certo e o banco responde. Se o
+        login falhar, quase certamente é o <code>.env</code>.
+      </td>
+    </tr>
+    <tr>
+      <td><strong>A4</strong></td>
+      <td>Conferir, no Supabase, que a sua empresa <strong>contratou</strong> o financeiro</td>
+      <td>
+        Isso é do site, não do aplicativo: Painel de Engenharia → Módulos → contratar para a
+        empresa. Sem o contrato, o cartão não aparece no telefone — <strong>e estará certo em
+        não aparecer</strong>.
+        <br><br>
+        Se preferir conferir pelo banco, eu escrevo o <code>SELECT</code> que devolve linhas
+        (nunca <code>RAISE NOTICE</code> — o SQL Editor descarta).
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="caixa honesto">
+  <span class="rotulo">Por que a Fase A vem antes de eu escrever código</span>
+  <p>
+    Se eu escrever a tela primeiro e ela não funcionar no seu telefone, existirão
+    <strong>quatro</strong> suspeitos ao mesmo tempo: o <code>.env</code>, o build antigo, o
+    contrato do módulo e o meu código. Separando, sobra um suspeito por vez. É a diferença
+    entre depurar em dez minutos e perder uma tarde.
+  </p>
+</div>
+
+<h3 id="s7-2">7.2 Fase B — a plataforma (3 arquivos pequenos)</h3>
+
+<p>
+  Alterações mínimas e <strong>genéricas</strong>: nenhuma delas escreve o nome “financeiro”.
+</p>
+
+<table>
+  <thead>
+    <tr><th style="width:36%">Arquivo</th><th style="width:12%">Ação</th><th>O que muda</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>apps/mobile-app/app/(tabs)/index.tsx</code></td>
+      <td>editar</td>
+      <td>Passa a buscar <code>moduleService.modulosPermitidos(tenantId)</code> e a repassar a lista ao painel. (~8 linhas)</td>
+    </tr>
+    <tr>
+      <td><code>src/components/client/ClientDashboard.tsx</code></td>
+      <td>editar</td>
+      <td>Para de ler <code>allowed_modules</code>; desenha um cartão por <strong>manifesto</strong> (nome e descrição reais, em vez do id cru) e navega pela <code>rotaMobile</code>. Módulo sem <code>rotaMobile</code> continua “EM BREVE”. (~25 linhas)</td>
+    </tr>
+    <tr>
+      <td><code>packages/core/src/modules/tipos.ts</code></td>
+      <td>editar</td>
+      <td><code>rotaMobile?: string</code>, com o TSDoc explicando por que é genérico. (~12 linhas, quase tudo comentário)</td>
+    </tr>
+    <tr>
+      <td><code>scripts/verificar-modulos.mjs</code></td>
+      <td>editar</td>
+      <td>Uma linha no território: <code>apps/mobile-app/app/${id}/</code>. (decisão D2-A)</td>
+    </tr>
+    <tr>
+      <td><code>MODULOS.md</code></td>
+      <td>editar</td>
+      <td>Corrigir “<code>apps/mobile-app/</code> — o aplicativo inteiro” e listar as pastas do módulo no aplicativo. <strong>No mesmo commit</strong> — é a regra R10.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="s7-3">7.3 Fase C — o módulo dentro do aplicativo (9 arquivos novos)</h3>
+
+<p>
+  Todos dentro do território do módulo. Nenhum passa de ~150 linhas — é a regra de ouro do
+  projeto, e num telefone ela ajuda mais ainda, porque estilo em React Native ocupa espaço.
+</p>
+
+<table>
+  <thead>
+    <tr><th style="width:44%">Arquivo</th><th style="width:10%">Linhas<br>(estimativa)</th><th>Papel</th></tr>
+  </thead>
+  <tbody>
+    <tr><td colspan="3" style="background:#f0f4f8;font-weight:700;">AS ROTAS — <code>apps/mobile-app/app/financeiro/</code></td></tr>
+    <tr><td><code>_layout.tsx</code></td><td class="num">~35</td><td>O <code>Stack</code> do módulo: cabeçalho com o nome, botão de voltar nativo.</td></tr>
+    <tr><td><code>index.tsx</code></td><td class="num">~60</td><td>A porta do módulo no telefone: a lista do que existe. Nesta parte, <strong>um</strong> item ativo (DINHEIRO DO PERÍODO) e os outros como “EM BREVE” — honesto, e já prepara a parte 2.</td></tr>
+    <tr><td><code>dinheiro-do-periodo.tsx</code></td><td class="num">~12</td><td>Só o endereço: reexporta a tela. Mesmo padrão de <code>(tabs)/perfil.tsx</code>.</td></tr>
+    <tr><td colspan="3" style="background:#f0f4f8;font-weight:700;">O CÓDIGO — <code>apps/mobile-app/src/modules/financeiro/</code></td></tr>
+    <tr><td><code>ContextoFin.tsx</code></td><td class="num">~110</td><td>Quem está usando e em qual empresa; lê <code>active_tenant_id</code> do SecureStore e as permissões pelo Core. Espelho do <code>ContextoFinanceiro.tsx</code> do site.</td></tr>
+    <tr><td><code>useDinheiroDoPeriodo.ts</code></td><td class="num">~90</td><td>O cérebro da tela: chama os dois serviços, calcula o ritmo do mês, decide <code>semOrcamento</code>. <strong>Não filtra e não esconde nada.</strong></td></tr>
+    <tr><td><code>DinheiroDoPeriodoScreen.tsx</code></td><td class="num">~140</td><td>A tela: cabeçalho, seletor de mês, os blocos, o estado “sem orçamento”, o estado de erro, <em>pull-to-refresh</em>.</td></tr>
+    <tr><td><code>BarraDeConsumo.tsx</code></td><td class="num">~95</td><td>A barra. Em React Native é uma <code>View</code> com largura em percentagem e a marca do ritmo por cima — <strong>sem precisar de SVG</strong>.</td></tr>
+    <tr><td><code>SeletorDeCompetencia.tsx</code></td><td class="num">~70</td><td>“◀ SETEMBRO / 2026 ▶”. Não existe <code>&lt;input type="month"&gt;</code> no telefone; a navegação por mês é a forma nativa, e é melhor com o dedo.</td></tr>
+    <tr><td><code>IconeFin.tsx</code></td><td class="num">~45</td><td>O registro de ícones <strong>do módulo</strong> — irmão do <code>IconeFin.tsx</code> do site. Existe pelo mesmo motivo: o <code>lucide-react-native</code> v1 renomeou o catálogo e um nome antigo devolve <code>undefined</code> <em>sem erro de build</em>, estourando só no aparelho.</td></tr>
+    <tr><td><code>estilos.ts</code></td><td class="num">~80</td><td>O <code>StyleSheet</code>, usando <code>TIPOGRAFIA</code>, <code>ESPACO</code> e <code>BRAND</code> da plataforma — nunca <code>fontSize</code> solto, nunca margem fora da grade de 8pt.</td></tr>
+  </tbody>
+</table>
+
+<div class="caixa destaque">
+  <span class="rotulo">O que este desenho NÃO faz — e é de propósito</span>
+  <ul>
+    <li><strong>Não instala nenhuma biblioteca.</strong> Nada de gráfico, nada de SVG novo, nada de componente de terceiro. Consequência prática: <strong>o seu build antigo continua servindo</strong> (seção 2.3).</li>
+    <li><strong>Não reescreve nenhuma regra.</strong> Cor, largura, frase, agrupamento, formato do dinheiro e cálculo de mês vêm todos do Core, que já tem teste.</li>
+    <li><strong>Não toca no banco.</strong> Zero SQL.</li>
+    <li><strong>Não copia o Tailwind do site.</strong> Não existe Tailwind em React Native. Os estilos são objetos, e usam os <em>tokens</em> que o aplicativo já tem.</li>
+  </ul>
+</div>
+
+<h3 id="s7-4">7.4 Fase D — as provas</h3>
+
+<table>
+  <thead>
+    <tr><th style="width:36%">Prova</th><th style="width:12%">Quem roda</th><th>O que ela pega</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>npx tsc --noEmit</code> (no aplicativo)</td><td>eu</td><td>Erro de tipo, import quebrado, rota inexistente (depois do A2). <strong>É a prova nova — hoje não existe.</strong></td></tr>
+    <tr><td><code>npm run modulos:verificar</code></td><td>eu</td><td>Se a peça e a base voltaram a grudar. Tem de terminar em <strong>0 violações</strong>.</td></tr>
+    <tr><td><code>npm test</code></td><td>eu</td><td>Os 124 do Core. Tem de continuar 124 — nenhuma regra foi reescrita.</td></tr>
+    <tr><td><code>npm run ensaio</code></td><td>eu</td><td>As seis provas. O banco tem de continuar 52/52 e 17/17.</td></tr>
+    <tr><td>Olhar no telefone</td><td><strong>você</strong></td><td>O que nenhuma das acima pega: se a tela <em>faz sentido</em> no tamanho de um telefone.</td></tr>
+  </tbody>
+</table>
+
+<div class="caixa feito">
+  <span class="rotulo">A sétima prova entra no <code>npm run ensaio</code> — proposta B4</span>
+  <p>
+    Proponho acrescentar <code>npx tsc --noEmit</code> do aplicativo ao
+    <code>scripts/ensaio-geral.mjs</code>, como sétima prova, e um atalho
+    <code>npm run typecheck:mobile</code> na raiz. MEDIDO: <strong>hoje ela passa limpa</strong>,
+    então começamos do verde — e, a partir daí, o aplicativo deixa de ser a única parte do
+    repositório sem rede de proteção.
+  </p>
+</div>
+
+<h3 id="s7-5">7.5 O que NÃO entra nesta parte (escopo, dito na cara)</h3>
+
+<table>
+  <thead>
+    <tr><th style="width:38%">Fica de fora</th><th>Por quê</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>As outras 17 telas do módulo</td><td>Você pediu em partes, e o DINHEIRO DO PERÍODO é a parte 1. As outras entram como “EM BREVE” no menu do módulo — sem cartão inerte que responde ao toque com silêncio.</td></tr>
+    <tr><td><strong>Lançar</strong> a partir da tela (o site permite tocar na conta e lançar)</td><td>Lançar exige teclado, campo de dinheiro, seleção de conta e o ritual da ordem no extrato. É uma tela inteira, não um botão. Parte 2.</td></tr>
+    <tr><td>Imprimir</td><td>O site abre uma guia e monta A4. No telefone isso não existe da mesma forma. Não vou fingir um botão que faz outra coisa.</td></tr>
+    <tr><td>Criar/editar orçamento</td><td>A tela ORÇAMENTO é outra tela. O DINHEIRO DO PERÍODO só lê.</td></tr>
+    <tr><td><strong>Testar o modo “só percentual” no aparelho</strong></td><td>Depende da porta do Dependente (D6). Se você escolher D6-A, isto <em>entra</em>.</td></tr>
+    <tr><td>Qualquer coisa no iOS</td><td>Nunca houve build de iOS neste projeto. Não vou escrever “funciona no iPhone” sem nunca ter visto um.</td></tr>
+    <tr><td>Build de loja</td><td>Outro assunto, com outros pré-requisitos (ícones, políticas, conta de desenvolvedor paga na Apple).</td></tr>
+  </tbody>
+</table>
+</section>
+
+<!-- =================================================================== -->
+<section id="s8">
+<h2>8. Como VOCÊ vai testar, passo a passo, no seu telemóvel</h2>
+
+<p>
+  Esta seção é o seu roteiro. Ela vale para depois de eu entregar o código. Cada passo tem
+  <strong>o que você faz</strong>, <strong>o que deve acontecer</strong> e <strong>o que fazer se
+  não acontecer</strong> — porque “não funcionou” sem diagnóstico é a pior mensagem possível.
+</p>
+
+<table>
+  <thead>
+    <tr><th style="width:5%">#</th><th style="width:26%">Você faz</th><th style="width:30%">Deve acontecer</th><th>Se não acontecer</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>1</strong></td>
+      <td>Abrir o terminal em <code>apps/mobile-app</code> e rodar <code>npm run start</code></td>
+      <td>Aparece um QR code e a linha <code>Metro waiting on ...</code>. A janela fica aberta.</td>
+      <td>Se ele reclamar de porta ocupada, é outro Metro já rodando: feche a outra janela.</td>
+    </tr>
+    <tr>
+      <td><strong>2</strong></td>
+      <td>Abrir o aplicativo (o development build) no telefone</td>
+      <td>Ele encontra o seu projeto e carrega. Pode levar 10–30 s na primeira vez.</td>
+      <td>Seção 2.5 — Wi-Fi, firewall, <code>--clear</code>, <code>--tunnel</code>, nessa ordem.</td>
+    </tr>
+    <tr>
+      <td><strong>3</strong></td>
+      <td>Entrar como <strong>Proprietário</strong> (botão do Google)</td>
+      <td>O navegador abre, você escolhe a conta, volta ao aplicativo sozinho e chega ao painel.</td>
+      <td>Se parar numa página estranha, o problema é a lista de Redirect URLs do Supabase — não o código. <code>AGENTS.md</code> tem o dossiê inteiro.</td>
+    </tr>
+    <tr>
+      <td><strong>4</strong></td>
+      <td>Olhar o painel</td>
+      <td><strong>Um cartão: “Controle Financeiro”</strong>, com a descrição real e sem o selo “EM BREVE”. O contador de módulos diz <strong>1</strong>.</td>
+      <td>Se disser “Nenhum módulo ativo”: a empresa não contratou o módulo (passo A4), ou o login foi feito como Desenvolvedor (ele não tem empresa).</td>
+    </tr>
+    <tr>
+      <td><strong>5</strong></td>
+      <td>Tocar no cartão</td>
+      <td>Abre a porta do módulo, com “DINHEIRO DO PERÍODO” ativo e as demais como “EM BREVE”.</td>
+      <td>“Endereço não encontrado” = a rota não subiu; é meu erro, me diga e eu corrijo.</td>
+    </tr>
+    <tr>
+      <td><strong>6</strong></td>
+      <td>Tocar em DINHEIRO DO PERÍODO</td>
+      <td>As barras do mês corrente, <strong>com os mesmos números que o site mostra</strong>.</td>
+      <td>Se aparecer erro de permissão (<code>42501</code>), falta <code>dp_ver</code> — mas o Proprietário tem tudo, então isso apontaria para outra coisa, e eu investigo.</td>
+    </tr>
+    <tr>
+      <td><strong>7</strong></td>
+      <td><strong>A prova de ouro:</strong> abrir a mesma competência no site, ao lado</td>
+      <td>Número por número igual: orçado, realizado, saldo e percentual.</td>
+      <td>Qualquer diferença é defeito grave e eu quero saber na hora — significa que alguém (eu) calculou algo na tela.</td>
+    </tr>
+    <tr>
+      <td><strong>8</strong></td>
+      <td>Voltar um mês, e voltar outro</td>
+      <td>Os números mudam; um mês sem orçamento mostra o aviso “NÃO EXISTE ORÇAMENTO PARA …”, não uma tela em branco.</td>
+      <td>Tela em branco = a distinção “sem orçamento” × “só bloco FORA” quebrou (seção 4.4).</td>
+    </tr>
+    <tr>
+      <td><strong>9</strong></td>
+      <td>Pôr o telefone em modo avião e arrastar para recarregar</td>
+      <td>Uma mensagem de erro legível. <strong>Nunca</strong> uma roda girando para sempre.</td>
+      <td>Roda infinita = eu esqueci o estado de erro. É defeito, me diga.</td>
+    </tr>
+    <tr>
+      <td><strong>10</strong></td>
+      <td>Girar o telefone e olhar num mês com muitas contas</td>
+      <td>Rola normalmente; nada cortado; os números não se atropelam.</td>
+      <td>Se um valor ficar cortado, é ajuste de layout — é para isso que este passo existe.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="caixa honesto">
+  <span class="rotulo">Como me relatar o resultado — o formato que funciona</span>
+  <p>
+    Do jeito que você já faz: por número. <em>“REFERENTE 7 = OS NÚMEROS BATERAM”</em>,
+    <em>“REFERENTE 9 = FICOU GIRANDO”</em>. E, quando houver mensagem de erro no aplicativo,
+    a mensagem <strong>inteira</strong>, mesmo que pareça sem sentido — o texto dela costuma ser
+    o dado mais valioso da depuração.
+  </p>
+</div>
+</section>
+
+<!-- =================================================================== -->
+<section id="s9">
+<h2>9. As armadilhas deste caminho — todas já pagas neste repositório</h2>
+
+<p>
+  Nenhuma das armadilhas abaixo é teórica. Cada uma já custou tempo neste projeto, e está
+  escrita no <code>CLAUDE.md</code> ou no <code>AGENTS.md</code>. Estão aqui porque
+  <strong>todas atravessam o caminho do degrau 08</strong>.
+</p>
+
+<table>
+  <thead>
+    <tr><th style="width:30%">Armadilha</th><th>Por que ela morde justamente aqui</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Ícone do <code>lucide-react-native</code> com nome antigo</strong></td>
+      <td>A v1 renomeou o catálogo: <code>Home</code>→<code>House</code>, <code>Trash2</code>→<code>Trash</code>, <code>Filter</code>→<code>Funnel</code>. Um nome inexistente <strong>não quebra o build</strong> — devolve <code>undefined</code> e estoura no aparelho com “Element type is invalid”. É por isso que o módulo terá o <code>IconeFin.tsx</code> dele.</td>
+    </tr>
+    <tr>
+      <td><strong>Import de runtime em arquivo que tem teste</strong></td>
+      <td>O <code>node --test</code> não resolve caminho sem extensão, e escrever <code>.ts</code> quebra o build do site. Vale se algum arquivo novo do Core precisar de teste — nesta parte, não precisa, mas a regra fica de pé.</td>
+    </tr>
+    <tr>
+      <td><strong><code>useEffect</code> depois de um <code>return</code> antecipado</strong></td>
+      <td>A contagem de hooks tem de ser igual em toda renderização. A tela do telefone tem vários caminhos de saída (sem empresa, sem permissão, carregando) — é exatamente o terreno desse erro. O <code>if</code> vai <em>dentro</em> do efeito.</td>
+    </tr>
+    <tr>
+      <td><strong>Copiar parâmetro para dentro do estado com <code>useEffect</code></strong></td>
+      <td>Desfaz, na renderização seguinte, o que a pessoa acabou de escolher. O estado nasce <code>null</code> e o valor em uso é <code>estado ?? o que veio de fora</code>.</td>
+    </tr>
+    <tr>
+      <td><strong>Estilo animado num <code>View</code> comum</strong></td>
+      <td><code>useAnimatedStyle</code> só funciona em componentes do Reanimated. Num <code>View</code> cru ele falha <strong>em silêncio</strong>. A barra de consumo não precisa de animação nesta parte — e se um dia precisar, precisa do componente certo.</td>
+    </tr>
+    <tr>
+      <td><strong>Voltar um mês com <code>setMonth(getMonth() - 1)</code></strong></td>
+      <td>Em 31/03 devolve 3 de março, sem erro nenhum, e o botão “mês anterior” parece não funcionar. O seletor de competência vai usar <code>lib/datas.ts</code> do Core, que já trata isso e tem teste.</td>
+    </tr>
+    <tr>
+      <td><strong>Somar saldos de meses diferentes</strong></td>
+      <td>Não se aplica ao DINHEIRO DO PERÍODO (que é fluxo de um mês), mas vale ficar dito, porque a parte 2 traz os DASHBOARDS, e lá se aplica inteiramente.</td>
+    </tr>
+    <tr>
+      <td><strong>Pôr tela que não é aba dentro de <code>app/(tabs)/</code></strong></td>
+      <td>O <code>NativeTabs</code> cria um gatilho por rota do grupo — a tela do módulo <em>viraria uma aba</em>. É por isso que a pasta do módulo fica em <code>app/financeiro/</code>, e não dentro de <code>(tabs)</code>.</td>
+    </tr>
+    <tr>
+      <td><strong>Alternar <code>hidden</code> depois de a barra de abas montar</strong></td>
+      <td>O Expo Router remonta o navegador e zera o estado. A porta do módulo <strong>não</strong> vai ser uma aba nova — é uma tela empilhada, aberta pelo cartão.</td>
+    </tr>
+    <tr>
+      <td><strong>Confiar em marca no aparelho como autorização</strong></td>
+      <td>O cofre do telefone é gravável por quem tem o telefone. Esconder o cartão não é controle de acesso — quem recusa é o banco, dentro de <code>fin_pode()</code>. A tela só desenha.</td>
+    </tr>
+    <tr>
+      <td><strong>Apontar o aplicativo para <code>localhost</code></strong></td>
+      <td>No telefone, <code>localhost</code> é o próprio telefone. Não se aplica hoje (a variável que sofria disto foi removida na v10), e é a razão de eu querer apagar a <code>EXPO_PUBLIC_API_URL</code> do expo.dev antes que ela reviva a confusão.</td>
+    </tr>
+    <tr>
+      <td><strong>Comentário com nome de módulo em arquivo da plataforma</strong></td>
+      <td>O verificador lê linha a linha e não entende comentário de várias linhas. Se eu precisar mencionar o módulo num comentário de arquivo da plataforma, a correção certa é <strong>tirar o nome</strong>, nunca relaxar o verificador.</td>
+    </tr>
+  </tbody>
+</table>
+</section>
+
+<!-- =================================================================== -->
+<section id="s10">
+<h2>10. BÔNUS — 14 sugestões que você não pediu</h2>
+
+<p>
+  Ordenadas por relevância, com o custo ao lado. Você aceita, recusa ou adia uma por uma —
+  por número, como sempre.
+</p>
+
+<div class="caixa destaque">
+  <span class="rotulo">Os quatro primeiros são os que eu defenderia numa reunião</span>
+</div>
+
+<table>
+  <thead>
+    <tr><th style="width:5%">#</th><th style="width:28%">Sugestão</th><th style="width:10%">Custo</th><th>Por quê</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>B1</strong></td>
+      <td>Apagar a <code>EXPO_PUBLIC_API_URL</code> dos ambientes <code>preview</code> e <code>production</code> no expo.dev</td>
+      <td>1 comando</td>
+      <td>MEDIDO: ela existe e aponta para a Vercel da <strong>v9</strong>. Nenhuma linha de código a lê. Ela não quebra nada — ela <em>ensina o errado</em> à próxima pessoa que abrir o painel, inclusive a você daqui a seis meses.</td>
+    </tr>
+    <tr>
+      <td><strong>B2</strong></td>
+      <td>Declarar <code>environment</code> em cada perfil do <code>eas.json</code> e preencher o ambiente <code>development</code></td>
+      <td>~6 linhas</td>
+      <td>MEDIDO: o ambiente <code>development</code> está vazio e os perfis não dizem qual ambiente usam. Hoje isso é inofensivo; no primeiro build que resolver ler o ambiente errado, o aplicativo sobe apontando para <code>placeholder.supabase.co</code> e <strong>parece defeito de código</strong>.</td>
+    </tr>
+    <tr>
+      <td><strong>B3</strong></td>
+      <td>A sétima prova: <code>npx tsc --noEmit</code> do aplicativo dentro do <code>npm run ensaio</code></td>
+      <td>~20 linhas</td>
+      <td>MEDIDO: nenhuma das seis provas atuais olha para o aplicativo. Sem esta, eu posso entregar código quebrado do telefone com tudo verde. E MEDIDO: ela passa limpa hoje, então nasce no verde.</td>
+    </tr>
+    <tr>
+      <td><strong>B4</strong></td>
+      <td>Estado de erro de rede de verdade, com botão TENTAR DE NOVO</td>
+      <td>~15 linhas</td>
+      <td>No site, a internet é dada. No telefone, ela cai no elevador. Uma roda girando para sempre é a forma mais comum de um aplicativo <em>parecer</em> quebrado estando são.</td>
+    </tr>
+    <tr>
+      <td><strong>B5</strong></td>
+      <td><em>Pull-to-refresh</em> (arrastar para baixo)</td>
+      <td>~8 linhas</td>
+      <td>No telefone esse é <strong>o</strong> gesto de recarregar — quem usa telefone tenta antes de procurar botão. Usa o <code>RefreshControl</code>, que já vem no React Native.</td>
+    </tr>
+    <tr>
+      <td><strong>B6</strong></td>
+      <td>Mostrar a empresa ativa no alto da tela do módulo</td>
+      <td>~6 linhas</td>
+      <td>Num sistema multi-empresa, “em qual empresa eu estou?” precede toda pergunta. E no telefone a empresa ativa <strong>sobrevive ao fechar o app</strong> (D5) — então é fácil abrir amanhã achando que está na outra.</td>
+    </tr>
+    <tr>
+      <td><strong>B7</strong></td>
+      <td>Números com <code>fontVariant: ['tabular-nums']</code></td>
+      <td>1 linha</td>
+      <td>Faz os algarismos ocuparem a mesma largura. Numa coluna de valores, sem isso, os números “dançam” a cada recarga. É o detalhe que separa parecer tabela de parecer planilha torta.</td>
+    </tr>
+    <tr>
+      <td><strong>B8</strong></td>
+      <td>Corrigir o comentário errado do <code>OperationalDashboardView.tsx</code></td>
+      <td>1 linha</td>
+      <td>Ele diz “<em>o aplicativo já fazia certo desde a v10: ele lia allowed_modules</em>”. Depois da correção D4, essa frase passa a ensinar exatamente o defeito que acabamos de tirar.</td>
+    </tr>
+    <tr>
+      <td><strong>B9</strong></td>
+      <td>Uma seção nova no <code>apps/mobile-app/AGENTS.md</code>: “como um módulo se conecta ao aplicativo”</td>
+      <td>~40 linhas</td>
+      <td>A parte 2 (e o segundo módulo) vai repetir este caminho. Sem o registro, tudo isto é redescoberto — e o <code>AGENTS.md</code> é o lugar onde o dossiê do aplicativo já vive.</td>
+    </tr>
+    <tr>
+      <td><strong>B10</strong></td>
+      <td>Toque de 44&nbsp;pt mínimo nas setas do seletor de mês</td>
+      <td>2 linhas</td>
+      <td>É a medida recomendada pela Apple para alvo de toque. Uma seta de 20&nbsp;px funciona no mouse e falha no dedo — e o dedo é o único dispositivo aqui.</td>
+    </tr>
+    <tr>
+      <td><strong>B11</strong></td>
+      <td>Não usar os 4 arquivos órfãos do aplicativo só porque existem</td>
+      <td>0</td>
+      <td>MEDIDO em 18/09: <code>NativeContextMenu.tsx</code>, <code>useAnimatedThemeColor.ts</code>, <code>useStorage.ts</code> e <code>useDimensions.ts</code> não são importados por ninguém — 239 linhas de infraestrutura feita antes de existir quem a usasse. Usar um deles “porque está lá” é como a dívida nasce.</td>
+    </tr>
+    <tr>
+      <td><strong>B12</strong></td>
+      <td>Frase honesta no cartão “EM BREVE” das outras telas</td>
+      <td>1 linha</td>
+      <td>Em vez de “Disponível no painel web” genérico: dizer qual tela é e que ela existe no site. Quem toca quer saber onde resolver o problema agora.</td>
+    </tr>
+    <tr>
+      <td><strong>B13</strong></td>
+      <td>Atualizar o <code>eas-cli</code> de 23.2.0 para 24.7.0</td>
+      <td>1 comando</td>
+      <td>MEDIDO: ele avisa a cada execução. <strong>Recomendo ADIAR</strong> — a versão atual funciona, e trocar ferramenta de compilação no meio de um degrau é risco sem benefício. Depois do degrau 08, sim.</td>
+    </tr>
+    <tr>
+      <td><strong>B14</strong></td>
+      <td>A porta do Dependente no aplicativo (o mesmo conserto que o site levou em 13/09)</td>
+      <td>~2 arquivos</td>
+      <td>É a decisão D6. Coloco como bônus porque, além de destravar o teste do modo percentual, ele fecha um buraco que hoje existe no aplicativo: <strong>um colaborador seu não tem como entrar pelo telefone</strong>, e nada na tela diz isso.</td>
+    </tr>
+  </tbody>
+</table>
+</section>
+
+<!-- =================================================================== -->
+<section id="s11">
+<h2>11. O que eu NÃO sei e não pude medir</h2>
+
+<p>
+  Você pediu 100% de honestidade. Esta seção é o preço dela: tudo o que eu <strong>não</strong>
+  verifiquei, dito sem enfeite.
+</p>
+
+<table>
+  <thead>
+    <tr><th style="width:38%">O que eu não sei</th><th>Por que não sei, e o que fazer a respeito</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Se o APK de 07/09/2026 aceita o código novo sem recompilar</td>
+      <td>Precisaria comparar a “impressão digital” nativa, e o comando vem do pacote <code>expo-updates</code>, que <strong>não está instalado</strong> aqui. O raciocínio é sólido (não entra biblioteca nova), mas é <strong>EXPECTATIVA</strong>. O teste é empírico e leva dois minutos: passo A3.</td>
+    </tr>
+    <tr>
+      <td>Se o APK ainda está instalado no seu telefone</td>
+      <td>Não tenho como ver o seu aparelho. Se não estiver, o link do <code>.apk</code> está na sua conta, ou recompilamos.</td>
+    </tr>
+    <tr>
+      <td>Qual ambiente do expo.dev a EAS usa quando o perfil não declara <code>environment</code></td>
+      <td>Não medi, e não vou afirmar por dedução. É o motivo de existir o bônus B2 — declarar acaba com a dúvida em vez de responder a ela.</td>
+    </tr>
+    <tr>
+      <td>Se a sua empresa já contratou o módulo financeiro</td>
+      <td>Isso está no <strong>seu</strong> banco, e eu não tenho acesso a ele. É o passo A4. Se quiser, eu escrevo o <code>SELECT</code> que devolve linhas.</td>
+    </tr>
+    <tr>
+      <td>Se existe orçamento lançado em algum mês</td>
+      <td>Também é dado do seu banco. Sem orçamento nenhum, a tela vai mostrar corretamente o aviso “NÃO EXISTE ORÇAMENTO PARA …” — o que é o comportamento certo, mas não prova muita coisa. Para o teste valer, convém ter um mês orçado.</td>
+    </tr>
+    <tr>
+      <td>Qualquer comportamento no iOS</td>
+      <td>Nunca houve build de iOS neste projeto (está escrito no <code>AGENTS.md</code>, e os 2 builds medidos são Android). Não vou escrever uma linha afirmando comportamento de iPhone.</td>
+    </tr>
+    <tr>
+      <td>Como a tela vai <em>parecer</em> no seu telefone</td>
+      <td>Não sei o modelo, o tamanho nem a densidade da sua tela. O layout vai usar os tokens do aplicativo e rolar; o ajuste fino vem do passo 10 do seu roteiro de teste.</td>
+    </tr>
+    <tr>
+      <td>Se o Metro vai passar pelo seu firewall na primeira tentativa</td>
+      <td>Depende da configuração da sua máquina e da sua rede. A seção 2.5 tem os três remédios, na ordem de tentar.</td>
+    </tr>
+    <tr>
+      <td>Quanto tempo o degrau vai levar</td>
+      <td>Não dou estimativa de tempo — este projeto já provou que estimar trabalho de módulo “pela memória, sem abrir o arquivo” produz número errado. Dou o número de arquivos e de linhas, que é o que eu medi.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="caixa honesto">
+  <span class="rotulo">Uma última honestidade, sobre o risco deste degrau</span>
+  <p>
+    O risco do degrau 08 <strong>não está no código da tela</strong> — aquilo é a parte fácil, e o
+    cérebro já existe. O risco está em três coisas de ambiente, todas fora do repositório:
+    o <code>.env</code> que falta, o build antigo que pode ou não servir, e a rede entre o seu
+    telefone e a sua máquina. É por isso que a Fase A é sua e vem primeiro: ela transforma
+    três incógnitas em três fatos, <strong>antes</strong> de existir código meu para culpar.
+  </p>
+</div>
+</section>
+
+<!-- =================================================================== -->
+<section id="s12">
+<h2>12. As perguntas para você responder</h2>
+
+<p>
+  Responda por número, no formato que você já usa (<em>“REFERENTE 1 = …”</em>). As que têm
+  recomendação minha estão marcadas — se você concordar com todas, basta dizer
+  <strong>“PODE FAZER”</strong> e eu sigo pelas recomendações.
+</p>
+
+<table>
+  <thead>
+    <tr><th style="width:5%">#</th><th style="width:40%">Pergunta</th><th>Minha recomendação</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>1</strong></td>
+      <td>Acrescento <code>apps/mobile-app/app/${id}/</code> ao território dos módulos no verificador, e corrijo o <code>MODULOS.md</code>? (decisão D2)</td>
+      <td><strong>SIM.</strong> É uma linha genérica, simétrica à do site, e sem ela a rota do módulo no telefone é uma violação de regra — corretamente acusada.</td>
+    </tr>
+    <tr>
+      <td><strong>2</strong></td>
+      <td>Crio o campo opcional <code>rotaMobile</code> no manifesto? (decisão D3)</td>
+      <td><strong>SIM.</strong> Genérico, opcional, e é a única forma de um módulo dizer “eu não tenho tela no telefone” sem o painel oferecer um caminho que não existe.</td>
+    </tr>
+    <tr>
+      <td><strong>3</strong></td>
+      <td>Aceita <strong>um</strong> <code>as Href</code>, isolado num arquivo e comentado, para a navegação vinda do manifesto? Ou prefere o desenho sem cast (mais código)?</td>
+      <td><strong>Aceitar o cast isolado.</strong> Mais simples, e o motivo fica escrito ao lado dele.</td>
+    </tr>
+    <tr>
+      <td><strong>4</strong></td>
+      <td>Entra a sétima prova (<code>tsc --noEmit</code> do aplicativo) no <code>npm run ensaio</code>? (bônus B3)</td>
+      <td><strong>SIM.</strong> Hoje o aplicativo é a única parte do repositório com zero rede de proteção. E a prova nasce verde.</td>
+    </tr>
+    <tr>
+      <td><strong>5</strong></td>
+      <td>Apago a <code>EXPO_PUBLIC_API_URL</code> do expo.dev e declaro os ambientes no <code>eas.json</code>? (bônus B1 e B2)</td>
+      <td><strong>SIM</strong> para os dois. Nenhum código a lê, e ela aponta para a v9.</td>
+    </tr>
+    <tr>
+      <td><strong>6</strong></td>
+      <td>A porta do Dependente no aplicativo entra <strong>nesta</strong> parte ou na parte 2? (decisão D6 / bônus B14)</td>
+      <td><strong>Parte 2.</strong> Mas com uma ressalva que é sua para pesar: se ficar para depois, <strong>você não verá o modo “só percentual” no telemóvel nesta parte</strong>. Se testar isso importa mais do que manter o degrau enxuto, então é agora.</td>
+    </tr>
+    <tr>
+      <td><strong>7</strong></td>
+      <td>Quais dos bônus B4 a B12 você aceita?</td>
+      <td><strong>B4, B5, B6, B7 e B9.</strong> Os quatro primeiros são o que faz uma tela parecer nativa em vez de um site encolhido; o B9 é o que impede a parte 2 de redescobrir tudo isto.</td>
+    </tr>
+    <tr>
+      <td><strong>8</strong></td>
+      <td>Quer que eu gere o arquivo <code>apps/mobile-app/.env</code> para você, ou prefere criá-lo à mão? (passo A1)</td>
+      <td><strong>Eu gero.</strong> Ele não vai para o Git, e assim não há risco de erro de digitação na chave.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="caixa feito">
+  <span class="rotulo">A ordem depois do seu “PODE FAZER”</span>
+  <ol>
+    <li>Eu gero o <code>.env</code> (se a resposta 8 for “eu gero”) e paro.</li>
+    <li><strong>Você</strong> faz a Fase A (4 passos) e me diz o resultado do A3 — o único passo que pode surpreender.</li>
+    <li>Eu escrevo as Fases B e C, rodo as provas da Fase D, e entrego.</li>
+    <li><strong>Você</strong> corre o roteiro de 10 passos da seção 8 no seu telefone.</li>
+    <li>Corrigimos o que aparecer; o <code>HISTORICO.md</code> ganha a entrada do degrau 08 e o <code>CLAUDE.md</code> as regras novas, no mesmo commit.</li>
+    <li>O bump do <code>versions.ts</code> é seu, em commit separado — como sempre.</li>
+  </ol>
+</div>
+</section>
+
+
+<!-- =================================================================== -->
+<section id="s13">
+<h2>13. ADENDA de 19/09/2026 — os dois pedidos novos, e uma correção minha</h2>
+
+<div class="caixa feito">
+  <span class="rotulo">O que você respondeu</span>
+  <p>
+    <strong>“ACEITO TODAS AS SUAS RECOMENDAÇÕES E BÔNUS”</strong>, mais dois pedidos
+    novos: a mudança da marca e o botão que alterna entre <strong>VALORES + %</strong> e
+    <strong>SÓ %</strong>. Esta seção documenta os dois, e corrige uma coisa que eu
+    escrevi errado na seção 2.3. <strong>Tudo o que está aqui já foi executado</strong> —
+    as onze provas passaram.
+  </p>
+</div>
+
+<h3 id="s13-1">13.1 A CORREÇÃO: os dois APKs não são deste repositório</h3>
+
+<div class="caixa perigo">
+  <span class="rotulo">Eu escrevi “você já tem um development build”. Precisa de uma ressalva importante</span>
+  <p>
+    Ao ler o seu pedido novo, notei a frase que você citou do rodapé do aplicativo:
+    <em>“Versão: v9 – 2026-09-07-08”</em>. Isso me fez conferir uma coisa que eu não havia
+    conferido, e o resultado muda o plano:
+  </p>
+  <pre>MEDIDO — git cat-file -t nos commits dos dois builds:
+
+  80e0d79  (build preview,     07/09 16:44)  → "could not get object info"
+  a8c32e4  (build development, 07/09 10:10)  → "could not get object info"
+
+MEDIDO — git log --reverse:  o PRIMEIRO commit deste repositório é
+  d463721  11/09/2026  "Estado inicial da Plataforma Jairo O D C v10"</pre>
+  <p>
+    <strong>Tradução:</strong> os dois APKs foram construídos a partir do repositório da
+    <strong>v9</strong>, que não é este. Este repositório nasceu quatro dias depois deles.
+  </p>
+</div>
+
+<table>
+  <thead>
+    <tr><th style="width:26%">O que isso significa</th><th>Consequência prática para você</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>O APK <code>preview</code> nunca mostrará o código novo</strong></td>
+      <td>Num build <code>preview</code> o JavaScript vem <strong>embutido</strong>. Ele é um aplicativo v9 congelado, e o rodapé dele vai dizer "v9 – 2026-09-07-08" para sempre. <strong>Se é nele que você está olhando, é por isso que a versão não muda.</strong></td>
+    </tr>
+    <tr>
+      <td><strong>O APK <code>development</code> ainda pode servir</strong></td>
+      <td>Nele o JavaScript vem do Metro, ao vivo. A camada nativa é SDK 57, a mesma de hoje, e o degrau 08 <strong>não instalou nenhuma biblioteca</strong>. <strong>EXPECTATIVA:</strong> ele aceita o código novo. Já não é a expectativa confortável que eu escrevi na seção 2.3, porque a camada nativa veio de outro repositório — mas continua sendo o teste mais barato: dois minutos.</td>
+    </tr>
+    <tr>
+      <td><strong>Se não servir, o remédio é um build novo</strong></td>
+      <td><code>npx eas build --platform android --profile development</code>, de dentro de <code>apps/mobile-app</code>. ~35 minutos na fila da nuvem, e o resultado é um <code>.apk</code> para instalar. <strong>Agora ele já vai ler as variáveis certas</strong> — ver 13.4.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="s13-2">13.2 A MARCA: logotipo e nome na mesma linha</h3>
+
+<p>O que você pediu, e o que ficou:</p>
+
+<table>
+  <thead>
+    <tr><th style="width:30%">Pedido</th><th style="width:14%">Estado</th><th>Como ficou</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Logotipo à esquerda, na MESMA linha de "PLATAFORMA JAIRO O D C" em maiúsculas</td><td class="certo">feito</td><td><em>Lockup</em> horizontal alinhado à esquerda. O símbolo encolheu de 72pt para 48pt — ver a caixa abaixo.</td></tr>
+    <tr><td>Na linha de baixo, "MÓDULO: CONTROLE FINANCEIRO"</td><td class="certo">feito</td><td>E <strong>sem escrever o nome do módulo em arquivo nenhum da plataforma</strong> — ver a caixa do muro.</td></tr>
+    <tr><td>Remover "Ecossistema de gestão multi-empresa"</td><td class="certo">feito</td><td>Saiu da guarita e da tela SOBRE. A frase só existe hoje num comentário que explica o que mudou.</td></tr>
+    <tr><td>Rodapé "© 2026… Versão:…" em PRETO</td><td class="certo">feito</td><td>Nos dois rodapés: o da guarita e o das abas. Ver a armadilha do <code>color</code>.</td></tr>
+  </tbody>
+</table>
+
+<div class="caixa perigo">
+  <span class="rotulo">🧱 O MURO — "MÓDULO: CONTROLE FINANCEIRO" numa tela da PLATAFORMA</span>
+  <p>
+    A tela da guarita é <strong>arquivo da plataforma</strong>. Escrever aquela frase nela
+    seria uma <strong>quarta solda clandestina</strong>: o <code>npm run
+    modulos:verificar</code> acusaria R1/R8. E, pior que a violação formal, a frase viraria
+    <strong>mentira</strong> em dois momentos previsíveis:
+  </p>
+  <ul>
+    <li>quando um <strong>segundo módulo</strong> for plugado — a marca anunciaria só um;</li>
+    <li>no dia em que o financeiro for <strong>desplugado</strong> — a marca continuaria anunciando uma peça que não existe mais.</li>
+  </ul>
+</div>
+
+<div class="caixa feito">
+  <span class="rotulo">A saída: derivar do registro, e o texto sai exatamente como você pediu</span>
+  <pre>// packages/core/src/modules/registro.ts   (o soquete dos módulos)
+export function rotuloDosModulosInstalados(): string | null {
+  if (MODULOS_INSTALADOS.length === 0) return null;
+  const nomes   = MODULOS_INSTALADOS.map((m) =&gt; m.nome.toUpperCase()).join(' · ');
+  const prefixo = MODULOS_INSTALADOS.length === 1 ? 'MÓDULO' : 'MÓDULOS';
+  return `${prefixo}: ${nomes}`;
+}</pre>
+  <table class="miuda">
+    <thead><tr><th style="width:34%">Módulos plugados</th><th>O que a marca escreve</th></tr></thead>
+    <tbody>
+      <tr><td><strong>1 (hoje)</strong></td><td><strong><code>MÓDULO: CONTROLE FINANCEIRO</code></strong> ← exatamente o pedido</td></tr>
+      <tr><td>2</td><td><code>MÓDULOS: CONTROLE FINANCEIRO · OUTRO</code></td></tr>
+      <tr><td>nenhum</td><td><code>null</code> — a linha simplesmente não existe</td></tr>
+    </tbody>
+  </table>
+  <p>
+    O texto vem do campo <code>nome</code> do manifesto, que é <strong>do módulo</strong>.
+    A guarita pede o rótulo e desenha, sem saber quantos são nem quais. Plugar o segundo
+    módulo não vai exigir tocar em tela nenhuma.
+  </p>
+</div>
+
+<div class="caixa armadilha">
+  <span class="rotulo">Duas medidas que tiveram de mudar, e não por gosto</span>
+  <p>
+    <strong>1. O símbolo encolheu de 72pt para 48pt.</strong> Num <em>lockup</em> horizontal
+    ele divide a largura com o nome. Num telefone de 360dp sobram ~280dp para o texto
+    depois do símbolo e da folga; mantidos os 72pt, sobrariam ~256dp, e "PLATAFORMA JAIRO
+    O D C" em maiúsculas <strong>não caberia numa linha</strong> — quebraria em duas,
+    desalinhando o nome em relação ao símbolo. 48pt é a medida de alvo de toque que o
+    projeto já usa, o que mantém a marca coerente com o resto.
+  </p>
+  <p>
+    <strong>2. <code>alignItems: 'flex-start'</code> é o que cumpre "alinhado à
+    esquerda".</strong> Sem essa linha, o bloco herdaria o alinhamento do container — e a
+    guarita <em>centra</em> o conteúdo. O <em>lockup</em> voltaria ao meio da tela, que é
+    exatamente o que saiu de cena.
+  </p>
+</div>
+
+<div class="caixa perigo">
+  <span class="rotulo">A armadilha do PRETO — ela quase passou, e o sintoma é dos piores</span>
+  <p>
+    O rodapé usa <code>...TIPOGRAFIA.dica</code>, e <strong>esse estilo traz
+    <code>color</code> própria</strong> (um cinza de apoio). Em objeto literal do
+    JavaScript, <strong>a última chave ganha</strong>:
+  </p>
+  <pre>// ❌ ERRADO — o preto é sobrescrito pelo espalhamento, e a tela continua cinza
+rodapeTexto: {
+  color: BRAND.textStrong,      // &lt;- escrito, e ignorado
+  ...TIPOGRAFIA.dica,           // &lt;- traz color: cinza, e vence
+}
+
+// ✅ CORRETO — a cor vem DEPOIS
+rodapeTexto: {
+  ...TIPOGRAFIA.dica,
+  color: BRAND.textStrong,      // #000000
+}</pre>
+  <p>
+    <strong>Por que é dos piores sintomas:</strong> a linha do preto <em>está no
+    arquivo</em>, aparentemente cumprida. Ninguém vai procurar ali. Não há erro, não há
+    aviso, e a única evidência é a cor na tela.
+  </p>
+  <p>
+    ⚠️ <strong>E o rodapé do tema ESCURO continuou cinza, de propósito.</strong> Há duas
+    paletas: a clara e a do Painel de Engenharia, que é a única tela de fundo escuro do
+    sistema. Preto sobre <code>#121212</code> não se lê — pintar as duas apagaria o rodapé
+    de uma das abas, e nenhuma prova automática acusaria isso.
+  </p>
+</div>
+
+<h3 id="s13-3">13.3 O BOTÃO "VALORES + %" × "SÓ %"</h3>
+
+<p>
+  Você pediu o botão para os <strong>dois</strong> papéis, com uma condição clara:
+  <em>“se USUÁRIO DEPENDENTE estiver parametrizado nas liberações exibir SÓ %, o botão não
+  pode quebrar este bloqueio”</em>. É exatamente o que está implementado — e a razão de
+  isso funcionar merece as duas caixas abaixo, porque é o coração do desenho.
+</p>
+
+<div class="caixa feito">
+  <span class="rotulo">A chave: o botão NUNCA teve os valores em mãos para revelar</span>
+  <p>
+    Quando o Proprietário marca "só percentual" para um Dependente, a
+    <code>fin_dinheiro_do_periodo</code> devolve <code>orcado_centavos</code>,
+    <code>realizado_centavos</code> e <code>saldo_centavos</code> em <strong>NULO</strong>.
+    <strong>Os números não atravessam a internet.</strong>
+  </p>
+  <p>
+    Então, mesmo que alguém adultere o aplicativo e force o modo VALORES, o que aparece é
+    <code>—</code>: não há número para mostrar. São <strong>duas coisas diferentes</strong>,
+    e elas não competem:
+  </p>
+  <table class="miuda">
+    <thead><tr><th style="width:32%">O que é</th><th>Onde mora</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Esconder o que já chegou</strong><br>(o seu botão)</td><td><strong>CONFORTO.</strong> É escolha de quem está olhando — mostrar o ecrã a alguém ao lado, por exemplo. Pode morar na tela.</td></tr>
+      <tr><td><strong>Não enviar o que não pode</strong><br>(o bloqueio do Dependente)</td><td><strong>SEGURANÇA.</strong> Mora no banco, e já estava lá desde 18/09.</td></tr>
+    </tbody>
+  </table>
+  <p>
+    <strong>É por isso que o botão não fere</strong> a proibição do <code>CLAUDE.md</code>
+    contra <em>"implementar 'este usuário vê menos' filtrando na TELA"</em>. Aquela
+    proibição trata de esconder do usuário o que <strong>outra pessoa</strong> decidiu que
+    ele não pode ver — e isso continua sendo feito no banco. Aqui é a própria pessoa
+    escolhendo, para si, como quer ler o que já é dela.
+  </p>
+</div>
+
+<div class="caixa destaque">
+  <span class="rotulo">Como o botão se comporta nos três casos</span>
+  <table class="miuda">
+    <thead>
+      <tr><th style="width:26%">Quem</th><th style="width:20%">Modo inicial</th><th>O botão</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Proprietário</strong></td>
+        <td>VALORES + %</td>
+        <td class="certo">Alterna livremente. A escolha é lembrada no aparelho.</td>
+      </tr>
+      <tr>
+        <td><strong>Dependente SEM bloqueio</strong></td>
+        <td>VALORES + %</td>
+        <td class="certo">Alterna livremente, igual ao Proprietário.</td>
+      </tr>
+      <tr>
+        <td><strong>Dependente COM bloqueio</strong></td>
+        <td>SÓ % (fixo)</td>
+        <td class="errado">Visível, <strong>desligado</strong>, cinza, com o motivo escrito ao lado.</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    ⚠️ <strong>Travado, o botão continua VISÍVEL — e isso é decisão, não descuido.</strong>
+    Esconder o botão faria a pessoa concluir que a função não existe na conta dela;
+    mostrá-lo sem explicação faria ela tocar, nada acontecer, e concluir que o aplicativo
+    travou. A terceira via é a única honesta: <strong>mostrar, desligar, explicar</strong> —
+    a frase ao lado diz <em>"O PROPRIETÁRIO LIBEROU PARA VOCÊ SOMENTE O PERCENTUAL. OS
+    VALORES EM REAIS NÃO SÃO ENVIADOS A ESTE APARELHO."</em>
+  </p>
+</div>
+
+<div class="caixa feito">
+  <span class="rotulo">A decisão está no Core, com 13 testes — e eu os vi FALHAR</span>
+  <p>
+    O arquivo é <code>packages/core/src/modules/financeiro/modoDinheiroRegras.ts</code> —
+    <strong>arquivo próprio</strong>, e não um apêndice do <code>orcamentoRegras.ts</code>,
+    que já tinha 184 linhas (a regra de ouro do projeto manda fatiar acima de ~150).
+  </p>
+  <pre>MEDIDO — a mutação: trocar `if (!veValores)` por `if (false)` e rodar os testes
+
+  ✔ 1, 2, 3    (quem vê valores)                    passaram
+  ✖ 4 · bloqueado no banco: o botão NÃO alterna     FALHOU  ← acusou
+  ✖ 5 · escolha "VALORES" no cofre NÃO vale         FALHOU  ← acusou
+  ✖ 6 · o motivo diz "NÃO SÃO ENVIADOS"             FALHOU  ← acusou
+  ✔ 7 a 13                                          passaram
+
+  Guarda restaurada →  npm test: 137/137</pre>
+  <p>
+    <strong>A trava 5 é a central do seu pedido:</strong> uma escolha "VALORES" gravada à
+    mão no cofre do aparelho <strong>não vale</strong> para quem está bloqueado. Regra do
+    projeto cumprida: teste novo só conta depois de ter sido visto falhar.
+  </p>
+</div>
+
+<div class="caixa armadilha">
+  <span class="rotulo">Três decisões pequenas que valem estar escritas</span>
+  <p>
+    <strong>1. O rótulo anuncia o DESTINO do toque, não o estado.</strong> Um botão escrito
+    "SÓ %" enquanto o ecrã mostra valores é ambíguo: metade das pessoas lê "estou em SÓ %"
+    e a outra metade lê "toque para ir a SÓ %". O estado atual já está à vista — são os
+    próprios números.
+  </p>
+  <p>
+    <strong>2. A preferência vai ao cofre do aparelho, não a estado de tela.</strong> Sair
+    da tela e voltar <strong>remonta</strong> o componente: quem tivesse escondido os
+    valores para mostrar o ecrã a alguém os veria reaparecer sozinhos. E a chave
+    (<code>fin_dp_modo_exibicao</code>) é declarada <strong>dentro do módulo</strong>, e
+    passada por parâmetro ao <code>storageService</code> — escrevê-la lá dentro seria mais
+    uma solda clandestina, porque aquele arquivo é da plataforma.
+  </p>
+  <p>
+    <strong>3. No modo "SÓ %", a frase da linha muda de redação em vez de desaparecer.</strong>
+    A <code>situacaoDaLinha</code> do Core já escrevia diferente quando o saldo é nulo: em
+    vez de "SOBRAM 252,00" ela escreve "79% CONSUMIDO" / "ESTOUROU (112%)". Esconder a
+    frase inteira teria sido mais fácil e tiraria o <strong>aviso de estouro</strong>, que é
+    a informação mais útil da linha.
+  </p>
+</div>
+
+<h3 id="s13-4">13.4 O que foi executado — a lista completa</h3>
+
+<div class="caixa feito">
+  <span class="rotulo">Fase A — os pré-requisitos (eu fiz o que dava daqui)</span>
+  <table class="miuda">
+    <thead><tr><th style="width:38%">Item</th><th>Estado</th></tr></thead>
+    <tbody>
+      <tr><td><code>apps/mobile-app/.env</code> criado</td><td class="certo">✅ com os valores copiados do expo.dev; o Git o ignora (conferido com <code>git check-ignore</code>)</td></tr>
+      <tr><td><code>EXPO_PUBLIC_API_URL</code> apagada do expo.dev</td><td class="certo">✅ dos ambientes <code>preview</code> e <code>production</code></td></tr>
+      <tr><td>Ambiente <code>development</code> do expo.dev preenchido</td><td class="certo">✅ as duas variáveis; os três ambientes agora estão iguais</td></tr>
+      <tr><td><code>eas.json</code> declara <code>environment</code> em cada perfil</td><td class="certo">✅ acabou a dúvida de qual ambiente cada build lê</td></tr>
+      <tr><td><code>npx expo start</code> e o teste no aparelho</td><td class="talvez">⏳ <strong>é seu</strong> — seção 8, e a ressalva de 13.1</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<table>
+  <thead>
+    <tr><th style="width:46%">Arquivo</th><th style="width:10%">Ação</th><th>O quê</th></tr>
+  </thead>
+  <tbody>
+    <tr><td colspan="3" style="background:#f0f4f8;font-weight:700;">PLATAFORMA — nenhum nome de módulo escrito em nenhum deles</td></tr>
+    <tr><td><code>packages/core/src/modules/tipos.ts</code></td><td>editado</td><td>Campo <code>rotaMobile?: string</code> no manifesto</td></tr>
+    <tr><td><code>packages/core/src/modules/registro.ts</code></td><td>editado</td><td><code>rotuloDosModulosInstalados()</code> — a linha "MÓDULO: X" da marca</td></tr>
+    <tr><td><code>apps/mobile-app/src/components/BrandMark.tsx</code></td><td>reescrito</td><td><em>Lockup</em> horizontal, símbolo de 48pt, prop <code>subtitulo</code>; saiu a <code>legenda</code></td></tr>
+    <tr><td><code>apps/mobile-app/src/components/auth/AuthScreen.tsx</code></td><td>editado</td><td>Passa o rótulo dos módulos à marca, calculado uma vez</td></tr>
+    <tr><td><code>apps/mobile-app/src/components/auth/authStyles.ts</code></td><td>editado</td><td>Rodapé em preto (cor DEPOIS do espalhamento)</td></tr>
+    <tr><td><code>apps/mobile-app/src/components/InstitutionalFooter.tsx</code></td><td>editado</td><td>Rodapé das abas em preto; o tema escuro mantido</td></tr>
+    <tr><td><code>apps/mobile-app/app/(auth)/index.tsx</code> · <code>src/screens/AboutScreen.tsx</code></td><td>editados</td><td>Saiu "Ecossistema de gestão multi-empresa"</td></tr>
+    <tr><td><code>apps/mobile-app/app/(tabs)/index.tsx</code></td><td>editado</td><td>Busca <code>modulos_do_membro()</code> e repassa ao painel</td></tr>
+    <tr><td><code>apps/mobile-app/src/components/client/ClientDashboard.tsx</code></td><td>editado</td><td><strong>A correção do defeito mudo</strong> + cartões vindos dos manifestos + navegação</td></tr>
+    <tr><td><code>apps/admin-web/.../OperationalDashboardView.tsx</code></td><td>editado</td><td>O comentário errado sobre o aplicativo, corrigido</td></tr>
+    <tr><td><code>scripts/verificar-modulos.mjs</code></td><td>editado</td><td><code>apps/mobile-app/app/${id}/</code> no território (uma linha genérica)</td></tr>
+    <tr><td><code>scripts/ensaio-geral.mjs</code> · <code>package.json</code> (×2)</td><td>editados</td><td>A <strong>sétima prova</strong> e o atalho <code>npm run typecheck:mobile</code></td></tr>
+    <tr><td><code>apps/mobile-app/eas.json</code></td><td>editado</td><td><code>environment</code> em cada um dos três perfis</td></tr>
+    <tr><td colspan="3" style="background:#f0f9f7;font-weight:700;">MÓDULO — Core</td></tr>
+    <tr><td><code>packages/core/src/modules/financeiro/modoDinheiroRegras.ts</code></td><td>✨ novo</td><td>A decisão do botão (144 linhas, sem import de runtime)</td></tr>
+    <tr><td><code>…/modoDinheiroRegras.test.ts</code></td><td>✨ novo</td><td><strong>13 travas</strong>, vistas falhar pela mutação</td></tr>
+    <tr><td><code>…/financeiro/manifesto.ts</code> · <code>index.ts</code></td><td>editados</td><td><code>rotaMobile: '/financeiro'</code> e a exportação</td></tr>
+    <tr><td colspan="3" style="background:#f0f9f7;font-weight:700;">MÓDULO — aplicativo (as duas pastas novas)</td></tr>
+    <tr><td><code>apps/mobile-app/app/financeiro/_layout.tsx</code></td><td>✨ novo</td><td>A moldura: cabeçalho e voltar. <strong>Do módulo</strong> — a raiz não foi tocada</td></tr>
+    <tr><td><code>apps/mobile-app/app/financeiro/index.tsx</code></td><td>✨ novo</td><td>A porta: 1 tela ativa, 4 como "EM BREVE"</td></tr>
+    <tr><td><code>apps/mobile-app/app/financeiro/dinheiro-do-periodo.tsx</code></td><td>✨ novo</td><td>Só o endereço; reexporta a tela</td></tr>
+    <tr><td><code>src/modules/financeiro/DinheiroDoPeriodoScreen.tsx</code></td><td>✨ novo</td><td>A tela</td></tr>
+    <tr><td><code>src/modules/financeiro/useDinheiroDoPeriodo.ts</code></td><td>✨ novo</td><td>O cérebro: dados, ritmo, modo, recarga</td></tr>
+    <tr><td><code>src/modules/financeiro/useContextoFin.ts</code></td><td>✨ novo</td><td>Empresa ativa (SecureStore) + permissões</td></tr>
+    <tr><td><code>src/modules/financeiro/BarraDeConsumo.tsx</code></td><td>✨ novo</td><td>A barra, sem SVG e sem biblioteca</td></tr>
+    <tr><td><code>src/modules/financeiro/BotaoModoExibicao.tsx</code></td><td>✨ novo</td><td>O botão do seu pedido</td></tr>
+    <tr><td><code>src/modules/financeiro/SeletorDeCompetencia.tsx</code></td><td>✨ novo</td><td>"◀ SETEMBRO / 2026 ▶", alvos de 44pt</td></tr>
+    <tr><td><code>src/modules/financeiro/IconeFin.tsx</code> · <code>estilos.ts</code></td><td>✨ novos</td><td>Registro de ícones do módulo e a composição de estilos</td></tr>
+    <tr><td colspan="3" style="background:#fef5e7;font-weight:700;">DOCUMENTAÇÃO — no mesmo commit, como a regra R10 manda</td></tr>
+    <tr><td><code>MODULOS.md</code></td><td>editado</td><td>"o aplicativo inteiro" deixou de ser plataforma; 5 pastas viraram <strong>7</strong></td></tr>
+    <tr><td><code>CLAUDE.md</code></td><td>editado</td><td><strong>10 proibições novas</strong> (187 no total) + a sétima prova + o estado do projeto</td></tr>
+    <tr><td><code>HISTORICO.md</code></td><td>editado</td><td>A entrada do degrau 08, no topo, com os muros e as armadilhas</td></tr>
+    <tr><td><code>apps/mobile-app/AGENTS.md</code></td><td>editado</td><td>Seção nova: "como um módulo se conecta ao aplicativo" — para a parte 2 não redescobrir</td></tr>
+  </tbody>
+</table>
+
+<div class="caixa feito">
+  <span class="rotulo">O PLACAR — <code>npm run ensaio</code>, rodado agora</span>
+  <pre>✅ TESTES DO CORE (npm test) — 137 passaram, 0 falharam        (eram 124 + 13 novos)
+✅ VERIFICADOR DE LEGO — Nenhuma violação
+✅ LINT DO ADMIN-WEB
+✅ BUILD DO ADMIN-WEB — 29 rota(s)
+✅ TIPOS DO MOBILE-APP (tsc --noEmit)                          ← A PROVA NOVA
+✅ INSTALAÇÃO LIMPA DO SQL — 4 arquivo(s) aplicados
+✅ PROVA inventario.sql — 4 ok, 0 com problema
+✅ PROVA inventario_financeiro.sql — 17 ok, 0 com problema
+✅ PROVA teste_financeiro.sql — 52 ok, 0 com problema
+✅ PROVA teste_rls.sql — 16 ok, 0 com problema
+✅ ENSAIO DE UPGRADE — 21 ok, 0 divergindo
+──────────────────────────────────────────────────────────────
+✅ ENSAIO GERAL COMPLETO: 11 prova(s) passaram.</pre>
+  <p>
+    ⚠️ <strong>Os números do banco são os mesmos de propósito</strong> (52/52, 17/17,
+    16/16, 4/4): este degrau <strong>não tocou no banco</strong>. Se algum deles tivesse
+    mudado, algo teria saído do plano.
+  </p>
+</div>
+
+<h3 id="s13-5">13.5 O que continua sendo seu, e nesta ordem</h3>
+
+<div class="caixa destaque">
+  <span class="rotulo">Os quatro passos, do mais barato ao mais caro</span>
+  <ol>
+    <li>
+      <strong>Enviar ao GitHub</strong> (é o seu ciclo). O bump do <code>versions.ts</code>
+      é seu, em commit separado — e eu <strong>não toquei nele</strong>: vi que você o
+      alterou à mão para <code>v10 - 2026-09-19-01</code> e deixei como está.
+    </li>
+    <li>
+      <strong>Ligar o Metro:</strong> terminal em <code>apps/mobile-app</code>,
+      <code>npm run start</code>. A janela fica aberta.
+    </li>
+    <li>
+      <strong>Abrir o aplicativo de DESENVOLVIMENTO</strong> (não o <code>preview</code> —
+      ver 13.1) e ver se ele conecta. <strong>Este é o passo que pode surpreender.</strong>
+      Se não conectar, o remédio é um build novo, e eu escrevo o comando.
+    </li>
+    <li>
+      <strong>Correr o roteiro de 10 passos da seção 8</strong>, mais estes três do pedido novo:
+      <ul>
+        <li><strong>11.</strong> Na tela de entrada: logotipo e "PLATAFORMA JAIRO O D C" na mesma linha, "MÓDULO: CONTROLE FINANCEIRO" abaixo, sem a frase do ecossistema, e o rodapé em preto.</li>
+        <li><strong>12.</strong> No DINHEIRO DO PERÍODO: tocar o botão e ver os valores sumirem e voltarem; sair da tela, voltar, e confirmar que a escolha <strong>foi lembrada</strong>.</li>
+        <li><strong>13.</strong> No painel: o cartão dizer <strong>"Controle Financeiro"</strong> (o nome real, não "financeiro"), sem o selo "EM BREVE", e o contador de módulos dizer <strong>1</strong>.</li>
+      </ul>
+    </li>
+  </ol>
+</div>
+
+<div class="caixa honesto">
+  <span class="rotulo">O que continua na lista do "eu não sei" (seção 11)</span>
+  <ul>
+    <li><strong>Se o APK de desenvolvimento aceita o código novo</strong> — e agora com menos confiança do que eu escrevi na seção 2.3, porque a camada nativa dele veio do repositório da v9 (13.1).</li>
+    <li><strong>Se a sua empresa contratou o módulo</strong> — é dado do seu banco. Sem o contrato, o cartão não aparece, e estará <em>certo</em> em não aparecer.</li>
+    <li><strong>Se existe orçamento lançado em algum mês</strong> — sem nenhum, a tela mostra corretamente o aviso "NÃO EXISTE ORÇAMENTO PARA …", o que é o comportamento certo mas não prova muito.</li>
+    <li><strong>O modo "SÓ %" do Dependente no aparelho</strong> — a porta dele no telemóvel ficou para a parte 2 (a sua resposta 6). O bloqueio continua provado no banco, pela trava 46.</li>
+    <li><strong>Como a tela vai parecer no seu telefone</strong> — não sei o modelo nem a densidade. É o passo 10 do roteiro.</li>
+    <li><strong>Qualquer coisa no iOS</strong> — nunca houve build de iOS neste projeto.</li>
+  </ul>
+</div>
+</section>
+
+<footer class="fim">
+  <p>
+    <strong>Plataforma Jairo O D C — v10 · Degrau 08 · projeto + adenda de execução · 19/09/2026.</strong><br>
+    As seções 1 a 12 são o PROJETO, escrito antes de qualquer alteração. A seção 13 é a
+    ADENDA: os dois pedidos que você acrescentou, o que foi executado e o que continua sendo seu. Todas as
+    medições estão datadas de 19/09/2026 e cada uma traz o comando que a reproduz.
+    O que é expectativa está marcado como expectativa; o que eu não sei está na seção 11.
+  </p>
+  <p>
+    Arquivo: <code>_estudos/estudo-2026-09-19-degrau-08-mobile-dinheiro-do-periodo.html</code>
+  </p>
+</footer>
+
+</div><!-- .folha -->
+
+<script>
+(function () {
+  'use strict';
+
+  var container = document.getElementById('printContainer');
+  var btn       = document.getElementById('printBtn');
+  var menu      = document.getElementById('printMenu');
+  var btnCores  = document.getElementById('btnCores');
+  var btnPB     = document.getElementById('btnPB');
+
+  if (!container || !btn || !menu || !btnCores || !btnPB) {
+    console.error('[IMPRESSAO] Elementos do menu de impressao nao encontrados.');
+    return;
+  }
+
+  function abrirMenu()  { menu.classList.add('aberto'); }
+  function fecharMenu() { menu.classList.remove('aberto'); }
+
+  /* ---- O botao abre e fecha. stopPropagation para o listener do
+          documento nao receber este mesmo clique e fechar na hora. ---- */
+  btn.addEventListener('click', function (event) {
+    event.stopPropagation();
+    if (menu.classList.contains('aberto')) {
+      fecharMenu();
+    } else {
+      abrirMenu();
+    }
+  });
+
+  /* ---- O MENU inteiro segura os eventos. E isto que permite passear
+          com o mouse entre as 2 opcoes sem o menu fechar. ---- */
+  menu.addEventListener('click',     function (event) { event.stopPropagation(); });
+  menu.addEventListener('mousedown', function (event) { event.stopPropagation(); });
+  menu.addEventListener('mouseup',   function (event) { event.stopPropagation(); });
+  menu.addEventListener('mouseover', function (event) { event.stopPropagation(); });
+  menu.addEventListener('mousemove', function (event) { event.stopPropagation(); });
+
+  /* ---- Fecha ao clicar FORA do container (nem no botao, nem no menu). ---- */
+  document.addEventListener('click', function (event) {
+    if (!container.contains(event.target)) {
+      fecharMenu();
+    }
+  });
+
+  /* Esc tambem fecha — reflexo de qualquer menu do sistema. */
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') { fecharMenu(); }
+  });
+
+  /* =================================================================
+     OPCAO "CORES (A4)"
+     Remove .print-bw, espera 100ms o navegador repintar, e imprime.
+     O @media print nao forca cor nenhuma: sai igual a tela.
+     ================================================================= */
+  btnCores.addEventListener('click', function (event) {
+    event.stopPropagation();
+    fecharMenu();
+    document.body.classList.remove('print-bw');
+    setTimeout(function () {
+      window.print();
+    }, 100);
+  });
+
+  /* =================================================================
+     OPCAO "PRETO & BRANCO (A4)"
+     Adiciona .print-bw, espera 100ms os estilos valerem, imprime,
+     e depois de 100ms remove a classe para a TELA voltar ao normal.
+     ================================================================= */
+  btnPB.addEventListener('click', function (event) {
+    event.stopPropagation();
+    fecharMenu();
+    document.body.classList.add('print-bw');
+    setTimeout(function () {
+      window.print();
+      setTimeout(function () {
+        document.body.classList.remove('print-bw');
+      }, 100);
+    }, 100);
+  });
+
+  console.log('[IMPRESSAO] Menu carregado com sucesso: Cores (A4) e Preto & Branco (A4). Sem erros.');
+}());
+</script>
+
+</body>
+</html>

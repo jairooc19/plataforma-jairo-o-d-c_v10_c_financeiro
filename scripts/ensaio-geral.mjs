@@ -74,7 +74,7 @@ function rodar(cmd, args, opcoes = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// 1 a 4 — as provas de código
+// 1 a 5 — as provas de código
 // ---------------------------------------------------------------------------
 function provasDeCodigo() {
   const passos = [
@@ -90,6 +90,28 @@ function provasDeCodigo() {
       const rotas = (r.stdout.match(/^[├└┌]\s+[ƒ○●]\s+\//gm) ?? []).length;
       return rotas ? `${rotas} rota(s)` : '';
     }],
+    /**
+     * ⚠️ A PROVA NOVA DE 19/09/2026 (degrau 08) — E A LACUNA QUE ELA FECHA.
+     *
+     * Até aqui NENHUMA das seis provas deste arquivo olhava para o
+     * `apps/mobile-app`: dava para entregar código do aplicativo com erro de tipo,
+     * import quebrado ou nome de arquivo errado, e o ensaio inteiro ficava VERDE. O
+     * site tinha quatro camadas de proteção; o aplicativo, zero. No dia em que o
+     * primeiro módulo chegou ao telefone, isso deixou de ser aceitável.
+     *
+     * ⚠️ `tsc --noEmit` É O QUE CABE AQUI, e não um `expo export`. O empacotamento
+     * do Expo leva minutos, baixa coisas e exige ambiente; a conferência de tipos
+     * roda em segundos e pega o que mais acontece: import que não resolve, prop que
+     * mudou de nome, rota inexistente (depois de o `.expo/types` existir).
+     *
+     * ⚠️ E ELA FICA MAIS RIGOROSA DEPOIS DO PRIMEIRO `npx expo start`. O
+     * `experiments.typedRoutes` do `app.json` GERA `.expo/types/router.d.ts` com a
+     * lista das rotas existentes; sem essa pasta, `router.push('/qualquer-coisa')`
+     * passa como `string` comum. A pasta é gerada e ignorada pelo Git — então em
+     * máquina limpa esta prova confere tipos, e em máquina que já rodou o Metro
+     * confere tipos **e** rotas. Nunca o contrário.
+     */
+    ['TIPOS DO MOBILE-APP (tsc --noEmit)', ['run', 'typecheck:mobile'], () => ''],
   ];
 
   for (const [nome, args, resumo] of passos) {

@@ -56,10 +56,23 @@ export default function InstitutionalFooter({ escuro = false }: { escuro?: boole
   );
 }
 
+/**
+ * 🖤 PRETO NO TEMA CLARO, POR PEDIDO DO DONO DO PROJETO (19/09/2026).
+ *
+ * Era `textFaint` (`#bdbdbd`) nas duas linhas — um cinza bem claro, escolhido na
+ * v9 para o rodapé "se dissolver no conteúdo". O pedido foi preto, e preto é
+ * `textStrong` (`#000000`), não `text` (`#1c1c1c`, o quase-preto do projeto).
+ *
+ * ⚠️ O TEMA ESCURO CONTINUA CINZA, E ISSO NÃO É ESQUECIMENTO. O `ESCURO` atende o
+ * Painel de Engenharia, a única tela de fundo escuro da plataforma: preto sobre
+ * `#121212` não se lê. Pintar os dois de preto apagaria o rodapé de uma das duas
+ * abas — e o defeito não apareceria em nenhuma prova automática, só no olho de
+ * quem abrisse aquela tela.
+ */
 const CLARO = {
   fundo: BRAND.background,
-  texto: BRAND.textFaint,
-  versao: BRAND.textFaint,
+  texto: BRAND.textStrong,
+  versao: BRAND.textStrong,
 };
 
 const ESCURO = {

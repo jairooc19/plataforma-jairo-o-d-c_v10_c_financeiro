@@ -29,6 +29,18 @@ export const MANIFESTO_FINANCEIRO: ManifestoDeModulo = {
    * Tripulação — ela não sabe (e não deve saber) que são 17 nem quais são.
    */
   rotaConfiguracao: '/dashboard/financeiro/dependentes',
+  /**
+   * 📱 A porta do módulo no aplicativo (degrau 08, 19/09/2026).
+   *
+   * ⚠️ NÃO É O `rotaWeb` SEM O `/dashboard`. É o endereço do Expo Router, e ele
+   * tem de bater com a pasta real `apps/mobile-app/app/financeiro/`.
+   *
+   * ⚠️ O QUE EXISTE LÁ, HOJE, É UMA TELA SÓ: o DINHEIRO DO PERÍODO. O aplicativo
+   * ganhou o módulo "em partes", por decisão do dono do projeto — as outras 17
+   * telas aparecem na porta do módulo com o selo "EM BREVE", e não como cartões
+   * inertes que respondem ao toque com silêncio.
+   */
+  rotaMobile: '/financeiro',
   prefixoBanco: 'fin_',
   versao: '1.0.0',
   exigePlataforma: 'v10',

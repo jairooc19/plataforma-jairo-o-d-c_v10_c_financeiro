@@ -9,9 +9,10 @@
     "web": "npm run dev -w @jairo/admin-web",
     "build:web": "npm run build -w @jairo/admin-web",
     "lint:web": "npm run lint -w @jairo/admin-web",
+    "typecheck:mobile": "npm run typecheck -w @jairo/mobile-app",
     "test": "node --test \"packages/core/**/*.test.ts\"",
     "modulos:verificar": "node scripts/verificar-modulos.mjs",
-    "verificar": "npm run test && npm run modulos:verificar && npm run lint:web && npm run build:web",
+    "verificar": "npm run test && npm run modulos:verificar && npm run lint:web && npm run build:web && npm run typecheck:mobile",
     "ensaio": "node scripts/ensaio-geral.mjs"
   },
   "overrides": {

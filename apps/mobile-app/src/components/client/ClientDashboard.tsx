@@ -3,6 +3,8 @@ import { StyleSheet, ScrollView, View, Text, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
+import { modulosDoMembro, type ManifestoDeModulo } from '@jairo/core';
+
 import Icon from '@/components/icon/Icon';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import MenuCard from '@/components/card/MenuCard';
@@ -19,6 +21,11 @@ export interface ClientDashboardProps {
   tenantData: TenantMemberContext | null;
   /** Título do white-label, lido de `global_settings` pelo roteador de dashboard. */
   systemTitle: string;
+  /**
+   * Os ids dos módulos que ESTE membro pode abrir nesta empresa, já cruzados pelo
+   * banco (`modulos_do_membro`). Ver a nota no `(tabs)/index.tsx`.
+   */
+  modulosPermitidos: string[];
 }
 
 /**
@@ -27,15 +34,20 @@ export interface ClientDashboardProps {
  *
  * A tela de quem entrou por uma empresa: Proprietário ou Dependente.
  *
- * 📦 A GRADE DE MÓDULOS ESTÁ VAZIA POR DESIGN, não por falta. Os três módulos de
- * negócio foram removidos da plataforma em 2026-08-30 e só o CORE está ativo. O
- * estado vazio existe para dizer isso, em vez de mostrar uma área em branco que
- * parece defeito. É aqui que o C FINANCEIRO vai aparecer.
+ * 📦 A GRADE DE MÓDULOS DEIXOU DE ESTAR VAZIA EM 19/09/2026 (degrau 08): o
+ * primeiro módulo chegou ao aplicativo. O estado vazio continua, para o caso de
+ * uma empresa sem nada contratado.
  *
- * ⚠️ v10 — `allowed_modules` É UMA LISTA DE VERDADE. A coluna do banco era
- * `text` e este componente já chamava `.length` e `.map()` sobre ela: o dia em
- * que houvesse um módulo, o `.map` quebraria a tela (texto não tem `.map`) e o
- * contador mostraria o número de LETRAS. A coluna virou `text[]`.
+ * ===========================================================================
+ * ⚠️ CORRIGIDO EM 19/09/2026 — ESTE ARQUIVO LIA A COLUNA ERRADA
+ * ===========================================================================
+ * Ele lia `tenantData.allowed_modules`, que é a chave que o Proprietário entrega
+ * à EQUIPE dele — para o próprio dono da empresa ela está vazia. Resultado: com
+ * um módulo contratado, o Proprietário lia "Nenhum módulo ativo", sem erro e sem
+ * pista. Agora a lista vem de `modulos_do_membro()`, que trata os dois casos.
+ *
+ * E os cartões passaram a vir dos MANIFESTOS: nome e descrição reais em vez do id
+ * cru ("financeiro"), e o toque abre a `rotaMobile` de quem tiver uma.
  *
  * ⚠️ O `SafeAreaView` VEM DE `react-native-safe-area-context` — o do
  * `react-native` está obsoleto e não faz nada no Android.
@@ -43,7 +55,12 @@ export interface ClientDashboardProps {
  * 🔽 `edges={['top']}`, NÃO `['top','bottom']`: a base desta tela é a barra de
  * abas, que já respeita o inset inferior por conta própria.
  */
-function ClientDashboard({ sessionData, tenantData, systemTitle }: ClientDashboardProps) {
+function ClientDashboard({
+  sessionData,
+  tenantData,
+  systemTitle,
+  modulosPermitidos,
+}: ClientDashboardProps) {
   const router = useRouter();
   const { mostrar } = useNativeActionSheet();
 
@@ -65,9 +82,32 @@ function ClientDashboard({ sessionData, tenantData, systemTitle }: ClientDashboa
     );
   }, [mostrar, router]);
 
+  /**
+   * 🧩 ABRIR UM MÓDULO.
+   *
+   * ⚠️ O `as never` É O ÚNICO PONTO DE CONVERSÃO DE ROTA DO APLICATIVO, e ele está
+   * aqui de propósito, com este comentário ao lado. O `typedRoutes` do Expo Router
+   * gera a lista das rotas existentes e exige que o destino seja uma delas; o que
+   * chega aqui é `string`, porque vem do MANIFESTO — que é dado, não literal.
+   *
+   * A proibição do `CLAUDE.md` contra "contornar rota nova com `as Href`" continua
+   * valendo e é outra coisa: ela proíbe calar o erro quando a rota **não existe**.
+   * Aqui a rota existe (`app/financeiro/`, do módulo) — o que o TypeScript não tem
+   * como saber é que a string é ela. Se um dia um manifesto declarar uma
+   * `rotaMobile` sem pasta correspondente, o sintoma será o "Endereço não
+   * encontrado" do Expo Router, e a culpa é do manifesto, não deste cast.
+   */
+  const abrirModulo = useCallback(
+    (modulo: ManifestoDeModulo) => {
+      if (!modulo.rotaMobile) return;
+      router.push(modulo.rotaMobile as never);
+    },
+    [router],
+  );
+
   const ehProprietario = tenantData?.role === 'OWNER';
   const empresa = nomeDaEmpresa(tenantData) || 'Meu painel';
-  const modulos = tenantData?.allowed_modules ?? [];
+  const modulos = modulosDoMembro(modulosPermitidos);
 
   return (
     <SafeAreaView style={estilos.container} edges={['top']}>
@@ -143,16 +183,25 @@ function ClientDashboard({ sessionData, tenantData, systemTitle }: ClientDashboa
           <View style={estilos.lista}>
             {modulos.map((modulo, i) => (
               /*
-                Os módulos vêm do banco mas ainda não têm tela no mobile.
-                Listá-los como `emBreve` é honesto: diz que o acesso existe e que
-                a tela ainda não.
+                🧩 UM CARTÃO POR MANIFESTO — e note o que este arquivo NÃO tem: o
+                nome de nenhum módulo. Ele recebe ids do banco, pede os manifestos
+                ao registro do Core e desenha. Plugar o décimo módulo não vai
+                exigir tocar aqui.
+
+                ⚠️ QUEM TEM `rotaMobile` ABRE; QUEM NÃO TEM FICA "EM BREVE". A
+                ausência do campo é a única forma de um módulo dizer "eu ainda não
+                existo no telefone" — e sem ela o cartão levaria a pessoa ao
+                "Endereço não encontrado", que se lê como aplicativo quebrado.
               */
               <MenuCard
-                key={modulo}
+                key={modulo.id}
                 icon="Modulos"
-                title={modulo}
-                description="Disponível no painel web."
-                emBreve
+                title={modulo.nome}
+                description={
+                  modulo.rotaMobile ? modulo.descricao : 'Disponível no painel web.'
+                }
+                onPress={modulo.rotaMobile ? () => abrirModulo(modulo) : undefined}
+                emBreve={!modulo.rotaMobile}
                 indice={i}
               />
             ))}
