@@ -195,7 +195,7 @@ Dois pares de arquivos, com propósitos diferentes. **Rode sempre os dois tipos.
 | `testes/inventario.sql` | *"as peças da plataforma estão lá?"* | Não | todas OK |
 | `testes/inventario_financeiro.sql` | *"as peças do módulo estão lá?"* | Não | **17 linhas OK** |
 | `testes/teste_rls.sql` | *"as regras da plataforma funcionam?"* | **Sim** | **16/16 PASSOU** |
-| `testes/teste_financeiro.sql` | *"as regras do módulo funcionam?"* | **Sim** | **50/50 PASSOU** |
+| `testes/teste_financeiro.sql` | *"as regras do módulo funcionam?"* | **Sim** | **52/52 PASSOU** |
 
 > ⚠️ **ESSES DOIS NÚMEROS SÃO ESCRITOS À MÃO E JÁ ENVELHECERAM** (o do módulo dizia
 > 34 quando eram 40, em 18/09/2026). **Conte antes de confiar:**

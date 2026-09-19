@@ -220,3 +220,64 @@ export function linhaAbreFicha(linha: {
   if (tipo !== 'LANCAMENTO') return false;
   return Boolean(linha.lancamento_id ?? linha.id);
 }
+
+/**
+ * 🎁 O RECADO DEPOIS DE EXCLUIR UM LANÇAMENTO — 18/09/2026.
+ *
+ * ===========================================================================
+ * ⚠️ AS TELAS ESTAVAM DIZENDO QUE A EXCLUSÃO NÃO TINHA VOLTA. NÃO É VERDADE
+ * DESDE 17/09/2026.
+ * ===========================================================================
+ * A confirmação da tela PESQUISAR terminava, literalmente, com "ESTA AÇÃO NÃO
+ * PODE SER DESFEITA". Era verdade quando foi escrita e deixou de ser no dia em
+ * que a LIXEIRA nasceu — e ninguém voltou para corrigir a frase.
+ *
+ * Isso é pior do que não avisar: quem lê aquilo e ainda assim exclui por
+ * engano fica convencido de que perdeu o registro, e não vai procurar. A
+ * lixeira só serve a quem sabe que ela existe.
+ *
+ * ⚠️ E O RECADO MUDA CONFORME QUEM ESTÁ NA FRENTE DA TELA. Restaurar exige a
+ * permissão `lc_excluir_lote`. Prometer "você pode restaurar" a um integrante
+ * que não a tem seria trocar uma frase falsa por outra: ele iria procurar a
+ * tela, não ia encontrar, e a mensagem teria mentido de novo. Para esse, a
+ * verdade é outra — **alguém** pode, e ele precisa é saber a quem pedir.
+ *
+ * @param apagados quantos lançamentos saíram (a transferência leva 2).
+ * @param eraTransferencia o banco apagou as duas pernas? (RN-23)
+ * @param podeRestaurar quem está na tela tem `lc_excluir_lote`?
+ */
+export function recadoDeExclusao(params: {
+  apagados: number;
+  eraTransferencia: boolean;
+  podeRestaurar: boolean;
+}): { texto: string; ofereceLixeira: boolean } {
+  const cabeca = params.eraTransferencia
+    ? `TRANSFERÊNCIA EXCLUÍDA: ${params.apagados} LANÇAMENTO(S) APAGADO(S).`
+    : 'LANÇAMENTO EXCLUÍDO.';
+
+  const recuperacao = params.podeRestaurar
+    ? 'ELE NÃO SUMIU: ESTÁ NA LIXEIRA, E DÁ PARA RESTAURAR.'
+    : 'ELE NÃO SUMIU: ESTÁ NA LIXEIRA. O PROPRIETÁRIO DA EMPRESA PODE RESTAURÁ-LO.';
+
+  return {
+    texto: `${cabeca} ${recuperacao}`,
+    // Só quem pode restaurar recebe o atalho — mandar alguém para uma tela que
+    // vai recusá-lo é pior do que não oferecer atalho nenhum.
+    ofereceLixeira: params.podeRestaurar,
+  };
+}
+
+/**
+ * A frase que fecha a JANELA DE CONFIRMAÇÃO, antes de excluir.
+ *
+ * ⚠️ ELA SUBSTITUI UM "NÃO PODE SER DESFEITA" QUE VIROU MENTIRA. Dizer a
+ * verdade aqui não é conforto: é o que permite a alguém confirmar com
+ * tranquilidade um gesto que de fato é reversível — e é também o que mantém o
+ * peso da ÚNICA ação que realmente não tem volta (limpar a lixeira), que
+ * continua avisando, com todas as letras, que não tem.
+ */
+export function fraseDeReversibilidade(podeRestaurar: boolean): string {
+  return podeRestaurar
+    ? 'ISTO PODE SER DESFEITO: O LANÇAMENTO VAI PARA A LIXEIRA, EM CONFIGURAÇÕES DO MÓDULO.'
+    : 'ISTO PODE SER DESFEITO PELO PROPRIETÁRIO: O LANÇAMENTO VAI PARA A LIXEIRA.';
+}

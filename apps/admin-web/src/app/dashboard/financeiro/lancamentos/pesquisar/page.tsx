@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   cadastroFinanceiroService, lancamentoService, permissaoFinanceiroService,
   formatarBRL, formatarDataBR, paraCentavos, linhaAbreFicha,
+  recadoDeExclusao, fraseDeReversibilidade,
   type ContaMovimento, type ContaIdentificadora,
 } from "@jairo/core";
 import { useEmpresaAtiva } from "@/components/financeiro/useEmpresaAtiva";
@@ -52,6 +54,15 @@ export default function PesquisarLancamentosPage() {
   const [linhas, setLinhas] = useState<Awaited<ReturnType<typeof lancamentoService.pesquisar>>>([]);
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+
+  /**
+   * 🎁 O RECADO DEPOIS DE EXCLUIR (18/09/2026).
+   *
+   * ⚠️ ELE GUARDA O OBJETO INTEIRO, E NÃO SÓ O TEXTO, porque o `ofereceLixeira`
+   * decide se aparece o atalho. Guardar só a frase obrigaria a tela a deduzir
+   * de novo, pelo texto, algo que o Core já decidiu.
+   */
+  const [aviso, setAviso] = useState<ReturnType<typeof recadoDeExclusao> | null>(null);
 
   /**
    * Qual lançamento está com a ficha aberta (17/09/2026).
@@ -119,11 +130,23 @@ export default function PesquisarLancamentosPage() {
       `TIPO: ${l.tipo_movimento}\n` +
       `VALOR: ${formatarBRL(l.valor_centavos)}\n\n` +
       (l.transferencia_id ? "ESTE LANÇAMENTO FAZ PARTE DE UMA TRANSFERÊNCIA. EXCLUIR VAI APAGAR AS DUAS PERNAS.\n\n" : "") +
-      "ESTA AÇÃO NÃO PODE SER DESFEITA.";
+      /*
+        ⚠️ AQUI ESTAVA ESCRITO "ESTA AÇÃO NÃO PODE SER DESFEITA" — e isso deixou
+        de ser verdade em 17/09/2026, quando a LIXEIRA nasceu. A frase ficou
+        para trás por dois dias, ensinando o contrário do que o sistema faz:
+        quem excluísse por engano não iria procurar o que achava perdido.
+      */
+      fraseDeReversibilidade(pode("lc_excluir_lote"));
     if (!window.confirm(texto)) return;
 
+    setErro(null); setAviso(null);
     try {
-      await lancamentoService.excluir(tenantId, id);
+      const r = await lancamentoService.excluir(tenantId, id);
+      setAviso(recadoDeExclusao({
+        apagados: r.apagados,
+        eraTransferencia: r.eraTransferencia,
+        podeRestaurar: pode("lc_excluir_lote"),
+      }));
       await pesquisar();
     } catch (e) {
       setErro(e instanceof Error ? e.message : "FALHA AO EXCLUIR.");
@@ -184,6 +207,28 @@ export default function PesquisarLancamentosPage() {
       <h1 className="flex items-center gap-2.5 text-2xl font-black uppercase tracking-tighter text-slate-800"><IconeFin nome="pesquisar" tamanho={26} traco={1.75} />PESQUISAR LANÇAMENTOS</h1>
 
       {erro && <div className="bg-red-50 border border-red-200 rounded-2xl px-5 py-4 text-xs font-bold uppercase text-red-800">{erro}</div>}
+
+      {/*
+        O recado da exclusão — com o atalho para a lixeira SÓ para quem pode
+        restaurar. Mandar quem não pode para uma tela que vai recusá-lo seria
+        trocar uma frase inútil por um caminho sem saída.
+      */}
+      {aviso && (
+        <div className="flex flex-wrap items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-2xl px-5 py-4 text-xs font-bold uppercase text-emerald-800">
+          <span>{aviso.texto}</span>
+          {aviso.ofereceLixeira && (
+            <Link href="/dashboard/financeiro/dependentes"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest">
+              <IconeFin nome="aberto" tamanho={13} />
+              IR PARA A LIXEIRA
+            </Link>
+          )}
+          <button type="button" onClick={() => setAviso(null)}
+                  className="ml-auto text-[10px] font-black uppercase tracking-widest text-emerald-700">
+            FECHAR
+          </button>
+        </div>
+      )}
 
       <section className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

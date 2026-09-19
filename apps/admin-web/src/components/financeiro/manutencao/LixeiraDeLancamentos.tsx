@@ -3,9 +3,20 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   manutencaoFinanceiroService, formatarBRL, formatarDataBR, formatarDataHoraBR,
+  JANELAS_DA_LIXEIRA, JANELA_PADRAO_DA_LIXEIRA, desdeDaJanela, rotuloDaJanela,
   type LancamentoExcluido,
 } from "@jairo/core";
 import IconeFin from "../IconeFin";
+
+/**
+ * ⚠️ O TETO DA LISTA, ESCRITO UMA VEZ SÓ E COMPARADO DEPOIS.
+ *
+ * O banco devolve no máximo o que se pede (e recusa acima de 1000). Uma lista
+ * cortada num ecrã que tem botão de APAGAR DE VEZ é perigosa de um jeito
+ * silencioso: a pessoa marca "todos os que vejo" achando que marcou todos.
+ * Por isso o número mora aqui e é comparado com o tamanho do que voltou.
+ */
+const TETO_DA_LISTA = 200;
 
 /**
  * ♻️ A LIXEIRA — LANÇAMENTOS EXCLUÍDOS, E COMO TRAZÊ-LOS DE VOLTA (PJODC v10)
@@ -46,11 +57,23 @@ export default function LixeiraDeLancamentos({
   /** Quais linhas da lixeira estão marcadas para a limpeza definitiva. */
   const [marcados, setMarcados] = useState<Set<number>>(new Set());
 
+  /**
+   * 🎁 A JANELA DE TEMPO, ESCOLHIDA PELA PESSOA (18/09/2026).
+   *
+   * ⚠️ ANTES DISTO A TELA NÃO PASSAVA `desde` NENHUM, e o banco caía no padrão
+   * de 30 dias — um número que eu escolhi sozinho e a tela anunciava como fato.
+   * Quem excluiu algo há 45 dias não achava, e concluía que tinha sumido de vez.
+   */
+  const [janela, setJanela] = useState<string>(JANELA_PADRAO_DA_LIXEIRA);
+
   const carregar = useCallback(async () => {
     if (!tenantId) return;
     setCarregando(true); setErro(null);
     try {
-      setItens(await manutencaoFinanceiroService.listarExcluidos(tenantId, { limite: 200 }));
+      setItens(await manutencaoFinanceiroService.listarExcluidos(tenantId, {
+        desde: desdeDaJanela(janela),
+        limite: TETO_DA_LISTA,
+      }));
       // ⚠️ A SELEÇÃO ZERA A CADA RELEITURA, e isso é deliberado. Os `audit_id`
       // marcados podem ter deixado de existir (uma limpeza, outra aba), e uma
       // marca apontando para linha que já saiu faria o botão prometer um número
@@ -61,7 +84,7 @@ export default function LixeiraDeLancamentos({
     } finally {
       setCarregando(false);
     }
-  }, [tenantId]);
+  }, [tenantId, janela]);
 
   // ⚠️ A função `async` fica DENTRO do efeito e o estado só muda depois do
   // `await` — a regra `react-hooks/set-state-in-effect` recusa efeito que
@@ -120,9 +143,9 @@ export default function LixeiraDeLancamentos({
    * mostra — "3 linhas, das quais 3 ainda dariam para restaurar" pesa muito mais
    * do que "limpar a lixeira?".
    *
-   * @param tudo `true` = a lixeira INTEIRA da empresa (não só os 30 dias que a
-   *             lista mostra). A confirmação diz isso em voz alta, porque é
-   *             justamente a diferença que enganaria.
+   * @param tudo `true` = a lixeira INTEIRA da empresa (não só a janela de tempo
+   *             que a lista está mostrando). A confirmação diz isso em voz
+   *             alta, porque é justamente a diferença que enganaria.
    */
   const limpar = async (tudo: boolean) => {
     if (!tenantId) return;
@@ -142,7 +165,7 @@ export default function LixeiraDeLancamentos({
 
       const texto =
         (tudo
-          ? `LIMPAR A LIXEIRA INTEIRA DESTA EMPRESA?\n\n⚠️ ISTO ALCANÇA TODAS AS EXCLUSÕES JÁ REGISTRADAS — INCLUSIVE AS MAIS ANTIGAS QUE OS 30 DIAS MOSTRADOS NA LISTA.\n\n`
+          ? `LIMPAR A LIXEIRA INTEIRA DESTA EMPRESA?\n\n⚠️ ISTO ALCANÇA TODAS AS EXCLUSÕES JÁ REGISTRADAS — INCLUSIVE AS QUE ESTÃO FORA DA JANELA "${rotuloDaJanela(janela)}" QUE A LISTA ESTÁ MOSTRANDO.\n\n`
           : `EXCLUIR DEFINITIVAMENTE ${previa.linhas} REGISTRO(S) DA LIXEIRA?\n\n`) +
         `${previa.linhas} REGISTRO(S) DE EXCLUSÃO SERÃO APAGADOS.\n` +
         `${previa.restauraveis} DELES AINDA PODERIA(M) SER RESTAURADO(S) — E DEIXARÁ(ÃO) DE PODER.\n\n` +
@@ -163,21 +186,55 @@ export default function LixeiraDeLancamentos({
 
   return (
     <section className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
-      <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-slate-400 mb-2">
-        <IconeFin nome="aberto" tamanho={16} />
-        LIXEIRA — LANÇAMENTOS EXCLUÍDOS
-      </h2>
+      <div className="flex flex-wrap items-start justify-between gap-4 mb-2">
+        <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-slate-400">
+          <IconeFin nome="aberto" tamanho={16} />
+          LIXEIRA — LANÇAMENTOS EXCLUÍDOS
+        </h2>
+
+        {/*
+          🎁 O SELETOR DE JANELA (18/09/2026). A lista e a frase logo abaixo
+          seguem esta escolha — nenhuma das duas repete um número fixo, que era
+          justamente o defeito anterior.
+        */}
+        <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+          MOSTRAR
+          <select value={janela} onChange={(e) => setJanela(e.target.value)}
+                  className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-[10px] font-black uppercase tracking-widest text-slate-700">
+            {JANELAS_DA_LIXEIRA.map((j) => (
+              <option key={j.chave} value={j.chave}>{j.rotulo}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
       <p className="text-[11px] font-bold uppercase text-slate-400 mb-5">
-        OS ÚLTIMOS 30 DIAS. RESTAURAR DEVOLVE O LANÇAMENTO AO EXTRATO, NA MESMA DATA E ORDEM.
+        {rotuloDaJanela(janela)}. RESTAURAR DEVOLVE O LANÇAMENTO AO EXTRATO, NA MESMA DATA E ORDEM.
       </p>
 
       {erro && <div className="bg-red-50 border border-red-200 rounded-2xl px-5 py-4 text-xs font-bold uppercase text-red-800 mb-4">{erro}</div>}
       {aviso && <div className="bg-emerald-50 border border-emerald-200 rounded-2xl px-5 py-4 text-xs font-bold uppercase text-emerald-800 mb-4">{aviso}</div>}
 
+      {/*
+        ⚠️ O AVISO DE LISTA CORTADA. Se voltaram exatamente as `TETO_DA_LISTA`
+        linhas pedidas, é muito provável que existam mais — e quem marcasse
+        "todos" estaria marcando só os que coube mostrar.
+      */}
+      {itens.length >= TETO_DA_LISTA && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 text-[11px] font-bold uppercase text-amber-800 mb-4">
+          A LISTA FOI CORTADA EM {TETO_DA_LISTA} REGISTROS — PODE HAVER MAIS NESTE PERÍODO.
+          ESTREITE A JANELA PARA VER O RESTO. O BOTÃO &quot;LIMPAR TODA A LIXEIRA&quot; ALCANÇA
+          TUDO, INCLUSIVE O QUE NÃO ESTÁ NESTA TELA.
+        </div>
+      )}
+
       {carregando ? (
         <p className="text-sm text-slate-400 font-bold uppercase">CARREGANDO…</p>
       ) : itens.length === 0 ? (
-        <p className="text-sm text-slate-400 font-bold uppercase">NENHUMA EXCLUSÃO NOS ÚLTIMOS 30 DIAS.</p>
+        <p className="text-sm text-slate-400 font-bold uppercase">
+          NENHUMA EXCLUSÃO EM {rotuloDaJanela(janela)}.
+          {janela !== "tudo" && " EXPERIMENTE UMA JANELA MAIOR NO SELETOR ACIMA."}
+        </p>
       ) : (
         <>
         {/* ---------- A LIMPEZA DEFINITIVA ---------- */}

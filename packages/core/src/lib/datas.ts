@@ -375,3 +375,24 @@ export function ritmoDoMes(competencia: DataISO, hoje: DataISO = hojeISO()): num
   const diasDoMes = deDataISO(fim).getDate();
   return Math.round((diaDeHoje / diasDoMes) * 100);
 }
+
+/**
+ * A data de N dias atrás — o começo de uma janela "os últimos N dias".
+ *
+ * ⚠️ POR QUE ISTO NÃO É `new Date(Date.now() - dias * 86400000)`. Essa conta
+ * supõe que todo dia tem 86.400 segundos, e no Brasil isso já foi falso duas
+ * vezes por ano enquanto houve horário de verão: a madrugada da virada tem 23
+ * ou 25 horas. Numa janela de 30 dias uma hora não aparece — até o dia em que
+ * a janela começa exatamente na virada e o registro mais antigo some da lista,
+ * sem erro nenhum para denunciar.
+ *
+ * O `somarDias` daqui anda em DIAS DE CALENDÁRIO (`setDate`), que é o que a
+ * pessoa quer dizer quando pede "os últimos 30 dias".
+ *
+ * ⚠️ O SINAL É IGNORADO DE PROPÓSITO (`Math.abs`): "7 dias atrás" e "-7 dias
+ * atrás" querem dizer a mesma coisa, e quem chamasse com o sinal trocado
+ * receberia uma data no FUTURO — uma lista vazia sem explicação.
+ */
+export function diasAtras(dias: number, hoje: DataISO = hojeISO()): DataISO {
+  return somarDias(hoje, -Math.abs(dias));
+}

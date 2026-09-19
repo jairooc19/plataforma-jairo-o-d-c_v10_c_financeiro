@@ -21,4 +21,5 @@ export * from './dashboardRegras';
 export * from './dashboardRelatorio';
 export * from './manutencaoService';
 export * from './manutencaoRegras';
+export * from './lixeiraRegras';
 export * from './permissaoService';

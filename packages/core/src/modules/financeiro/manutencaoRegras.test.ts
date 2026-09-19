@@ -22,6 +22,8 @@ import {
   mesmoFiltro,
   resumirExclusao,
   linhaAbreFicha,
+  recadoDeExclusao,
+  fraseDeReversibilidade,
   type FiltroDeExclusao,
   type SimulacaoFeita,
 } from './manutencaoRegras.ts';
@@ -303,4 +305,41 @@ test('linha da PESQUISAR abre pelo proprio id, sem linha_tipo', () => {
 test('linha sem id nenhum nao abre (nao ha ficha para buscar)', () => {
   assert.equal(linhaAbreFicha({ linha_tipo: 'LANCAMENTO', lancamento_id: null }), false);
   assert.equal(linhaAbreFicha({}), false);
+});
+
+// ===========================================================================
+// O RECADO DEPOIS DE EXCLUIR — 18/09/2026
+// ===========================================================================
+// A tela dizia "ESTA AÇÃO NÃO PODE SER DESFEITA", o que deixou de ser verdade
+// quando a lixeira nasceu. Estes testes fixam as duas coisas que não podem
+// voltar a acontecer: a frase nunca mais pode negar a lixeira, e nunca pode
+// prometer a restauração a quem não tem a permissão de restaurar.
+
+test('o recado NUNCA diz que a exclusao nao tem volta', () => {
+  for (const podeRestaurar of [true, false]) {
+    const r = recadoDeExclusao({ apagados: 1, eraTransferencia: false, podeRestaurar });
+    assert.ok(r.texto.includes('LIXEIRA'), 'o recado tem de citar a lixeira');
+    assert.ok(!r.texto.includes('NÃO PODE SER DESFEITA'));
+    assert.ok(!fraseDeReversibilidade(podeRestaurar).includes('NÃO PODE SER DESFEIT'));
+  }
+});
+
+test('quem nao pode restaurar nao recebe promessa nem atalho', () => {
+  const semPermissao = recadoDeExclusao({ apagados: 1, eraTransferencia: false, podeRestaurar: false });
+  // Ele precisa saber que o registro existe — e a quem pedir.
+  assert.ok(semPermissao.texto.includes('PROPRIETÁRIO'));
+  // E não pode receber um atalho para uma tela que vai recusá-lo.
+  assert.equal(semPermissao.ofereceLixeira, false);
+
+  const comPermissao = recadoDeExclusao({ apagados: 1, eraTransferencia: false, podeRestaurar: true });
+  assert.equal(comPermissao.ofereceLixeira, true);
+  assert.ok(!comPermissao.texto.includes('PROPRIETÁRIO'));
+});
+
+test('a transferencia e anunciada com o numero de pernas que sairam', () => {
+  const r = recadoDeExclusao({ apagados: 2, eraTransferencia: true, podeRestaurar: true });
+  assert.ok(r.texto.startsWith('TRANSFERÊNCIA EXCLUÍDA: 2 LANÇAMENTO(S)'));
+
+  const comum = recadoDeExclusao({ apagados: 1, eraTransferencia: false, podeRestaurar: true });
+  assert.ok(comum.texto.startsWith('LANÇAMENTO EXCLUÍDO.'));
 });

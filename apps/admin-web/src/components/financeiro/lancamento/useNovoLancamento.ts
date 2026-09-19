@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   cadastroFinanceiroService, lancamentoService, extratoService, hojeISO,
+  recadoDeExclusao, fraseDeReversibilidade,
   type ContaMovimento, type ContaIdentificadora, type LinhaDoExtrato,
 } from "@jairo/core";
 import { useEmpresaAtiva } from "../useEmpresaAtiva";
@@ -145,12 +146,12 @@ export function useNovoLancamento() {
   useEffect(() => {
     if (editandoId) return;
     const sugerir = async () => {
-      if (!contaId || !data) return;
-      try { setOrdem(await lancamentoService.proximaOrdem(contaId, data)); }
+      if (!tenantId || !contaId || !data) return;
+      try { setOrdem(await lancamentoService.proximaOrdem(tenantId, contaId, data)); }
       catch { /* sem sugestão, o campo fica em branco — é permitido */ }
     };
     sugerir();
-  }, [contaId, data, editandoId, gatilhoDaSugestao]);
+  }, [tenantId, contaId, data, editandoId, gatilhoDaSugestao]);
 
   const categoriaEscolhida = categorias.find((c) => c.id === categoriaId);
   const contaEscolhida = contas.find((c) => c.id === contaId);
@@ -319,13 +320,22 @@ export function useNovoLancamento() {
    */
   const excluir = async (lancamentoId: string) => {
     if (!tenantId) return;
-    if (!window.confirm("EXCLUIR ESTE LANÇAMENTO? SE FOR UMA TRANSFERÊNCIA, AS DUAS PERNAS SERÃO APAGADAS.")) return;
+    if (!window.confirm(
+      "EXCLUIR ESTE LANÇAMENTO? SE FOR UMA TRANSFERÊNCIA, AS DUAS PERNAS SERÃO APAGADAS.\n\n" +
+      fraseDeReversibilidade(ctx.pode("lc_excluir_lote")),
+    )) return;
     setErro(null); setAviso(null);
     try {
       const r = await lancamentoService.excluir(tenantId, lancamentoId);
-      setAviso(r.eraTransferencia
-        ? `TRANSFERÊNCIA EXCLUÍDA: ${r.apagados} LANÇAMENTO(S) APAGADO(S).`
-        : "LANÇAMENTO EXCLUÍDO.");
+      // ⚠️ O TEXTO VEM DO CORE, E NÃO DAQUI. Ele precisa dizer que a exclusão
+      // é reversível — e dizer a verdade certa para quem NÃO pode restaurar.
+      // Duas telas mostram esse recado; com duas cópias, um dia uma delas
+      // voltaria a prometer o que não pode cumprir.
+      setAviso(recadoDeExclusao({
+        apagados: r.apagados,
+        eraTransferencia: r.eraTransferencia,
+        podeRestaurar: ctx.pode("lc_excluir_lote"),
+      }).texto);
       // Se o que saiu era justamente o que estava aberto no formulário, o modo
       // de edição precisa cair junto — senão o botão gravaria um id que não
       // existe mais.

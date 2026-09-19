@@ -61,7 +61,14 @@ export interface LancamentoExcluido {
   ja_restaurado: boolean;
 }
 
-/** Um evento de fechamento de período, lido da trilha de auditoria. */
+/**
+ * Um evento de fechamento de período.
+ *
+ * ⚠️ AS LINHAS VÊM DE DUAS FONTES, E `em_vigor` DIZ DE QUAL. `true` é a linha
+ * VIVA de `fin_fechamentos` — o fechamento que vale agora, com quem o deixou
+ * assim e quando. `false` é um evento passado, lido da trilha de auditoria
+ * (uma alteração ou uma exclusão).
+ */
 export interface EventoDeFechamento {
   quando: string;
   operacao: string;
@@ -69,6 +76,8 @@ export interface EventoDeFechamento {
   conta: string;
   fechado_ate: string | null;
   observacao: string | null;
+  /** `true` = o fechamento que está valendo; `false` = um evento já passado. */
+  em_vigor: boolean;
 }
 
 interface RetornoBrutoDeExclusao {
@@ -162,7 +171,20 @@ export const manutencaoFinanceiroService = {
     return paraRelatorio(data as RetornoBrutoDeExclusao);
   },
 
-  /** A lixeira: o que foi excluído, do mais recente para o mais antigo. */
+  /**
+   * A lixeira: o que foi excluído, do mais recente para o mais antigo.
+   *
+   * ⚠️ `desde` AUSENTE OU NULO NÃO SIGNIFICA "TUDO" — significa **os últimos 30
+   * dias**, que é o padrão escrito na função do banco. Para ver a lixeira
+   * inteira, passe uma data bem antiga explicitamente. É o contrário da regra
+   * do `p_ids` da exclusão, e de propósito: aqui o padrão mostra MENOS, e
+   * mostrar menos numa lista que alimenta um botão de apagar é o lado seguro.
+   *
+   * ⚠️ O BANCO LIMITA O `limite` A 1000 E O PADRÃO É 200. Quem chama precisa
+   * comparar o tamanho da lista com o limite que pediu: se forem iguais, a
+   * lista pode ter sido CORTADA, e uma lista cortada num ecrã de exclusão faz
+   * a pessoa marcar "tudo" achando que marcou tudo.
+   */
   async listarExcluidos(
     tenantId: string,
     opcoes?: { desde?: string | null; limite?: number },
@@ -239,12 +261,19 @@ export const manutencaoFinanceiroService = {
   },
 
   /**
-   * O histórico de fechamentos de período, lido da trilha de auditoria.
+   * O histórico de fechamentos de período — o que vale agora e o que mudou.
    *
-   * ⚠️ POR QUE ISTO NÃO SAI DA TABELA `fin_fechamentos`: ela guarda UMA linha
-   * por conta (`UNIQUE (tenant_id, conta_movimento_id)`), então não tem
+   * ⚠️ POR QUE ISTO NÃO SAI SÓ DA TABELA `fin_fechamentos`: ela guarda UMA
+   * linha por conta (`UNIQUE (tenant_id, conta_movimento_id)`), então não tem
    * histórico nenhum. Ao excluir um fechamento, some da tela qualquer vestígio
    * de que o período esteve fechado. O que sobrevive é a auditoria.
+   *
+   * ⚠️ E POR QUE ELA TAMBÉM NÃO SAI SÓ DA AUDITORIA (corrigido em 18/09/2026):
+   * o gatilho da plataforma cobre `UPDATE` e `DELETE`, não `INSERT` — o
+   * PRIMEIRO fechamento de uma conta não deixa rastro nenhum lá. Quem fechou
+   * setembro uma única vez via "nenhuma alteração registrada" e concluía que o
+   * sistema não guardara nada. O banco passou a unir as duas fontes: a linha
+   * viva (`em_vigor: true`) e os eventos passados (`em_vigor: false`).
    */
   async historicoDeFechamentos(
     tenantId: string,

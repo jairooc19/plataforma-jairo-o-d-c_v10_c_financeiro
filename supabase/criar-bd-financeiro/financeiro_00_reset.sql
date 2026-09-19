@@ -186,7 +186,15 @@ DROP FUNCTION IF EXISTS public.fin_importar_identificadoras(uuid, text, text[]) 
 DROP FUNCTION IF EXISTS public.fin_gravar_conta_movimento(uuid, uuid, text, text, bigint, boolean) CASCADE;
 DROP FUNCTION IF EXISTS public.fin_buscar_identificadoras(uuid, text) CASCADE;
 DROP FUNCTION IF EXISTS public.fin_buscar_contas_movimento(uuid, text) CASCADE;
-DROP FUNCTION IF EXISTS public.fin_proxima_ordem(uuid, date) CASCADE;
+-- ⚠️ AS DUAS ASSINATURAS DE `fin_proxima_ordem`, PELO MESMO MOTIVO DA
+-- `fin_periodo_fechado` LOGO ABAIXO: em 18/09/2026 (5ª rodada) ela ganhou o
+-- `p_tenant_id` e passou de `(uuid, date)` para `(uuid, uuid, date)`. Um banco
+-- pode ter QUALQUER uma das duas, conforme a data em que o schema foi aplicado
+-- pela última vez. `DROP FUNCTION` identifica a função pelos PARÂMETROS:
+-- derrubar só uma deixaria a outra viva — e a que sobraria seria justamente a
+-- versão sem filtro de empresa e sem checagem de permissão.
+DROP FUNCTION IF EXISTS public.fin_proxima_ordem(uuid, date)       CASCADE;
+DROP FUNCTION IF EXISTS public.fin_proxima_ordem(uuid, uuid, date) CASCADE;
 
 -- ⚠️ AS DUAS ASSINATURAS DE `fin_periodo_fechado`, E ISSO NÃO É REDUNDÂNCIA.
 -- Em 17/09/2026 ela ganhou o `p_tenant_id` e passou de `(uuid, date)` para

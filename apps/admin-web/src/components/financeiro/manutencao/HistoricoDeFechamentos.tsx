@@ -29,10 +29,23 @@ import IconeFin from "../IconeFin";
  * tabela da plataforma (a regra R5 do `MODULOS.md` proíbe o módulo de mexer em
  * estrutura alheia).
  *
- * ⚠️ O PRIMEIRO FECHAMENTO DE UMA CONTA NÃO APARECE AQUI, e isso é esperado: o
- * gatilho cobre UPDATE e DELETE, não INSERT. Quem responde "está fechado até
- * quando?" é a lista de fechamentos vigentes, logo acima nesta mesma tela.
- * Esta é a lista do que MUDOU.
+ * ===========================================================================
+ * ⚠️ CORRIGIDO EM 18/09/2026 — O PRIMEIRO FECHAMENTO SUMIA DAQUI
+ * ===========================================================================
+ * Este comentário dizia, até hoje: "o primeiro fechamento de uma conta não
+ * aparece aqui, e isso é esperado". Era verdade sobre o código e **ruim para
+ * quem usa**: quem fechou setembro uma única vez lia "NENHUMA ALTERAÇÃO
+ * REGISTRADA" e concluía que o sistema não guardara nada.
+ *
+ * A causa: o gatilho da plataforma cobre `UPDATE` e `DELETE`, não `INSERT`.
+ * A saída NÃO foi mexer nesse gatilho — ele serve a todas as tabelas do
+ * sistema, e mudá-lo a pedido de um módulo é o que o LEGO proíbe. A saída foi
+ * perceber que **o primeiro fechamento não está na auditoria porque ainda está
+ * VIVO na tabela**: a função do banco passou a unir as duas fontes.
+ *
+ * Hoje a lista tem dois tipos de linha, e a coluna "O QUE" diz qual é qual:
+ *   • `em_vigor: true`  → FECHAMENTO EM VIGOR — o que vale agora, da tabela
+ *   • `em_vigor: false` → ALTEROU / EXCLUIU  — um evento passado, da auditoria
  */
 export default function HistoricoDeFechamentos({ tenantId }: { tenantId: string | null }) {
   const [eventos, setEventos] = useState<EventoDeFechamento[]>([]);
@@ -85,23 +98,40 @@ export default function HistoricoDeFechamentos({ tenantId }: { tenantId: string 
             <p className="text-xs text-slate-400 font-bold uppercase">CARREGANDO…</p>
           ) : eventos.length === 0 ? (
             <p className="text-xs text-slate-400 font-bold uppercase">
-              NENHUMA ALTERAÇÃO OU EXCLUSÃO DE FECHAMENTO REGISTRADA.
+              NENHUM PERÍODO FECHADO, E NENHUMA ALTERAÇÃO OU EXCLUSÃO REGISTRADA.
             </p>
           ) : (
             <div className="overflow-x-auto">
+              <p className="text-[10px] font-bold uppercase text-slate-400 mb-2">
+                AS LINHAS EM VERDE SÃO OS FECHAMENTOS QUE ESTÃO VALENDO AGORA. AS DEMAIS SÃO
+                EVENTOS JÁ PASSADOS — ALTERAÇÕES E REABERTURAS.
+              </p>
               <table className="w-full text-xs">
                 <thead>
                   <tr className="text-left">
-                    {["QUANDO","O QUE","QUEM","CONTA","ESTAVA FECHADO ATÉ","OBSERVAÇÃO"].map((c) => (
+                    {/* "FECHADO ATÉ" serve às duas espécies de linha; "ESTAVA
+                        FECHADO ATÉ" (o rótulo antigo) ficaria errado justamente
+                        na linha do fechamento que ainda está em vigor. */}
+                    {["QUANDO","O QUE","QUEM","CONTA","FECHADO ATÉ","OBSERVAÇÃO"].map((c) => (
                       <th key={c} className="px-2 py-2 font-black uppercase tracking-widest text-slate-400 border-b border-slate-200 whitespace-nowrap">{c}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {eventos.map((e, i) => (
-                    <tr key={`${e.quando}-${i}`} className="hover:bg-blue-50/40">
+                    <tr key={`${e.quando}-${i}`}
+                        className={e.em_vigor ? "bg-emerald-50/50" : "hover:bg-blue-50/40"}>
                       <td className="px-2 py-2 border-b border-slate-100 whitespace-nowrap">{formatarDataHoraBR(e.quando)}</td>
-                      <td className={`px-2 py-2 border-b border-slate-100 font-black ${e.operacao.startsWith("EXCLUIU") ? "text-red-700" : "text-slate-600"}`}>
+                      {/*
+                        ⚠️ A COR VEM DE `em_vigor`, QUE É UM DADO, e não de uma
+                        comparação com o texto da coluna. Ler o rótulo para
+                        decidir a cor funcionaria hoje e quebraria em silêncio
+                        no dia em que alguém reescrevesse a frase no banco.
+                      */}
+                      <td className={`px-2 py-2 border-b border-slate-100 font-black ${
+                        e.em_vigor ? "text-emerald-700"
+                        : e.operacao.startsWith("EXCLUIU") ? "text-red-700"
+                        : "text-slate-600"}`}>
                         {e.operacao}
                       </td>
                       <td className="px-2 py-2 border-b border-slate-100 text-slate-500">{e.quem}</td>

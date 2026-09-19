@@ -225,7 +225,7 @@ assinaturas_esperadas (nome, args) AS (
   ('fin_normalizar', 'p_texto text'),
   ('fin_periodo_fechado', 'p_tenant_id uuid, p_conta_id uuid, p_data date'),
   ('fin_pode', 'p_tenant_id uuid, p_permissao text'),
-  ('fin_proxima_ordem', 'p_conta_id uuid, p_data date'),
+  ('fin_proxima_ordem', 'p_tenant_id uuid, p_conta_id uuid, p_data date'),
   ('fin_reabrir_periodo', 'p_tenant_id uuid, p_conta_movimento_id uuid'),
   ('fin_restaurar_lancamento', 'p_tenant_id uuid, p_audit_id bigint'),
   ('fin_saldo_atual', 'p_tenant_id uuid, p_conta_movimento_id uuid'),

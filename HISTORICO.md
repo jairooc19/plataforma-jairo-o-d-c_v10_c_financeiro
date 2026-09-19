@@ -17,6 +17,92 @@ todas foram pagas com um defeito em produção.
 
 ---
 
+**2026-09-18 (quinta rodada) — v10: a última função sem dono, e três buracos de tela**
+
+Rodada de dívida, não de funcionalidade: nenhuma tela nova. Ele pediu a correção da
+`fin_proxima_ordem` e os três bônus que sobraram do estudo de 17/09.
+
+> 🧱 **O MURO: FILTRAR POR EMPRESA NÃO CONSERTAVA NADA.** A `fin_proxima_ordem` recebia
+> conta e data, não olhava a empresa e tinha `GRANT` para `authenticated` — qualquer pessoa
+> logada, de qualquer empresa, que conhecesse o id de uma conta alheia descobria quantos
+> lançamentos ela tem num dia. O reflexo é acrescentar `p_tenant_id` e filtrar por ele; e
+> **isso não fecha porta nenhuma**, porque quem chama informa a empresa: bastaria informar a
+> alheia junto com a conta alheia. Quem fecha é a `fin_pode`, que não pergunta "de qual
+> empresa é este dado?" e sim "**quem está chamando** é de lá?". O filtro ficou como segunda
+> tranca: com permissão na empresa A e uma conta da B, a resposta é 1 — nenhum dado
+> atravessa. As duas metades estão na trava 51, cada uma com a sua mutação.
+
+**A permissão aceita duas chaves, e isso foi decisão, não frouxidão.** A sugestão serve a
+duas telas: NOVO LANÇAMENTO (`lc_criar`) e TRANSFERÊNCIA (`transferencia`). Exigir só a
+primeira deixaria o campo ORDEM em branco, sem explicação nenhuma, para quem só transfere.
+
+> ⚠️ **O RITUAL DO `DROP` FOI EXERCITADO, E NÃO SÓ ESCRITO.** Mudar a lista de parâmetros
+> cria uma SOBRECARGA — as duas versões vivas, a velha ainda com o GRANT. Para provar que o
+> `DROP FUNCTION ... (uuid, date)` cumpre o papel, a versão antiga foi **recriada à mão** num
+> banco local: o `inventario_financeiro.sql` acusou em **cinco linhas de uma vez** (contagem
+> 37 em vez de 36, SOBRECARGA 1, ASSINATURA 1, CAMINHO FELIZ 35 e — a mais reveladora —
+> SEGUNDA TRANCA 1, porque função recriada nasce executável por PUBLIC, e `anon` herda de
+> PUBLIC).
+
+**Os três bônus do estudo de 17/09, e o que cada um escondia:**
+
+**1. A tela dizia que excluir não tinha volta — e tinha, desde 17/09.** A confirmação da
+PESQUISAR terminava com "ESTA AÇÃO NÃO PODE SER DESFEITA". Era verdade quando foi escrita e
+deixou de ser no dia em que a LIXEIRA nasceu; ninguém voltou para corrigir a frase. **Isso é
+pior do que não avisar**: quem lê aquilo e ainda assim exclui por engano fica convencido de
+que perdeu o registro, e não vai procurar.
+
+> ⚠️ **E O RECADO CERTO DEPENDE DE QUEM ESTÁ LENDO.** Restaurar exige `lc_excluir_lote`.
+> Prometer "você pode restaurar" a quem não tem a permissão seria trocar uma frase falsa por
+> outra — ele procuraria a tela e não encontraria. Para esse, a verdade é que **alguém** pode,
+> e o que ele precisa é saber a quem pedir. Quem decide é o Core (`recadoDeExclusao`), com
+> teste; o atalho "IR PARA A LIXEIRA" só aparece para quem a lixeira vai aceitar.
+
+**2. "Os últimos 30 dias" era um número meu, escrito na tela como fato.** A
+`fin_listar_exclusoes` sempre aceitou `p_desde`; a tela é que nunca passava. Quem excluiu algo
+há 45 dias abria a lixeira, não encontrava e concluía que tinha sumido de vez. Agora há um
+seletor (7 dias a 1 ano, ou desde o começo) — **e o padrão continua sendo 30 dias**, porque o
+ecrã tem um botão de apagar de vez: o padrão precisa mostrar MENOS.
+
+> ⚠️ **DE QUEBRA, A LISTA NÃO AVISAVA QUANDO ERA CORTADA.** Ela pede 200 registros; um
+> período com mais mostrava 200 sem dizer nada, e quem marcasse "todos" estaria marcando só
+> os que couberam. É a mesma regra que a exclusão em lote já seguia desde 17/09, e que a
+> lixeira não seguia. Agora avisa.
+
+**3. O primeiro fechamento de um período não aparecia em lugar nenhum.** O histórico lia só a
+`audit_log`, e o gatilho da plataforma cobre `UPDATE` e `DELETE` — não `INSERT`. Quem fechou
+setembro uma única vez lia "NENHUMA ALTERAÇÃO REGISTRADA".
+
+> ⚠️ **A SAÍDA NÃO FOI MEXER NO GATILHO DA PLATAFORMA.** Fazer a `registrar_auditoria()`
+> cobrir INSERT mudaria o comportamento de TODAS as tabelas do sistema a pedido de um módulo
+> (regra R5 do `MODULOS.md`), e dobraria o tamanho da `audit_log` de quebra. A saída é óbvia
+> depois de vista: **o primeiro fechamento não está na auditoria porque ainda está VIVO na
+> tabela**. A função passou a unir as duas fontes — a linha viva (`em_vigor: true`) e os
+> eventos passados (`em_vigor: false`).
+
+> ⚠️ **A LINHA VIVA USA `updated_at`, E NÃO `created_at`.** O `fin_fechar_periodo` é um
+> `INSERT ... ON CONFLICT DO UPDATE`: refechar reaproveita a linha e troca `fechado_por`.
+> Mostrar `created_at` ao lado do autor novo juntaria a data de um evento com o autor de
+> outro — verdadeiro em cada metade, falso inteiro.
+
+> ⚠️ **E A COR DA LINHA PASSOU A VIR DE UM DADO, NÃO DO TEXTO.** A tela decidia a cor com
+> `operacao.startsWith('EXCLUIU')`. Funciona até alguém reescrever a frase no banco — e aí
+> quebra em silêncio. Quem decide agora é `em_vigor`.
+
+**O ensaio de mutação, quatro tiros:** tirar a checagem de permissão da sugestão (trava 51
+acusou), tirar o filtro de empresa (51), fazer o histórico ignorar a linha viva (52), e
+devolver o "não pode ser desfeita" ao Core (2 dos 124 testes do `npm test`). Nenhuma passou
+despercebida.
+
+**Placar:** `npm test` **124/124** · `teste_financeiro.sql` **52/52** · `teste_rls.sql`
+**16/16** · `inventario_financeiro.sql` **17/17** · `inventario.sql` **4/4** · LEGO 0
+violações · lint e build limpos · ensaio de upgrade **21 ok, 0 divergindo**.
+
+Módulo: **5 tabelas, 36 funções, 22 permissões, 18 rotas** — os mesmos números da rodada
+anterior, de propósito: nada nasceu, e uma coisa parou de vazar.
+
+---
+
 **2026-09-18 (quarta rodada) — v10: ORÇAMENTO e DINHEIRO DO PERÍODO, e a fase 5 fecha**
 
 As duas últimas peças "EM DESENVOLVIMENTO" do módulo. Um estudo foi entregue antes

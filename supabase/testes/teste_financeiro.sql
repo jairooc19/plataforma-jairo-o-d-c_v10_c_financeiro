@@ -2737,6 +2737,179 @@ END;
 $$;
 
 
+-- ===========================================================================
+-- TESTE 51 — a sugestão de ordem passou a perguntar DE QUEM É (RN-25, RN-27)
+-- ===========================================================================
+--
+-- ⚠️ ESTA TRAVA NASCEU DE UM BURACO REAL, ABERTO DESDE O DEGRAU 7. A
+-- `fin_proxima_ordem` recebia só conta e data: não filtrava empresa, não
+-- chamava `fin_pode` — e tinha GRANT para `authenticated`. Qualquer pessoa
+-- logada, de qualquer empresa, que conhecesse o id de uma conta alheia
+-- descobria quantos lançamentos ela tem num dia.
+--
+-- O QUE SE PROVA AQUI, nas quatro pontas:
+--   1. quem é da empresa recebe o número CERTO (a função continua servindo);
+--   2. quem é de outra empresa recebe 42501 ao perguntar pela empresa alheia;
+--   3. quem passa a PRÓPRIA empresa com uma conta ALHEIA recebe 1 — o filtro
+--      de empresa não deixa nenhum dado da outra atravessar;
+--   4. quem não pode criar nem transferir recebe 42501, mesmo sendo da casa.
+DO $$
+DECLARE
+  v_cm uuid; v_ci uuid;
+  v_certo int := -1; v_outra_empresa text := 'nenhum'; v_conta_alheia int := -1;
+  v_sem_permissao text := 'nenhum'; v_com_permissao int := -1;
+BEGIN
+  -- ⚠️ O TESTE MONTA O PRÓPRIO CENÁRIO. Depender do que outro teste deixou é o
+  -- que quebrou o teste 17 em 13/09 — e o teste 14, que roda no meio, aciona o
+  -- botão que apaga os dados da empresa.
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+
+  PERFORM public.fin_gravar_conta_movimento('aa000000-0000-0000-0000-0000000000a1', NULL, 'ORDEM DA EMPRESA', 'CAIXA', 0, true);
+  PERFORM public.fin_gravar_identificadora('aa000000-0000-0000-0000-0000000000a1', NULL, 'ORDEM CATEGORIA', 'DESPESA', true);
+  RESET ROLE;
+
+  SELECT id INTO v_cm FROM public.fin_contas_movimento
+   WHERE tenant_id='aa000000-0000-0000-0000-0000000000a1' AND nome='ORDEM DA EMPRESA';
+  SELECT id INTO v_ci FROM public.fin_contas_identificadoras
+   WHERE tenant_id='aa000000-0000-0000-0000-0000000000a1' AND nome='ORDEM CATEGORIA';
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+  PERFORM public.fin_gravar_lancamento('aa000000-0000-0000-0000-0000000000a1', NULL, v_cm, v_ci, DATE '2026-07-07', 1, 'SAIDA','PROPRIO','CAIXA', 1000, 'UM');
+  PERFORM public.fin_gravar_lancamento('aa000000-0000-0000-0000-0000000000a1', NULL, v_cm, v_ci, DATE '2026-07-07', 2, 'SAIDA','PROPRIO','CAIXA', 2000, 'DOIS');
+
+  -- 1) o dono da casa recebe o número certo: dois lançamentos, o próximo é 3
+  v_certo := public.fin_proxima_ordem('aa000000-0000-0000-0000-0000000000a1', v_cm, DATE '2026-07-07');
+  RESET ROLE;
+
+  -- 2) e 3) agora quem pergunta é o dono da EMPRESA B
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"b1000000-0000-0000-0000-0000000000b1","role":"authenticated"}', true);
+
+  BEGIN
+    PERFORM public.fin_proxima_ordem('aa000000-0000-0000-0000-0000000000a1', v_cm, DATE '2026-07-07');
+  EXCEPTION WHEN OTHERS THEN v_outra_empresa := SQLSTATE;
+  END;
+
+  -- a própria empresa (onde ele PODE), mas com a conta da outra: sem erro, e
+  -- sem dado nenhum — o filtro de empresa não encontra as linhas da A.
+  BEGIN
+    v_conta_alheia := public.fin_proxima_ordem('bb000000-0000-0000-0000-0000000000b1', v_cm, DATE '2026-07-07');
+  EXCEPTION WHEN OTHERS THEN v_conta_alheia := -2;
+  END;
+  RESET ROLE;
+
+  -- 4) o Dependente da própria empresa, sem `lc_criar` nem `transferencia`
+  UPDATE public.tenant_members
+     SET module_configs = jsonb_build_object('financeiro', jsonb_build_object(
+           'ativo', true,
+           'permissoes', jsonb_build_array('cm_ver','ci_ver','lc_ver_todos','extrato_ver')))
+   WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1'
+     AND user_id = 'd1000000-0000-0000-0000-0000000000d1';
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"d1000000-0000-0000-0000-0000000000d1","role":"authenticated"}', true);
+  BEGIN
+    PERFORM public.fin_proxima_ordem('aa000000-0000-0000-0000-0000000000a1', v_cm, DATE '2026-07-07');
+  EXCEPTION WHEN OTHERS THEN v_sem_permissao := SQLSTATE;
+  END;
+  RESET ROLE;
+
+  -- com `lc_criar` devolvido, ele volta a receber a sugestão
+  UPDATE public.tenant_members
+     SET module_configs = jsonb_build_object('financeiro', jsonb_build_object(
+           'ativo', true,
+           'permissoes', jsonb_build_array('cm_ver','ci_ver','lc_ver_todos','extrato_ver','lc_criar')))
+   WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1'
+     AND user_id = 'd1000000-0000-0000-0000-0000000000d1';
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"d1000000-0000-0000-0000-0000000000d1","role":"authenticated"}', true);
+  v_com_permissao := public.fin_proxima_ordem('aa000000-0000-0000-0000-0000000000a1', v_cm, DATE '2026-07-07');
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    51,
+    CASE WHEN v_certo = 3 AND v_outra_empresa = '42501' AND v_conta_alheia = 1
+          AND v_sem_permissao = '42501' AND v_com_permissao = 3
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-25/27',
+    'A sugestao de ordem confere empresa e permissao, e nao vaza a contagem alheia',
+    format('dono da casa=%s (esperado 3); empresa B na empresa A=%s (esperado 42501); conta alheia pela propria empresa=%s (esperado 1, sem vazar nada); dependente sem lc_criar=%s (esperado 42501); com lc_criar=%s (esperado 3)',
+           v_certo, v_outra_empresa, v_conta_alheia, v_sem_permissao, v_com_permissao));
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 52 — o PRIMEIRO fechamento aparece no histórico (bônus de 18/09)
+-- ===========================================================================
+--
+-- ⚠️ ATÉ 18/09/2026 ELE NÃO APARECIA, E NINGUÉM ESTAVA ERRADO SOBRE O CÓDIGO.
+-- O histórico lia só a `audit_log`, e o gatilho da plataforma cobre UPDATE e
+-- DELETE — não INSERT. Quem fechou um período uma única vez lia "NENHUMA
+-- ALTERAÇÃO REGISTRADA" e concluía que o sistema não guardara nada.
+--
+-- A correção não tocou no gatilho da plataforma (o LEGO proíbe): a função
+-- passou a unir a linha VIVA de `fin_fechamentos` com os eventos da auditoria.
+--
+-- O QUE SE PROVA AQUI:
+--   1. fechar pela primeira vez já aparece, marcado como EM VIGOR;
+--   2. o `fechado_ate` da linha viva é o que foi gravado;
+--   3. depois de REABRIR, a linha "em vigor" some e sobra o evento de exclusão
+--      — ou seja, a metade antiga da função continua funcionando.
+DO $$
+DECLARE
+  v_cm uuid;
+  v_em_vigor int := -1; v_ate date; v_apos_reabrir int := -1; v_excluiu int := -1;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+  PERFORM public.fin_gravar_conta_movimento('aa000000-0000-0000-0000-0000000000a1', NULL, 'HIST FECHAMENTO', 'BANCO', 0, true);
+  RESET ROLE;
+
+  SELECT id INTO v_cm FROM public.fin_contas_movimento
+   WHERE tenant_id='aa000000-0000-0000-0000-0000000000a1' AND nome='HIST FECHAMENTO';
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+
+  -- O PRIMEIRO fechamento desta conta — um INSERT, que a auditoria não registra.
+  PERFORM public.fin_fechar_periodo('aa000000-0000-0000-0000-0000000000a1', v_cm, DATE '2026-05-31', 'PRIMEIRO FECHAMENTO');
+
+  SELECT count(*), max(h.fechado_ate) INTO v_em_vigor, v_ate
+    FROM public.fin_historico_fechamentos('aa000000-0000-0000-0000-0000000000a1', 500) h
+   WHERE h.conta = 'HIST FECHAMENTO' AND h.em_vigor;
+
+  -- Agora REABRIR: a linha viva morre e vira um evento de exclusão.
+  PERFORM public.fin_reabrir_periodo('aa000000-0000-0000-0000-0000000000a1', v_cm);
+
+  SELECT count(*) INTO v_apos_reabrir
+    FROM public.fin_historico_fechamentos('aa000000-0000-0000-0000-0000000000a1', 500) h
+   WHERE h.conta = 'HIST FECHAMENTO' AND h.em_vigor;
+
+  SELECT count(*) INTO v_excluiu
+    FROM public.fin_historico_fechamentos('aa000000-0000-0000-0000-0000000000a1', 500) h
+   WHERE h.conta = 'HIST FECHAMENTO' AND NOT h.em_vigor AND h.operacao = 'EXCLUIU O FECHAMENTO';
+
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    52,
+    CASE WHEN v_em_vigor = 1 AND v_ate = DATE '2026-05-31'
+          AND v_apos_reabrir = 0 AND v_excluiu = 1
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-24',
+    'O primeiro fechamento (um INSERT, que a auditoria nao ve) aparece no historico',
+    format('linhas EM VIGOR apos fechar=%s (esperado 1); fechado_ate=%s (esperado 2026-05-31); EM VIGOR apos reabrir=%s (esperado 0); eventos de exclusao=%s (esperado 1)',
+           v_em_vigor, v_ate, v_apos_reabrir, v_excluiu));
+END;
+$$;
+
+
 -- ---------------------------------------------------------------------------
 -- LIMPEZA FINAL
 -- ---------------------------------------------------------------------------

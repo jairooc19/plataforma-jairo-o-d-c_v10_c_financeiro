@@ -70,21 +70,21 @@ export default function TransferenciaPage() {
    */
   useEffect(() => {
     const sugerir = async () => {
-      if (!origem || !data) return;
-      try { setOrdemOrigem(await lancamentoService.proximaOrdem(origem, data)); }
+      if (!tenantId || !origem || !data) return;
+      try { setOrdemOrigem(await lancamentoService.proximaOrdem(tenantId, origem, data)); }
       catch { /* sem sugestão o campo fica vazio, e vazio significa "no fim" */ }
     };
     sugerir();
-  }, [origem, data]);
+  }, [tenantId, origem, data]);
 
   useEffect(() => {
     const sugerir = async () => {
-      if (!destino || !data) return;
-      try { setOrdemDestino(await lancamentoService.proximaOrdem(destino, data)); }
+      if (!tenantId || !destino || !data) return;
+      try { setOrdemDestino(await lancamentoService.proximaOrdem(tenantId, destino, data)); }
       catch { /* idem */ }
     };
     sugerir();
-  }, [destino, data]);
+  }, [tenantId, destino, data]);
 
   const transferir = async () => {
     if (!tenantId) return;

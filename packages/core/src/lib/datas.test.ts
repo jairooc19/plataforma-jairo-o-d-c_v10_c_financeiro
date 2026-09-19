@@ -38,6 +38,7 @@ import {
   ehDataNaCompetencia,
   dataPadraoNaCompetencia,
   ritmoDoMes,
+  diasAtras,
 } from './datas.ts';
 
 test('dataLocalISO usa o calendário local, não UTC', () => {
@@ -272,6 +273,27 @@ test('ritmoDoMes é absoluto fora da competência', () => {
   // apareceria no meio da barra de um mês que já acabou.
   assert.equal(ritmoDoMes('2026-08-01', '2026-09-18'), 100);
   assert.equal(ritmoDoMes('2026-11-01', '2026-09-18'), 0);
+});
+
+test('diasAtras anda em dias de calendário, e atravessa o mês', () => {
+  // O caso comum: 30 dias antes de 18/09 é 19/08 — e não 18/08, que é o erro
+  // de quem subtrai "um mês".
+  assert.equal(diasAtras(30, '2026-09-18'), '2026-08-19');
+  assert.equal(diasAtras(7, '2026-09-18'), '2026-09-11');
+  assert.equal(diasAtras(0, '2026-09-18'), '2026-09-18');
+});
+
+test('diasAtras atravessa a virada do ano e o ano bissexto', () => {
+  // 31/12/2025 → 10 dias antes é 21/12/2025; e 5 dias antes de 03/01 é 29/12.
+  assert.equal(diasAtras(5, '2026-01-03'), '2025-12-29');
+  // 2028 é bissexto: 1 dia antes de 01/03 é 29/02, e não 28/02.
+  assert.equal(diasAtras(1, '2028-03-01'), '2028-02-29');
+});
+
+test('diasAtras ignora o sinal, para nunca devolver data no futuro', () => {
+  // Quem chamasse com -30 pediria "30 dias atrás" com o sinal trocado. Devolver
+  // 18/10 deixaria a lista vazia, sem explicação nenhuma na tela.
+  assert.equal(diasAtras(-30, '2026-09-18'), diasAtras(30, '2026-09-18'));
 });
 
 test('MESES_POR_EXTENSO tem os 12 meses, em caixa alta', () => {

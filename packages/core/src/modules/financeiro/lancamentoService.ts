@@ -149,9 +149,19 @@ export const lancamentoService = {
 
   /**
    * A próxima ordem livre do dia, para sugerir no formulário (RN-11).
+   *
+   * ⚠️ O `tenantId` ENTROU EM 18/09/2026, E NÃO É ENFEITE. Até aí esta era a
+   * única chamada do módulo que não dizia de que empresa era a pergunta — e a
+   * função do banco, por consequência, respondia a qualquer pessoa logada que
+   * soubesse o id de uma conta alheia. Hoje ela confere `lc_criar` ou
+   * `transferencia` na empresa informada e devolve 42501 quando não há.
+   *
+   * ⚠️ QUEM CHAMA TRATA O ERRO COMO "SEM SUGESTÃO", nunca como falha da tela:
+   * o campo ORDEM fica em branco, e em branco já significa "no fim do dia".
    */
-  async proximaOrdem(contaMovimentoId: string, data: string): Promise<number> {
+  async proximaOrdem(tenantId: string, contaMovimentoId: string, data: string): Promise<number> {
     const { data: r, error } = await supabase.rpc('fin_proxima_ordem', {
+      p_tenant_id: tenantId,
       p_conta_id: contaMovimentoId,
       p_data: data,
     });

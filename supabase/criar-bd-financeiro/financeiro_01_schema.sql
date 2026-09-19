@@ -348,19 +348,64 @@ AS $$
 $$;
 
 -- ---------------------------------------------------------------------------
--- 4.3 A PRÓXIMA ORDEM LIVRE DO DIA (RN-11)
+-- 4.3 A PRÓXIMA ORDEM LIVRE DO DIA (RN-11, RN-25, RN-27)
 -- ---------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.fin_proxima_ordem(p_conta_id uuid, p_data date)
+--
+-- ⚠️ ESTE `DROP` É OBRIGATÓRIO E NÃO PODE SER APAGADO — leia antes de mexer.
+--
+-- Em 18/09/2026 (5ª rodada) esta função ganhou o `p_tenant_id`. Ela era a
+-- ÚLTIMA do módulo que não perguntava de quem era o dado: recebia uma conta e
+-- uma data, não filtrava empresa, não chamava `fin_pode` — e tinha `GRANT`
+-- para `authenticated`. Qualquer pessoa logada, de qualquer empresa, que
+-- conhecesse o id de uma conta alheia descobria quantos lançamentos ela tem
+-- num dia. Vazava um inteiro, e só; mas regra de isolamento que vale em 35
+-- funções e falha em uma não é regra — é sorte.
+--
+-- `CREATE OR REPLACE` só substitui quando a lista de parâmetros é IDÊNTICA.
+-- Com uma lista diferente o PostgreSQL entende que é OUTRA função e cria uma
+-- SOBRECARGA: as duas passam a existir, e a velha continua com o `GRANT` que
+-- este arquivo já lhe deu — alcançável e sem filtro nenhum. A assinatura
+-- dentro do DROP são os PARÂMETROS ANTIGOS (uuid, date), nunca o retorno.
+DROP FUNCTION IF EXISTS public.fin_proxima_ordem(uuid, date);
+
+-- ⚠️ A PERMISSÃO ACEITA DUAS CHAVES, E ISSO NÃO É FROUXIDÃO. A sugestão serve
+-- a duas telas: NOVO LANÇAMENTO (`lc_criar`) e TRANSFERÊNCIA (`transferencia`).
+-- Exigir só `lc_criar` deixaria o campo ORDEM em branco, sem explicação
+-- nenhuma, para quem só transfere. A pergunta que ela responde é "onde cabe o
+-- próximo?" — e quem pode criar o próximo, por qualquer das duas portas, pode
+-- fazê-la.
+--
+-- ⚠️ O FILTRO DE EMPRESA SOZINHO NÃO RESOLVERIA NADA. Quem chama informa a
+-- empresa E a conta: bastaria informar as duas da empresa alheia para o filtro
+-- casar. Quem fecha a porta é a `fin_pode`, que pergunta se QUEM ESTÁ CHAMANDO
+-- pertence àquela empresa. O filtro é a segunda tranca: com permissão na
+-- empresa A e uma conta da B, o SELECT não encontra linha e a resposta é 1 —
+-- nenhum dado da B atravessa.
+CREATE OR REPLACE FUNCTION public.fin_proxima_ordem(
+  p_tenant_id uuid,
+  p_conta_id  uuid,
+  p_data      date
+)
 RETURNS integer
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT COALESCE(MAX(l.ordem_extrato), 0) + 1
-    FROM public.fin_lancamentos l
-   WHERE l.conta_movimento_id = p_conta_id
-     AND l.data_movimento = p_data;
+BEGIN
+  IF NOT (public.fin_pode(p_tenant_id, 'lc_criar')
+       OR public.fin_pode(p_tenant_id, 'transferencia')) THEN
+    RAISE EXCEPTION 'Sem permissao para sugerir a ordem do extrato.' USING ERRCODE = '42501';
+  END IF;
+
+  RETURN (
+    SELECT COALESCE(MAX(l.ordem_extrato), 0) + 1
+      FROM public.fin_lancamentos l
+     WHERE l.tenant_id          = p_tenant_id
+       AND l.conta_movimento_id = p_conta_id
+       AND l.data_movimento     = p_data
+  );
+END;
 $$;
 
 -- ---------------------------------------------------------------------------
@@ -1632,6 +1677,42 @@ $$;
 --
 -- ⚠️ Os mesmos quatro filtros da lixeira valem aqui, pelo mesmo motivo: é
 -- `SECURITY DEFINER` sobre uma tabela da plataforma que o Proprietário não lê.
+--
+-- ===========================================================================
+-- ⚠️ 18/09/2026 (5ª rodada): O FECHAMENTO EM VIGOR PASSOU A APARECER AQUI
+-- ===========================================================================
+-- Até aqui esta lista lia SÓ a auditoria, e a auditoria cobre `UPDATE` e
+-- `DELETE` — não `INSERT`. Consequência: **o primeiro fechamento de uma conta
+-- não aparecia em lugar nenhum do histórico**. Quem fechou setembro uma única
+-- vez, e nunca mais mexeu, via "NENHUMA ALTERAÇÃO REGISTRADA" e concluía, sem
+-- culpa, que o sistema não tinha guardado nada.
+--
+-- ⚠️ A SAÍDA **NÃO** FOI MEXER NO GATILHO DA PLATAFORMA. Fazer a
+-- `registrar_auditoria()` cobrir INSERT mudaria o comportamento de TODAS as
+-- tabelas do sistema — `users`, `tenants`, tudo — a pedido de um módulo. É
+-- exatamente o que a regra R5 do `MODULOS.md` proíbe, e ainda dobraria o
+-- tamanho da `audit_log` de quebra.
+--
+-- A saída foi a evidente depois de vista: **o primeiro fechamento não está na
+-- auditoria porque ele ainda está VIVO na tabela**. `fin_fechamentos` guarda o
+-- estado atual de cada conta, com `fechado_por`, `updated_at` e `observacao`.
+-- A lista passou a ser a união dos dois: o que está em vigor AGORA (da tabela)
+-- e o que MUDOU (da auditoria).
+--
+-- ⚠️ A LINHA VIVA USA `updated_at`, E NÃO `created_at`. O `fin_fechar_periodo`
+-- é um `INSERT ... ON CONFLICT DO UPDATE`: refechar a mesma conta reaproveita
+-- a linha, trocando `fechado_ate`, `fechado_por` e `updated_at`. Mostrar
+-- `created_at` ao lado do `fechado_por` novo juntaria a data de um evento com
+-- o autor de outro — uma frase verdadeira em cada metade e falsa inteira. Com
+-- `updated_at`, a linha descreve o estado ATUAL: quem o deixou assim, e
+-- quando. E numa conta fechada uma única vez os dois campos são iguais.
+--
+-- ⚠️ O `ORDER BY` FICA FORA DO `UNION`, NUMA CTE. Ordenação com expressão logo
+-- depois de um `UNION` não compila no PostgreSQL; por isso o `UNION ALL` mora
+-- dentro do `WITH` e a ordenação acontece no SELECT de fora, sobre colunas
+-- simples.
+DROP FUNCTION IF EXISTS public.fin_historico_fechamentos(uuid, integer);
+
 CREATE OR REPLACE FUNCTION public.fin_historico_fechamentos(
   p_tenant_id uuid,
   p_limite    integer DEFAULT 100
@@ -1642,33 +1723,60 @@ RETURNS TABLE (
   quem        text,
   conta       text,
   fechado_ate date,
-  observacao  text
+  observacao  text,
+  -- `true` = a linha viva da tabela (o fechamento que vale agora).
+  -- `false` = um evento passado, lido da trilha de auditoria.
+  em_vigor    boolean
 )
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT
-    a.criado_em,
-    -- O gatilho só registra UPDATE e DELETE. Traduzimos para o vocabulário da
-    -- tela: quem alterou "REFEZ O FECHAMENTO", quem apagou "EXCLUIU".
-    CASE a.operacao WHEN 'DELETE' THEN 'EXCLUIU O FECHAMENTO'
-                    ELSE 'ALTEROU O FECHAMENTO' END,
-    COALESCE(u.email, '—'),
-    COALESCE(cm.nome, '—'),
-    (COALESCE(a.dados_depois, a.dados_antes)->>'fechado_ate')::date,
-    COALESCE(a.dados_depois, a.dados_antes)->>'observacao'
-  FROM public.audit_log a
-  LEFT JOIN public.users u ON u.id = a.ator_id
-  LEFT JOIN public.fin_contas_movimento cm
-         ON cm.tenant_id = p_tenant_id
-        AND cm.id = (COALESCE(a.dados_depois, a.dados_antes)->>'conta_movimento_id')::uuid
- WHERE public.fin_pode(p_tenant_id, 'fechar_periodo')
-   AND a.tabela = 'fin_fechamentos'
-   AND COALESCE(a.dados_depois, a.dados_antes)->>'tenant_id' = p_tenant_id::text
- ORDER BY a.criado_em DESC, a.id DESC
- LIMIT GREATEST(1, LEAST(COALESCE(p_limite, 100), 500));
+  WITH eventos AS (
+    -- 1) O QUE VALE AGORA — a linha viva de `fin_fechamentos`.
+    SELECT
+      f.updated_at                   AS quando,
+      'FECHAMENTO EM VIGOR'::text    AS operacao,
+      COALESCE(u.email, '—')         AS quem,
+      COALESCE(cm.nome, '—')         AS conta,
+      f.fechado_ate                  AS fechado_ate,
+      f.observacao                   AS observacao,
+      true                           AS em_vigor
+    FROM public.fin_fechamentos f
+    LEFT JOIN public.users u ON u.id = f.fechado_por
+    LEFT JOIN public.fin_contas_movimento cm
+           ON cm.tenant_id = f.tenant_id AND cm.id = f.conta_movimento_id
+   WHERE public.fin_pode(p_tenant_id, 'fechar_periodo')
+     AND f.tenant_id = p_tenant_id
+
+    UNION ALL
+
+    -- 2) O QUE MUDOU — a trilha de auditoria (UPDATE e DELETE).
+    SELECT
+      a.criado_em,
+      -- O gatilho só registra UPDATE e DELETE. Traduzimos para o vocabulário da
+      -- tela: quem alterou "ALTEROU O FECHAMENTO", quem apagou "EXCLUIU".
+      CASE a.operacao WHEN 'DELETE' THEN 'EXCLUIU O FECHAMENTO'
+                      ELSE 'ALTEROU O FECHAMENTO' END,
+      COALESCE(u.email, '—'),
+      COALESCE(cm.nome, '—'),
+      (COALESCE(a.dados_depois, a.dados_antes)->>'fechado_ate')::date,
+      COALESCE(a.dados_depois, a.dados_antes)->>'observacao',
+      false
+    FROM public.audit_log a
+    LEFT JOIN public.users u ON u.id = a.ator_id
+    LEFT JOIN public.fin_contas_movimento cm
+           ON cm.tenant_id = p_tenant_id
+          AND cm.id = (COALESCE(a.dados_depois, a.dados_antes)->>'conta_movimento_id')::uuid
+   WHERE public.fin_pode(p_tenant_id, 'fechar_periodo')
+     AND a.tabela = 'fin_fechamentos'
+     AND COALESCE(a.dados_depois, a.dados_antes)->>'tenant_id' = p_tenant_id::text
+  )
+  SELECT e.quando, e.operacao, e.quem, e.conta, e.fechado_ate, e.observacao, e.em_vigor
+    FROM eventos e
+   ORDER BY e.em_vigor DESC, e.quando DESC
+   LIMIT GREATEST(1, LEAST(COALESCE(p_limite, 100), 500));
 $$;
 
 -- ---------------------------------------------------------------------------
@@ -1764,8 +1872,13 @@ BEGIN
   -- ⚠️ AS DUAS CONTAS SÃO DIFERENTES (recusado logo acima), ENTÃO OS DOIS
   -- DESLOCAMENTOS NÃO SE ATRAPALHAM. Fossem a mesma conta, abrir espaço para a
   -- segunda perna empurraria a primeira, que acabara de ser inserida.
-  v_ordem_org := COALESCE(p_ordem_origem,  public.fin_proxima_ordem(p_conta_origem_id,  p_data));
-  v_ordem_dst := COALESCE(p_ordem_destino, public.fin_proxima_ordem(p_conta_destino_id, p_data));
+  -- ⚠️ O `p_tenant_id` ENTROU AQUI EM 18/09/2026, junto com o da função. A
+  -- checagem de permissão lá dentro não estorva: esta função já conferiu
+  -- `transferencia` no topo, e a `fin_proxima_ordem` aceita justamente essa
+  -- chave além de `lc_criar`. `SECURITY DEFINER` não troca o usuário da
+  -- sessão — o `auth.uid()` lá dentro continua sendo o de quem clicou.
+  v_ordem_org := COALESCE(p_ordem_origem,  public.fin_proxima_ordem(p_tenant_id, p_conta_origem_id,  p_data));
+  v_ordem_dst := COALESCE(p_ordem_destino, public.fin_proxima_ordem(p_tenant_id, p_conta_destino_id, p_data));
 
   PERFORM public.fin_abrir_espaco_na_ordem(p_conta_origem_id,  p_data, v_ordem_org);
   PERFORM public.fin_abrir_espaco_na_ordem(p_conta_destino_id, p_data, v_ordem_dst);
@@ -3520,7 +3633,7 @@ GRANT SELECT ON public.fin_orcamentos             TO authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_normalizar(text)                                   FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_pode(uuid, text)                                   FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_periodo_fechado(uuid, uuid, date)                  FROM PUBLIC, anon, authenticated;
-REVOKE EXECUTE ON FUNCTION public.fin_proxima_ordem(uuid, date)                          FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_proxima_ordem(uuid, uuid, date)                    FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_buscar_contas_movimento(uuid, text)                FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_buscar_identificadoras(uuid, text)                 FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_gravar_conta_movimento(uuid, uuid, text, text, bigint, boolean) FROM PUBLIC, anon, authenticated;
@@ -3561,7 +3674,7 @@ REVOKE EXECUTE ON FUNCTION public.fin_apagar_dados_da_empresa(uuid)             
 GRANT EXECUTE ON FUNCTION public.fin_normalizar(text)                                   TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_pode(uuid, text)                                   TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_periodo_fechado(uuid, uuid, date)                  TO authenticated;
-GRANT EXECUTE ON FUNCTION public.fin_proxima_ordem(uuid, date)                          TO authenticated;
+GRANT EXECUTE ON FUNCTION public.fin_proxima_ordem(uuid, uuid, date)                    TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_buscar_contas_movimento(uuid, text)                TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_buscar_identificadoras(uuid, text)                 TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_gravar_conta_movimento(uuid, uuid, text, text, bigint, boolean) TO authenticated;
