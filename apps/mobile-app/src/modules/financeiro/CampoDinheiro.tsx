@@ -1,6 +1,6 @@
 import React, { memo, useCallback, useState } from 'react';
 import { View, Text, TextInput } from 'react-native';
-import { paraCentavos } from '@jairo/core';
+import { paraCentavos, formatarBRL } from '@jairo/core';
 
 import { BRAND } from '@/constants/Colors';
 import { estilosFin as e } from './estilos';
@@ -60,12 +60,42 @@ function CampoDinheiroBase({ valorCentavos, onChange, desabilitado }: CampoDinhe
     [onChange],
   );
 
+  /**
+   * 💬 AO SAIR DO CAMPO, O VALOR SE ARRUMA (19/09/2026, pedido do dono do projeto).
+   *
+   * Digitar "1234" e avançar passa a mostrar **1.234,00**; "10,5" vira **10,50**.
+   *
+   * ⚠️ ISSO NÃO MUDA O VALOR — só a forma de mostrá-lo. Os centavos já tinham sido
+   * calculados a cada tecla pelo `paraCentavos`; aqui só se reescreve o texto do
+   * campo com `formatarBRL`, a MESMA função que desenha o número no resto do
+   * sistema. É por isso que o campo passa a exibir exatamente o que a barra e o
+   * extrato vão exibir depois de gravar.
+   *
+   * ⚠️ CAMPO VAZIO CONTINUA VAZIO. Escrever "0,00" em quem só tocou e saiu daria
+   * ao formulário um valor que ninguém digitou — e o botão de gravar, que recusa
+   * valor zero, passaria a parecer quebrado por outro motivo.
+   *
+   * ⚠️ E TEXTO INVÁLIDO É DEIXADO COMO ESTÁ. Quem saiu do campo com "1." ainda não
+   * terminou de escrever; trocar aquilo pelo último valor bom apagaria o que a
+   * pessoa tem na frente dos olhos sem ela ter pedido.
+   */
+  const aoSair = useCallback(() => {
+    const bruto = texto.trim();
+    if (bruto === '') return;
+    try {
+      setTexto(formatarBRL(paraCentavos(bruto), { semSimbolo: true }));
+    } catch {
+      // Número incompleto: deixa como está, para a pessoa terminar.
+    }
+  }, [texto]);
+
   return (
     <View style={e.campoDinheiro}>
       <Text style={e.campoDinheiroSimbolo}>R$</Text>
       <TextInput
         value={texto}
         onChangeText={aoDigitar}
+        onBlur={aoSair}
         editable={!desabilitado}
         keyboardType="decimal-pad"
         placeholder="0,00"

@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 import {
   CalendarDays,
+  ClipboardList,
   ChevronLeft,
   ChevronRight,
   CircleAlert,
@@ -49,6 +50,8 @@ const REGISTRO = {
   dinheiro: Wallet,
   /** O campo de data da tela de lançamento. */
   calendario: CalendarDays,
+  /** O botão e a tela de MEUS LANÇAMENTOS. */
+  lista: ClipboardList,
   /** As setas do seletor de competência. */
   anterior: ChevronLeft,
   proximo: ChevronRight,

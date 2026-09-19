@@ -180,6 +180,26 @@ export const PERMISSOES_FINANCEIRO = [
    * `ConfiguracaoDoMembro.dinheiro_percentual`.
    */
   'orc_ver', 'orc_gravar', 'orc_excluir', 'dp_ver',
+  /**
+   * ⚠️ 19/09/2026 — "MEUS LANÇAMENTOS", E POR QUE É **UMA** PERMISSÃO NOVA, E NÃO TRÊS.
+   *
+   * O pedido do dono do projeto foi liberar, na tela de CONFIGURAÇÕES, o botão
+   * "MEUS LANÇAMENTOS" e as ações de EDITAR e EXCLUIR dentro dele. Só a primeira
+   * virou permissão nova; as outras duas **reusam o que já existe**:
+   *
+   *   EDITAR  → `lc_editar_proprios`   (já existia, já está na tela)
+   *   EXCLUIR → `lc_excluir_proprios`  (idem)
+   *
+   * Criar `dp_editar` e `dp_excluir` daria **dois interruptores para o mesmo
+   * poder**, e um dia eles discordariam — é o mesmo raciocínio que manteve o
+   * `lc_criar` quando o DINHEIRO DO PERÍODO ganhou o botão de lançar, em
+   * 18/09/2026. Decisão confirmada por ele em 19/09/2026.
+   *
+   * ⚠️ E ESTA PRECISOU EXISTIR porque não havia equivalente: `lc_ver_todos` é
+   * "ver os lançamentos DOS OUTROS". Ver os PRÓPRIOS não tinha chave nenhuma —
+   * quem lança sempre pôde ver o que lançou, e agora isso pode ser negado.
+   */
+  'dp_meus_lancamentos',
 ] as const;
 
 export type PermissaoFinanceiro = (typeof PERMISSOES_FINANCEIRO)[number];
@@ -208,6 +228,7 @@ export const ROTULO_DA_PERMISSAO: Record<PermissaoFinanceiro, string> = {
   orc_gravar: 'CRIAR E EDITAR ORÇAMENTO',
   orc_excluir: 'EXCLUIR ORÇAMENTO',
   dp_ver: 'VER O DINHEIRO DO PERÍODO',
+  dp_meus_lancamentos: 'VER OS PRÓPRIOS LANÇAMENTOS DO PERÍODO (APLICATIVO)',
 };
 
 /**
@@ -230,6 +251,23 @@ export const ROTULO_DA_PERMISSAO: Record<PermissaoFinanceiro, string> = {
  */
 export const PERMISSOES_QUE_REVELAM_VALOR: PermissaoFinanceiro[] = [
   'extrato_ver', 'lc_ver_todos', 'imprimir', 'orc_ver', 'cm_ver',
+  /**
+   * ⚠️ 19/09/2026 — A SEXTA, E ELA VAZA **EM PARTE**, o que basta para o aviso.
+   *
+   * `dp_meus_lancamentos` mostra os valores dos lançamentos que a PRÓPRIA pessoa
+   * registrou. Em geral isso não revela o realizado da conta — os colegas também
+   * lançam, e a soma dela é só um pedaço.
+   *
+   * Mas numa conta em que **só ela lança**, a soma dos próprios lançamentos É o
+   * realizado daquela conta. E é comum: a pessoa que registra o combustível
+   * costuma ser a única a registrar combustível.
+   *
+   * Esta lista serve para AVISAR o Proprietário, nunca para bloquear. Deixar de
+   * fora uma permissão que vaza em metade dos casos faria o aviso prometer um
+   * sigilo que ele não entrega — que é justamente o que esta lista existe para
+   * impedir.
+   */
+  'dp_meus_lancamentos',
 ];
 
 /** O conjunto sugerido para um Dependente novo (especificação, seção 4.3). */

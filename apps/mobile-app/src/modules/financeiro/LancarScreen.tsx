@@ -59,7 +59,11 @@ import { estilosFin as e } from './estilos';
 export default function LancarScreen() {
   const ctx = useContextoFin();
   const router = useRouter();
-  const parametros = useLocalSearchParams<{ conta?: string; competencia?: string }>();
+  const parametros = useLocalSearchParams<{
+    conta?: string;
+    competencia?: string;
+    lancamento?: string;
+  }>();
 
   const contaId = parametros.conta ?? '';
   const competencia =
@@ -67,7 +71,7 @@ export default function LancarScreen() {
       ? competenciaDe(parametros.competencia)
       : competenciaAtual();
 
-  const f = useLancarNoOrcamento(ctx.tenantId, contaId, competencia);
+  const f = useLancarNoOrcamento(ctx.tenantId, contaId, competencia, parametros.lancamento ?? null);
 
   const [confirmandoData, setConfirmandoData] = useState(false);
 
@@ -107,10 +111,21 @@ export default function LancarScreen() {
   /**
    * ⚠️ A PERMISSÃO É CONFERIDA DE NOVO NO BANCO, dentro de `fin_gravar_lancamento`.
    * Esta checagem existe para a pessoa ler português em vez de um `42501`.
+   *
+   * ⚠️ E A PERMISSÃO EXIGIDA MUDA CONFORME O QUE SE ESTÁ FAZENDO. Criar pede
+   * `lc_criar`; editar pede `lc_editar_proprios`. Exigir `lc_criar` para editar
+   * recusaria quem o Proprietário autorizou a corrigir os próprios lançamentos e
+   * não a criar novos — e a recusa viria com a frase errada.
    */
-  if (!ctx.pode('lc_criar')) {
+  if (f.editando ? !ctx.pode('lc_editar_proprios') : !ctx.pode('lc_criar')) {
     return (
-      <Recado texto="VOCÊ NÃO TEM PERMISSÃO PARA CRIAR LANÇAMENTOS. FALE COM O PROPRIETÁRIO DA EMPRESA." />
+      <Recado
+        texto={
+          f.editando
+            ? 'VOCÊ NÃO TEM PERMISSÃO PARA EDITAR LANÇAMENTOS. FALE COM O PROPRIETÁRIO DA EMPRESA.'
+            : 'VOCÊ NÃO TEM PERMISSÃO PARA CRIAR LANÇAMENTOS. FALE COM O PROPRIETÁRIO DA EMPRESA.'
+        }
+      />
     );
   }
   if (!contaId) {
@@ -129,7 +144,8 @@ export default function LancarScreen() {
         <View style={e.topo}>
           <IconeFin nome="novo" tamanho={ICONE.medio} />
           <Text style={e.titulo} numberOfLines={2}>
-            LANÇAR EM {(f.categoria?.nome ?? '—').toUpperCase()}
+            {f.editando ? 'EDITAR EM ' : 'LANÇAR EM '}
+            {(f.categoria?.nome ?? '—').toUpperCase()}
           </Text>
         </View>
 
@@ -289,7 +305,7 @@ export default function LancarScreen() {
 
         <View style={e.espacoCampo}>
           <Button
-            title={f.gravando ? 'GRAVANDO…' : 'GRAVAR'}
+            title={f.gravando ? 'GRAVANDO…' : f.editando ? 'GRAVAR ALTERAÇÃO' : 'GRAVAR'}
             onPress={gravarComAviso}
             icon="Salvar"
             loading={f.gravando}

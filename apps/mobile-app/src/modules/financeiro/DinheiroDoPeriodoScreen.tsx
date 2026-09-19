@@ -134,6 +134,30 @@ export default function DinheiroDoPeriodoScreen() {
 
         <View style={e.barraAcoes}>
           <SeletorDeExibicao exibicao={d.exibicao} aoEscolher={d.escolherModo} />
+
+          {/*
+            📋 "MEUS LANÇAMENTOS" (19/09/2026, pedido do dono do projeto).
+            Leva a competência junto, para a lista abrir no MESMO mês que está à
+            vista — abrir no mês corrente faria a pessoa achar que perdeu o que
+            acabou de conferir.
+          */}
+          {ctx.pode('dp_meus_lancamentos') && (
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: '/financeiro/meus-lancamentos',
+                  params: { competencia: d.competencia },
+                } as never)
+              }
+              style={e.botaoSecundario}
+              accessibilityRole="button"
+              accessibilityLabel="Meus lançamentos deste período"
+              android_ripple={{ color: BRAND.primarySoft }}
+            >
+              <IconeFin nome="lista" tamanho={ICONE.pequeno} cor={BRAND.primary} />
+              <Text style={e.botaoSecundarioTexto}>MEUS LANÇAMENTOS</Text>
+            </Pressable>
+          )}
         </View>
 
         {/*

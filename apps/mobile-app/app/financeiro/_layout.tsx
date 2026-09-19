@@ -51,6 +51,7 @@ export default function LayoutFinanceiro() {
       <Stack.Screen name="index" options={{ title: 'CONTROLE FINANCEIRO' }} />
       <Stack.Screen name="dinheiro-do-periodo" options={{ title: 'DINHEIRO DO PERÍODO' }} />
       <Stack.Screen name="lancar" options={{ title: 'NOVO LANÇAMENTO' }} />
+      <Stack.Screen name="meus-lancamentos" options={{ title: 'MEUS LANÇAMENTOS' }} />
     </Stack>
   );
 }

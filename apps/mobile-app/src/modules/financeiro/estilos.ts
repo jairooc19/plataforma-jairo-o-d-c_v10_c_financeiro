@@ -188,11 +188,35 @@ export const estilosFin = StyleSheet.create({
   // ─────────────────────────────────────────────────────────────────────────
   // O BOTÃO "VALORES + %" × "SÓ %"
   // ─────────────────────────────────────────────────────────────────────────
+  /**
+   * ⚠️ `flexWrap` PORQUE SÃO DOIS CONTROLES NUMA LINHA ESTREITA. O seletor de
+   * exibição e o botão "MEUS LANÇAMENTOS" não cabem lado a lado num telefone de
+   * 360dp; sem a quebra, o segundo sairia da tela — e em React Native o que sai da
+   * tela não aparece cortado: simplesmente some.
+   */
   barraAcoes: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: ESPACO.sm,
     marginTop: ESPACO.md,
+  },
+  botaoSecundario: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ESPACO.sm,
+    minHeight: 44,
+    paddingHorizontal: ESPACO.lg,
+    borderRadius: PLATFORM.radiusField,
+    borderWidth: 1,
+    borderColor: BRAND.primaryEdge,
+    backgroundColor: BRAND.surface,
+  },
+  botaoSecundarioTexto: {
+    ...TIPOGRAFIA.dica,
+    fontWeight: PESO.forte,
+    color: BRAND.primary,
+    letterSpacing: 0.8,
   },
   /**
    * O seletor de duas posições. A "calha" cinza com as duas opções dentro é o que
@@ -254,6 +278,75 @@ export const estilosFin = StyleSheet.create({
   // A PORTA DO MÓDULO
   // ─────────────────────────────────────────────────────────────────────────
   portaLista: { gap: ESPACO.md, marginTop: ESPACO.lg },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // MEUS LANÇAMENTOS (19/09/2026)
+  // ─────────────────────────────────────────────────────────────────────────
+  listaLancamentos: { marginTop: ESPACO.md },
+  itemLancamento: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: ESPACO.md,
+    minHeight: 56,
+    paddingVertical: ESPACO.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: BRAND.border,
+  },
+  itemTitulo: { ...TIPOGRAFIA.legenda, fontWeight: PESO.forte, color: BRAND.text },
+  itemDetalhe: { ...TIPOGRAFIA.dica, color: BRAND.textMuted, marginTop: 2 },
+  itemValor: {
+    ...TIPOGRAFIA.legenda,
+    fontWeight: PESO.forte,
+    fontVariant: ['tabular-nums'],
+  },
+
+  /**
+   * A ficha abre como folha por cima, e não como tela empilhada.
+   *
+   * ⚠️ É UMA CONSULTA, NÃO UM DESTINO. Empilhar uma rota para ver seis campos
+   * poria a ficha no histórico de navegação: o botão físico de voltar do Android
+   * passaria a desfazer "abri a ficha" em vez de "entrei na lista", que é o que a
+   * pessoa espera desfazer.
+   */
+  fichaFundo: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  ficha: {
+    maxHeight: '85%',
+    backgroundColor: BRAND.surface,
+    borderTopLeftRadius: PLATFORM.radiusCard,
+    borderTopRightRadius: PLATFORM.radiusCard,
+    padding: ESPACO.lg,
+  },
+  fichaTitulo: {
+    ...TIPOGRAFIA.subtitulo,
+    fontWeight: PESO.forte,
+    marginBottom: ESPACO.md,
+  },
+  fichaLinha: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: ESPACO.md,
+    paddingVertical: ESPACO.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: BRAND.borderSoft,
+  },
+  fichaRotulo: {
+    ...TIPOGRAFIA.dica,
+    fontWeight: PESO.forte,
+    color: BRAND.textMuted,
+    letterSpacing: 0.8,
+    flexShrink: 0,
+  },
+  fichaValor: {
+    ...TIPOGRAFIA.legenda,
+    color: BRAND.text,
+    textAlign: 'right',
+    flexShrink: 1,
+  },
 
   // ─────────────────────────────────────────────────────────────────────────
   // A TELA DE LANÇAMENTO (19/09/2026)

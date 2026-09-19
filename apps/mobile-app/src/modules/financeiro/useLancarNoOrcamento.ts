@@ -7,6 +7,7 @@ import {
   ehDataNaCompetencia,
   ritmoDoMes,
   hojeISO,
+  normalizarComoOBanco,
   type ContaMovimento,
   type ContaIdentificadora,
   type LinhaDoDinheiro,
@@ -41,6 +42,8 @@ export function useLancarNoOrcamento(
   tenantId: string | null,
   contaIdentificadoraId: string,
   competencia: string,
+  /** O id do lançamento a EDITAR. `null`/ausente = lançamento novo. */
+  lancamentoId: string | null = null,
 ) {
   const [contas, setContas] = useState<ContaMovimento[]>([]);
   const [categoria, setCategoria] = useState<ContaIdentificadora | null>(null);
@@ -115,10 +118,67 @@ export function useLancarNoOrcamento(
         ]);
         if (cancelado) return;
 
+        /**
+         * ✏️ MODO EDIÇÃO (19/09/2026): os campos nascem preenchidos com o que está
+         * gravado.
+         *
+         * ⚠️ A LEITURA É POR `buscarPorId`, e não pela linha que a lista já tinha em
+         * mãos. A lista traz o RECORTE que serve para somar; a edição precisa do
+         * registro inteiro — é a mesma razão pela qual a ficha de detalhe do extrato
+         * busca sob demanda em vez de alargar o `RETURNS TABLE` da listagem.
+         */
+        if (lancamentoId) {
+          const atual = await lancamentoService.buscarPorId(tenantId, lancamentoId);
+          if (!cancelado && atual) {
+            setContaMovimentoId(atual.conta_movimento_id);
+            setData(atual.data_movimento);
+            setTipoMov(atual.tipo_movimento as 'ENTRADA' | 'SAIDA');
+            setPropriedade(atual.propriedade as 'PROPRIO' | 'TERCEIROS');
+            setValor(atual.valor_centavos);
+            setHistoricoCru(atual.historico ?? '');
+          }
+        }
+
         const cat = ci.find((c) => c.id === contaIdentificadoraId) ?? null;
         setContas(cm);
         setCategoria(cat);
         setLinha(dp.find((l) => l.conta_id === contaIdentificadoraId) ?? null);
+
+        /**
+         * 🎯 A CONTA "ESCOLHER DEPOIS" JÁ VEM PREENCHIDA (19/09/2026, pedido do
+         * dono do projeto).
+         *
+         * Ela é a conta de passagem de quem lança agora e decide de onde saiu o
+         * dinheiro mais tarde — o caso mais comum de quem registra pelo telemóvel,
+         * no balcão. Deixá-la como padrão tira o passo que mais custa na tela: a
+         * única pergunta de verdade do formulário reduzido.
+         *
+         * ⚠️ A COMPARAÇÃO É POR `normalizarComoOBanco`, NUNCA POR IGUALDADE DE
+         * TEXTO. É a mesma regra do `fin_normalizar` (sem acento, sem espaço nas
+         * pontas, em maiúsculas) — cadastrada como "Escolher Depois", "ESCOLHER
+         * DEPOIS " ou "escolher depois", ela é a mesma conta, e comparar cru
+         * deixaria o campo vazio sem ninguém entender por quê.
+         *
+         * ⚠️ SÓ PREENCHE SE NADA ESTIVER ESCOLHIDO. Depois de gravar, a tela
+         * MANTÉM a conta usada para o próximo lançamento (é o desenho de lançar em
+         * série); sobrescrevê-la aqui desfaria essa escolha a cada releitura.
+         *
+         * ⚠️ E NÃO EXISTINDO A CONTA, O CAMPO FICA VAZIO — sem inventar substituto.
+         * Nem toda empresa cadastra essa conta, e escolher outra por conta própria
+         * gravaria dinheiro na conta errada.
+         */
+        setContaMovimentoId((atual) => {
+          // ⚠️ NUNCA NA EDIÇÃO. Sugerir uma conta por cima do que está gravado
+          // trocaria a conta do lançamento sem ninguém pedir — é a mesma armadilha
+          // da sugestão de ordem, que o projeto já documentou: sugestão automática
+          // durante a EDIÇÃO sobrescreve o dado real pelo palpite.
+          if (lancamentoId) return atual;
+          if (atual) return atual;
+          const passagem = cm.find(
+            (c) => normalizarComoOBanco(c.nome) === 'ESCOLHER DEPOIS',
+          );
+          return passagem ? passagem.id : atual;
+        });
 
         if (cat?.tipo === 'RECEITA') setTipoMov('ENTRADA');
         else if (cat?.tipo === 'DESPESA') setTipoMov('SAIDA');
@@ -133,7 +193,7 @@ export function useLancarNoOrcamento(
     return () => {
       cancelado = true;
     };
-  }, [tenantId, contaIdentificadoraId, competencia, releitura]);
+  }, [tenantId, contaIdentificadoraId, competencia, releitura, lancamentoId]);
 
   /**
    * A data escolhida cai FORA da competência que a pessoa está olhando?
@@ -153,7 +213,7 @@ export function useLancarNoOrcamento(
     setAviso(null);
     try {
       await lancamentoService.gravar(tenantId, {
-        id: null,
+        id: lancamentoId,
         conta_movimento_id: contaMovimentoId,
         conta_identificadora_id: contaIdentificadoraId,
         data_movimento: data,
@@ -166,15 +226,25 @@ export function useLancarNoOrcamento(
         historico: historico || null,
       });
 
-      setAviso('LANÇAMENTO REGISTRADO. A BARRA ACIMA JÁ FOI ATUALIZADA.');
-      setGravados((n) => n + 1);
+      if (lancamentoId) {
+        /**
+         * ⚠️ EDITAR NÃO LIMPA O FORMULÁRIO. Editar é UM ato, não uma série: zerar o
+         * valor depois de gravar faria a tela parecer que perdeu a alteração, e um
+         * segundo toque no botão gravaria o mesmo lançamento com valor zero.
+         */
+        setAviso('LANÇAMENTO ALTERADO. A BARRA ACIMA JÁ FOI ATUALIZADA.');
+        setReleitura((n) => n + 1);
+      } else {
+        setAviso('LANÇAMENTO REGISTRADO. A BARRA ACIMA JÁ FOI ATUALIZADA.');
+        setGravados((n) => n + 1);
 
-      // ⚠️ MANTÉM CONTA E DATA, LIMPA VALOR E HISTÓRICO. Lançar em série é o caso
-      // comum (cinco notas do mesmo dia, do mesmo caixa); zerar tudo obrigaria a
-      // reescolher as duas coisas que NÃO mudam a cada lançamento.
-      setValor(0);
-      setHistorico('');
-      setReleitura((n) => n + 1);
+        // ⚠️ MANTÉM CONTA E DATA, LIMPA VALOR E HISTÓRICO. Lançar em série é o caso
+        // comum (cinco notas do mesmo dia, do mesmo caixa); zerar tudo obrigaria a
+        // reescolher as duas coisas que NÃO mudam a cada lançamento.
+        setValor(0);
+        setHistorico('');
+        setReleitura((n) => n + 1);
+      }
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'FALHA AO GRAVAR O LANÇAMENTO.');
     } finally {
@@ -190,6 +260,7 @@ export function useLancarNoOrcamento(
     valor,
     historico,
     setHistorico,
+    lancamentoId,
   ]);
 
   /**
@@ -211,6 +282,8 @@ export function useLancarNoOrcamento(
   return {
     contas,
     buscarContas,
+    /** `true` quando a tela está editando um lançamento existente. */
+    editando: lancamentoId !== null,
     categoria,
     linha,
     carregando,
