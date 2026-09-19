@@ -8,12 +8,13 @@ import { BRAND } from '@/constants/Colors';
 import { ICONE } from '@/constants/Spacing';
 import Button from '@/components/button/Button';
 import Input from '@/components/input/Input';
-import SearchableSelect from '@/components/SearchableSelect';
 
 import { useContextoFin } from './useContextoFin';
 import { useLancarNoOrcamento } from './useLancarNoOrcamento';
 import BarraDeConsumo from './BarraDeConsumo';
 import CampoDinheiro from './CampoDinheiro';
+import SelecaoComBusca from './SelecaoComBusca';
+import SeletorDeData from './SeletorDeData';
 import IconeFin from './IconeFin';
 import { estilosFin as e } from './estilos';
 
@@ -21,18 +22,39 @@ import { estilosFin as e } from './estilos';
  * ✍️ TELA: LANÇAR A PARTIR DO DINHEIRO DO PERÍODO — MOBILE (PJODC v10)
  * Local: apps/mobile-app/src/modules/financeiro/LancarScreen.tsx
  *
- * Aberta ao tocar numa conta do DINHEIRO DO PERÍODO. Espelho da tela
- * `dinheiro-do-periodo/lancar` do site, com as mesmas reduções — o porquê de cada
- * uma está em `useLancarNoOrcamento.ts`, que é onde as decisões moram.
+ * Aberta ao tocar numa conta do DINHEIRO DO PERÍODO. **Espelho fiel** da tela
+ * `dinheiro-do-periodo/lancar` do site — os motivos das reduções (sem
+ * transferência, sem ordem no extrato, regime fixo em CAIXA) estão em
+ * `useLancarNoOrcamento.ts`, que é onde as decisões moram.
+ *
+ * ===========================================================================
+ * ⚠️ A PRIMEIRA VERSÃO DESTA TELA NÃO ERA UM ESPELHO, E NOVE COISAS DIVERGIAM
+ * ===========================================================================
+ * Entregue em 19/09/2026 e corrigida no mesmo dia, a pedido do dono do projeto
+ * ("deve funcionar igual ao admin-web"). As três divergências graves:
+ *
+ *   1. **A CONTA MOVIMENTO FILTRAVA SÓ A MEMÓRIA.** O site busca no BANCO
+ *      (`fin_buscar_contas_movimento`, `%texto%`, 4 resultados); eu usava o
+ *      `SearchableSelect` da plataforma, que filtra a lista já carregada. É
+ *      proibição explícita do `CLAUDE.md` — a lista carregada é só a primeira
+ *      página do cadastro, e o campo diria "nada encontrado" sobre algo que existe.
+ *
+ *   2. **A DATA ERA UM CAMPO DE TEXTO "AAAA-MM-DD".** No site é um seletor de
+ *      calendário. Dez toques num teclado numérico, em formato invertido ao que o
+ *      brasileiro escreve, e sem defesa contra "2026-13-45".
+ *
+ *   3. **CONTA SEM ORÇAMENTO NÃO DIZIA NADA.** O site avisa "ESTA CONTA NÃO ESTÁ
+ *      NO ORÇAMENTO DE X. O LANÇAMENTO SERÁ GRAVADO NORMALMENTE"; eu simplesmente
+ *      não desenhava a barra. É o caso NORMAL de quem chegou pelo bloco "GASTO FORA
+ *      DO ORÇAMENTO" — e o silêncio se lia como tela quebrada.
  *
  * ⚠️ A BARRA DAQUELA CONTA FICA NO TOPO, E SE ATUALIZA A CADA GRAVAÇÃO. É o que
- * responde à pergunta que fez a pessoa tocar ali: "quanto ainda cabe?". Sem ela,
- * lançar seria às cegas e exigiria voltar à tela anterior a cada valor.
+ * responde à pergunta que fez a pessoa tocar ali: "quanto ainda cabe?".
  *
- * ⚠️ NO MODO "SÓ %" A BARRA CONTINUA SEM VALORES, como na tela de origem — ela
- * recebe o mesmo `modo`. Mas note: **o campo de valor continua funcionando**, e
- * tem de continuar. Não ver o orçado não impede ninguém de registrar uma despesa
- * que ele próprio acabou de pagar.
+ * ⚠️ A BARRA VEM SEMPRE EM `modo="VALORES"`, e isso é deliberado: quem abriu esta
+ * tela está lançando dinheiro que ele próprio conhece. O modo "SÓ %" é uma escolha
+ * de leitura da tela de origem, não um cofre — e o bloqueio do banco continua
+ * valendo, porque lá os valores chegam nulos e a barra os mostra como `—`.
  */
 export default function LancarScreen() {
   const ctx = useContextoFin();
@@ -47,12 +69,6 @@ export default function LancarScreen() {
 
   const f = useLancarNoOrcamento(ctx.tenantId, contaId, competencia);
 
-  /**
-   * ⚠️ O MODO DE EXIBIÇÃO NÃO É RELIDO AQUI, e a barra do topo nasce em VALORES.
-   * A preferência vive no cofre do aparelho e é lida pelo hook da tela de origem;
-   * repetir aquela leitura aqui duplicaria a regra. Quem quiser esconder valores
-   * faz isso lá, e esta tela é um passo de ida e volta.
-   */
   const [confirmandoData, setConfirmandoData] = useState(false);
 
   /**
@@ -101,7 +117,7 @@ export default function LancarScreen() {
     return <Recado texto="ESTA TELA É ABERTA A PARTIR DO DINHEIRO DO PERÍODO, TOCANDO NUMA CONTA." />;
   }
 
-  const opcoesDeConta = f.contas.map((c) => ({ label: c.nome, value: c.id }));
+  const opcoesDeConta = f.contas.map((c) => ({ id: c.id, nome: c.nome, tipo: c.tipo }));
 
   return (
     <SafeAreaView style={e.tela} edges={['bottom']}>
@@ -118,55 +134,106 @@ export default function LancarScreen() {
         </View>
 
         <Text style={e.contexto}>
-          {[rotuloDoMes(competencia), f.categoria?.tipo, f.gravados > 0 ? `${f.gravados} NESTA SESSÃO` : null]
+          {[
+            rotuloDoMes(competencia),
+            f.categoria?.tipo,
+            f.gravados > 0 ? `${f.gravados} LANÇAMENTO(S) NESTA SESSÃO` : null,
+          ]
             .filter(Boolean)
             .join(' · ')}
         </Text>
 
-        {/* A barra da conta — a resposta a "quanto ainda cabe?". */}
-        {f.linha && (
-          <View style={e.bloco}>
-            <BarraDeConsumo linha={f.linha} ritmo={0} modo="VALORES" />
+        {/*
+          ⚠️ ERRO E AVISO FICAM NO TOPO, como no site. Embaixo do formulário, a
+          confirmação de "LANÇAMENTO REGISTRADO" nasceria fora da dobra num telemóvel
+          — e quem grava e não vê resposta grava de novo.
+        */}
+        {!!f.erro && (
+          <View style={e.aviso}>
+            <IconeFin nome="atencao" tamanho={ICONE.pequeno} cor={BRAND.error} />
+            <Text style={e.avisoTexto}>{f.erro}</Text>
+          </View>
+        )}
+        {!!f.aviso && (
+          <View style={e.aviso}>
+            <IconeFin nome="recarregar" tamanho={ICONE.pequeno} cor={BRAND.success} />
+            <Text style={e.avisoTexto}>{f.aviso}</Text>
           </View>
         )}
 
+        {/* ─── A BARRA, QUE SE ATUALIZA A CADA GRAVAÇÃO ─────────────────── */}
         <View style={e.bloco}>
-          <Text style={e.rotuloCampo}>CONTA MOVIMENTO (DE ONDE SAI O DINHEIRO)</Text>
-          <SearchableSelect
-            options={opcoesDeConta}
-            value={f.contaMovimentoId}
-            onChange={f.setContaMovimentoId}
-            placeholder="Escolha a conta..."
+          <Text style={e.blocoTitulo}>ORÇAMENTO × REALIZADO</Text>
+
+          {f.linha ? (
+            <View style={e.linhas}>
+              <BarraDeConsumo linha={f.linha} ritmo={f.ritmo} modo="VALORES" />
+            </View>
+          ) : (
+            /*
+              ⚠️ A CONTA PODE NÃO ESTAR NO ORÇAMENTO — e é o caso NORMAL de quem
+              chegou pelo bloco "GASTO FORA DO ORÇAMENTO". Sem esta frase a barra
+              simplesmente não aparecia, e a pessoa concluía que a tela estava
+              quebrada ou que o lançamento não seria aceito. Ele é aceito.
+            */
+            <View style={[e.semBarra, e.espacoCampo]}>
+              <Text style={e.avisoTexto}>
+                ESTA CONTA NÃO ESTÁ NO ORÇAMENTO DE {rotuloDoMes(competencia)}. O
+                LANÇAMENTO SERÁ GRAVADO NORMALMENTE.
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* ─── O FORMULÁRIO ────────────────────────────────────────────── */}
+        <View style={e.bloco}>
+          <Text style={e.rotuloCampo}>CONTA MOVIMENTO</Text>
+          <SelecaoComBusca
+            valor={f.contaMovimentoId}
+            opcoes={opcoesDeConta}
+            aoEscolher={f.setContaMovimentoId}
+            aoBuscar={f.buscarContas}
+            placeholder="DIGITE PARA PROCURAR OU TOQUE PARA VER A LISTA"
+            desabilitado={f.gravando}
           />
+
+          <View style={e.espacoCampo}>
+            <Text style={e.rotuloCampo}>DATA</Text>
+            <SeletorDeData
+              valor={f.data}
+              aoEscolher={f.setData}
+              competenciaSugerida={competencia}
+              desabilitado={f.gravando}
+            />
+            {f.dataForaDaCompetencia && (
+              <Text style={[e.notaDoFormulario, { color: BRAND.warning }]}>
+                FORA DE {rotuloDoMes(competencia)} — NÃO ENTRA NESTA BARRA
+              </Text>
+            )}
+          </View>
 
           <View style={e.espacoCampo}>
             <Text style={e.rotuloCampo}>VALOR</Text>
             <CampoDinheiro valorCentavos={f.valor} onChange={f.setValor} desabilitado={f.gravando} />
           </View>
 
-          <View style={e.espacoCampo}>
-            <Input
-              label="DATA (AAAA-MM-DD)"
-              value={f.data}
-              onChangeText={f.setData}
-              keyboardType="numbers-and-punctuation"
-              maxLength={10}
-              ajuda={
-                f.dataForaDaCompetencia
-                  ? `FORA DE ${rotuloDoMes(competencia)} — NÃO ENTRA NESTA BARRA`
-                  : undefined
-              }
-            />
-          </View>
-
           {/*
-            ⛔ O TIPO SÓ APARECE QUANDO É ESCOLHA DE VERDADE. Em receita e despesa
-            ele é decidido pelo tipo da conta; desenhar um seletor travado seria
-            oferecer uma pergunta cuja resposta já está dada.
+            ⛔ TRAVADO, O TIPO APARECE MOSTRANDO O PORQUÊ — como no site. Eu escondia
+            o campo inteiro, e esconder é pior: quem conhece o formulário procura o
+            tipo, não acha, e fica sem saber se vai gravar ENTRADA ou SAÍDA. A caixa
+            cinza responde as duas coisas de uma vez.
           */}
-          {!f.tipoTravado && (
-            <View style={e.espacoCampo}>
-              <Text style={e.rotuloCampo}>TIPO DO MOVIMENTO</Text>
+          <View style={e.espacoCampo}>
+            <Text style={e.rotuloCampo}>TIPO DO MOVIMENTO</Text>
+
+            {f.tipoTravado ? (
+              <View style={e.tipoTravado}>
+                <Text style={e.tipoTravadoTexto}>
+                  {f.tipoMov === 'ENTRADA' ? 'ENTRADA' : 'SAÍDA'}
+                </Text>
+                <Text style={e.tipoTravadoMotivo}>FIXO PELO TIPO {f.categoria?.tipo}</Text>
+              </View>
+            ) : (
               <View style={e.duasOpcoes}>
                 <Opcao
                   texto="ENTRADA"
@@ -179,8 +246,8 @@ export default function LancarScreen() {
                   aoTocar={() => f.setTipoMov('SAIDA')}
                 />
               </View>
-            </View>
-          )}
+            )}
+          </View>
 
           <View style={e.espacoCampo}>
             <Text style={e.rotuloCampo}>PROPRIEDADE</Text>
@@ -199,32 +266,30 @@ export default function LancarScreen() {
           </View>
 
           <View style={e.espacoCampo}>
+            {/* As MAIÚSCULAS e o teto de 200 são aplicados no hook, não aqui. */}
             <Input
-              label="HISTÓRICO (OPCIONAL)"
+              label="HISTÓRICO"
               value={f.historico}
               onChangeText={f.setHistorico}
-              placeholder="O que foi este lançamento"
+              placeholder="O QUE FOI ESTE LANÇAMENTO"
+              maxLength={200}
+              autoCapitalize="characters"
             />
           </View>
+
+          {/*
+            O mesmo rodapé do site. Ele responde, antes que alguém pergunte, por que
+            faltam três campos que existem no NOVO LANÇAMENTO completo.
+          */}
+          <Text style={e.notaDoFormulario}>
+            REGIME FIXO EM CAIXA · A ORDEM NO EXTRATO É ESCOLHIDA PELO SISTEMA ·
+            TRANSFERÊNCIA NÃO ENTRA NO ORÇAMENTO
+          </Text>
         </View>
-
-        {!!f.erro && (
-          <View style={e.aviso}>
-            <IconeFin nome="atencao" tamanho={ICONE.pequeno} cor={BRAND.error} />
-            <Text style={e.avisoTexto}>{f.erro}</Text>
-          </View>
-        )}
-
-        {!!f.aviso && (
-          <View style={e.aviso}>
-            <IconeFin nome="recarregar" tamanho={ICONE.pequeno} cor={BRAND.success} />
-            <Text style={e.avisoTexto}>{f.aviso}</Text>
-          </View>
-        )}
 
         <View style={e.espacoCampo}>
           <Button
-            title="GRAVAR LANÇAMENTO"
+            title={f.gravando ? 'GRAVANDO…' : 'GRAVAR'}
             onPress={gravarComAviso}
             icon="Salvar"
             loading={f.gravando}
@@ -244,7 +309,8 @@ export default function LancarScreen() {
  * Uma das duas opções de um par (ENTRADA/SAÍDA, PRÓPRIO/TERCEIROS).
  *
  * ⚠️ DOIS BOTÕES, E NÃO UM SELETOR COM LISTA. São sempre duas respostas, e um
- * seletor exigiria dois toques (abrir, escolher) para o que aqui leva um.
+ * seletor exigiria dois toques (abrir, escolher) para o que aqui leva um. No site
+ * são dois `<select>` porque lá o menu abre no lugar, sem custo.
  */
 function Opcao({ texto, ativa, aoTocar }: { texto: string; ativa: boolean; aoTocar: () => void }) {
   return (

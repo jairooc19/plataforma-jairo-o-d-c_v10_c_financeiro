@@ -296,6 +296,137 @@ export const estilosFin = StyleSheet.create({
     paddingVertical: ESPACO.sm,
   },
 
+  // ── O campo que abre uma folha (conta movimento, data) ──────────────────
+  campoSelecao: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: ESPACO.sm,
+    minHeight: 48,
+    paddingHorizontal: ESPACO.md,
+    borderRadius: PLATFORM.radiusField,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    backgroundColor: BRAND.surface,
+  },
+  campoSelecaoInerte: { opacity: 0.5 },
+  campoSelecaoTexto: { ...TIPOGRAFIA.corpo, color: BRAND.text, flexShrink: 1 },
+  campoSelecaoVazio: { color: BRAND.textFaint },
+
+  // ── A folha que abre por cima (Modal) ───────────────────────────────────
+  folha: { flex: 1, backgroundColor: BRAND.background, paddingTop: ESPACO.xxl },
+  folhaTopo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ESPACO.sm,
+    paddingHorizontal: ESPACO.lg,
+  },
+  folhaBusca: {
+    flex: 1,
+    minHeight: 48,
+    paddingHorizontal: ESPACO.md,
+    borderRadius: PLATFORM.radiusField,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    backgroundColor: BRAND.surface,
+    ...TIPOGRAFIA.corpo,
+    color: BRAND.text,
+  },
+  folhaFechar: { minHeight: 48, justifyContent: 'center', paddingHorizontal: ESPACO.md },
+  folhaFecharTexto: {
+    ...TIPOGRAFIA.dica,
+    fontWeight: PESO.forte,
+    color: BRAND.primary,
+    letterSpacing: 0.8,
+  },
+  folhaDica: {
+    ...TIPOGRAFIA.dica,
+    color: BRAND.textMuted,
+    letterSpacing: 0.8,
+    paddingHorizontal: ESPACO.lg,
+    paddingVertical: ESPACO.md,
+  },
+  folhaItem: {
+    minHeight: 56,
+    justifyContent: 'center',
+    paddingHorizontal: ESPACO.lg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: BRAND.border,
+  },
+  folhaItemAtivo: { backgroundColor: BRAND.primarySoft },
+  folhaItemTexto: { ...TIPOGRAFIA.corpo, color: BRAND.text },
+  folhaItemTipo: { ...TIPOGRAFIA.dica, color: BRAND.textMuted, marginTop: 2 },
+
+  // ── O calendário ────────────────────────────────────────────────────────
+  calendarioTopo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: ESPACO.lg,
+    marginBottom: ESPACO.md,
+  },
+  semana: { flexDirection: 'row', paddingHorizontal: ESPACO.lg },
+  semanaLetra: {
+    flex: 1,
+    textAlign: 'center',
+    ...TIPOGRAFIA.dica,
+    fontWeight: PESO.forte,
+    color: BRAND.textMuted,
+  },
+  grade: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: ESPACO.lg,
+    paddingTop: ESPACO.sm,
+  },
+  /**
+   * ⚠️ `width: '14.2857%'` É 1/7 EXATO. Com `flex: 1` as células da última linha
+   * (que quase nunca são sete) se esticariam para preencher a fila, e os dias
+   * deixariam de ficar alinhados com os da linha de cima.
+   */
+  celula: {
+    width: '14.2857%',
+    aspectRatio: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: PLATFORM.radiusField,
+  },
+  celulaEscolhida: { backgroundColor: BRAND.primary },
+  celulaTexto: { ...TIPOGRAFIA.corpo, color: BRAND.text },
+  celulaTextoEscolhido: { color: BRAND.onPrimary, fontWeight: PESO.forte },
+  celulaTextoHoje: { color: BRAND.primary, fontWeight: PESO.forte },
+
+  // ── O tipo travado pelo tipo da conta ───────────────────────────────────
+  tipoTravado: {
+    minHeight: 48,
+    justifyContent: 'center',
+    paddingHorizontal: ESPACO.md,
+    borderRadius: PLATFORM.radiusField,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    backgroundColor: BRAND.surfaceVariant,
+  },
+  tipoTravadoTexto: { ...TIPOGRAFIA.corpo, fontWeight: PESO.forte, color: BRAND.text },
+  tipoTravadoMotivo: { ...TIPOGRAFIA.dica, color: BRAND.textMuted, marginTop: 2 },
+
+  /** O rodapé explicativo do formulário — o mesmo texto do site. */
+  notaDoFormulario: {
+    ...TIPOGRAFIA.dica,
+    color: BRAND.textMuted,
+    letterSpacing: 0.6,
+    marginTop: ESPACO.lg,
+  },
+
+  /** A conta que não está no orçamento: o lançamento grava, mas não há barra. */
+  semBarra: {
+    borderRadius: PLATFORM.radiusField,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: BRAND.border,
+    backgroundColor: BRAND.surfaceVariant,
+    padding: ESPACO.lg,
+  },
+
   duasOpcoes: { flexDirection: 'row', gap: ESPACO.sm },
   /** ⚠️ 48pt de altura: é alvo de toque, não rótulo. */
   opcao: {

@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
 import {
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
   CircleAlert,
@@ -46,6 +47,8 @@ import { ICONE } from '@/constants/Spacing';
 const REGISTRO = {
   /** A porta do módulo e o cartão do painel. */
   dinheiro: Wallet,
+  /** O campo de data da tela de lançamento. */
+  calendario: CalendarDays,
   /** As setas do seletor de competência. */
   anterior: ChevronLeft,
   proximo: ChevronRight,

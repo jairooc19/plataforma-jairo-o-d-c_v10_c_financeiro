@@ -5,6 +5,7 @@ import {
   orcamentoService,
   dataPadraoNaCompetencia,
   ehDataNaCompetencia,
+  ritmoDoMes,
   hojeISO,
   type ContaMovimento,
   type ContaIdentificadora,
@@ -50,7 +51,17 @@ export function useLancarNoOrcamento(
   const [tipoMov, setTipoMov] = useState<'ENTRADA' | 'SAIDA'>('SAIDA');
   const [propriedade, setPropriedade] = useState<'PROPRIO' | 'TERCEIROS'>('PROPRIO');
   const [valor, setValor] = useState(0);
-  const [historico, setHistorico] = useState('');
+  const [historico, setHistoricoCru] = useState('');
+
+  /**
+   * ⚠️ MAIÚSCULAS E TETO DE 200, COMO NO SITE. O módulo grava histórico em caixa
+   * alta em toda tela, e a coluna do banco tem limite — deixar o telefone gravar
+   * minúsculas faria o mesmo lançamento aparecer diferente conforme o aparelho em
+   * que foi digitado, e um texto longo demais só seria recusado no fim, pelo banco.
+   */
+  const setHistorico = useCallback((texto: string) => {
+    setHistoricoCru(texto.toUpperCase().slice(0, 200));
+  }, []);
 
   const [carregando, setCarregando] = useState(true);
   const [gravando, setGravando] = useState(false);
@@ -69,7 +80,18 @@ export function useLancarNoOrcamento(
    */
   const [releitura, setReleitura] = useState(0);
 
-  const data = dataEscolhida ?? dataPadraoNaCompetencia(competencia, hojeISO());
+  /** Congelado: `hojeISO()` no corpo mudaria à meia-noite, no meio da sessão. */
+  const [hoje] = useState(hojeISO);
+
+  const data = dataEscolhida ?? dataPadraoNaCompetencia(competencia, hoje);
+
+  /**
+   * ⚠️ CONGELADO NA PRIMEIRA RENDERIZAÇÃO, e a barra do topo o recebe. Eu passava
+   * `ritmo={0}` nesta tela, o que apagava a marca do mês na barra — a mesma barra
+   * que, na tela de origem, mostra quanto do mês já passou. Duas telas com a mesma
+   * barra dizendo coisas diferentes é pior do que não ter a marca em nenhuma.
+   */
+  const ritmo = ritmoDoMes(competencia, hoje);
 
   /** O tipo do movimento é decidido pelo TIPO da conta — e travado nos dois casos. */
   const tipoTravado = categoria?.tipo === 'RECEITA' || categoria?.tipo === 'DESPESA';
@@ -158,10 +180,37 @@ export function useLancarNoOrcamento(
     } finally {
       setGravando(false);
     }
-  }, [tenantId, contaMovimentoId, contaIdentificadoraId, data, tipoMov, propriedade, valor, historico]);
+  }, [
+    tenantId,
+    contaMovimentoId,
+    contaIdentificadoraId,
+    data,
+    tipoMov,
+    propriedade,
+    valor,
+    historico,
+    setHistorico,
+  ]);
+
+  /**
+   * A busca de contas movimento NO BANCO, para o campo que se digita.
+   *
+   * ⚠️ ELA MORA AQUI E NÃO NA TELA porque precisa do `tenantId`, e porque a tela
+   * não deve conhecer o serviço — ela conhece este hook. Sem `tenantId` devolve
+   * lista vazia em vez de estourar: o campo mostra "nada encontrado", que é a
+   * verdade naquele instante.
+   */
+  const buscarContas = useCallback(
+    async (texto: string) => {
+      if (!tenantId) return [];
+      return cadastroFinanceiroService.sugerirContasMovimento(tenantId, texto);
+    },
+    [tenantId],
+  );
 
   return {
     contas,
+    buscarContas,
     categoria,
     linha,
     carregando,
@@ -183,6 +232,7 @@ export function useLancarNoOrcamento(
     historico,
     setHistorico,
     dataForaDaCompetencia,
+    ritmo,
     /** `true` quando dá para gravar: conta escolhida e valor acima de zero. */
     podeGravar: !!contaMovimentoId && valor > 0 && !gravando,
     gravar,
