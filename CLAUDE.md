@@ -101,7 +101,7 @@ plataforma-jairo-o-d-c-v10/
 │   │   └── plataforma_02_seed.sql     → Hidratador: dados iniciais obrigatórios
 │   ├── criar-bd-financeiro/→ 🧩 MÓDULO: banco do Controle Financeiro (01 → 02; o 00 despluga)
 │   ├── testes/             → teste_rls.sql (16 travas da plataforma), teste_financeiro.sql
-│   │                         (34 travas do módulo), inventario.sql e inventario_financeiro.sql
+│   │                         (52 travas do módulo · CONTE: grep -c "^-- TESTE" no arquivo),
 │   │                         (conferem o schema da plataforma e o do módulo: 15 linhas, só leem)
 │   │   └── ambiente-local/ → 🆕 sobe um PostgreSQL descartável e valida o SQL antes do Supabase
 │   ├── migrations/         → vazia; ler o README antes do primeiro dado real
@@ -278,9 +278,19 @@ Instância única (Singleton). Detecta o ambiente via `navigator.product`:
 - No Next.js: aplica `cache: 'no-store'`
 - **Nunca importar React Native no nível de módulo** (quebra o build da Vercel)
 
-Exporta dois clientes:
-- `supabase` — cliente anon (RLS ativo). Usado por componentes React no browser.
-- `supabaseAdmin` — cliente service role (bypassa RLS). Usado exclusivamente por serviços chamados a partir de Server Actions. **Nunca usar no mobile.**
+Exporta **UM** cliente:
+- `supabase` — cliente anon (RLS ativo). É o único. Usado por componentes React, por serviços
+  do Core e pelas duas Server Actions.
+
+> ⚠️ **CORRIGIDO EM 18/09/2026. ESTE PARÁGRAFO ANUNCIAVA DOIS CLIENTES** e mandava usar um
+> `supabaseAdmin` (service role, que ignora a RLS) em serviços chamados por Server Actions.
+> **Esse cliente não existe desde a v10** — medido por busca no repositório inteiro: as únicas
+> ocorrências da palavra estão em comentários explicando a remoção. O arquivo estava mandando
+> fazer exatamente o que a seção de proibições, mais abaixo, proíbe.
+>
+> **O que fazer no lugar:** operação que exige privilégio vira **função `SECURITY DEFINER` no
+> banco**, com a checagem (`is_superuser()` na plataforma, `fin_pode()` no módulo) lá dentro.
+> A mesma chamada serve à web e ao aplicativo, e a decisão fica onde não dá para contornar.
 
 ### Constantes
 `src/constants/versions.ts` — versões Web e Mobile
@@ -436,10 +446,15 @@ Next.js 16.2.2 com App Router. Antes de mexer em rotas ou middleware, ler `AGENT
 ```
 NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY
-SUPABASE_SERVICE_ROLE_KEY          ← nunca exposta no navegador
-EXPO_PUBLIC_API_URL                ← URL base usada pelo Core para chamar as API Routes
 NEXT_PUBLIC_GOOGLE_CLIENT_ID       ← Client ID do Google; o MESMO cadastrado no Supabase
 ```
+
+> ⚠️ **SÃO TRÊS, E ERAM CINCO NESTA LISTA ATÉ 18/09/2026.** `SUPABASE_SERVICE_ROLE_KEY` e
+> `EXPO_PUBLIC_API_URL` saíram na v10 junto com a chave mestra e as rotas `/api/*` — **nenhuma
+> das duas é lida por uma linha de código** (medido por busca em todo o repositório). Mantê-las
+> aqui fazia configurar na Vercel um segredo perigoso que o sistema nem usa.
+>
+> **Confira antes de citar:** `grep -rho "process\.env\.[A-Z_0-9]*" apps packages | sort -u`
 
 > Sem `NEXT_PUBLIC_GOOGLE_CLIENT_ID` o login do Proprietário **não quebra**: a tela troca o
 > popup pelo redirecionamento conduzido pelo Supabase. O popup, porém, só existe com ela.
@@ -652,8 +667,11 @@ Roteamento via Expo Router 57.
 ```
 EXPO_PUBLIC_SUPABASE_URL
 EXPO_PUBLIC_SUPABASE_ANON_KEY
-EXPO_PUBLIC_API_URL
 ```
+
+> ⚠️ **SÃO DUAS. A `EXPO_PUBLIC_API_URL` SAIU NA v10** e esta lista ainda a trazia até
+> 18/09/2026. Ela existia para o aplicativo alcançar as rotas `/api/admin/*` do site; não há
+> mais rotas administrativas, e o app fala direto com o banco.
 
 Modelo versionado: `apps/mobile-app/.env.example`.
 `EXPO_PUBLIC_POSTHOG_KEY` foi removida na v4.
@@ -723,9 +741,12 @@ screens/
 └── SupportScreen.tsx
 ```
 
-> ⚠️ **`screens/admin/` é a ÚNICA parte do app que fala HTTP em vez de Supabase.**
-> As operações do Painel de Engenharia exigem service role, e o Desenvolvedor do
-> mobile não tem sessão Supabase para a RLS reconhecer. Ver `adminApiService`.
+> ⚠️ **CORRIGIDO EM 18/09/2026. ESTA NOTA DIZIA que `screens/admin/` é a única parte
+> do app que fala HTTP, e mandava ver um `adminApiService`.** Aquele arquivo **não
+> existe** (medido por busca). As telas do Painel de Engenharia usam o
+> `tenantService` e o `settingsService` do Core, como todo o resto do aplicativo —
+> e eles chamam as funções `admin_*` do banco, que conferem `is_superuser()` por
+> dentro. **Nenhuma parte do aplicativo fala HTTP com o site.**
 
 ### Otimização v9 — gestos, ciclo de vida e tema animado
 
@@ -740,7 +761,7 @@ com o carimbo `[OTIMIZADO PARA MÁXIMA PERFORMANCE]` no TSDoc.
 | `src/hooks/useSheetDragGesture.ts` | Arrasto para fechar a folha do `SearchableSelect` |
 | `src/hooks/usePermissionWatch.ts` | Realtime + `AppState`, extraído do `_layout.tsx` |
 | `src/context/ThemeAnimationContext.tsx` | Shared values das cores do white-label |
-| `src/hooks/useAnimatedThemeColor.ts` | Consome o contexto: fundo, texto e borda animados |
+| `src/hooks/useAnimatedThemeColor.ts` | Consome o contexto: fundo, texto e borda animados — ⚠️ **nenhuma tela o importa** (18/09/2026) |
 
 ⚠️ **A detecção de gestos NÃO pergunta pelo ambiente, e não deve passar a
 perguntar.** `Constants.executionEnvironment` do `expo-constants` devolve
@@ -768,6 +789,16 @@ da sessão, em silêncio.
 cada um daria a cada efeito a sua própria cópia, e o corte em background nunca
 aconteceria — sem erro nenhum para denunciar.
 
+> ⚠️ **QUATRO ARQUIVOS DO APLICATIVO NÃO SÃO IMPORTADOS POR NINGUÉM** — medido em
+> 18/09/2026 por varredura de todos os 269 arquivos `.ts`/`.tsx`:
+> `src/components/NativeContextMenu.tsx` (70 linhas), `src/hooks/useAnimatedThemeColor.ts`
+> (66), `src/hooks/useStorage.ts` (59) e `src/hooks/useDimensions.ts` (44) — **239 linhas
+> de infraestrutura construída antes de existir quem a usasse**.
+>
+> Não é defeito: não quebram nada e não pesam no site. Mas este arquivo os apresentava como
+> peças em uso, e não estão. Se o aplicativo for retomado, servem; se não, são a faxina mais
+> fácil do projeto. **Antes de "consertar" um deles, confira se alguém o chama.**
+
 **Perfis de build** (`eas.json`, em `apps/mobile-app/`): `development` (APK + dev client),
 `preview` (APK interno) e `production` (app-bundle, com `autoIncrement`). Os
 gestos funcionam nos três; no Expo Go o app sobe igual, sem eles.
@@ -781,7 +812,7 @@ sistema operacional.
 |---|---|
 | `src/hooks/useNativeActionSheet.ts` | Menu de ações: `ActionSheetIOS` no iOS, `AlertDialog` no Android |
 | `src/hooks/useNativeContextMenu.ts` | Fachada fina sobre o anterior, para o gesto de segurar |
-| `src/components/NativeContextMenu.tsx` | Envoltório `Pressable` com `onLongPress` |
+| `src/components/NativeContextMenu.tsx` | Envoltório `Pressable` com `onLongPress` — ⚠️ **nenhuma tela o importa** (18/09/2026) |
 
 ⚠️ **`ActionSheetAndroid` NÃO EXISTE.** O React Native expõe `ActionSheetIOS` e
 mais nada nessa família — uma busca por `ActionSheetAndroid` em todo o
@@ -961,9 +992,14 @@ inclusive numa máquina limpa — foi por isso que a versão com bcrypt foi reve
 7. Ao terminar: `npm run modulos:verificar` e atualizar o `MODULOS.md` no mesmo commit
 
 ### Uso do cliente Supabase
-- Componentes React no browser: `import { supabase } from '@jairo/core'`
-- Serviços de módulo chamados por Server Actions: `import { supabaseAdmin } from '@jairo/core'`
-- SSR: usar `@supabase/ssr` com cookies (configurado no middleware)
+- **Há um cliente só**, em toda parte: `import { supabase } from '@jairo/core'` (anon, RLS ativa)
+- Componentes React no browser: o mesmo `supabase`
+- Serviços de módulo: o mesmo `supabase` — o que exigir privilégio vira função
+  `SECURITY DEFINER` no banco, com a checagem de permissão dentro dela
+- SSR: `@supabase/ssr` com cookies (configurado em `src/proxy.ts`)
+
+> ⚠️ **CORRIGIDO EM 18/09/2026:** a segunda linha mandava importar `supabaseAdmin`, que não
+> existe desde a v10. Ver a nota em "Conexão com o Supabase", acima.
 
 ### Datas e Fusos Horários
 - Nunca `toISOString()` para datas de emissão/vencimento
@@ -1129,7 +1165,7 @@ inclusive numa máquina limpa — foi por isso que a versão com bcrypt foi reve
 - ❌ Nunca chamar `.from('public.users')` no PostgREST — o nome da tabela é `users`; com o prefixo dá 404
 - ❌ Nunca resolver tenantId via `.single()` em `tenant_members` — o usuário pode ter múltiplos vínculos; passe o tenant como prop/parâmetro explícito
 - ❌ Nunca reutilizar o cliente Supabase após erro de constraint para executar rollback — criar novo cliente
-- ❌ Nunca usar `supabase` (anon client) em serviços chamados por Server Actions — usar `supabaseAdmin`
+- ❌ Nunca procurar (nem recriar) o `supabaseAdmin` para fazer um serviço funcionar dentro de Server Action — **esta linha mandava o contrário até 18/09/2026**, e mandava o contrário da própria proibição nº 1 desta lista. O cliente de chave mestra não existe desde a v10: o que precisa de privilégio vira função `SECURITY DEFINER` no banco, com a checagem lá dentro
 - ❌ Nunca usar `GROUP BY` + `ORDER BY coluna_não_agrupada` via CTE em funções PostgreSQL — usar subquery correlacionada
 - ❌ Nunca usar `document.addEventListener('mousedown', fechar)` para fechar dropdowns inline — usar `'click'` para não bloquear o evento do botão
 - ❌ Nunca espalhar o objeto do formulário (`...item`) no payload de inserção — mapear explicitamente apenas as colunas que existem na tabela
@@ -1155,8 +1191,8 @@ inclusive numa máquina limpa — foi por isso que a versão com bcrypt foi reve
 - ❌ Nunca cadastrar a URI do app (`exp://…`, `plataformajairo://…`) no Google Cloud Console — quem se apresenta ao Google é o Supabase, com `https://<ref>.supabase.co/auth/v1/callback`; a URI do app vai na lista de Redirect URLs do **Supabase**
 - ❌ Nunca tentar fazer o login Google do mobile funcionar no Expo Go — o GoTrue rejeita o esquema `exp://` (literal e curinga, ambos testados); use development build, onde o endereço é `plataformajairo://auth/google`
 - ❌ Nunca interpretar "o navegador parou numa página estranha" como falha do app — quando o `redirect_to` não casa com a lista do Supabase, o GoTrue cai **silenciosamente** na Site URL, sem erro nenhum
-- ❌ Nunca chamar `tenantService` ou `settingsService.updateGlobalSettings` direto do mobile — usam `supabaseAdmin`; no aparelho a porta é o `adminApiService`, que fala com `/api/admin/*`
-- ❌ Nunca deixar `EXPO_PUBLIC_API_URL` em `localhost` para uso em aparelho — `localhost` no telemóvel é o telemóvel; use o IP da máquina na rede ou a URL publicada
+- ❌ Nunca procurar o `adminApiService` nem as rotas `/api/admin/*` para fazer o mobile administrar algo — **os dois deixaram de existir na v10**, e esta linha mandava o contrário até 18/09/2026: hoje o aplicativo chama `tenantService` e `settingsService` do Core direto, e a checagem de `is_superuser()` mora dentro das funções `admin_*` do banco
+- ❌ Nunca apontar um aplicativo de celular para `localhost` — no telemóvel, `localhost` é o próprio telemóvel, e a chamada morre sem sair do aparelho; use o IP da máquina na rede ou a URL publicada (a variável que sofria disto, `EXPO_PUBLIC_API_URL`, foi removida na v10 e **não existe mais**; a regra fica para o dia em que algo parecido voltar)
 - ❌ Nunca dar valor padrão à URL base de operações que ESCREVEM no banco — um host chutado grava noutra implantação em silêncio
 - ❌ Nunca esperar `<input type="color">` no React Native — ele não existe; use campo hexadecimal com amostra, e só pinte a amostra com hexadecimal válido
 - ❌ Nunca tratar "remover empresa" como exclusão — é `is_active = false`, e o histórico com "Reabilitar" depende disso
@@ -1180,26 +1216,52 @@ Os exemplos foram reescritos com nomes de tabela neutros.
 
 ---
 
-### 1. supabaseAdmin obrigatório para serviços chamados por Server Actions
+### 1. O cliente anon em contexto de servidor — e por que a saída NÃO é a chave mestra
 
-**Problema:** Serviços do `@jairo/core` que usam o cliente `supabase` (anon) falham com erro de RLS
-quando chamados a partir de Server Actions. Em contexto servidor, o cliente anon não tem acesso aos
-cookies do browser, logo `auth.uid()` retorna NULL, e qualquer política RLS que dependa de
-`auth.uid()` bloqueia a operação com:
-`"new row violates row-level security policy for table '...'"`
+> 🔄 **REESCRITO EM 18/09/2026.** Esta lição dizia, no título: *"supabaseAdmin obrigatório para
+> serviços chamados por Server Actions"*, e o exemplo mandava importar aquele cliente. **Ele não
+> existe desde a v10**, e a solução que esta página ensinava é a que a proibição nº 1 do arquivo
+> veta. O problema descrito continua real; o remédio é outro.
 
-**Solução:** Todo serviço chamado por Server Actions deve usar `supabaseAdmin` em vez de `supabase`.
-A segurança é garantida pela validação de sessão no nível da action, não pelo RLS.
+**Problema (continua valendo):** um serviço do `@jairo/core` que usa o cliente `supabase` (anon)
+falha com erro de RLS quando é chamado de dentro de uma Server Action. No servidor, o cliente anon
+não enxerga os cookies do browser: `auth.uid()` volta NULL, e qualquer policy que dependa dele
+bloqueia com `"new row violates row-level security policy for table '...'"`.
+
+**A solução da v9 era dar uma chave que ignora a RLS.** Ela funcionava e custava caro: as nove
+rotas `/api/*` que a usavam **não pediam identificação nenhuma** — quem soubesse o endereço criava
+empresas, promovia usuários e trocava as cores do sistema.
+
+**A solução da v10 — duas saídas, conforme o caso:**
 
 ```typescript
-// ❌ ERRADO para serviços chamados por Server Actions:
+// ✅ CASO 1 — o componente é "use client" e chama o serviço direto do browser.
+//    O cliente anon TEM os cookies ali, auth.uid() responde, e a RLS trabalha
+//    a favor. É o desenho de quase toda tela deste projeto (inclusive a de
+//    empresas, que é "use client" e chama o tenantService).
 import { supabase } from '../../lib/supabase';
 await supabase.from('minha_tabela').insert(...)
 
-// ✅ CORRETO:
-import { supabaseAdmin } from '../../lib/supabase';
-await supabaseAdmin!.from('minha_tabela').insert(...)
+// ✅ CASO 2 — a operação exige privilégio (ver dados de outra empresa, mexer
+//    em configuração global). Vira uma FUNÇÃO no banco, SECURITY DEFINER, que
+//    confere quem está chamando ANTES de agir:
+//
+//      CREATE FUNCTION admin_algo(...) SECURITY DEFINER SET search_path = public
+//      AS $$ BEGIN
+//        IF NOT public.is_superuser() THEN
+//          RAISE EXCEPTION 'Sem permissao.' USING ERRCODE = '42501';
+//        END IF;
+//        ...
+//      END $$;
+//
+//    E a aplicação só a chama:
+await supabase.rpc('admin_algo', { ... })
 ```
+
+> ⚠️ **A DIFERENÇA QUE IMPORTA:** com a chave mestra, quem garantia a segurança era a
+> *aplicação* — e bastava esquecer uma checagem para abrir tudo. Com a função no banco, a
+> checagem está **dentro da operação**: não há caminho que a contorne, nem pela web, nem pelo
+> aplicativo, nem por uma chamada forjada.
 
 ---
 

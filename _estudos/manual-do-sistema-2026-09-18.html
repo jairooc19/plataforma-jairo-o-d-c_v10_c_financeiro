@@ -1518,7 +1518,7 @@ footer.fim {
 
 <table>
   <thead>
-    <tr><th style="width:30%">O que a documentação diz</th><th>O que o código diz</th><th style="width:15%">Gravidade</th></tr>
+    <tr><th style="width:30%">O que a documentação DIZIA</th><th>O que o código diz</th><th style="width:15%">Situação</th></tr>
   </thead>
   <tbody>
     <tr>
@@ -1527,36 +1527,37 @@ footer.fim {
       <td><strong><code>supabaseAdmin</code> não existe.</strong> O arquivo exporta um cliente
           só. E a própria seção de proibições manda <em>nunca</em> reintroduzi-lo — o arquivo
           se contradiz.</td>
-      <td class="errado">ALTA<br>manda fazer o proibido</td>
+      <td class="certo">CORRIGIDA<br>18/09, à noite</td>
     </tr>
     <tr>
       <td>Variáveis de ambiente: lista <code>SUPABASE_SERVICE_ROLE_KEY</code> e
           <code>EXPO_PUBLIC_API_URL</code></td>
       <td>Nenhuma das duas é lida por uma linha de código. Os arquivos
           <code>.env.example</code> (que estão corretos) explicam que foram removidas na v10.</td>
-      <td class="talvez">MÉDIA<br>configuração inútil</td>
+      <td class="certo">CORRIGIDA<br>18/09, à noite</td>
     </tr>
     <tr>
       <td>“<code>screens/admin/</code> é a única parte do app que fala HTTP… ver
           <code>adminApiService</code>”</td>
       <td>O arquivo <code>adminApiService</code> <strong>não existe</strong>. Aquelas telas
           usam os serviços do Core, como todo o resto.</td>
-      <td class="talvez">MÉDIA<br>manda procurar o que não há</td>
+      <td class="certo">CORRIGIDA<br>18/09, à noite</td>
     </tr>
     <tr>
       <td>“<code>teste_financeiro.sql</code> (34 travas)”, na árvore de pastas</td>
       <td>São <strong>52</strong>. O número já foi 21, 29, 41, 50…</td>
-      <td class="talvez">BAIXA</td>
+      <td class="certo">CORRIGIDA<br>com o comando que recalcula</td>
     </tr>
     <tr>
       <td>Seção do mobile descreve os quatro arquivos órfãos como peças em uso</td>
       <td>Ninguém os importa (seção 7).</td>
-      <td class="talvez">BAIXA</td>
+      <td class="certo">CORRIGIDA<br>os quatro estão marcados</td>
     </tr>
     <tr>
       <td>A árvore do repositório lista <code>_estudos/</code> com “os HTMLs de cada degrau”</td>
-      <td>A pasta está vazia no disco desde hoje (os arquivos seguem no Git).</td>
-      <td class="talvez">BAIXA</td>
+      <td>A pasta está vazia no disco. <strong>Foi o dono do projeto que os removeu, de
+          propósito</strong> — confirmado por ele em 18/09. Os arquivos seguem no Git.</td>
+      <td class="certo">NÃO É DEFEITO<br>remoção intencional</td>
     </tr>
   </tbody>
 </table>
@@ -1572,9 +1573,14 @@ footer.fim {
     O próprio <code>CLAUDE.md</code> já tem uma regra para isso — <em>“nunca escreva um número
     contado à mão sem, na mesma linha, o comando que o recalcula”</em> — e hoje eu encontrei
     mais uma regra dele que estava factualmente errada: dizia que os HTMLs dos estudos são
-    todos CRLF; medi, e só dois dos dezesseis eram. Já corrigi essa. <strong>As seis da tabela
-    acima continuam abertas</strong> — não as corrigi porque a correção certa de duas delas
-    muda instruções de trabalho, e isso é decisão sua.
+    todos CRLF; medi, e só dois dos dezesseis eram.
+  </p>
+  <p style="margin-bottom:0">
+    <strong>As cinco divergências foram corrigidas na mesma noite</strong>, a pedido do dono do
+    projeto: 13 trechos reescritos no <code>CLAUDE.md</code>. Nenhuma correção apaga a história
+    — cada uma diz <em>o que estava escrito antes</em> e <em>por que estava errado</em>, que é
+    como este projeto trata todo conserto. A sexta linha da tabela nunca foi defeito: a remoção
+    dos estudos foi intencional.
   </p>
 </div>
 
@@ -1755,6 +1761,12 @@ Proprietário  → CONFIGURAÇÕES DO MÓDULO → marcar as permissões de cada 
   <p>
     Todo número deste manual foi medido por programa, hoje, no próprio repositório — nenhum
     veio de memória. O que eu não medi está dito onde aparece.
+  </p>
+  <p>
+    <strong>Atualizado na mesma noite:</strong> as cinco divergências da seção 9 foram
+    corrigidas no <code>CLAUDE.md</code> (13 trechos), e a tabela daquela seção passou a
+    mostrar a situação de cada uma. Este manual continua sendo o retrato de 18/09/2026 — e o
+    jeito de refazê-lo é medir de novo, nunca reaproveitar estes números.
   </p>
 </footer>
 
