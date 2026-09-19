@@ -15,6 +15,19 @@ export interface DashboardHeaderProps {
   detalhe?: string | null;
   /** Ação do ícone de saída, no canto direito. */
   onSair: () => void;
+  /**
+   * Desenha a saudação ("Boa tarde, Jairo") e o detalhe.
+   *
+   * ⚠️ PROP POSITIVA, COM PADRÃO `true`, e não um `semSaudacao`. O Painel de
+   * Engenharia continua com a saudação e não precisou ser tocado; quem abre mão
+   * dela é que diz. Prop negativa com padrão falso obriga a ler duas negações
+   * para entender o caso comum.
+   *
+   * 🗓️ 19/09/2026: o painel do cliente passou a `false` por pedido do dono do
+   * projeto. Sem ela, sobra no cabeçalho só o botão de sair — e a identificação
+   * de quem está logado subiu para o cartão de contexto, em uma linha só.
+   */
+  mostrarSaudacao?: boolean;
   /** Paleta escura (Painel de Engenharia). */
   escuro?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -50,6 +63,7 @@ function DashboardHeaderBase({
   nome,
   detalhe,
   onSair,
+  mostrarSaudacao = true,
   escuro = false,
   style,
 }: DashboardHeaderProps) {
@@ -62,14 +76,18 @@ function DashboardHeaderBase({
       style={[estilos.raiz, style]}
     >
       <View style={estilos.textos}>
-        <Text style={[estilos.saudacao, { color: paleta.texto }]} numberOfLines={1}>
-          {texto}
-        </Text>
+        {mostrarSaudacao && (
+          <>
+            <Text style={[estilos.saudacao, { color: paleta.texto }]} numberOfLines={1}>
+              {texto}
+            </Text>
 
-        {!!detalhe && (
-          <Text style={[estilos.detalhe, { color: paleta.detalhe }]} numberOfLines={1}>
-            {detalhe}
-          </Text>
+            {!!detalhe && (
+              <Text style={[estilos.detalhe, { color: paleta.detalhe }]} numberOfLines={1}>
+                {detalhe}
+              </Text>
+            )}
+          </>
         )}
       </View>
 

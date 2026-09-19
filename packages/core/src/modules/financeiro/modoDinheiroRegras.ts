@@ -92,16 +92,34 @@ export function alternarModoDoDinheiro(modo: ModoDoDinheiro): ModoDoDinheiro {
 }
 
 /**
- * O rótulo do botão: ele anuncia **o que o toque vai fazer**, não o estado atual.
+ * O rótulo **DAQUELE MODO** — o nome do estado, não de uma ação.
  *
- * ⚠️ POR QUE ASSIM. Um botão escrito "SÓ %" enquanto o ecrã mostra valores é
- * ambíguo: metade das pessoas lê "estou em SÓ %" e a outra metade lê "toque para
- * ir a SÓ %". Escrever o DESTINO acaba com a dúvida, porque o estado atual já
- * está à vista — são os próprios números na tela.
+ * ===========================================================================
+ * ⚠️ ESTA FUNÇÃO FAZIA O CONTRÁRIO ATÉ 19/09/2026, E A MUDANÇA FOI PAGA COM UM
+ * DEFEITO RELATADO NO PRIMEIRO USO REAL
+ * ===========================================================================
+ * Ela devolvia o **destino do toque**: com valores à vista dizia "SÓ %". O
+ * argumento escrito aqui era que o estado atual já está à vista — "são os próprios
+ * números na tela" — e que anunciar o destino removia a dúvida.
+ *
+ * **O argumento estava errado, e o dono do projeto o derrubou em duas capturas de
+ * tela.** Ele leu o botão "SÓ %" como *"estou em SÓ %"*, viu os valores aparecendo
+ * ao lado e relatou como defeito. É a leitura natural: num botão, um substantivo
+ * ("SÓ %") descreve; um verbo ("OCULTAR VALORES") ordena. Eu pus o substantivo e
+ * esperei que fosse lido como ordem.
+ *
+ * ⚠️ E A CORREÇÃO NÃO FOI TROCAR A PALAVRA. Qualquer botão de UM estado com DOIS
+ * significados possíveis continua ambíguo — só muda quem se confunde. O que a tela
+ * usa agora é um **seletor de duas posições**, com os dois rótulos à vista e o
+ * ativo em destaque: não há o que deduzir, porque as duas opções estão escritas.
+ * Esta função passou a servir a ele, devolvendo o nome de cada posição.
  */
 export function rotuloDoModo(modo: ModoDoDinheiro): string {
-  return modo === 'VALORES' ? 'SÓ %' : 'VALORES + %';
+  return modo === 'VALORES' ? 'VALORES + %' : 'SÓ %';
 }
+
+/** As duas posições do seletor, na ordem em que aparecem. */
+export const MODOS_DO_DINHEIRO: readonly ModoDoDinheiro[] = ['VALORES', 'PERCENTUAL'] as const;
 
 /**
  * A pessoa deve ver números nesta tela agora?

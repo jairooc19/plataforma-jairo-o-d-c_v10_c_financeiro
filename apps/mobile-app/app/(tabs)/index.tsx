@@ -159,7 +159,6 @@ export default function TabIndex() {
       <ClientDashboard
         sessionData={sessionData}
         tenantData={contextData}
-        systemTitle={systemTitle}
         modulosPermitidos={modulosPermitidos}
       />
       <InstitutionalFooter />

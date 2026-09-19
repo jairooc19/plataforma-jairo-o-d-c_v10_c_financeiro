@@ -123,6 +123,33 @@ de acabar com ela é dizer, não deduzir.
 > para o lugar errado. Se você vai mexer no login Google do mobile, leia isto
 > inteiro antes — economiza um dia.
 
+> ### ⚠️ 19/09/2026 — O PROJETO SUPABASE MUDOU, E ESTE DOSSIÊ FOI ATUALIZADO
+>
+> Até aqui todo este dossiê citava o projeto **`fycgttkchgheohqxuzza`**, da v9.
+> **Aquele projeto não existe mais** — medido em 19/09/2026: uma consulta ao REST
+> dele devolve `HTTP 000` (nem resolve o nome). O projeto em uso é o
+> **`rwfvcveyqmskcixzqdzm`**, criado em **11/09/2026**, o mesmo dia deste
+> repositório (a chave anon dele tem `iat` daquela data).
+>
+> As cinco citações do endereço foram atualizadas, **menos uma**: a da "Causa raiz
+> nº 1" continua com o endereço antigo de propósito, porque ali é registro
+> histórico do que o Console tinha naquele dia.
+>
+> ⚠️ **COMO ISSO FOI DESCOBERTO, E A LIÇÃO QUE FICA.** Em 19/09 eu criei o `.env`
+> do aplicativo copiando os valores do **expo.dev**, tratando aquele painel como
+> fonte da verdade. Ele estava com os valores da v9, e o APK saiu apontando para um
+> banco morto — o login falhava sem dizer por quê. **A fonte da verdade sobre qual
+> banco está em uso é o banco respondendo**, não um painel: a chave anon é um JWT e
+> a declaração `ref` dela diz o projeto, e um `curl` ao `/rest/v1/` diz se ele está
+> vivo. Os dois comandos estão em "Ferramentas de verificação", abaixo.
+>
+> ⚠️ **E O QUE JÁ ESTAVA CERTO (medido, para ninguém "consertar" de novo):** o
+> Google Cloud Console **já tinha** o callback do projeto novo cadastrado e **já
+> havia removido** o do antigo — o oráculo nº 2 responde `ACEITO` para
+> `rwfvcveyqmskcixzqdzm` e `RECUSANDO` para `fycgttkchgheohqxuzza`. E o provedor
+> Google **está ligado** no projeto novo, com o mesmo `client_id` — provado pelo
+> oráculo nº 1, que redireciona para `accounts.google.com` com ele.
+
 ### Estado em 2026-09-07
 
 | Item | Estado |
@@ -266,7 +293,7 @@ defeito no app, e não vai achar.
 
 | Valor | Onde se cadastra | Quem consome |
 |---|---|---|
-| `https://fycgttkchgheohqxuzza.supabase.co/auth/v1/callback` | **Google Cloud Console** › Credenciais › URIs de redirecionamento autorizados | O Google |
+| `https://rwfvcveyqmskcixzqdzm.supabase.co/auth/v1/callback` | **Google Cloud Console** › Credenciais › URIs de redirecionamento autorizados | O Google |
 | `plataformajairo://auth/google` | **Supabase** › Authentication › URL Configuration › Redirect URLs | O Supabase |
 
 ⚠️ **O Google NUNCA recebe a URI do app.** Quem fala com o Google é o Supabase, e
@@ -277,7 +304,8 @@ no Google Console é cadastrar um valor que o Google jamais vai comparar.
 
 ### Causa raiz nº 1 — `?provider=google` grudado no cadastro do Google
 
-O Console tinha registrado:
+O Console tinha registrado (na época, o projeto Supabase era o `fycgttkchgheohqxuzza`,
+da v9 — ver o aviso no topo deste dossiê):
 
 ```
 https://fycgttkchgheohqxuzza.supabase.co/auth/v1/callback?provider=google   ❌
@@ -348,7 +376,7 @@ instalar. Isso foi removido em 2026-09-07, antes do primeiro build.
 
 ```bash
 curl -sS -o /dev/null -D - \
-  "https://fycgttkchgheohqxuzza.supabase.co/auth/v1/authorize?provider=google&redirect_to=plataformajairo%3A%2F%2Fauth%2Fgoogle" \
+  "https://rwfvcveyqmskcixzqdzm.supabase.co/auth/v1/authorize?provider=google&redirect_to=plataformajairo%3A%2F%2Fauth%2Fgoogle" \
   | grep -i "^location:"
 ```
 
@@ -356,8 +384,23 @@ curl -sS -o /dev/null -D - \
 
 ```bash
 curl -sS -o /dev/null -w '%{redirect_url}\n' \
-  "https://accounts.google.com/o/oauth2/v2/auth?client_id=690521256015-d1ctoa6rlo0t0qjsbbt66u81o16h30b7.apps.googleusercontent.com&redirect_uri=https%3A%2F%2Ffycgttkchgheohqxuzza.supabase.co%2Fauth%2Fv1%2Fcallback&response_type=code&scope=email+profile&state=t" \
+  "https://accounts.google.com/o/oauth2/v2/auth?client_id=690521256015-d1ctoa6rlo0t0qjsbbt66u81o16h30b7.apps.googleusercontent.com&redirect_uri=https%3A%2F%2Frwfvcveyqmskcixzqdzm.supabase.co%2Fauth%2Fv1%2Fcallback&response_type=code&scope=email+profile&state=t" \
   | grep -q "signin/oauth/error" && echo "RECUSANDO" || echo "ACEITO"
+```
+
+**Qual projeto Supabase está em uso, e ele está vivo?** (19/09/2026 — os dois
+comandos que teriam evitado o APK apontado para um banco morto)
+
+```bash
+# 1) A chave anon é um JWT: a declaração `ref` dela diz o PROJETO.
+node -e "const c=JSON.parse(Buffer.from(process.argv[1].split('.')[1],'base64url'));\
+console.log('projeto:',c.ref,'| role:',c.role,'| expira:',new Date(c.exp*1000).toISOString().slice(0,10))" \
+  "$(grep '^EXPO_PUBLIC_SUPABASE_ANON_KEY=' .env | cut -d= -f2-)"
+
+# 2) O projeto responde?  200 = vivo.  000 = nem resolve o nome (apagado/pausado).
+curl -s -o /dev/null -w '%{http_code}\n' \
+  "https://<ref>.supabase.co/rest/v1/global_settings?select=system_title&id=eq.1" \
+  -H "apikey: <chave-anon>" -H "Authorization: Bearer <chave-anon>"
 ```
 
 ⚠️ **Não existe oráculo para a lista do Supabase.** O endpoint `/authorize` ecoa
@@ -405,7 +448,7 @@ valor do `redirect_to`, sempre copie o que foi impresso.
 
 ```
 URIs de redirecionamento autorizados:
-  https://fycgttkchgheohqxuzza.supabase.co/auth/v1/callback
+  https://rwfvcveyqmskcixzqdzm.supabase.co/auth/v1/callback
 
 Origens JavaScript autorizadas (usadas SÓ pelo popup da web):
   https://plataforma-jairo-o-d-c-v9-admin-web.vercel.app

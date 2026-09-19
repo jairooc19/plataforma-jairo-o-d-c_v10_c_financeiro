@@ -5,7 +5,6 @@ import {
   ritmoDoMes,
   hojeISO,
   exibicaoDoDinheiro,
-  alternarModoDoDinheiro,
   modoGravado,
   CHAVE_MODO_DINHEIRO,
   type ConfigDoDinheiro,
@@ -148,16 +147,26 @@ export function useDinheiroDoPeriodo(tenantId: string | null) {
   const exibicao = exibicaoDoDinheiro(veValores, escolha);
 
   /**
-   * Alterna e GRAVA. Recusa quando não pode — a recusa está no Core, e esta guarda
-   * é a segunda: um toque que não deveria acontecer não deve gravar preferência.
+   * Escolhe um modo e GRAVA a preferência no cofre do aparelho.
+   *
+   * ⚠️ ELA RECEBE O MODO, e não alterna sozinha (19/09/2026). Enquanto a tela tinha
+   * um botão de alternar, "inverter o atual" bastava; com um SELETOR de duas
+   * posições, quem toca diz QUAL quer — e tocar na posição já ativa tem de ser
+   * inofensivo, não inverter.
+   *
+   * ⚠️ A RECUSA QUANDO NÃO PODE ALTERNAR É A SEGUNDA GUARDA. A primeira está no
+   * Core (`exibicaoDoDinheiro`), que ignora a escolha gravada para quem o
+   * Proprietário bloqueou; esta evita gravar no cofre uma preferência que nunca
+   * valeria.
    */
-  const alternarModo = useCallback(async () => {
-    if (!exibicao.podeAlternar) return;
-
-    const proximo = alternarModoDoDinheiro(exibicao.modo);
-    setEscolha(proximo);
-    await storageService.setItem(CHAVE_MODO_DINHEIRO, proximo);
-  }, [exibicao.podeAlternar, exibicao.modo]);
+  const escolherModo = useCallback(
+    async (modo: ModoDoDinheiro) => {
+      if (!exibicao.podeAlternar || modo === exibicao.modo) return;
+      setEscolha(modo);
+      await storageService.setItem(CHAVE_MODO_DINHEIRO, modo);
+    },
+    [exibicao.podeAlternar, exibicao.modo],
+  );
 
   return {
     competencia,
@@ -170,7 +179,7 @@ export function useDinheiroDoPeriodo(tenantId: string | null) {
     veValores,
     /** `{ modo, podeAlternar, motivo }` — ver `modoDinheiroRegras.ts`. */
     exibicao,
-    alternarModo,
+    escolherModo,
     /** 🎁 Quanto do mês já passou, para a marca na barra. */
     ritmo: ritmoDoMes(competencia, hoje),
     recarregar: () => carregar(true),

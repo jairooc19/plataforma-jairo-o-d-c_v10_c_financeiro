@@ -2,10 +2,10 @@ import React, { memo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
-import Icon from '@/components/icon/Icon';
-import { BRAND, PLATFORM, elevacao } from '@/constants/Colors';
+import LogoPJODC from '@/components/LogoPJODC';
+import { BRAND } from '@/constants/Colors';
 import { TAMANHO, PESO } from '@/constants/Typography';
-import { ESPACO, ICONE, DURACAO } from '@/constants/Spacing';
+import { ESPACO, DURACAO } from '@/constants/Spacing';
 
 export interface BrandMarkProps {
   /** Nome exibido ao lado do símbolo. Padrão: o nome da plataforma. */
@@ -18,6 +18,12 @@ export interface BrandMarkProps {
   /** Sem animação de entrada — use quando a marca não abre a tela. */
   estatica?: boolean;
 }
+
+/**
+ * O lado da logo no lockup. 48pt é a medida de alvo de toque do projeto, e é o
+ * que sobra de largura para o nome caber numa linha num telefone de 360dp.
+ */
+const TAMANHO_DA_LOGO = 48;
 
 /**
  * 🔷 A MARCA (PJODC v10)
@@ -45,11 +51,15 @@ export interface BrandMarkProps {
  * aqui só se aplica `letterSpacing`. Maiúscula por `textTransform` no React Native
  * tem comportamento desigual entre plataformas quando o texto quebra de linha.
  *
- * 🎯 O SÍMBOLO É UM QUADRADO AZUL COM UM ÍCONE DENTRO, e não uma imagem — decisão
- * mantida da v9. Ele acompanha a cor da marca sem ninguém reexportar um PNG, é
- * nítido em qualquer densidade porque é vetor, e não acrescenta um byte de recurso
- * ao pacote. Um logotipo de verdade, quando existir, entra AQUI — e nenhuma tela
- * muda, porque todas conhecem apenas `<BrandMark />`.
+ * 🇧🇷 O SÍMBOLO É A LOGO PJODC DESDE 19/09/2026 — o disco com a bandeira do Brasil
+ * e o anel de letras, a MESMA do site. Até então era um quadrado azul com um ícone
+ * de raio dentro, um espaço reservado da v9 à espera do logotipo de verdade. Ele
+ * chegou, e entrou exatamente onde aquele comentário dizia que entraria: dentro de
+ * `<BrandMark />`, sem nenhuma tela mudar.
+ *
+ * ⚠️ O DESENHO NÃO MORA AQUI, e sim em `components/LogoPJODC.tsx`. Duas telas já o
+ * usam (a guarita e o cabeçalho das abas), e uma cópia em cada uma divergiria da
+ * outra no primeiro ajuste.
  *
  * ⚠️ NÃO É O ÍCONE DO APLICATIVO. Aquele vive em `src/assets/images/icon.png` e é
  * desenhado pelo sistema operacional na tela inicial — trocar um não troca o outro.
@@ -76,9 +86,7 @@ function BrandMarkBase({
     <Animated.View entering={entrada} style={estilos.raiz}>
       {/* O lockup: símbolo + nome, na mesma linha. */}
       <View style={estilos.linha}>
-        <View style={estilos.simbolo}>
-          <Icon name="Raio" size={ICONE.medio} color={BRAND.onPrimary} strokeWidth={2.2} />
-        </View>
+        <LogoPJODC tamanho={TAMANHO_DA_LOGO} />
 
         {/*
           ⚠️ `flexShrink: 1` E DUAS LINHAS DE FOLGA. Sem o encolhimento, um título
@@ -117,16 +125,6 @@ const estilos = StyleSheet.create({
     alignItems: 'center',
     gap: ESPACO.md,
     alignSelf: 'stretch',
-  },
-
-  simbolo: {
-    width: 48,
-    height: 48,
-    borderRadius: PLATFORM.radiusField,
-    backgroundColor: BRAND.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...elevacao(3),
   },
 
   /**

@@ -20,6 +20,7 @@ import {
   faixaDeConsumo,
   larguraDaBarra,
   situacaoDaLinha,
+  faixaDaLinha,
   agruparEmBlocos,
   rotuloDoBlocoDeOrcamento,
   temOrcamento,
@@ -191,4 +192,84 @@ test('orcamentoExistente acha a linha da conta, para a tela perguntar antes', ()
   assert.equal(orcamentoExistente(lista, 'c9'), null);
   // a linha de TOTAL nunca é confundida com uma conta
   assert.equal(orcamentoExistente([orcamento({ linha_tipo: 'TOTAL', conta_id: null })], 'c1'), null);
+});
+
+// ---------------------------------------------------------------------------
+// A FAIXA POR LINHA, E A FRASE DO RESULTADO — 19/09/2026
+//
+// ⚠️ As seis travas abaixo foram vistas FALHAR antes de a correção existir:
+// com `faixaDaLinha` devolvendo `faixaDeConsumo(...)` para tudo, as de FORA e
+// RESULTADO acusam; com o ramo do RESULTADO removido de `situacaoDaLinha`, a
+// frase volta a ser "0% CONSUMIDO" e as três últimas acusam.
+// ---------------------------------------------------------------------------
+
+/** Uma linha de RESULTADO como o banco a devolve: saldo e consumo NULOS. */
+const resultado = (orcado: number | null, realizado: number | null): LinhaDoDinheiro => ({
+  bloco: 'RESULTADO',
+  linha_tipo: 'TOTAL',
+  conta_id: null,
+  nome: null,
+  tipo: null,
+  orcado_centavos: orcado,
+  realizado_centavos: realizado,
+  saldo_centavos: null,
+  consumo_percentual: null,
+  estourou: false,
+});
+
+test('faixaDaLinha: o bloco FORA não tem faixa — não há orçado para comparar', () => {
+  // Antes disto, uma conta de RECEITA no bloco FORA saía VERMELHA: consumo nulo
+  // virava 0%, e 0% de uma meta é "não atingida". Alarme sem régua.
+  const fora: LinhaDoDinheiro = {
+    bloco: 'FORA', linha_tipo: 'CONTA', conta_id: 'x', nome: 'ALUGUÉIS', tipo: 'RECEITA',
+    orcado_centavos: null, realizado_centavos: 180000, saldo_centavos: null,
+    consumo_percentual: null, estourou: false,
+  };
+  assert.equal(faixaDaLinha(fora), 'NEUTRA');
+});
+
+test('faixaDaLinha: no RESULTADO, MAIOR é melhor — inclusive entre negativos', () => {
+  // O caso real da captura: planejou -1.000,00 e realizou -357,82. É um mês BOM.
+  assert.equal(faixaDaLinha(resultado(-100000, -35782)), 'VERDE');
+  // E o contrário: planejou -357,82 e realizou -1.000,00. Mês ruim.
+  assert.equal(faixaDaLinha(resultado(-35782, -100000)), 'VERMELHO');
+  // Empate conta como atingido.
+  assert.equal(faixaDaLinha(resultado(-100000, -100000)), 'VERDE');
+
+  /**
+   * ⚠️ OS DOIS CASOS POSITIVOS SÃO OS QUE PROVAM A REGRA, e eles faltavam na
+   * primeira versão deste teste (19/09/2026). Só com negativos, comparar por
+   * MAIOR e comparar por MÓDULO dão a MESMA resposta — o teste passava verde
+   * sobre as duas implementações, e uma delas está errada.
+   *
+   * Descoberto por ensaio de mutação: trocar `realizado >= orcado` por
+   * `Math.abs(realizado) <= Math.abs(orcado)` não fazia nenhum teste acusar.
+   * Empresa que planeja lucro de 1.000 e faz 1.500 superou a meta; por módulo,
+   * 1500 > 1000 seria lido como VERMELHO — o mês bom pintado de alarme.
+   */
+  assert.equal(faixaDaLinha(resultado(100000, 150000)), 'VERDE', 'lucro acima do planejado');
+  assert.equal(faixaDaLinha(resultado(150000, 100000)), 'VERMELHO', 'lucro abaixo do planejado');
+});
+
+test('faixaDaLinha: sem os valores (modo percentual) o RESULTADO não recebe cor', () => {
+  assert.equal(faixaDaLinha(resultado(null, null)), 'NEUTRA');
+});
+
+test('situacaoDaLinha: o RESULTADO diz MELHOR/PIOR, nunca "0% CONSUMIDO"', () => {
+  const fmt = (c: number) => `R$ ${(c / 100).toFixed(2)}`;
+  assert.equal(
+    situacaoDaLinha(resultado(-100000, -35782), fmt).texto,
+    'MELHOR QUE O PLANEJADO EM R$ 642.18',
+  );
+  assert.equal(
+    situacaoDaLinha(resultado(-35782, -100000), fmt).texto,
+    'PIOR QUE O PLANEJADO EM R$ 642.18',
+  );
+  assert.equal(situacaoDaLinha(resultado(-100000, -100000), fmt).texto, 'EXATAMENTE O PLANEJADO');
+});
+
+test('situacaoDaLinha: o RESULTADO sem valores fica em SILÊNCIO, não em 0%', () => {
+  // Frase vazia é o que a tela precisa para não desenhar linha nenhuma. Inventar
+  // um percentual aqui foi exatamente o defeito que isto corrige.
+  assert.equal(situacaoDaLinha(resultado(null, null), (c) => String(c)).texto, '');
 });

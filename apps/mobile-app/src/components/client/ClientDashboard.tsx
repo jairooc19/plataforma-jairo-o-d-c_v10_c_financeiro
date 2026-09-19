@@ -8,7 +8,6 @@ import { modulosDoMembro, type ManifestoDeModulo } from '@jairo/core';
 import Icon from '@/components/icon/Icon';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import MenuCard from '@/components/card/MenuCard';
-import StatCard from '@/components/card/StatCard';
 import { useNativeActionSheet } from '@/hooks/useNativeActionSheet';
 import { logoutService } from '@/services/logoutService';
 import { BRAND, PLATFORM } from '@/constants/Colors';
@@ -19,8 +18,13 @@ import type { SessionUser, TenantMemberContext, TenantSummary } from '@/types';
 export interface ClientDashboardProps {
   sessionData: SessionUser;
   tenantData: TenantMemberContext | null;
-  /** Título do white-label, lido de `global_settings` pelo roteador de dashboard. */
-  systemTitle: string;
+  /**
+   * ⚠️ `systemTitle` SAIU DAQUI EM 19/09/2026. Ele era desenhado sob o nome da
+   * empresa, no cartão de contexto que foi substituído — e continua à vista, no
+   * CABEÇALHO das abas, ao lado da logo (ver `app/_layout.tsx`). Mantê-lo como
+   * prop sem consumidor deixaria o roteador do painel calculando um dado que
+   * ninguém lê.
+   */
   /**
    * Os ids dos módulos que ESTE membro pode abrir nesta empresa, já cruzados pelo
    * banco (`modulos_do_membro`). Ver a nota no `(tabs)/index.tsx`.
@@ -58,7 +62,6 @@ export interface ClientDashboardProps {
 function ClientDashboard({
   sessionData,
   tenantData,
-  systemTitle,
   modulosPermitidos,
 }: ClientDashboardProps) {
   const router = useRouter();
@@ -105,7 +108,12 @@ function ClientDashboard({
     [router],
   );
 
-  const ehProprietario = tenantData?.role === 'OWNER';
+  /**
+   * ⚠️ O PAPEL NÃO APARECE MAIS NESTA TELA (19/09/2026) — nem como selo, nem como
+   * métrica. Quem precisa dele é a permissão, e ela mora no banco: `fin_pode()`
+   * dá tudo ao OWNER sem perguntar à interface. Mostrar o papel era informação
+   * verdadeira e sem utilidade para quem lê.
+   */
   const empresa = nomeDaEmpresa(tenantData) || 'Meu painel';
   const modulos = modulosDoMembro(modulosPermitidos);
 
@@ -117,11 +125,7 @@ function ClientDashboard({
         contentContainerStyle={estilos.conteudo}
         showsVerticalScrollIndicator={false}
       >
-        <DashboardHeader
-          nome={nomeDeTratamento(sessionData.email)}
-          detalhe={sessionData.email}
-          onSair={handleLogout}
-        />
+        <DashboardHeader onSair={handleLogout} mostrarSaudacao={false} />
 
         {/*
           🏢 O CONTEXTO ATIVO EM UM CARTÃO SÓ. Numa plataforma multi-empresa, a
@@ -129,46 +133,28 @@ function ClientDashboard({
           uma ação disparada na empresa errada é um estrago silencioso.
         */}
         <View style={estilos.cartaoContexto}>
-          <View style={estilos.contextoTopo}>
-            <Text style={estilos.rotuloContexto}>ATUANDO EM</Text>
-
-            <View style={estilos.selo}>
-              <Icon
-                name={ehProprietario ? 'Usuario' : 'Equipe'}
-                size={ICONE.mini}
-                color={BRAND.primary}
-                strokeWidth={2.2}
-              />
-              <Text style={estilos.seloTexto}>
-                {ehProprietario ? 'Proprietário' : 'Colaborador'}
-              </Text>
-            </View>
-          </View>
-
-          <Text style={estilos.empresa} numberOfLines={2}>
-            {empresa}
+          <Text style={estilos.linhaContexto} numberOfLines={2}>
+            <Text style={estilos.rotuloContexto}>LOGADO COM: </Text>
+            {sessionData.email ?? '—'}
           </Text>
-          <Text style={estilos.sistema} numberOfLines={1}>
-            {systemTitle}
+
+          <Text style={[estilos.linhaContexto, estilos.linhaSegunda]} numberOfLines={2}>
+            <Text style={estilos.rotuloContexto}>ATUANDO PARA: </Text>
+            {empresa}
           </Text>
         </View>
 
         {/*
-          📊 DUAS MÉTRICAS, E NÃO QUATRO. Uma faixa de métricas só funciona
-          enquanto cada número responde a uma pergunta real.
+          🗓️ 19/09/2026 — SAÍRAM DAQUI, POR PEDIDO DO DONO DO PROJETO:
+            • a faixa "MÓDULOS 1 · ACESSO Total";
+            • o título "Módulos operacionais".
+
+          ⚠️ E A REMOÇÃO TEM RAZÃO DE SER, não foi só gosto: as duas métricas
+          respondiam perguntas que a própria tela logo abaixo já responde. "Módulos:
+          1" fica evidente ao ver um cartão; "Acesso: Total" repete o que o papel já
+          diz. Número que só confirma o que está à vista rouba a linha de quem tem
+          algo a dizer.
         */}
-        <View style={estilos.metricas}>
-          <StatCard value={String(modulos.length)} label="Módulos" icon="Modulos" />
-          <StatCard
-            value={ehProprietario ? 'Total' : 'Parcial'}
-            label="Acesso"
-            icon="EscudoOk"
-            color={BRAND.success}
-          />
-        </View>
-
-        <Text style={estilos.tituloSecao}>Módulos operacionais</Text>
-
         {modulos.length === 0 ? (
           <View style={estilos.vazio}>
             <View style={estilos.vazioIcone}>
@@ -196,7 +182,7 @@ function ClientDashboard({
               <MenuCard
                 key={modulo.id}
                 icon="Modulos"
-                title={modulo.nome}
+                title={modulo.nome.toUpperCase()}
                 description={
                   modulo.rotaMobile ? modulo.descricao : 'Disponível no painel web.'
                 }
@@ -261,47 +247,34 @@ const estilos = StyleSheet.create({
     padding: ESPACO.lg,
     marginBottom: ESPACO.md,
   },
-  contextoTopo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: ESPACO.sm,
+  /**
+   * ⚠️ O NOME DA EMPRESA USAVA `TIPOGRAFIA.titulo` (26pt) E ISSO ERA UM DEFEITO
+   * DE PROPORÇÃO (corrigido em 19/09/2026). Aquele degrau é de título de TELA; um
+   * dado dentro de um cartão não é título de nada. E o valor real piorava o
+   * estrago: o nome da empresa deste sistema costuma trazer o e-mail do dono
+   * ("jairooc19@gmail.com - EMPRESA 01"), o que a 26pt ocupava TRÊS linhas e
+   * dominava a tela inteira.
+   *
+   * `legenda` (13pt) é o corpo de dado dentro de cartão, e é o mesmo que o resto
+   * do aplicativo usa para a mesma função.
+   */
+  linhaContexto: {
+    ...TIPOGRAFIA.legenda,
+    color: BRAND.text,
   },
-  rotuloContexto: TIPOGRAFIA.rotulo,
+  linhaSegunda: { marginTop: ESPACO.sm },
 
-  selo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ESPACO.xs,
-    backgroundColor: BRAND.primarySoft,
-    paddingHorizontal: ESPACO.sm,
-    paddingVertical: ESPACO.xs,
-    borderRadius: PLATFORM.radiusField,
-  },
-  seloTexto: {
+  /**
+   * O rótulo vai INLINE, dentro do mesmo `<Text>` da frase — por isso ele não
+   * tem `marginBottom`. Em React Native, um `<Text>` dentro de outro herda o
+   * fluxo do pai e só sobrepõe o que declara: é assim que se compõe "RÓTULO: valor"
+   * numa linha só que quebra junto.
+   */
+  rotuloContexto: {
     ...TIPOGRAFIA.dica,
-    color: BRAND.primary,
-    fontWeight: '600',
-  },
-
-  empresa: {
-    ...TIPOGRAFIA.titulo,
-    marginTop: ESPACO.sm,
-  },
-  sistema: {
-    ...TIPOGRAFIA.dica,
-    marginTop: ESPACO.xs,
-  },
-
-  metricas: {
-    flexDirection: 'row',
-    gap: ESPACO.md,
-    marginBottom: ESPACO.xl,
-  },
-
-  tituloSecao: {
-    ...TIPOGRAFIA.secao,
-    marginBottom: ESPACO.md,
+    fontWeight: '700',
+    color: BRAND.textMuted,
+    letterSpacing: 1,
   },
 
   lista: { gap: ESPACO.md },

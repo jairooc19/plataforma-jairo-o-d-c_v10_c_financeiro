@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  formatarBRL, faixaDeConsumo, larguraDaBarra, situacaoDaLinha,
+  formatarBRL, faixaDaLinha, larguraDaBarra, situacaoDaLinha,
   type LinhaDoDinheiro,
 } from "@jairo/core";
 
@@ -32,18 +32,27 @@ export default function BarraDeConsumo({ linha, ritmo }: {
   /** Quanto do mês já passou, de 0 a 100. Vem de `ritmoDoMes()`, no Core. */
   ritmo: number;
 }) {
-  const faixa = faixaDeConsumo(linha.consumo_percentual, linha.tipo);
+  const faixa = faixaDaLinha(linha);
   const largura = larguraDaBarra(linha.consumo_percentual);
   const situacao = situacaoDaLinha(linha, (c) => formatarBRL(c));
   const veValores = linha.orcado_centavos !== null || linha.realizado_centavos !== null;
 
+  /**
+   * ⚠️ `NEUTRA` ENTROU EM 19/09/2026, e com ela a regra saiu desta tela para o
+   * Core (`faixaDaLinha`). Os blocos FORA e RESULTADO não são consumo de
+   * orçamento: o primeiro não tem orçado, o segundo é uma subtração. Pintá-los
+   * pela faixa dava traço vermelho em conta sem orçamento e barra SEMPRE VERDE no
+   * resultado do mês, inclusive num mês pior que o planejado.
+   */
   const cor =
-    faixa === "VERDE" ? "bg-emerald-400"
+    faixa === "NEUTRA" ? "bg-slate-300"
+    : faixa === "VERDE" ? "bg-emerald-400"
     : faixa === "AMBAR" ? "bg-amber-400"
     : "bg-red-400";
 
   const corDoTexto =
-    faixa === "VERDE" ? "text-emerald-700"
+    faixa === "NEUTRA" ? "text-slate-500"
+    : faixa === "VERDE" ? "text-emerald-700"
     : faixa === "AMBAR" ? "text-amber-700"
     : "text-red-700";
 
@@ -85,11 +94,15 @@ export default function BarraDeConsumo({ linha, ritmo }: {
         </span>
       </div>
 
-      <p className={`text-[11px] font-black uppercase tracking-widest ${
-        situacao.destaque ? corDoTexto : "text-slate-400"
-      }`}>
-        {situacao.texto}
-      </p>
+      {/* ⚠️ Frase vazia NÃO vira parágrafo em branco: o RESULTADO no modo
+          percentual não tem o que dizer, e um <p> vazio deixaria um vão. */}
+      {!!situacao.texto && (
+        <p className={`text-[11px] font-black uppercase tracking-widest ${
+          situacao.destaque ? corDoTexto : "text-slate-400"
+        }`}>
+          {situacao.texto}
+        </p>
+      )}
     </div>
   );
 }

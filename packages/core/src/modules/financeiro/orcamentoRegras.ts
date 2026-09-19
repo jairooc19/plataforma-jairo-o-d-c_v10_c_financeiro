@@ -15,8 +15,8 @@
 
 import type { LinhaDoDinheiro, LinhaDoOrcamento } from './tipos';
 
-/** As três faixas da barra de consumo. */
-export type FaixaDeConsumo = 'VERDE' | 'AMBAR' | 'VERMELHO';
+/** As três faixas da barra de consumo, mais a ausência de faixa. */
+export type FaixaDeConsumo = 'VERDE' | 'AMBAR' | 'VERMELHO' | 'NEUTRA';
 
 /**
  * A cor da barra.
@@ -44,6 +44,51 @@ export function faixaDeConsumo(
   if (c > 100) return 'VERMELHO';
   if (c >= 80) return 'AMBAR';
   return 'VERDE';
+}
+
+/**
+ * A faixa de UMA LINHA — o despachante que as telas devem chamar.
+ *
+ * ===========================================================================
+ * ⚠️ POR QUE ELE PRECISOU EXISTIR (19/09/2026)
+ * ===========================================================================
+ * As telas chamavam `faixaDeConsumo(linha.consumo_percentual, linha.tipo)` para
+ * TODA linha, e duas delas não são "consumo de orçamento" coisa nenhuma:
+ *
+ *   • **FORA** — são contas que tiveram movimento e **não têm orçado**. Com
+ *     `consumo` nulo a função caía no 0%, e 0% numa conta de RECEITA significa
+ *     "meta não atingida": VERMELHO. O resultado, numa captura de tela do dono do
+ *     projeto, eram traços vermelhos ao lado de "ALUGUÉIS" e "DISTRIBUIÇÕES DE
+ *     LUCROS" — alarme onde só havia um gasto que ninguém orçou.
+ *
+ *   • **RESULTADO** — é uma SUBTRAÇÃO (receitas planejadas menos despesas
+ *     planejadas), não uma conta que se consome. O banco manda `consumo` nulo, a
+ *     função caía no 0%, e 0% numa linha que não é receita dá **VERDE**. A barra
+ *     do resultado ficava verde SEMPRE, inclusive num mês em que o resultado foi
+ *     muito pior do que o planejado.
+ *
+ * ⚠️ NO RESULTADO, MAIOR É SEMPRE MELHOR — inclusive entre dois negativos.
+ * Planejar −1.000,00 e realizar −357,82 é **melhor** que o planejado: sobrou
+ * dinheiro que se esperava gastar. Comparar por módulo ("quem é menor") inverteria
+ * a leitura e pintaria de vermelho um mês bom.
+ *
+ * ⚠️ NÃO HÁ ÂMBAR NO RESULTADO, de propósito. "Quase bati o plano" não é uma
+ * faixa que alguém saiba interpretar sem uma régua arbitrária; ou se superou o
+ * planejado, ou não se superou. A frase ao lado diz por quanto.
+ */
+export function faixaDaLinha(linha: LinhaDoDinheiro): FaixaDeConsumo {
+  if (linha.bloco === 'FORA') return 'NEUTRA';
+
+  if (linha.bloco === 'RESULTADO') {
+    const orcado = linha.orcado_centavos;
+    const realizado = linha.realizado_centavos;
+    // Modo percentual: os valores não vieram do banco, e sem eles não há o que
+    // comparar. Cor inventada é pior que cor nenhuma.
+    if (orcado === null || realizado === null) return 'NEUTRA';
+    return realizado >= orcado ? 'VERDE' : 'VERMELHO';
+  }
+
+  return faixaDeConsumo(linha.consumo_percentual, linha.tipo);
 }
 
 /**
@@ -85,6 +130,37 @@ export function situacaoDaLinha(
 
   if (linha.bloco === 'FORA') {
     return { texto: 'SEM ORÇAMENTO NESTA COMPETÊNCIA', destaque: true };
+  }
+
+  /**
+   * ⚠️ O RESULTADO NÃO SE "CONSOME" — corrigido em 19/09/2026, depois de aparecer
+   * numa captura de tela do dono do projeto dizendo **"0% CONSUMIDO"** ao lado de
+   * "ORÇADO −R$ 1.000,00 · REALIZADO −R$ 357,82".
+   *
+   * Aquilo saía porque o banco manda `saldo` e `consumo` NULOS nesta linha (ela é
+   * uma subtração, não uma conta), e a função caía no ramo do modo percentual com
+   * `consumo ?? 0`. A frase era verdadeira em nada e aparecia em toda tela.
+   *
+   * ⚠️ A COMPARAÇÃO É `realizado − orcado`, e MAIOR É SEMPRE MELHOR, inclusive
+   * entre dois negativos: planejar −1.000,00 e realizar −357,82 deixou 642,18 no
+   * bolso. Quem comparar por módulo lê o mês ao contrário.
+   */
+  if (linha.bloco === 'RESULTADO') {
+    const orcado = linha.orcado_centavos;
+    const realizado = linha.realizado_centavos;
+
+    // Modo percentual: sem os valores não há diferença a citar, e o percentual
+    // desta linha também é nulo. Texto vazio — a tela não desenha frase nenhuma.
+    if (orcado === null || realizado === null) return { texto: '', destaque: false };
+
+    const diferenca = realizado - orcado;
+    if (diferenca > 0) {
+      return { texto: `MELHOR QUE O PLANEJADO EM ${formatar(diferenca)}`, destaque: true };
+    }
+    if (diferenca < 0) {
+      return { texto: `PIOR QUE O PLANEJADO EM ${formatar(-diferenca)}`, destaque: true };
+    }
+    return { texto: 'EXATAMENTE O PLANEJADO', destaque: false };
   }
 
   // Modo percentual: não há valor para citar, e inventar um seria mentir.

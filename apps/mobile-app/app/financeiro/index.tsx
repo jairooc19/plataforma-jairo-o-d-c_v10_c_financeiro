@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import { View, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
@@ -13,12 +13,25 @@ import { estilosFin as e } from '@/modules/financeiro/estilos';
  * Responde por `/financeiro` — o endereço que o manifesto declara em `rotaMobile`.
  *
  * ===========================================================================
- * ⚠️ UMA TELA ATIVA, AS OUTRAS COMO "EM BREVE" — E ISSO É HONESTIDADE, NÃO PREGUIÇA
+ * ⚠️ UMA TELA, E SÓ O QUE FUNCIONA APARECE
  * ===========================================================================
  * O módulo tem 18 telas no site. O dono do projeto pediu para trazê-lo ao aplicativo
- * **em partes**, e a parte 1 é o DINHEIRO DO PERÍODO. As demais aparecem aqui com o
- * selo "EM BREVE" porque a alternativa — não listá-las — faria a pessoa concluir que
- * o módulo do telefone é outro produto, menor, e ir procurar no site sem saber o quê.
+ * **em partes**, e a parte 1 é o DINHEIRO DO PERÍODO.
+ *
+ * ⚠️ **A LISTA "AINDA SÓ NO PAINEL WEB" SAIU EM 19/09/2026**, por pedido do dono do
+ * projeto. Ela trazia quatro cartões com o selo "EM BREVE" — lançamentos, extrato,
+ * orçamento e dashboards —, e a intenção era honestidade: dizer que o módulo tem
+ * mais coisas e que elas ficam no site.
+ *
+ * O argumento contra venceu, e vale registrá-lo: uma lista de quatro itens
+ * INERTES acima de **um** item que funciona inverte o peso da tela. Quem abre lê
+ * primeiro o que não pode fazer. A honestidade continua — o que existe está à vista
+ * e nada promete o que não cumpre —, mas sem transformar a porta do módulo num
+ * inventário do que falta.
+ *
+ * ⚠️ O SUPORTE A "EM BREVE" **NÃO** FOI REMOVIDO DO CÓDIGO: a lista `TELAS` ainda
+ * aceita `rota: null`, e o `MenuCard` continua tratando o caso. É o que permite a
+ * parte 2 acrescentar uma tela pela metade sem reescrever nada.
  *
  * ⚠️ E O `MenuCard` SEM `onPress` NASCE INERTE DE PROPÓSITO: ele se anuncia como
  * indisponível ao leitor de tela e ignora o toque. **Nunca passe uma função vazia**
@@ -37,33 +50,9 @@ import { estilosFin as e } from '@/modules/financeiro/estilos';
 const TELAS = [
   {
     chave: 'dinheiro-do-periodo',
-    titulo: 'Dinheiro do período',
+    titulo: 'DINHEIRO DO PERÍODO',
     descricao: 'O orçado contra o realizado do mês, em barras.',
     rota: '/financeiro/dinheiro-do-periodo',
-  },
-  {
-    chave: 'lancamentos',
-    titulo: 'Lançamentos',
-    descricao: 'Lançar, pesquisar e conferir. Por enquanto, no painel web.',
-    rota: null,
-  },
-  {
-    chave: 'extrato',
-    titulo: 'Extrato com saldo',
-    descricao: 'O movimento de uma conta, com saldo acumulado. No painel web.',
-    rota: null,
-  },
-  {
-    chave: 'orcamento',
-    titulo: 'Orçamento',
-    descricao: 'Montar e copiar o plano do mês. No painel web.',
-    rota: null,
-  },
-  {
-    chave: 'dashboards',
-    titulo: 'Dashboards',
-    descricao: 'Saldos mês a mês, por conta. No painel web.',
-    rota: null,
   },
 ] as const;
 
@@ -85,31 +74,20 @@ export default function PortaDoFinanceiro() {
   return (
     <SafeAreaView style={e.tela} edges={['bottom']}>
       <ScrollView contentContainerStyle={e.conteudo} showsVerticalScrollIndicator={false}>
-        <Text style={e.portaSecao}>Disponível no telefone</Text>
-
+        {/*
+          ⚠️ SEM TÍTULO DE SEÇÃO. "Disponível no telefone" só fazia sentido em
+          contraste com "Ainda só no painel web", que saiu — sozinho, ele rotularia
+          uma lista de um item, dizendo o que já está à vista.
+        */}
         <View style={e.portaLista}>
-          {TELAS.filter((t) => t.rota).map((t, i) => (
+          {TELAS.map((t, i) => (
             <MenuCard
               key={t.chave}
               icon="Painel"
               title={t.titulo}
               description={t.descricao}
-              onPress={() => abrir(t.rota as string)}
-              indice={i}
-            />
-          ))}
-        </View>
-
-        <Text style={e.portaSecao}>Ainda só no painel web</Text>
-
-        <View style={e.portaLista}>
-          {TELAS.filter((t) => !t.rota).map((t, i) => (
-            <MenuCard
-              key={t.chave}
-              icon="Modulos"
-              title={t.titulo}
-              description={t.descricao}
-              emBreve
+              onPress={t.rota ? () => abrir(t.rota as string) : undefined}
+              emBreve={!t.rota}
               indice={i}
             />
           ))}

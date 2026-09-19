@@ -194,24 +194,40 @@ export const estilosFin = StyleSheet.create({
     gap: ESPACO.sm,
     marginTop: ESPACO.md,
   },
-  botaoModo: {
+  /**
+   * O seletor de duas posições. A "calha" cinza com as duas opções dentro é o que
+   * faz ler como interruptor, e não como dois botões soltos — sem ela, a posição
+   * inativa pareceria um botão desligado.
+   */
+  seletorModo: {
+    flexDirection: 'row',
+    alignSelf: 'flex-start',
+    padding: 3,
+    borderRadius: PLATFORM.radiusField,
+    backgroundColor: BRAND.surfaceVariant,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+  },
+  posicaoModo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: ESPACO.sm,
-    minHeight: 44,
-    paddingHorizontal: ESPACO.lg,
-    borderRadius: PLATFORM.radiusField,
-    backgroundColor: BRAND.primarySoft,
+    gap: ESPACO.xs,
+    minHeight: 40,
+    paddingHorizontal: ESPACO.md,
+    borderRadius: PLATFORM.radiusField - 2,
   },
-  /** Bloqueado pelo Proprietário: cinza, e sem resposta ao toque. */
-  botaoModoTravado: { backgroundColor: BRAND.surfaceVariant },
-  botaoModoTexto: {
+  /** A posição em vigor: fundo próprio, para saltar da calha. */
+  posicaoModoAtiva: { backgroundColor: BRAND.surface },
+  /** Em vigor, mas imposta pelo Proprietário — sem o azul, que sugere escolha. */
+  posicaoModoTravada: { backgroundColor: BRAND.surface },
+  posicaoModoTexto: {
     ...TIPOGRAFIA.dica,
     fontWeight: PESO.forte,
-    color: BRAND.primary,
-    letterSpacing: 1,
+    color: BRAND.textMuted,
+    letterSpacing: 0.8,
   },
-  botaoModoTextoTravado: { color: BRAND.textMuted },
+  posicaoModoTextoAtiva: { color: BRAND.primary },
+  posicaoModoTextoInerte: { color: BRAND.textFaint },
 
   // ─────────────────────────────────────────────────────────────────────────
   // AVISOS E ESTADOS
@@ -238,5 +254,79 @@ export const estilosFin = StyleSheet.create({
   // A PORTA DO MÓDULO
   // ─────────────────────────────────────────────────────────────────────────
   portaLista: { gap: ESPACO.md, marginTop: ESPACO.lg },
-  portaSecao: { ...TIPOGRAFIA.secao, fontWeight: PESO.medio, marginTop: ESPACO.xl },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // A TELA DE LANÇAMENTO (19/09/2026)
+  // ─────────────────────────────────────────────────────────────────────────
+  rotuloCampo: {
+    ...TIPOGRAFIA.dica,
+    fontWeight: PESO.forte,
+    color: BRAND.textMuted,
+    letterSpacing: 1,
+    marginBottom: ESPACO.sm,
+  },
+  espacoCampo: { marginTop: ESPACO.lg },
+
+  /**
+   * ⚠️ O CAMPO DE DINHEIRO NÃO USA O `Input` DA PLATAFORMA, e a razão é o "R$"
+   * fixo à esquerda: aquele componente põe ÍCONE nessa posição, não texto. Forçar
+   * um ícone de cifrão traria um desenho estrangeiro ao lado de um número.
+   */
+  campoDinheiro: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ESPACO.sm,
+    minHeight: 48,
+    paddingHorizontal: ESPACO.md,
+    borderRadius: PLATFORM.radiusField,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    backgroundColor: BRAND.surface,
+  },
+  campoDinheiroSimbolo: {
+    ...TIPOGRAFIA.legenda,
+    fontWeight: PESO.forte,
+    color: BRAND.textMuted,
+  },
+  campoDinheiroTexto: {
+    flex: 1,
+    ...TIPOGRAFIA.corpo,
+    color: BRAND.text,
+    fontVariant: ['tabular-nums'],
+    paddingVertical: ESPACO.sm,
+  },
+
+  duasOpcoes: { flexDirection: 'row', gap: ESPACO.sm },
+  /** ⚠️ 48pt de altura: é alvo de toque, não rótulo. */
+  opcao: {
+    flex: 1,
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: PLATFORM.radiusField,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    backgroundColor: BRAND.surface,
+  },
+  opcaoAtiva: { borderColor: BRAND.primary, backgroundColor: BRAND.primarySoft },
+  opcaoTexto: {
+    ...TIPOGRAFIA.dica,
+    fontWeight: PESO.forte,
+    color: BRAND.textMuted,
+    letterSpacing: 0.8,
+  },
+  opcaoTextoAtiva: { color: BRAND.primary },
+
+  /**
+   * A área tocável de uma conta na lista do DINHEIRO DO PERÍODO.
+   *
+   * ⚠️ A MARGEM NEGATIVA É DE PROPÓSITO: ela devolve o espaço que o `padding`
+   * consumiu, para o realce do toque ser MAIOR que a barra sem empurrar o layout.
+   * É o mesmo gesto que a tela do site faz com `p-3 -m-3`.
+   */
+  linhaTocavel: {
+    borderRadius: PLATFORM.radiusField,
+    padding: ESPACO.sm,
+    margin: -ESPACO.sm,
+  },
 });

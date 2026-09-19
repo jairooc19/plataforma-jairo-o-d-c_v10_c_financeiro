@@ -3,7 +3,7 @@ import { useFonts } from 'expo-font';
 import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useRef, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
 
@@ -14,6 +14,7 @@ import { useBiometrics } from '@/hooks/useBiometrics';
 import { usePermissionWatch } from '@/hooks/usePermissionWatch';
 import { ThemeAnimationProvider, useThemeAnimation } from '@/context/ThemeAnimationContext';
 import GestureRoot from '@/components/GestureRoot';
+import LogoPJODC from '@/components/LogoPJODC';
 import { BRAND } from '@/constants/Colors';
 import { TAMANHO, PESO } from '@/constants/Typography';
 
@@ -240,6 +241,25 @@ function RootLayoutNav({
           headerShown: true,
           title: tituloDoSistema,
           headerBackVisible: false,
+          /**
+           * 🇧🇷 A LOGO NO CABEÇALHO (19/09/2026, pedido do dono do projeto).
+           *
+           * ⚠️ `headerTitle` COMO FUNÇÃO, E NÃO `headerLeft`. Pondo a logo à
+           * esquerda ela ficaria no lugar do botão de voltar, e o título continuaria
+           * centrado sozinho — o conjunto leria como duas coisas soltas. Como
+           * `headerTitle`, logo e texto são UM bloco, e o cabeçalho das abas passa a
+           * repetir o mesmo lockup da tela de entrada.
+           *
+           * ⚠️ O TÍTULO CONTINUA VINDO DO `settings` (white-label), não de um literal.
+           */
+          headerTitle: () => (
+            <View style={estilosCabecalho.lockup}>
+              <LogoPJODC tamanho={28} fundo={BRAND.surface} />
+              <Text style={estilosCabecalho.titulo} numberOfLines={1}>
+                {tituloDoSistema}
+              </Text>
+            </View>
+          ),
           ...opcoesCabecalho,
         }}
       />
@@ -347,6 +367,26 @@ const opcoesCabecalho = {
     color: BRAND.text,
   },
 };
+
+/**
+ * 🇧🇷 O LOCKUP DO CABEÇALHO DAS ABAS — logo + título do white-label, na mesma
+ * linha, espelhando a tela de entrada (19/09/2026).
+ *
+ * ⚠️ O DISCO DA LOGO VAI EM `BRAND.surface` (branco), e não no padrão dela: o
+ * cabeçalho nativo é branco, e disco branco sobre branco soma zero. Passando a cor
+ * do fundo, o desenho se recorta como no site — que faz o mesmo sobre a barra
+ * colorida do cabeçalho dele.
+ */
+const estilosCabecalho = StyleSheet.create({
+  lockup: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  titulo: {
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    color: BRAND.text,
+    flexShrink: 1,
+  },
+});
 
 const estilos = StyleSheet.create({
   raiz: { flex: 1 },

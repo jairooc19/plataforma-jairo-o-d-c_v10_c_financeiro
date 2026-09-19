@@ -2,7 +2,7 @@ import React, { memo } from 'react';
 import { View, Text } from 'react-native';
 import {
   formatarBRL,
-  faixaDeConsumo,
+  faixaDaLinha,
   larguraDaBarra,
   situacaoDaLinha,
   mostraValores,
@@ -50,7 +50,7 @@ export interface BarraDeConsumoProps {
 }
 
 function BarraDeConsumoBase({ linha, ritmo, modo, nome }: BarraDeConsumoProps) {
-  const faixa = faixaDeConsumo(linha.consumo_percentual, linha.tipo);
+  const faixa = faixaDaLinha(linha);
   const largura = larguraDaBarra(linha.consumo_percentual);
 
   /**
@@ -82,8 +82,24 @@ function BarraDeConsumoBase({ linha, ritmo, modo, nome }: BarraDeConsumoProps) {
     (c) => formatarBRL(c),
   );
 
+  /**
+   * ⚠️ QUEM DECIDE A FAIXA É `faixaDaLinha`, NO CORE — e ela trata os dois blocos
+   * que não são "consumo de orçamento": FORA e RESULTADO devolvem `NEUTRA`. Ver o
+   * TSDoc dela para o porquê (traços vermelhos no bloco FORA e barra sempre verde
+   * no RESULTADO, os dois vistos em capturas de 19/09/2026).
+   *
+   * ⚠️ E É A MESMA FUNÇÃO QUE O SITE USA. Antes desta data a regra estava escrita
+   * nas DUAS telas, e eu cheguei a corrigir só a do aplicativo — o que teria feito
+   * o telefone e o monitor pintarem a mesma linha de cores diferentes.
+   */
   const cor =
-    faixa === 'VERDE' ? BRAND.success : faixa === 'AMBAR' ? BRAND.warning : BRAND.error;
+    faixa === 'NEUTRA'
+      ? BRAND.textMuted
+      : faixa === 'VERDE'
+        ? BRAND.success
+        : faixa === 'AMBAR'
+          ? BRAND.warning
+          : BRAND.error;
 
   return (
     <View>
@@ -118,9 +134,13 @@ function BarraDeConsumoBase({ linha, ritmo, modo, nome }: BarraDeConsumoProps) {
         </Text>
       </View>
 
-      <Text style={[e.situacao, { color: situacao.destaque ? cor : BRAND.textFaint }]}>
-        {situacao.texto}
-      </Text>
+      {/* ⚠️ Frase vazia NÃO vira linha em branco: o RESULTADO no modo percentual
+          não tem o que dizer, e um `<Text>` vazio deixaria um vão inexplicado. */}
+      {!!situacao.texto && (
+        <Text style={[e.situacao, { color: situacao.destaque ? cor : BRAND.textFaint }]}>
+          {situacao.texto}
+        </Text>
+      )}
     </View>
   );
 }

@@ -1,7 +1,15 @@
-import React from 'react';
-import { View, Text, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
+import React, { useCallback } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  ActivityIndicator,
+  RefreshControl,
+  Pressable,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { agruparEmBlocos, rotuloDoMes } from '@jairo/core';
+import { useRouter } from 'expo-router';
+import { agruparEmBlocos, rotuloDoMes, type LinhaDoDinheiro } from '@jairo/core';
 
 import { BRAND } from '@/constants/Colors';
 import { ICONE } from '@/constants/Spacing';
@@ -10,7 +18,7 @@ import Button from '@/components/button/Button';
 import { useContextoFin } from './useContextoFin';
 import { useDinheiroDoPeriodo } from './useDinheiroDoPeriodo';
 import SeletorDeCompetencia from './SeletorDeCompetencia';
-import BotaoModoExibicao from './BotaoModoExibicao';
+import SeletorDeExibicao from './SeletorDeExibicao';
 import BarraDeConsumo from './BarraDeConsumo';
 import IconeFin from './IconeFin';
 import { estilosFin as e } from './estilos';
@@ -36,13 +44,37 @@ import { estilosFin as e } from './estilos';
  * monta um A4; no telefone isso não existe da mesma forma, e um botão que faz outra
  * coisa com o mesmo nome é pior do que botão nenhum.
  *
- * ⚠️ NÃO HÁ "LANÇAR" nesta parte. No site, tocar numa conta abre o lançamento — que
- * exige teclado, campo de dinheiro, seleção de conta e o ritual da ordem no extrato.
- * É uma tela inteira, não um botão: fica para a parte 2.
+ * ✍️ TOCAR NUMA CONTA ABRE O LANÇAMENTO desde 19/09/2026 — este parágrafo dizia o
+ * contrário ("fica para a parte 2") até o dono do projeto pedir a função no mesmo dia.
+ * A tela é a `LancarScreen`, e o toque leva conta e competência por parâmetro.
  */
 export default function DinheiroDoPeriodoScreen() {
   const ctx = useContextoFin();
   const d = useDinheiroDoPeriodo(ctx.tenantId);
+  const router = useRouter();
+
+  /**
+   * ✍️ TOCAR NUMA CONTA ABRE O LANÇAMENTO (19/09/2026).
+   *
+   * ⚠️ O RESULTADO NÃO É TOCÁVEL, e não é esquecimento: aquele bloco é uma CONTA
+   * calculada (receitas planejadas menos despesas planejadas), não uma conta
+   * identificadora onde se possa lançar. Ele chega com `conta_id` nulo, e a guarda
+   * abaixo cobre os dois casos de uma vez.
+   *
+   * ⚠️ O BLOCO "FORA" **É** TOCÁVEL, de propósito. São contas reais que tiveram
+   * movimento sem orçamento — lançar nelas é legítimo, e muitas vezes é justamente
+   * o que a pessoa quer fazer ao ver um gasto imprevisto.
+   */
+  const abrirLancamento = useCallback(
+    (linha: LinhaDoDinheiro) => {
+      if (!linha.conta_id || linha.bloco === 'RESULTADO') return;
+      router.push({
+        pathname: '/financeiro/lancar',
+        params: { conta: linha.conta_id, competencia: d.competencia },
+      } as never);
+    },
+    [router, d.competencia],
+  );
 
   // ─── Estados que substituem a tela inteira ──────────────────────────────
   if (ctx.carregando) return <Girando />;
@@ -79,14 +111,14 @@ export default function DinheiroDoPeriodoScreen() {
           />
         }
       >
-        <View style={e.topo}>
-          <IconeFin nome="dinheiro" tamanho={ICONE.medio} />
-          <Text style={e.titulo}>DINHEIRO DO PERÍODO</Text>
-        </View>
-
         {/*
-          🎁 A EMPRESA ATIVA NO ALTO (bónus B6). No telemóvel ela SOBREVIVE a fechar
-          o aplicativo — é fácil abrir amanhã achando que está na outra empresa.
+          ⚠️ O TÍTULO DA TELA SAIU DAQUI EM 19/09/2026. A moldura do módulo já
+          desenha "DINHEIRO DO PERÍODO" no cabeçalho NATIVO, e repeti-lo no corpo
+          gastava duas linhas dizendo duas vezes a mesma coisa — visível numa
+          captura de tela do dono do projeto, com os dois títulos empilhados.
+
+          🎁 A EMPRESA ATIVA FICA (bónus B6). No telemóvel ela SOBREVIVE a fechar o
+          aplicativo — é fácil abrir amanhã achando que está na outra empresa.
         */}
         <Text style={e.contexto} numberOfLines={2}>
           {[ctx.nomeEmpresa, rotuloDoMes(d.competencia), `${d.ritmo}% DO MÊS DECORRIDO`]
@@ -101,7 +133,7 @@ export default function DinheiroDoPeriodoScreen() {
         />
 
         <View style={e.barraAcoes}>
-          <BotaoModoExibicao exibicao={d.exibicao} aoAlternar={d.alternarModo} />
+          <SeletorDeExibicao exibicao={d.exibicao} aoEscolher={d.escolherModo} />
         </View>
 
         {/*
@@ -157,16 +189,62 @@ export default function DinheiroDoPeriodoScreen() {
                 </Text>
               )}
 
+              {/*
+                ⚠️ NO MODO "SÓ %" O BLOCO FORA NÃO TEM O QUE MOSTRAR, e por isso ele
+                se resume (19/09/2026, visto numa captura do dono do projeto).
+
+                Uma linha FORA não tem orçamento — é a definição dela. Sem orçamento
+                não há percentual, então no modo "SÓ %" cada conta virava três linhas
+                dizendo NADA: "SOMENTE O PERCENTUAL", uma barra vazia, um traço e
+                "SEM ORÇAMENTO NESTA COMPETÊNCIA". Na captura eram oito contas assim,
+                ocupando mais tela do que o orçamento inteiro.
+
+                Resumir é mais honesto do que repetir o vazio: diz QUANTAS contas
+                estão nessa situação e por que os números não aparecem.
+              */}
+              {bloco.chave === 'FORA' && d.exibicao.modo === 'PERCENTUAL' ? (
+                <Text style={e.blocoNota}>
+                  {bloco.linhas.length === 1
+                    ? '1 CONTA TEVE MOVIMENTO SEM ORÇAMENTO NESTA COMPETÊNCIA.'
+                    : `${bloco.linhas.length} CONTAS TIVERAM MOVIMENTO SEM ORÇAMENTO NESTA COMPETÊNCIA.`}
+                  {' '}COMO NÃO HÁ ORÇAMENTO, NÃO HÁ PERCENTUAL A MOSTRAR — TROQUE PARA
+                  &quot;VALORES + %&quot; PARA VER QUANTO FOI.
+                </Text>
+              ) : (
               <View style={e.linhas}>
-                {bloco.linhas.map((l) => (
-                  <BarraDeConsumo
-                    key={l.conta_id}
-                    linha={l}
-                    ritmo={d.ritmo}
-                    modo={d.exibicao.modo}
-                  />
-                ))}
+                {bloco.linhas.map((l) => {
+                  /**
+                   * ⚠️ A TELA SÓ OFERECE O TOQUE A QUEM O BANCO VAI DEIXAR GRAVAR.
+                   * Sem `lc_criar`, a linha fica inerte — e isso é conforto, não
+                   * segurança: quem forçar a rota leva `42501` de
+                   * `fin_gravar_lancamento`, que é quem de fato recusa.
+                   */
+                  const tocavel = ctx.pode('lc_criar') && !!l.conta_id;
+                  if (!tocavel) {
+                    return (
+                      <BarraDeConsumo
+                        key={l.conta_id}
+                        linha={l}
+                        ritmo={d.ritmo}
+                        modo={d.exibicao.modo}
+                      />
+                    );
+                  }
+                  return (
+                    <Pressable
+                      key={l.conta_id}
+                      onPress={() => abrirLancamento(l)}
+                      style={e.linhaTocavel}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Lançar em ${l.nome ?? 'conta'}`}
+                      android_ripple={{ color: BRAND.primarySoft }}
+                    >
+                      <BarraDeConsumo linha={l} ritmo={d.ritmo} modo={d.exibicao.modo} />
+                    </Pressable>
+                  );
+                })}
               </View>
+              )}
 
               {bloco.total && (
                 <View style={e.divisorTotal}>

@@ -20,6 +20,7 @@ import {
   mostraValores,
   modoGravado,
   CHAVE_MODO_DINHEIRO,
+  MODOS_DO_DINHEIRO,
 } from './modoDinheiroRegras.ts';
 
 // ---------------------------------------------------------------------------
@@ -80,30 +81,40 @@ test('7 · alternar vai e volta', () => {
   assert.equal(alternarModoDoDinheiro(alternarModoDoDinheiro('VALORES')), 'VALORES');
 });
 
-test('8 · o rótulo anuncia o DESTINO do toque, não o estado atual', () => {
-  assert.equal(rotuloDoModo('VALORES'), 'SÓ %');
-  assert.equal(rotuloDoModo('PERCENTUAL'), 'VALORES + %');
+test('8 · o rótulo é o NOME DO ESTADO, nunca o destino do toque', () => {
+  // ⚠️ ESTE TESTE AFIRMAVA O CONTRÁRIO ATÉ 19/09/2026, e passava — porque provava
+  // fielmente uma decisão errada. O dono do projeto leu o botão "SÓ %" como "estou
+  // em SÓ %", viu os valores ao lado e relatou defeito. Teste verde não prova que a
+  // decisão é boa; prova que o código faz o que alguém escreveu que ele faria.
+  assert.equal(rotuloDoModo('VALORES'), 'VALORES + %');
+  assert.equal(rotuloDoModo('PERCENTUAL'), 'SÓ %');
+});
+
+test('9 · as duas posições do seletor, na ordem em que aparecem', () => {
+  assert.deepEqual([...MODOS_DO_DINHEIRO], ['VALORES', 'PERCENTUAL']);
+  // Cada posição sabe se nomear — é o que o seletor desenha.
+  assert.deepEqual(MODOS_DO_DINHEIRO.map(rotuloDoModo), ['VALORES + %', 'SÓ %']);
 });
 
 // ---------------------------------------------------------------------------
 // MOSTRAR OU NÃO MOSTRAR UMA LINHA
 // ---------------------------------------------------------------------------
 
-test('9 · no modo PERCENTUAL nunca mostra valor, mesmo que o valor tenha chegado', () => {
+test('10 · no modo PERCENTUAL nunca mostra valor, mesmo que o valor tenha chegado', () => {
   assert.equal(
     mostraValores('PERCENTUAL', { orcado_centavos: 120000, realizado_centavos: 94800 }),
     false,
   );
 });
 
-test('10 · no modo VALORES com nulo do banco NÃO mostra valor (evita escrever 0,00)', () => {
+test('11 · no modo VALORES com nulo do banco NÃO mostra valor (evita escrever 0,00)', () => {
   assert.equal(
     mostraValores('VALORES', { orcado_centavos: null, realizado_centavos: null }),
     false,
   );
 });
 
-test('11 · no modo VALORES com um dos dois preenchido, mostra', () => {
+test('12 · no modo VALORES com um dos dois preenchido, mostra', () => {
   assert.equal(mostraValores('VALORES', { orcado_centavos: 0, realizado_centavos: null }), true);
   assert.equal(mostraValores('VALORES', { orcado_centavos: null, realizado_centavos: 500 }), true);
 });
@@ -112,7 +123,7 @@ test('11 · no modo VALORES com um dos dois preenchido, mostra', () => {
 // A PREFERÊNCIA GRAVADA NO APARELHO
 // ---------------------------------------------------------------------------
 
-test('12 · modoGravado só aceita os dois valores conhecidos', () => {
+test('13 · modoGravado só aceita os dois valores conhecidos', () => {
   assert.equal(modoGravado('VALORES'), 'VALORES');
   assert.equal(modoGravado('PERCENTUAL'), 'PERCENTUAL');
   assert.equal(modoGravado(null), null);
@@ -122,7 +133,7 @@ test('12 · modoGravado só aceita os dois valores conhecidos', () => {
   assert.equal(modoGravado('{"modo":"VALORES"}'), null, 'lixo no cofre não vira escolha');
 });
 
-test('13 · a chave do cofre carrega o prefixo do módulo', () => {
+test('14 · a chave do cofre carrega o prefixo do módulo', () => {
   // Ela é passada por parâmetro ao storageService da plataforma; se um dia
   // alguém a mover para lá, o verificador de LEGO acusa — e este teste explica
   // por que ela nasceu aqui.
