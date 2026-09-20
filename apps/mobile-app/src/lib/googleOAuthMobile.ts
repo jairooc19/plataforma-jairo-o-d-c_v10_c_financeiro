@@ -7,7 +7,8 @@
  *
  * ❌ POR QUE NÃO O CAMINHO DA WEB: lá o `@react-oauth/google` renderiza um botão
  * que devolve um ID Token pronto, e o Core o troca por sessão em
- * `googleAuthService.signInOwner(idToken)`. Esse botão é um componente DOM —
+ * `googleAuthService.signInComGoogle(idToken, papel)` (⚠️ este comentário dizia
+ * `signInOwner`, nome que NUNCA existiu no Core). Esse botão é um componente DOM —
  * não existe em React Native. O equivalente nativo
  * (`@react-native-google-signin`) exigiria development build, SHA-1 do keystore
  * Android e um OAuth client iOS no Google Cloud.
@@ -81,12 +82,19 @@ export function montarRedirectUri(): string {
 
 export const googleOAuthMobile = {
   /**
-   * 🚪 PORTA ÚNICA DO PROPRIETÁRIO NO MOBILE.
+   * 🚪 PORTA ÚNICA DO GOOGLE NO MOBILE — SERVE AOS DOIS PAPÉIS.
+   *
+   * ⚠️ CHAMAVA-SE `signInOwner` ATÉ 20/09/2026, e o nome era a própria armadilha:
+   * ele sugeria que existia (ou que faltava) um segundo método para o Dependente.
+   * Não existe, e não deve existir — **a mecânica do OAuth é idêntica para os
+   * dois**. O papel não vai ao Google, não vai ao Supabase e não é gravado em
+   * lugar nenhum por este arquivo: ele só decide, DEPOIS do login, qual triagem
+   * rodar. Ver `services/papelDeAcessoService.ts`.
+   *
    * Nunca lança — devolve `{ success: false, error }` para a tela decidir o que
-   * mostrar, exatamente como `googleAuthService.signInOwner` faz na web. O
-   * `useAuthLogicMobile` depende desse contrato.
+   * mostrar. O `useGoogleLogin` depende desse contrato.
    */
-  async signInOwner(): Promise<ResultadoOAuthMobile> {
+  async entrarComGoogle(): Promise<ResultadoOAuthMobile> {
     try {
       const redirectTo = montarRedirectUri();
       registrarDiagnosticoOAuth(redirectTo);

@@ -5,10 +5,10 @@
  */
 
 // Versão do Frontend Administrativo (Web)
-export const WEB_VERSION = "v10 - 2026-09-19-02";
+export const WEB_VERSION = "v10 - 2026-09-20-01";
 
 // Versão do Aplicativo Mobile (Android/iOS)
-export const APP_VERSION = "v10 - 2026-09-19-02";
+export const APP_VERSION = "v10 - 2026-09-20-01";
 
 /**
  * Nota: Ao atualizar o sistema, altere apenas este arquivo. 

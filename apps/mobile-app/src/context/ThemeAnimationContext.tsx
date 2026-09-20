@@ -91,10 +91,20 @@ function extrairPaleta(settings: GlobalSettings | null): PaletaAnimavel {
  * a transição do zero e a cor ficaria tremendo enquanto o app tivesse trabalho
  * a fazer.
  *
- * 📌 QUEM CONSOME: por enquanto, ninguém obrigatoriamente — as telas seguem
- * lendo `BRAND` pelo `useTheme`. Este provedor está montado e alimentado, e a
- * adesão é por componente, via `hooks/useAnimatedThemeColor.ts`. É preparação
- * ligada, não código morto: `atualizarTema` já recebe o que o banco devolveu.
+ * 📌 QUEM CONSOME: `app/_layout.tsx`, que monta o provedor e chama
+ * `atualizarTema` com o que o banco devolveu. As telas seguem lendo `BRAND`
+ * pelo `useTheme` — nenhuma anima cor, hoje.
+ *
+ * ⚠️ ESTE PARÁGRAFO APONTAVA PARA `hooks/useAnimatedThemeColor.ts` como "a
+ * forma de aderir". **Aquele arquivo foi apagado em 20/09/2026**, na faxina dos
+ * órfãos: 66 linhas que nenhuma tela importava em três semanas. Ele está no
+ * histórico do Git e volta com um `git checkout` no dia em que houver a
+ * primeira tela que realmente anime a cor — construí-lo de novo ANTES disso foi
+ * justamente o erro que a faxina corrigiu.
+ *
+ * O provedor ficou, e continua sendo preparação LIGADA, não código morto: ele é
+ * montado, recebe as cores reais e mantém os `shared values` prontos. O que
+ * saiu foi o consumidor que ninguém consumia.
  */
 export function ThemeAnimationProvider({ children }: { children: React.ReactNode }) {
   const progresso = useSharedValue(1);

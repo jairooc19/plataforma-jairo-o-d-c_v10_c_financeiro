@@ -11,6 +11,7 @@ import {
   pareceRetornoOAuth,
 } from '@/lib/oauthCallbackSession';
 import { storageService } from '@/services/storageService';
+import { papelDeAcessoService } from '@/services/papelDeAcessoService';
 import { useTenantTriage } from '@/hooks/useTenantTriage';
 import { errorService } from '@/services/errorService';
 import { BRAND } from '@/constants/Colors';
@@ -56,6 +57,25 @@ import { ESPACO } from '@/constants/Spacing';
  * portão do `profile_completed` e triagem de empresas. A diferença é o ponto de
  * partida — lá é um toque no botão, aqui é um deep link que pode ter chegado com
  * o app fechado.
+ *
+ * ===========================================================================
+ * 🎫 E É POR ISSO QUE O PAPEL VEM DO COFRE, E NÃO DA ROTA (20/09/2026)
+ * ===========================================================================
+ * Esta tela triava com `'OWNER'` fixo no código — correto enquanto só o
+ * Proprietário entrava por Google, e defeito no instante em que o Dependente
+ * passou a entrar.
+ *
+ * ⚠️ **NÃO ADIANTA PASSAR `?papel=` PARA CÁ.** Este endereço não é alcançado
+ * por `router.push`: quem o abre é o SISTEMA OPERACIONAL, entregando o deep
+ * link `plataformajairo://auth/google#access_token=…` — uma URL escrita pelo
+ * **Supabase**, a partir do que está cadastrado em Redirect URLs. Não há onde
+ * acrescentar um parâmetro nosso, e inventar um faria o endereço deixar de casar
+ * com o cadastro (o GoTrue então cai, em silêncio, na Site URL).
+ *
+ * Pior: no caminho FRIO o aplicativo foi morto enquanto o usuário autenticava no
+ * navegador. Não há estado de React, não há pilha de navegação, não há memória.
+ * O cofre do aparelho é o único lugar que atravessa isso — e o papel foi gravado
+ * lá antes de o navegador abrir. Ver `services/papelDeAcessoService.ts`.
  *
  * 🚫 NÃO PONHA ESTA TELA EM `app/(tabs)/` NEM EM `app/(auth)/`. Em `(tabs)` ela
  * viraria uma aba; em `(auth)` o grupo some da URL e o endereço passaria a ser
@@ -133,15 +153,24 @@ export default function GoogleCallbackScreen() {
          */
         if (!vivo.current) return;
 
-        const resultado = await triar(sessao.user.id, 'OWNER');
+        // O papel escolhido na guarita, atravessando a ida ao navegador.
+        const papel = await papelDeAcessoService.ler();
+
+        if (!vivo.current) return;
+
+        const resultado = await triar(sessao.user.id, papel);
 
         /**
-         * Proprietário autenticado e sem empresa vinculada. O seletor é quem
-         * desenha "Aguardando Triagem" quando a lista volta vazia — mandar para
-         * lá evita duplicar aquela tela aqui.
+         * Autenticado e sem empresa vinculada. O seletor é quem desenha a sala
+         * de espera quando a lista volta vazia — mandar para lá evita duplicar
+         * aquela tela aqui.
+         *
+         * ⚠️ E O PAPEL VAI JUNTO, porque são DUAS salas de espera: quem espera
+         * pelo Proprietário é o Desenvolvedor; quem espera pelo Dependente é o
+         * dono da empresa dele. Ver `hooks/auth/types.ts`.
          */
         if (resultado === 'sem-vinculos' && vivo.current) {
-          router.replace({ pathname: '/(auth)/select-tenant', params: { papel: 'OWNER' } });
+          router.replace({ pathname: '/(auth)/select-tenant', params: { papel } });
         }
       } catch (falha) {
         errorService.registrar('AUTH', falha);

@@ -9,8 +9,10 @@ import { BRAND } from '@/constants/Colors';
 import { TIPOGRAFIA } from '@/constants/Typography';
 import { ESPACO } from '@/constants/Spacing';
 import type { AuthMessage as TipoMensagem } from '@/hooks/useAuthLogicMobile';
+import type { PapelDeAcesso } from '@/services/papelDeAcessoService';
 
 interface Props {
+  papel: PapelDeAcesso;
   onGoogleSignIn: () => void;
   loading: boolean;
   message: TipoMensagem | null;
@@ -18,7 +20,7 @@ interface Props {
 }
 
 /**
- * 🔵 VIEW: LOGIN DO PROPRIETÁRIO VIA GOOGLE — MOBILE (PJODC v10)
+ * 🔵 VIEW: LOGIN VIA GOOGLE — PROPRIETÁRIO **E** DEPENDENTE — MOBILE (PJODC v10)
  * Local: apps/mobile-app/src/components/auth/LoginGoogleView.tsx
  *
  * v9: [100% NATIVO — REFATORAÇÃO DE DESIGN]
@@ -29,6 +31,29 @@ interface Props {
  * até 13/09/2026 — nome corrigido aqui em 17/09/2026): **nenhum campo**. Sem e-mail,
  * sem senha, sem "esqueci minha senha" — não há senha a esquecer. Quem guarda a
  * credencial é o Google.
+ *
+ * ===========================================================================
+ * 👥 O DEPENDENTE CHEGOU AQUI EM 20/09/2026 — E ATÉ ENTÃO NÃO ENTRAVA
+ * ===========================================================================
+ * Ele era mandado ao formulário de e-mail e senha. Para ter senha, precisaria se
+ * cadastrar; o botão de cadastro saiu do menu na v7, e o `SignUpView` só é
+ * alcançável pelo desvio de planeta. **Não existia caminho nenhum.** A web
+ * descobriu e corrigiu isso em 13/09/2026; o aplicativo ficou para trás, com a
+ * divergência anotada em `app/(auth)/login.tsx` à espera de decisão.
+ *
+ * A porta do Google resolve porque ela CRIA A CONTA no primeiro acesso, pelo
+ * gatilho `on_auth_user_created` (com a rede de segurança
+ * `ensure_google_user_profile` logo atrás).
+ *
+ * ⚠️ UMA TELA, DOIS PAPÉIS — e a diferença entre eles é SÓ texto. A mecânica do
+ * OAuth é a mesma, o botão é o mesmo, a chamada é a mesma. Duplicar este arquivo
+ * num `LoginGoogleDependentView` faria duas cópias divergirem no dia em que o
+ * botão do Google mudasse de forma.
+ *
+ * ⚠️ E O AVISO DO DEPENDENTE NÃO É ENFEITE. O primeiro acesso dele SEMPRE termina
+ * em "sem vínculo" — é o normal, não a exceção. Sem dizer de antemão que falta um
+ * convite, e de quem ele depende, a pessoa lê aquele desfecho como falha do
+ * aplicativo e tenta de novo, indefinidamente.
  *
  * 📱 A DIFERENÇA VISÍVEL EM RELAÇÃO À WEB: lá o `@react-oauth/google` desenha o
  * botão oficial do Google e abre um popup. Aqui o botão é nosso e abre o
@@ -48,12 +73,18 @@ interface Props {
  * existir. No mobile o único caminho JÁ É o do Supabase por redirecionamento —
  * ele não depende de Client ID no app, então não há o que faltar.
  */
-function LoginGoogleView({ onGoogleSignIn, loading, message, onBack }: Props) {
+function LoginGoogleView({ papel, onGoogleSignIn, loading, message, onBack }: Props) {
+  const ehDono = papel === 'OWNER';
+
   return (
     <Card>
-      <Text style={authStyles.titulo}>Usuário Proprietário</Text>
+      <Text style={authStyles.titulo}>
+        {ehDono ? 'Usuário Proprietário' : 'Usuário Dependente'}
+      </Text>
       <Text style={authStyles.subtitulo}>
-        O acesso do Proprietário é feito exclusivamente pela sua conta Google.
+        {ehDono
+          ? 'O acesso do Proprietário é feito exclusivamente pela sua conta Google.'
+          : 'O acesso do Dependente é feito exclusivamente pela sua conta Google.'}
       </Text>
 
       <View style={estilos.divisor}>
@@ -76,6 +107,15 @@ function LoginGoogleView({ onGoogleSignIn, loading, message, onBack }: Props) {
       <Text style={estilos.aviso}>
         Você será levado ao navegador para autenticar e voltará ao aplicativo em seguida.
       </Text>
+
+      {/* Ver a nota do cabeçalho: sem isto, o desfecho normal do primeiro
+          acesso do Dependente parece defeito. */}
+      {!ehDono && (
+        <Text style={estilos.primeiroAcesso}>
+          No primeiro acesso, entre aqui uma vez para que a sua conta exista. Depois,
+          peça ao Proprietário da empresa para incluir este mesmo e-mail na equipe dele.
+        </Text>
+      )}
 
       <AuthMessage message={message} />
 
@@ -122,6 +162,22 @@ const estilos = StyleSheet.create({
   aviso: {
     ...TIPOGRAFIA.dica,
     textAlign: 'center',
+    marginTop: ESPACO.md,
+  },
+
+  /**
+   * ⚠️ `color` DEPOIS DO ESPALHAMENTO, sempre. `TIPOGRAFIA.dica` traz `color`
+   * própria, e em objeto literal a ÚLTIMA chave ganha: declarada antes, a cor
+   * pedida aqui simplesmente não valeria — e o pior é que a linha continuaria
+   * escrita no arquivo, parecendo cumprida.
+   */
+  primeiroAcesso: {
+    ...TIPOGRAFIA.dica,
+    color: BRAND.text,
+    textAlign: 'center',
+    backgroundColor: BRAND.surfaceVariant,
+    borderRadius: 12,
+    padding: ESPACO.md,
     marginTop: ESPACO.md,
   },
 

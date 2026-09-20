@@ -4,6 +4,7 @@ import { COUNTRIES, BRAZIL_STATES } from '@jairo/core';
 import { useAuthForm } from './useAuthForm';
 import { useTenantTriage, type PapelTriagem } from './useTenantTriage';
 import { useBrazilCitiesMobile } from './useBrazilCitiesMobile';
+import type { PapelDeAcesso } from '@/services/papelDeAcessoService';
 import { useSignUpFlow } from './auth/useSignUpFlow';
 import { usePasswordLogin } from './auth/usePasswordLogin';
 import { useGoogleLogin } from './auth/useGoogleLogin';
@@ -31,8 +32,30 @@ export type { ViewState, AuthMessage } from './auth/types';
  * ⚠️ NENHUMA REGRA DE NEGÓCIO MORA AQUI nem nos quatro fluxos. Validação de
  * perfil, tradução de erro do Google, criação de perfil e consulta de vínculos
  * vêm todas do `@jairo/core` — estes arquivos orquestram estado de tela.
+ *
+ * ===========================================================================
+ * 🎫 O PAPEL É UM PARÂMETRO, E NUNCA UMA DEDUÇÃO A PARTIR DA `view`
+ * ===========================================================================
+ * Seria tentador escrever `view === 'login-dependent' ? 'DEPENDENT' : 'OWNER'`
+ * e poupar um parâmetro. **O CLAUDE.md proíbe explicitamente**, e o motivo é
+ * este fluxo: o "Completar Cadastro" fica no MEIO do caminho, em outra rota,
+ * com `view === 'complete-profile'` — e é justamente ali que a triagem do
+ * primeiro acesso acontece. A dedução leria "não é login-dependent" e chamaria
+ * todo Dependente novo de Proprietário.
+ *
+ * Quem passa o papel é a ROTA de login, a partir do `?papel=` que a guarita
+ * escreveu no clique. E para o que atravessa o OAuth (que sai do aplicativo e
+ * pode voltar com ele morto) quem responde é o cofre —
+ * `services/papelDeAcessoService.ts`.
+ *
+ * ⚠️ O PADRÃO `'OWNER'` SERVE ÀS ROTAS QUE NÃO ESCOLHEM PAPEL (cadastro,
+ * completar perfil). Nenhuma delas usa este valor para triar: o
+ * `useProfileCompletion` lê o cofre, porque o dele veio de antes.
  */
-export function useAuthLogicMobile(initialView: ViewState = 'menu') {
+export function useAuthLogicMobile(
+  initialView: ViewState = 'menu',
+  papel: PapelDeAcesso = 'OWNER'
+) {
   const router = useRouter();
   const { triar } = useTenantTriage();
   const {
@@ -73,12 +96,19 @@ export function useAuthLogicMobile(initialView: ViewState = 'menu') {
 
   /**
    * Resposta a "nenhum vínculo", diferente por papel — igual à web.
-   * O Proprietário vai para a sala de espera porque a promoção dele ainda não
-   * aconteceu; o Dependente recebe erro porque ninguém o vinculou a uma empresa.
+   *
+   * ⚠️ O DEPENDENTE RECEBIA UM ERRO VERMELHO AQUI ("Sem vínculos encontrados"),
+   * e isso mudou em 20/09/2026. Era a resposta certa enquanto ele entrava por
+   * SENHA: quem já tinha conta e não tinha equipe estava mesmo diante de um
+   * problema. Pela porta do Google a frase vira mentira — a conta ACABOU de ser
+   * criada, com sucesso, e não faltar equipe no primeiro acesso é o normal, não
+   * a exceção. Um erro vermelho ali ensina a pessoa a achar que o login falhou e
+   * a tentar de novo, para sempre.
+   *
+   * As duas salas são diferentes de propósito: ver a nota em `auth/types.ts`.
    */
-  const tratarSemVinculos = (papel: PapelTriagem) => {
-    if (papel === 'OWNER') setView('waiting-approval');
-    else setMessage({ text: '❌ Sem vínculos encontrados.', type: 'error' });
+  const tratarSemVinculos = (papelDaTriagem: PapelTriagem) => {
+    setView(papelDaTriagem === 'OWNER' ? 'waiting-approval' : 'waiting-team');
   };
 
   const ctx: FluxoAuthCtx = {
@@ -106,7 +136,7 @@ export function useAuthLogicMobile(initialView: ViewState = 'menu') {
 
   const { handleSignUp } = useSignUpFlow(ctx, resetForm);
   const { handleSignIn } = usePasswordLogin(ctx, view);
-  const { handleGoogleSignIn } = useGoogleLogin(ctx);
+  const { handleGoogleSignIn } = useGoogleLogin(ctx, papel);
   const { carregarUsuarioPendente, handleCompleteProfile, handleLogout } =
     useProfileCompletion(ctx, currentUser, preencherDoPerfil, resetForm);
 

@@ -61,11 +61,25 @@ export default function SelectTenantScreen() {
     router.replace('/(auth)');
   };
 
-  // A lista esvaziou entre a triagem e esta tela (vínculo revogado no intervalo).
+  /**
+   * Lista vazia. São dois motivos possíveis, e a tela é a mesma para os dois:
+   * o vínculo foi revogado entre a triagem e esta tela, ou nunca houve vínculo
+   * nenhum (é o caminho FRIO do Google, em `app/auth/google.tsx`, que manda
+   * para cá em vez de duplicar a sala de espera lá).
+   *
+   * ⚠️ A SALA DE ESPERA SEGUE O PAPEL, desde 20/09/2026. Ela era sempre
+   * "Aguardando Triagem" — a tela do PROPRIETÁRIO, que diz que o Desenvolvedor
+   * está analisando. Para um Dependente essa frase é falsa: o Desenvolvedor não
+   * vai fazer nada por ele, quem precisa incluí-lo na equipe é o dono da empresa.
+   * Ver `hooks/auth/types.ts`.
+   */
   if (!loading && tenants.length === 0) {
     return (
       <AuthScreen semMarca>
-        <MiscViews view="waiting-approval" onBack={sair} />
+        <MiscViews
+          view={papelAtual === 'OWNER' ? 'waiting-approval' : 'waiting-team'}
+          onBack={sair}
+        />
       </AuthScreen>
     );
   }

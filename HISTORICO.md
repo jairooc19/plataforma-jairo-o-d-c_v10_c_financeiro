@@ -17,6 +17,148 @@ todas foram pagas com um defeito em produção.
 
 ---
 
+**2026-09-20 — v10: DEGRAU 09, a porta do Dependente no aplicativo (+ a faxina dos órfãos)**
+
+Dois pedidos num commit. O primeiro fecha uma divergência de sete dias entre a web e o
+aplicativo; o segundo apaga 309 linhas que nunca serviram a ninguém.
+
+---
+
+### 1) O DEPENDENTE NÃO ENTRAVA NO APLICATIVO — E NÃO ERA "FALTAVA UM BOTÃO"
+
+O diagnóstico é o mesmo que a **web** fez em 13/09/2026, e o aplicativo ficou para trás:
+
+- o Dependente era mandado ao formulário de e-mail e senha;
+- para ter senha, precisaria se cadastrar;
+- o botão "CADASTRAR USUÁRIO" saiu do menu principal na v7;
+- o `SignUpView` só é alcançável pelo desvio de planeta.
+
+**Não existia caminho nenhum.** Não era uma porta ruim — era a ausência de porta. A do
+Google resolve porque ela **cria a conta no primeiro acesso**, pelo gatilho
+`on_auth_user_created` (com a rede `ensure_google_user_profile` logo atrás).
+
+> 📌 **O DEFEITO ESTAVA ESCRITO, POR EXTENSO, NO PRÓPRIO ARQUIVO.** O comentário de
+> `app/(auth)/login.tsx` dizia desde 17/09/2026: *"note a divergência REAL que sobra
+> abaixo: na WEB o Dependente entra por Google; aqui ele ainda cai no formulário de senha.
+> Mudar isso é alterar COMPORTAMENTO do aplicativo, não comentário — ficou pendente de
+> decisão do dono do projeto"*. A decisão veio em 20/09/2026. **Documentar um defeito não
+> o conserta** — mas foi o que permitiu retomá-lo sem rediagnosticar nada.
+
+**A mecânica do OAuth não mudou, e é esse o ponto.** `googleOAuthMobile.signInOwner`
+virou `entrarComGoogle`: o papel **não vai ao Google, não vai ao Supabase e não é gravado**
+por aquele arquivo. O nome antigo era a própria armadilha — sugeria que faltava um segundo
+método para o Dependente, quando o certo é não haver dois.
+
+#### 🧱 O MURO: ONDE GUARDAR O PAPEL ESCOLHIDO
+
+Na web o papel vive num `useState` (`papelDoAcesso`), e basta: o popup do Google abre e
+fecha **dentro da mesma página**. No telemóvel o login **sai do aplicativo** — e aí o
+`useState` não existe mais.
+
+⚠️ **E O `?papel=` DA ROTA TAMBÉM NÃO RESOLVE.** Quem recebe a volta é
+`app/auth/google.tsx`, um endereço aberto pelo **sistema operacional**, com URL escrita
+pelo **Supabase** (`plataformajairo://auth/google#access_token=…`). Não há onde acrescentar
+um parâmetro nosso — e inventar um faria o endereço deixar de casar com os Redirect URLs,
+com o GoTrue caindo **em silêncio** na Site URL (a armadilha de 07/09/2026, de novo).
+
+Pior: no caminho **frio**, o Android matou o aplicativo enquanto o usuário autenticava no
+navegador. Sem estado, sem pilha, sem memória. **O cofre do aparelho é o único lugar que
+atravessa isso** — daí `services/papelDeAcessoService.ts`, gravado **antes** de o navegador
+abrir e lido nos três pontos do retorno.
+
+> ⚠️ **E ISSO NÃO FERE A PROIBIÇÃO DO `SecureStore`.** Aquela regra trata de
+> AUTORIZAÇÃO, e esta chave não autoriza nada: ela só escolhe **qual consulta de triagem
+> rodar** e **qual sala de espera mostrar**. Quem é OWNER e quem é DEPENDENT está em
+> `tenant_members`, escrito pelo dono da empresa, e a RLS não pergunta qual botão a pessoa
+> apertou. Gravar `'OWNER'` ali à mão não dá empresa nenhuma a ninguém — a consulta volta
+> vazia e a pessoa cai na sala de espera. É o mesmo raciocínio do botão "VALORES + %": o
+> cliente escolhe o que **pede**, o banco decide o que **entrega**.
+
+#### 🕳️ O DEFEITO MUDO QUE ESTE DEGRAU ENCONTROU (e que teria estragado tudo em silêncio)
+
+`useProfileCompletion` triava com **`'OWNER'` fixo no código**. Era verdade por construção
+enquanto só o Proprietário entrava por Google. Com a porta do Dependente aberta, vira
+defeito **garantido**:
+
+1. a conta do Dependente **nasce** neste login, então `profile_completed` é falso por
+   definição e ele **sempre** passa pelo "Completar Cadastro";
+2. triado como `'OWNER'`, a consulta volta vazia (os vínculos dele são `'DEPENDENT'`);
+3. ele cairia em **"Aguardando Triagem"**, esperando por um Desenvolvedor que não vai agir.
+
+Sem erro, sem log, sem pista — **o mesmo formato do defeito de `allowed_modules` do degrau
+08**. E o `CLAUDE.md` já proibia deduzir o papel da `view` justamente por causa desta tela,
+que fica no meio do caminho. `app/auth/google.tsx` tinha o mesmo `'OWNER'` fixo, em dois
+lugares.
+
+#### 👥 AS DUAS SALAS DE ESPERA, E POR QUE O ERRO VERMELHO SAIU
+
+`waiting-team` chegou ao aplicativo (a web já a tinha). **Quem espera pelo Proprietário é o
+Desenvolvedor; quem espera pelo Dependente é o dono da empresa.** Mandar um para a tela do
+outro o faz esperar pelo interlocutor errado, ou seja, para sempre.
+
+> ⚠️ **E O DEPENDENTE RECEBIA UM ERRO VERMELHO** ("❌ Sem vínculos encontrados"). Era a
+> resposta certa enquanto ele entrava por **senha**: quem já tinha conta e não tinha equipe
+> estava mesmo diante de um problema. Pela porta do Google a frase vira mentira — a conta
+> **acabou de ser criada, com sucesso**, e não ter equipe no primeiro acesso é o normal.
+> Um erro vermelho ali ensina a pessoa a achar que o login falhou e a tentar de novo,
+> indefinidamente.
+
+A tela abre pela boa notícia ("Conta criada. Falta o convite.") e **numera o que o dono da
+empresa precisa fazer** — "peça ao proprietário" sozinho deixa os dois lados sem saber o
+quê nem onde.
+
+> ⚠️ **O `select-tenant` TAMBÉM DESENHAVA "AGUARDANDO TRIAGEM" SEMPRE**, e é ele quem
+> recebe o caminho frio quando a lista volta vazia. Corrigi-lo era metade do trabalho: sem
+> isso, o Dependente que fosse morto pelo Android no meio do OAuth veria a sala errada
+> mesmo com todo o resto certo.
+
+#### ✅ O QUE **NÃO** FOI APAGADO, DE PROPÓSITO
+
+O formulário de senha continua sabendo triar um Dependente (`usePasswordLogin`), e
+`login-dependent` continua no `ViewState`. **A web fez a mesma escolha em 13/09.** Apagar
+faria a decisão parecer irreversível; mantendo, o dia em que existir Dependente com senha
+é uma linha de roteamento, não uma reconstrução.
+
+---
+
+### 2) A FAXINA DOS ÓRFÃOS — COMEÇOU COM QUATRO, TERMINOU COM CINCO
+
+O `CLAUDE.md` listava, desde 18/09/2026, quatro arquivos do aplicativo que **ninguém
+importava**: `NativeContextMenu.tsx` (70), `useAnimatedThemeColor.ts` (66),
+`useStorage.ts` (59) e `useDimensions.ts` (44) — 239 linhas de infraestrutura construída
+antes de existir quem a usasse.
+
+> ⚠️ **O QUINTO SÓ APARECEU QUANDO OS QUATRO CAÍRAM.** `useNativeContextMenu.ts` (70
+> linhas) tinha **um** consumidor: o `NativeContextMenu.tsx`. Apagar o componente e deixar
+> o hook teria criado **código morto novo no mesmo gesto que removia o velho**. Faxina de
+> órfão se mede **depois** de apagar, não antes — quem some leva os dependentes exclusivos
+> junto. Total: **309 linhas**.
+
+> ⚠️ **`useNativeActionSheet.ts` FICOU, e tem cinco consumidores** (`ClientDashboard`,
+> `DeveloperDashboard`, `GlobalSettingsScreen`, `ProfileScreen`, `SupportScreen`). Os dois
+> nomes são parecidos e fazem coisas diferentes.
+
+**O `ThemeAnimationProvider` ficou**, e continua sendo preparação ligada: ele é montado
+pelo `app/_layout.tsx` e recebe as cores reais do white-label. O que saiu foi o consumidor
+que nenhuma tela consumia.
+
+> ⚠️ **E A DOCUMENTAÇÃO APONTAVA PARA DOIS ARQUIVOS QUE DEIXARAM DE EXISTIR.** O
+> `ThemeAnimationContext.tsx` mandava "aderir via `useAnimatedThemeColor`", e o `CLAUDE.md`
+> dizia que a troca do menu de contexto "acontece inteira dentro de
+> `useNativeContextMenu`". Documento que manda editar arquivo inexistente é **pior do que
+> documento calado**: quem o lê procura, não acha, e conclui que o projeto está quebrado.
+> Os dois foram corrigidos no mesmo commit.
+
+Nada se perdeu: os cinco estão no histórico do Git e voltam com um `git checkout`.
+
+---
+
+**As provas:** `npm test` **143/143**, `npm run modulos:verificar` sem violação,
+`npm run lint:web` limpo, `npm run build:web` completo e `npm run typecheck:mobile` verde.
+Nenhum SQL mudou neste degrau, então as duas provas de banco não tinham o que provar.
+
+---
+
 **2026-09-19 — v10: DEGRAU 08, o módulo chega ao telemóvel (parte 1: DINHEIRO DO PERÍODO)**
 
 O primeiro módulo entrou no `apps/mobile-app`. Ele pediu em partes, e a parte 1 é o

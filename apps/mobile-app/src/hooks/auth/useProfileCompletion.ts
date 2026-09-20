@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { supabase, profileService, telemetry, ANALYTICS_EVENTS, ANALYTICS_PROPERTIES } from '@jairo/core';
 import { logoutService } from '../../services/logoutService';
+import { papelDeAcessoService } from '../../services/papelDeAcessoService';
 import type { AuthFormData } from '../useAuthForm';
 import type { FluxoAuthCtx } from './types';
 
@@ -8,7 +9,31 @@ import type { FluxoAuthCtx } from './types';
  * 🏁 FLUXO: COMPLETAR CADASTRO E SAIR (PJODC v10)
  * Local: apps/mobile-app/src/hooks/auth/useProfileCompletion.ts
  *
- * O fim do primeiro acesso do Proprietário via Google, e a única saída dele.
+ * O fim do primeiro acesso via Google — do Proprietário **e do Dependente** —, e
+ * a única saída dele.
+ *
+ * ===========================================================================
+ * ⚠️ ESTA TELA FICA NO MEIO DO CAMINHO, E ERA AQUI QUE O PAPEL MORRIA
+ * ===========================================================================
+ * Até 20/09/2026 a triagem abaixo estava escrita `triar(id, 'OWNER')`, com o
+ * papel FIXO no código. Enquanto só o Proprietário entrava por Google, isso era
+ * verdade por construção. Com a porta do Dependente aberta virou um defeito
+ * garantido — e do tipo pior, o mudo:
+ *
+ *   • a conta do Dependente NASCE neste login, então `profile_completed` é
+ *     falso por definição e ele SEMPRE passa por aqui no primeiro acesso;
+ *   • triado como 'OWNER', a consulta volta vazia (os vínculos dele são
+ *     'DEPENDENT');
+ *   • ele cairia em "Aguardando Triagem", esperando por um Desenvolvedor que
+ *     não vai agir, enquanto quem precisava agir era o dono da empresa dele.
+ *
+ * Nenhum erro, nenhum log, nenhuma pista — exatamente o formato do defeito de
+ * `allowed_modules` que o degrau 08 encontrou.
+ *
+ * 🎫 QUEM RESPONDE É O COFRE, e não um parâmetro de rota, porque esta tela é
+ * alcançada por DUAS portas e uma delas não pode carregar parâmetro nenhum: o
+ * deep link do Google (`app/auth/google.tsx`) chega numa URL escrita pelo
+ * Supabase. Ver `services/papelDeAcessoService.ts`.
  *
  * 🚪 O LOGOUT MORA AQUI, e não num arquivo de conta genérico, porque na tela de
  * completar cadastro ele NÃO é uma conveniência: é a única porta. Um "voltar"
@@ -77,8 +102,15 @@ export function useProfileCompletion(
         [ANALYTICS_PROPERTIES.AUTH_PROVIDER]: 'google',
       });
 
-      const resultado = await triar(currentUser.id, 'OWNER');
-      if (resultado === 'sem-vinculos') tratarSemVinculos('OWNER');
+      /**
+       * ⚠️ O PAPEL VEM DO COFRE, gravado lá atrás no clique da guarita. Ver a
+       * nota do cabeçalho: escrever `'OWNER'` aqui é o defeito que este arquivo
+       * documenta, não um atalho.
+       */
+      const papel = await papelDeAcessoService.ler();
+
+      const resultado = await triar(currentUser.id, papel);
+      if (resultado === 'sem-vinculos') tratarSemVinculos(papel);
     } catch (erro) {
       falhar(erro);
     } finally {

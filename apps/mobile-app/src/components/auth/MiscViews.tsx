@@ -5,10 +5,13 @@ import Card from '@/components/card/Card';
 import Button from '@/components/button/Button';
 import Icon, { type NomeIcone } from '@/components/icon/Icon';
 import { BRAND, PLATFORM } from '@/constants/Colors';
+import { TIPOGRAFIA } from '@/constants/Typography';
 import { ESPACO, ICONE } from '@/constants/Spacing';
 import { authStyles } from './authStyles';
 
-export type MiscView = 'about' | 'contact' | 'viewer-only' | 'waiting-approval' | 'planet-blocked';
+export type MiscView =
+  | 'about' | 'contact' | 'viewer-only'
+  | 'waiting-approval' | 'waiting-team' | 'planet-blocked';
 
 interface Props {
   view: MiscView;
@@ -25,7 +28,21 @@ interface Props {
  * "Aguardando Triagem" precisa entender em meio segundo que não errou nada —
  * e o âmbar diz isso antes do parágrafo.
  */
-const CONTEUDO: Record<MiscView, { titulo: string; corpo: string; icone: NomeIcone; cor: string }> = {
+interface ConteudoMisc {
+  titulo: string;
+  corpo: string;
+  icone: NomeIcone;
+  cor: string;
+  /**
+   * Passos numerados, quando a tela precisa dizer O QUE ACONTECE A SEGUIR e por
+   * conta de QUEM. Só a `waiting-team` usa — ver a nota dela abaixo.
+   */
+  passos?: readonly string[];
+  /** Fecho depois dos passos. */
+  remate?: string;
+}
+
+const CONTEUDO: Record<MiscView, ConteudoMisc> = {
   about: {
     titulo: 'Sobre',
     icone: 'Informacao',
@@ -50,6 +67,37 @@ const CONTEUDO: Record<MiscView, { titulo: string; corpo: string; icone: NomeIco
     cor: BRAND.warning,
     corpo:
       'Seu cadastro foi recebido com sucesso. O Desenvolvedor Master está analisando sua solicitação.',
+  },
+  /**
+   * ⏳ DEPENDENTE SEM VÍNCULO — e a tela mais importante da porta do Dependente.
+   *
+   * ⚠️ NÃO REAPROVEITE A "AGUARDANDO TRIAGEM" AQUI. Ela diz que o Desenvolvedor
+   * Master está analisando a solicitação — verdadeiro para o PROPRIETÁRIO, que
+   * espera ser promovido no Painel de Engenharia, e FALSO para o Dependente: o
+   * Desenvolvedor não vai fazer nada por ele. Quem precisa agir é o Proprietário
+   * da empresa, incluindo o e-mail dele na equipe. Uma pessoa esperando pelo
+   * interlocutor errado espera para sempre.
+   *
+   * 🟢 O TÍTULO COMEÇA PELA BOA NOTÍCIA ("Conta criada"), e isso é deliberado:
+   * no primeiro acesso, cair aqui é o resultado NORMAL e bem-sucedido, não uma
+   * falha. Abrir por "falta o convite" faria a pessoa achar que errou alguma
+   * coisa e tentar entrar de novo.
+   *
+   * 📋 OS PASSOS SÃO NUMERADOS E DIZEM DE QUEM É A VEZ. "Peça ao proprietário"
+   * sozinho deixa a pessoa sem saber o que pedir — e o dono da empresa, do outro
+   * lado, sem saber onde clicar.
+   */
+  'waiting-team': {
+    titulo: 'Conta criada. Falta o convite.',
+    icone: 'Equipe',
+    cor: BRAND.warning,
+    corpo: 'Seu acesso funcionou, mas você ainda não faz parte de nenhuma equipe.',
+    passos: [
+      'Ele abre o Painel e vai em EQUIPE;',
+      'procura o MESMO e-mail que você acabou de usar aqui;',
+      'marca quais módulos você pode abrir e salva.',
+    ],
+    remate: 'Depois disso, entre de novo por esta mesma porta.',
   },
   'planet-blocked': {
     titulo: 'Acesso Restrito',
@@ -85,7 +133,14 @@ const CONTEUDO: Record<MiscView, { titulo: string; corpo: string; icone: NomeIco
  * — e é a única razão de este componente receber `onAction` além de `onBack`.
  */
 function MiscViews({ view, pegadinha, onAction, onBack }: Props) {
-  const { titulo, corpo, icone, cor } = CONTEUDO[view];
+  const { titulo, corpo, icone, cor, passos, remate } = CONTEUDO[view];
+
+  /**
+   * As duas salas de espera são o fim de um login BEM-SUCEDIDO: a pessoa está
+   * autenticada, e o botão tem de encerrar a sessão. "Voltar ao início" a
+   * devolveria à guarita ainda logada, e o porteiro a traria direto de volta.
+   */
+  const ehSalaDeEspera = view === 'waiting-approval' || view === 'waiting-team';
 
   const mostrarPiada = useCallback(() => onAction?.('show-joke'), [onAction]);
   const voltarParaTerra = useCallback(() => onAction?.('fix-planet'), [onAction]);
@@ -137,10 +192,22 @@ function MiscViews({ view, pegadinha, onAction, onBack }: Props) {
       <Text style={authStyles.titulo}>{titulo}</Text>
       <Text style={authStyles.subtitulo}>{corpo}</Text>
 
+      {passos && (
+        <View style={estilos.passos}>
+          <Text style={estilos.passosTitulo}>O próximo passo é do Proprietário da empresa:</Text>
+          {passos.map((passo, i) => (
+            <Text key={passo} style={estilos.passo}>
+              {`${i + 1}. ${passo}`}
+            </Text>
+          ))}
+          {remate && <Text style={estilos.remate}>{remate}</Text>}
+        </View>
+      )}
+
       <Button
-        title={view === 'waiting-approval' ? 'Sair' : 'Voltar ao início'}
+        title={ehSalaDeEspera ? 'Sair' : 'Voltar ao início'}
         variant="ghost"
-        icon={view === 'waiting-approval' ? 'Sair' : 'Voltar'}
+        icon={ehSalaDeEspera ? 'Sair' : 'Voltar'}
         onPress={onBack}
         style={authStyles.espacoBotao}
       />
@@ -173,6 +240,33 @@ const estilos = StyleSheet.create({
     justifyContent: 'center',
     alignSelf: 'center',
     marginBottom: ESPACO.lg,
+  },
+
+  /**
+   * O bloco de passos da `waiting-team`. Fundo próprio e alinhado à ESQUERDA —
+   * o resto do cartão é centralizado, mas lista numerada centralizada não se lê:
+   * o olho perde a coluna dos números a cada linha.
+   */
+  passos: {
+    backgroundColor: BRAND.surfaceVariant,
+    borderRadius: PLATFORM.radiusCard,
+    padding: ESPACO.lg,
+    marginTop: ESPACO.lg,
+    gap: ESPACO.xs,
+  },
+  passosTitulo: {
+    ...TIPOGRAFIA.rotulo,
+    color: BRAND.text,
+    marginBottom: ESPACO.xs,
+  },
+  passo: {
+    ...TIPOGRAFIA.corpo,
+    color: BRAND.textMuted,
+  },
+  remate: {
+    ...TIPOGRAFIA.corpo,
+    color: BRAND.textMuted,
+    marginTop: ESPACO.sm,
   },
 
   /** Só a pegadinha. Ver a nota no cabeçalho sobre emoji como conteúdo. */

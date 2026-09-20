@@ -30,9 +30,9 @@ defeito em produção.
 pode entrar aqui é a **regra** que a mudança gerou, na seção de proibições. Este arquivo é
 o guia de instruções; aquele é a memória.
 
-**Onde o projeto está** (19/09/2026, degrau 08): plataforma v10 com o módulo `financeiro`
+**Onde o projeto está** (20/09/2026, degrau 09): plataforma v10 com o módulo `financeiro`
 plugado e publicado na Vercel — `teste_rls.sql` **16/16**, `teste_financeiro.sql` **52/52**,
-`inventario_financeiro.sql` **17/17** e `npm test` **137/137**. A FASE 5 fechou em
+`inventario_financeiro.sql` **17/17** e `npm test` **143/143**. A FASE 5 fechou em
 18/09/2026 e **o Controle Financeiro está inteiro no site**.
 
 🆕 **DESDE 19/09/2026 O MÓDULO TAMBÉM EXISTE NO APLICATIVO**, em partes: a parte 1 é o
@@ -40,6 +40,12 @@ plugado e publicado na Vercel — `teste_rls.sql` **16/16**, `teste_financeiro.s
 `apps/mobile-app` (rotas e código), o campo `rotaMobile` no manifesto, a **sétima prova**
 (`npm run typecheck:mobile`) e o botão "VALORES + %" × "SÓ %". Corrigiu também um defeito
 mudo: o aplicativo lia `allowed_modules` e mostrava "Nenhum módulo ativo" ao Proprietário.
+
+🆕 **DESDE 20/09/2026 O DEPENDENTE ENTRA NO APLICATIVO**, pela mesma porta do Google que o
+Proprietário — até ali ele era mandado ao formulário de senha e **não tinha como ter
+senha** (o cadastro saiu do menu na v7). Foi o degrau 09, que trouxe também o cofre do
+papel escolhido (`papelDeAcessoService`), a sala de espera `waiting-team` e **a faxina dos
+órfãos: 309 linhas apagadas** do `apps/mobile-app`.
 
 ⚠️ **TODO NÚMERO DESTE PARÁGRAFO ENVELHECE SOZINHO.** Antes de repeti-lo, rode
 `npm run ensaio` — ele recalcula os cinco de uma vez.
@@ -135,7 +141,7 @@ Na **raiz do repositório**:
 ```bash
 npm install          # Instala as dependências de todos os workspaces
 npm run web          # Inicia o admin-web em desenvolvimento (porta 3000)
-npm test             # 90 testes do Core (node:test, sem dependências)
+npm test             # 143 testes do Core (node:test, sem dependências) — CONTE antes de citar
 npm run modulos:verificar   # o verificador de LEGO (plataforma × módulos)
 npm run typecheck:mobile    # 🆕 tsc --noEmit do apps/mobile-app (a 7ª prova)
 npm run verificar    # testes + verificador + lint + build + tipos do mobile
@@ -208,14 +214,16 @@ npm run ios          # Build iOS
 pacote" — e era a divergência mais perigosa do arquivo**, porque ensinava que não
 existe rede de proteção e convidava a entregar código sem rodar nada.
 
-**A verdade:** a **raiz** tem `npm test`, e ele roda **44 testes** de verdade:
+**A verdade:** a **raiz** tem `npm test`, e ele roda **143 testes** de verdade:
 
 ```bash
-npm test     # node --test "packages/core/**/*.test.ts"  → 90 testes, sem dependência externa
+npm test     # node --test "packages/core/**/*.test.ts"  → 143 testes, sem dependência externa
 ```
 
-⚠️ **ESTE NÚMERO JÁ MENTIU DUAS VEZES** (dizia 44 quando eram 69, e depois quando eram
-90). **Conte antes de citar:** `npm test 2>&1 | grep "^. tests"`.
+⚠️ **ESTE NÚMERO JÁ MENTIU QUATRO VEZES** (dizia 44 quando eram 69, depois quando eram 90,
+e as duas linhas acima chegaram a discordar UMA DA OUTRA — 44 contra 90 — no mesmo trecho,
+até 20/09/2026, quando eram 143). **Conte antes de citar:**
+`npm test 2>&1 | grep "^. tests"`.
 
 ⚠️ **ARQUIVO COM TESTE É ARQUIVO SEM DEPENDÊNCIA, NESTE PROJETO.** O `node --test` **não**
 resolve import sem extensão: `from '../../lib/datas'` dentro de um arquivo testado estoura
@@ -777,7 +785,10 @@ com o carimbo `[OTIMIZADO PARA MÁXIMA PERFORMANCE]` no TSDoc.
 | `src/hooks/useSheetDragGesture.ts` | Arrasto para fechar a folha do `SearchableSelect` |
 | `src/hooks/usePermissionWatch.ts` | Realtime + `AppState`, extraído do `_layout.tsx` |
 | `src/context/ThemeAnimationContext.tsx` | Shared values das cores do white-label |
-| `src/hooks/useAnimatedThemeColor.ts` | Consome o contexto: fundo, texto e borda animados — ⚠️ **nenhuma tela o importa** (18/09/2026) |
+
+> 🧹 **`src/hooks/useAnimatedThemeColor.ts` SAIU DESTA TABELA EM 20/09/2026** — ver a
+> faxina, mais abaixo. O **provedor ficou**: ele é montado pelo `app/_layout.tsx` e
+> recebe as cores reais. O que saiu foi o consumidor que nenhuma tela consumia.
 
 ⚠️ **A detecção de gestos NÃO pergunta pelo ambiente, e não deve passar a
 perguntar.** `Constants.executionEnvironment` do `expo-constants` devolve
@@ -805,15 +816,24 @@ da sessão, em silêncio.
 cada um daria a cada efeito a sua própria cópia, e o corte em background nunca
 aconteceria — sem erro nenhum para denunciar.
 
-> ⚠️ **QUATRO ARQUIVOS DO APLICATIVO NÃO SÃO IMPORTADOS POR NINGUÉM** — medido em
-> 18/09/2026 por varredura de todos os 269 arquivos `.ts`/`.tsx`:
+> 🧹 **A FAXINA DOS ÓRFÃOS ACONTECEU EM 20/09/2026 — 309 LINHAS APAGADAS.** Este bloco
+> listava, desde 18/09, **quatro** arquivos que ninguém importava:
 > `src/components/NativeContextMenu.tsx` (70 linhas), `src/hooks/useAnimatedThemeColor.ts`
-> (66), `src/hooks/useStorage.ts` (59) e `src/hooks/useDimensions.ts` (44) — **239 linhas
-> de infraestrutura construída antes de existir quem a usasse**.
+> (66), `src/hooks/useStorage.ts` (59) e `src/hooks/useDimensions.ts` (44).
 >
-> Não é defeito: não quebram nada e não pesam no site. Mas este arquivo os apresentava como
-> peças em uso, e não estão. Se o aplicativo for retomado, servem; se não, são a faxina mais
-> fácil do projeto. **Antes de "consertar" um deles, confira se alguém o chama.**
+> ⚠️ **ERAM CINCO, E O QUINTO SÓ APARECEU QUANDO OS QUATRO CAÍRAM.**
+> `src/hooks/useNativeContextMenu.ts` (70 linhas) tinha **um** consumidor: o
+> `NativeContextMenu.tsx`. Apagar o componente e deixar o hook teria criado código
+> morto novo no mesmo gesto que removia o velho. **Faxina de órfão se mede DEPOIS de
+> apagar, não antes** — quem some leva os dependentes exclusivos junto.
+>
+> ⚠️ **`useNativeActionSheet.ts` FICOU, e tem cinco consumidores** (`ClientDashboard`,
+> `DeveloperDashboard`, `GlobalSettingsScreen`, `ProfileScreen`, `SupportScreen`). Não
+> confunda os dois nomes.
+>
+> Nada disso se perdeu: os cinco estão no histórico do Git e voltam com um
+> `git checkout`. **Antes de reconstruir um deles do zero, procure-o lá** — e antes de
+> "consertar" qualquer arquivo do aplicativo, confira se alguém o chama.
 
 **Perfis de build** (`eas.json`, em `apps/mobile-app/`): `development` (APK + dev client),
 `preview` (APK interno) e `production` (app-bundle, com `autoIncrement`). Os
@@ -821,14 +841,17 @@ gestos funcionam nos três; no Expo Go o app sobe igual, sem eles.
 
 ### Menus do sistema — v9
 
-Dois hooks e um componente, todos sem dependência nova: quem desenha o menu é o
-sistema operacional.
+Um hook, sem dependência nova: quem desenha o menu é o sistema operacional.
 
 | Arquivo | Papel |
 |---|---|
 | `src/hooks/useNativeActionSheet.ts` | Menu de ações: `ActionSheetIOS` no iOS, `AlertDialog` no Android |
-| `src/hooks/useNativeContextMenu.ts` | Fachada fina sobre o anterior, para o gesto de segurar |
-| `src/components/NativeContextMenu.tsx` | Envoltório `Pressable` com `onLongPress` — ⚠️ **nenhuma tela o importa** (18/09/2026) |
+
+> 🧹 **ERAM TRÊS ARQUIVOS ATÉ 20/09/2026.** `useNativeContextMenu.ts` (a fachada para o
+> gesto de segurar) e `NativeContextMenu.tsx` (o envoltório `Pressable` com
+> `onLongPress`) saíram na faxina dos órfãos: **nenhuma tela jamais usou o gesto de
+> segurar**, e o componente era o único consumidor do hook. Os dois estão no histórico
+> do Git. Ver a nota da faxina, acima.
 
 ⚠️ **`ActionSheetAndroid` NÃO EXISTE.** O React Native expõe `ActionSheetIOS` e
 mais nada nessa família — uma busca por `ActionSheetAndroid` em todo o
@@ -851,7 +874,11 @@ Aquele menu com fundo escurecido, prévia levantada e ícones SF Symbols exige u
 módulo nativo de terceiro (`react-native-context-menu-view`), com suporte fraco
 no Android e recompilação a cada SDK. Decisão do dono do projeto (2026-09-06):
 ficar no núcleo. Se um dia mudar, a troca acontece inteira dentro de
-`useNativeContextMenu` — as telas só conhecem `abrir(itens)`.
+`useNativeActionSheet` — as telas só conhecem `mostrar(acoes)`.
+
+> ⚠️ **ESTA FRASE CITAVA `useNativeContextMenu` ATÉ 20/09/2026**, arquivo que a faxina
+> dos órfãos apagou. Um documento que manda editar arquivo inexistente é pior do que um
+> documento calado: quem o lê procura, não acha, e conclui que o projeto está quebrado.
 
 ### Abas nativas — v9
 
@@ -924,6 +951,35 @@ só `Início`, porque não tem linha em `public.users` para um perfil carregar.
 > ⚠️ **O papel escolhido na guarita é lembrado em `papelDoAcesso`, gravado no clique** —
 > nunca deduzido da `view` na hora da triagem. O "Completar Cadastro" fica no meio do
 > caminho, e ali a tela já é outra.
+
+#### 📱 No APLICATIVO — o mesmo desenho, com outro lugar para guardar o papel
+
+🆕 **DESDE 20/09/2026 O DEPENDENTE TAMBÉM ENTRA PELO APLICATIVO**, pela mesma porta do
+Google. Até então ele era mandado ao formulário de senha — e **não tinha como ter senha**,
+porque o cadastro saiu do menu na v7. Era a ausência de porta, o mesmo diagnóstico que a
+web fez em 13/09/2026. O aplicativo ficou sete dias atrás, com a divergência anotada em
+`app/(auth)/login.tsx` à espera de decisão.
+
+A mecânica do OAuth é **idêntica para os dois papéis** (`googleOAuthMobile.entrarComGoogle`,
+que se chamava `signInOwner` até esta data). O que muda é só a triagem do fim.
+
+⚠️ **O `useState` DA WEB NÃO SERVE AQUI, E O `?papel=` DA ROTA TAMBÉM NÃO.** Na web o popup
+abre e fecha dentro da mesma página, e o estado nunca morre. No telemóvel o login **sai do
+aplicativo**: abre o navegador do sistema, e o Android pode matar o app enquanto ele está à
+frente. Na volta não há estado, não há pilha de navegação, e quem recebe o deep link é
+`app/auth/google.tsx` — um endereço aberto pelo **sistema operacional**, com URL escrita
+pelo Supabase (`plataformajairo://auth/google#access_token=…`), **onde não cabe parâmetro
+nosso**.
+
+Por isso o papel vai ao **cofre do aparelho** (`services/papelDeAcessoService.ts`), gravado
+**antes** de o navegador abrir e lido nos três pontos do retorno: `useGoogleLogin`,
+`useProfileCompletion` (o "Completar Cadastro", por onde todo Dependente novo passa) e a
+rota do deep link.
+
+⚠️ **E ISSO NÃO É AUTORIZAÇÃO.** A chave só decide qual consulta de triagem rodar e qual
+sala de espera mostrar. Quem é OWNER e quem é DEPENDENT está em `tenant_members`, e a RLS
+não pergunta qual botão a pessoa apertou — gravar `'OWNER'` ali à mão não dá empresa
+nenhuma a ninguém: a consulta volta vazia e a pessoa cai na sala de espera.
 
 ### Desenvolvedor — e-mail + senha
 
@@ -1170,6 +1226,10 @@ inclusive numa máquina limpa — foi por isso que a versão com bcrypt foi reve
 - ❌ Nunca pintar de preto as DUAS paletas do `InstitutionalFooter` — a `ESCURO` atende o Painel de Engenharia, e preto sobre `#121212` não se lê; o rodapé sumiria numa das duas abas e nenhuma prova automática acusaria
 - ❌ Nunca tratar um botão que esconde valores na tela como se fosse segurança — o que protege é o banco NÃO ENVIAR (`fin_dinheiro_do_periodo` devolve os valores em NULO no modo percentual). O botão "VALORES + %" × "SÓ %" é CONFORTO de quem está olhando, e só pode existir por isso: ele nunca teve os valores em mãos para revelar. Quem decide se ele alterna é `exibicaoDoDinheiro()`, no Core, com teste — nunca a tela
 - ❌ Nunca guardar em estado de componente a preferência de exibição do aplicativo — sair da tela e voltar **remonta** o componente, e quem tivesse escondido os valores para mostrar o ecrã a alguém os veria reaparecer sozinhos; a preferência vai ao cofre do aparelho, com a chave declarada DENTRO do módulo (`CHAVE_MODO_DINHEIRO`) e passada por parâmetro ao `storageService`, que é da plataforma
+- ❌ Nunca guardar num `useState` (nem no `?papel=` de uma rota) algo que precise sobreviver a um login que SAI DO APLICATIVO — o OAuth do telemóvel abre o navegador do sistema, e o Android é livre para matar o app enquanto ele está à frente; na volta não há estado nem pilha de navegação, e quem recebe o deep link é uma rota aberta pelo SISTEMA OPERACIONAL, com URL escrita pelo Supabase, **onde não cabe parâmetro nosso** (tentar acrescentar um ainda faz o endereço deixar de casar com os Redirect URLs, e aí o GoTrue cai em silêncio na Site URL). O que atravessa essa fronteira é o cofre — ver `services/papelDeAcessoService.ts`
+- ❌ Nunca fixar `'OWNER'` na triagem de uma tela por onde os DOIS papéis passam — o "Completar Cadastro" é obrigatório no primeiro acesso de qualquer conta criada pelo Google, então **todo Dependente novo passa por lá**; triado como Proprietário, ele cai em "Aguardando Triagem" e espera por um Desenvolvedor que nunca vai agir, sem erro, sem log e sem pista (estava assim em `useProfileCompletion` e em `app/auth/google.tsx` até 20/09/2026)
+- ❌ Nunca mandar um Dependente sem vínculo para `waiting-approval` **nem devolver a ele um erro vermelho** — pela porta do Google a conta ACABOU de ser criada com sucesso, e não ter equipe no primeiro acesso é o NORMAL, não a exceção; um "❌ Sem vínculos encontrados" ali ensina a pessoa a achar que o login falhou e a tentar de novo para sempre (a tela dele é a `waiting-team`, que abre pela boa notícia e numera o que o dono da empresa precisa fazer)
+- ❌ Nunca apagar um arquivo órfão sem REMEDIR os órfãos depois — quem some leva junto os dependentes exclusivos dele, e a faxina de 20/09/2026 começou com quatro arquivos e terminou com cinco: `useNativeContextMenu.ts` só era importado pelo `NativeContextMenu.tsx`, e apagar o componente teria criado código morto novo no mesmo gesto que removia o velho
 - ❌ Nunca supor que o APK instalado no telefone foi construído a partir DESTE repositório — medido em 19/09/2026: os dois únicos builds da conta expo.dev são de 07/09/2026 e vêm dos commits `80e0d79` e `a8c32e4`, que **não existem aqui** (este repositório começa em `d463721`, de 11/09). Eles são da v9; o rodapé deles diz "v9 – 2026-09-07-08" para sempre, porque o `preview` tem o JavaScript embutido
 - ❌ Nunca entregar código do `apps/mobile-app` sem rodar `npm run typecheck:mobile` — até 19/09/2026 NENHUMA das seis provas do `npm run ensaio` olhava para o aplicativo, e dava para entregar erro de tipo com tudo verde; a sétima prova fechou essa lacuna
 - ❌ Nunca tratar um PAINEL EXTERNO como fonte da verdade sobre qual banco está em uso — em 19/09/2026 eu criei o `.env` do aplicativo copiando os valores do expo.dev, e ele estava com os do projeto da **v9**; o APK saiu apontando para um banco que **não existe mais** e o login falhava sem dizer por quê. **A fonte da verdade é o banco RESPONDENDO:** a chave anon é um JWT e a declaração `ref` dela diz o projeto (`Buffer.from(chave.split('.')[1],'base64url')`), e um `curl` ao `/rest/v1/` diz se ele está vivo — `200` é vivo, `000` é nem resolver o nome. Os dois comandos estão em `apps/mobile-app/AGENTS.md`

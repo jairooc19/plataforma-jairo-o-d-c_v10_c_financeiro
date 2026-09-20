@@ -27,10 +27,18 @@ interface Props {
  * ⚠️ CADA PERFIL VAI PARA UMA PORTA DIFERENTE, e não para a mesma tela com um
  * parâmetro cosmético:
  *   - Proprietário → só o botão do Google (sem e-mail, sem senha)
- *   - Dependente   → e-mail + senha
+ *   - Dependente   → só o botão do Google, com o aviso do convite
  *   - Apenas Veja  → aviso; não é um login, é uma sala de espera
  * Rotear o Proprietário para o formulário de senha é proibição explícita do
  * CLAUDE.md — ele entra exclusivamente por Google desde a v5.
+ *
+ * ⚠️ ESTA LISTA DIZIA "Dependente → e-mail + senha" ATÉ 20/09/2026, e era
+ * verdade: era também a razão de ele não conseguir entrar. Sem cadastro aberto
+ * desde a v7, não havia como ter essa senha. Ver `LoginGoogleView.tsx`.
+ *
+ * ⚠️ ESCOLHER UM PERFIL AQUI NÃO CONCEDE PERFIL NENHUM. O toque só decide qual
+ * triagem rodar depois do login; quem é OWNER e quem é DEPENDENT está em
+ * `tenant_members`, e a RLS não pergunta em qual cartão a pessoa tocou.
  *
  * 🧩 O CARTÃO DE ESCOLHA ESCRITO À MÃO SUMIU DAQUI. Este arquivo mantinha um
  * `OpcaoAcesso` próprio, com o seu `useSharedValue`, a sua mola e o seu

@@ -1,12 +1,25 @@
 import type { AuthFormData } from '../useAuthForm';
 import type { PapelTriagem } from '../useTenantTriage';
 
-/** Todas as telas que a guarita mobile conhece. Espelha o `ViewState` da web. */
+/**
+ * Todas as telas que a guarita mobile conhece. Espelha o `ViewState` da web.
+ *
+ * ⚠️ `waiting-team` ENTROU EM 20/09/2026, com a porta do Dependente. **São DUAS
+ * salas de espera, e confundi-las faz a pessoa esperar pelo interlocutor errado
+ * — ou seja, esperar para sempre:**
+ *
+ *   • `waiting-approval` → quem espera pelo PROPRIETÁRIO é o DESENVOLVEDOR, na
+ *     triagem do Painel de Engenharia. A tela diz "estamos analisando", e é
+ *     verdade.
+ *   • `waiting-team` → quem espera pelo DEPENDENTE é o DONO DA EMPRESA, que
+ *     precisa incluir o e-mail dele na equipe. O Desenvolvedor não vai fazer
+ *     nada por ele, e mandá-lo para a tela acima seria dizer o contrário.
+ */
 export type ViewState =
   | 'menu' | 'access-options' | 'about' | 'contact'
   | 'login-owner' | 'login-dependent' | 'login-developer'
   | 'signup' | 'complete-profile' | 'select-tenant'
-  | 'waiting-approval' | 'planet-blocked' | 'viewer-only';
+  | 'waiting-approval' | 'waiting-team' | 'planet-blocked' | 'viewer-only';
 
 export interface AuthMessage {
   text: string;

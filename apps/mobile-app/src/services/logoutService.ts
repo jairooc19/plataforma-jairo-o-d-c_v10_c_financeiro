@@ -21,6 +21,7 @@
  */
 import { supabase, telemetry } from '@jairo/core';
 import { storageService } from './storageService';
+import { papelDeAcessoService } from './papelDeAcessoService';
 
 export const logoutService = {
   /**
@@ -43,5 +44,13 @@ export const logoutService = {
     }
 
     await storageService.clearSession();
+
+    /**
+     * 🎫 O PAPEL ESCOLHIDO NA GUARITA SAI JUNTO. Ele não autoriza nada (ver
+     * `papelDeAcessoService.ts`), mas deixá-lo para trás faria a próxima pessoa
+     * a usar o aparelho começar com a escolha da anterior — e, no caminho frio
+     * do Google, ser triada por ela.
+     */
+    await papelDeAcessoService.limpar();
   },
 };
