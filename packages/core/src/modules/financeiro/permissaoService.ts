@@ -2,8 +2,9 @@
  * 🔑 PERMISSÕES DO DEPENDENTE NO MÓDULO FINANCEIRO (PJODC v10)
  * Local: packages/core/src/modules/financeiro/permissaoService.ts
  *
- * O Proprietário habilita um Dependente por e-mail e liga/desliga as 17
- * permissões, uma a uma. Nada disso inventa estrutura nova na plataforma: as
+ * O Proprietário habilita um Dependente por e-mail e liga/desliga as 23
+ * permissões, uma a uma (eram 17 quando esta linha foi escrita; conte em
+ * `PERMISSOES_FINANCEIRO`, no `tipos.ts`, antes de repetir o número). Nada disso inventa estrutura nova na plataforma: as
  * permissões moram em `tenant_members.module_configs`, coluna `jsonb` que
  * existe desde a v10 justamente para "configurações por módulo, por membro".
  *

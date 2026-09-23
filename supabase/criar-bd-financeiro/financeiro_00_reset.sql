@@ -220,6 +220,12 @@ DROP FUNCTION IF EXISTS public.fin_restaurar_lancamento(uuid, bigint)           
 DROP FUNCTION IF EXISTS public.fin_limpar_lixeira(uuid, bigint[], boolean)      CASCADE;
 DROP FUNCTION IF EXISTS public.fin_historico_fechamentos(uuid, integer)         CASCADE;
 
+-- 23/09/2026 — as quatro da engenharia reversa. ⚠️ `fin_tem_acesso` é usada
+-- pelas policies: o CASCADE as derrubaria, mas as tabelas já caíram acima.
+DROP FUNCTION IF EXISTS public.fin_excluir_identificadora(uuid, uuid)  CASCADE;
+DROP FUNCTION IF EXISTS public.fin_excluir_conta_movimento(uuid, uuid) CASCADE;
+DROP FUNCTION IF EXISTS public.fin_saldos_de_abertura(uuid)            CASCADE;
+DROP FUNCTION IF EXISTS public.fin_tem_acesso(uuid)                    CASCADE;
 DROP FUNCTION IF EXISTS public.fin_pode(uuid, text) CASCADE;
 
 -- ⚠️ `fin_normalizar` por último: as colunas geradas das tabelas dependiam

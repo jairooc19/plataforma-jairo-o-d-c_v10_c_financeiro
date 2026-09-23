@@ -60,13 +60,13 @@ CLAUDE.md · MODULOS.md · README.md
 **As 7 pastas do Controle Financeiro** (apagar estas sete = desplugar a peça):
 
 ```
-apps/admin-web/src/app/dashboard/financeiro/     as telas do SITE (18 rotas)
+apps/admin-web/src/app/dashboard/financeiro/     as telas do SITE (16 rotas)
 apps/admin-web/src/components/financeiro/        os componentes do SITE
-apps/mobile-app/app/financeiro/                  🆕 as rotas do APLICATIVO (2 telas)
+apps/mobile-app/app/financeiro/                  🆕 as rotas do APLICATIVO (4 telas + o _layout)
 apps/mobile-app/src/modules/financeiro/          🆕 o código do APLICATIVO
 packages/core/src/modules/financeiro/            regras de negócio + manifesto
-supabase/criar-bd-financeiro/                    o banco (5 tabelas, 36 funções)
-supabase/testes/teste_financeiro.sql             as travas do módulo (52 testes)
+supabase/criar-bd-financeiro/                    o banco (5 tabelas, 40 funções)
+supabase/testes/teste_financeiro.sql             as travas do módulo (55 testes)
 supabase/testes/inventario_financeiro.sql        o inventário do módulo (17 linhas, só lê)
 ```
 
@@ -89,6 +89,12 @@ supabase/testes/inventario_financeiro.sql        o inventário do módulo (17 li
 
 E a documentação dele, que também é do módulo:
 `_estudos/modulo-financeiro-especificacao.html` e `_estudos/degrau-06-projeto-modulo-financeiro.html`.
+
+> ⚠️ **ESSES DOIS ARQUIVOS NÃO ESTÃO MAIS NA PASTA** (medido em 23/09/2026): os
+> estudos saíram do Git nos commits `c1bdc4a` e `e66b0dd`, de 19/09/2026. Eles
+> continuam no histórico e voltam sem restaurar nada no disco — por exemplo
+> `git show c1bdc4a^:_estudos/modulo-financeiro-especificacao.html > espec.html`.
+> É ali que estão as regras RN-01 a RN-31 que o schema cita.
 
 > **A plataforma continua funcionando inteira sem ele** — é a regra R9, e
 > continua sendo o estado de referência do verificador. A prova foi medida no

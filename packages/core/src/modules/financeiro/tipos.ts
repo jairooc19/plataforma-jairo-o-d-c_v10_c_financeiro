@@ -35,7 +35,12 @@ export interface ContaMovimento {
   tenant_id: string;
   nome: string;
   tipo: TipoContaMovimento;
-  saldo_abertura_centavos: number;
+  /**
+   * ⚠️ OPCIONAL DESDE 23/09/2026: só vem quando a lista é pedida com
+   * `comSaldoAbertura` (exige `cm_ver`). A coluna não é mais legível direto
+   * na tabela — ver `cadastroService.listarContasMovimento`.
+   */
+  saldo_abertura_centavos?: number;
   is_active: boolean;
   created_at?: string;
 }
@@ -135,8 +140,9 @@ export interface FechamentoDaConta {
 }
 
 /**
- * As 18 permissões do módulo (especificação, seção 4.3; a 18ª, `lc_excluir_lote`,
- * entrou em 17/09/2026 com a exclusão em lote).
+ * As 23 permissões do módulo (especificação, seção 4.3; a 18ª, `lc_excluir_lote`,
+ * entrou em 17/09/2026 com a exclusão em lote; as quatro do orçamento em
+ * 18/09 e `dp_meus_lancamentos` em 19/09). Recontado em 23/09/2026.
  *
  * ⚠️ ESTA LISTA É A FONTE ÚNICA. A tela de permissões do Dependente a desenha,
  * e as funções do banco conferem a mesma chave — uma diferença de grafia entre

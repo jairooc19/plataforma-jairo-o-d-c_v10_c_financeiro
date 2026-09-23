@@ -30,10 +30,17 @@ defeito em produção.
 pode entrar aqui é a **regra** que a mudança gerou, na seção de proibições. Este arquivo é
 o guia de instruções; aquele é a memória.
 
-**Onde o projeto está** (20/09/2026, degrau 09): plataforma v10 com o módulo `financeiro`
-plugado e publicado na Vercel — `teste_rls.sql` **16/16**, `teste_financeiro.sql` **52/52**,
+**Onde o projeto está** (23/09/2026, degrau 10): plataforma v10 com o módulo `financeiro`
+plugado e publicado na Vercel — `teste_rls.sql` **16/16**, `teste_financeiro.sql` **55/55**,
 `inventario_financeiro.sql` **17/17** e `npm test` **143/143**. A FASE 5 fechou em
 18/09/2026 e **o Controle Financeiro está inteiro no site**.
+
+🆕 **EM 23/09/2026 A ENGENHARIA REVERSA COMPLETA ACHOU — E O DEGRAU 10 FECHOU — DOIS
+BURACOS QUE AS 52 TRAVAS NÃO VIAM:** (A1) qualquer membro da empresa, mesmo **sem** o módulo
+liberado, lia todos os lançamentos e saldos com um `select` direto nas tabelas `fin_*`; e
+(A2) o banco aceitava editar **uma perna só** de uma transferência. De quebra apareceu um
+terceiro: **excluir cadastro nunca tinha funcionado**. As três travas novas (53, 54 e 55)
+foram vistas FALHAR no schema antigo antes da correção. O porquê está no `HISTORICO.md`.
 
 🆕 **DESDE 19/09/2026 O MÓDULO TAMBÉM EXISTE NO APLICATIVO**, em partes: a parte 1 é o
 **DINHEIRO DO PERÍODO**. Foi o degrau 08, e ele acrescentou duas pastas de módulo ao
@@ -112,7 +119,7 @@ plataforma-jairo-o-d-c-v10/
 │   │   └── plataforma_02_seed.sql     → Hidratador: dados iniciais obrigatórios
 │   ├── criar-bd-financeiro/→ 🧩 MÓDULO: banco do Controle Financeiro (01 → 02; o 00 despluga)
 │   ├── testes/             → teste_rls.sql (16 travas da plataforma), teste_financeiro.sql
-│   │                         (52 travas do módulo · CONTE: grep -c "^-- TESTE" no arquivo),
+│   │                         (55 travas do módulo · CONTE: grep -c "^-- TESTE" no arquivo),
 │   │                         (conferem o schema da plataforma e o do módulo: 15 linhas, só leem)
 │   │   └── ambiente-local/ → 🆕 sobe um PostgreSQL descartável e valida o SQL antes do Supabase
 │   ├── migrations/         → vazia; ler o README antes do primeiro dado real
@@ -189,10 +196,12 @@ npm run ensaio       # 🆕 O ENSAIO GERAL: as SETE provas de uma vez, banco inc
 >
 > ⚠️ **CORRIGIDO EM 17/09/2026:** este parágrafo dizia que o `package.json` da raiz
 > "ainda declara um script de build do core que aponta para um alvo inexistente".
-> **Não declara mais.** Os seis scripts da raiz são exatamente os listados acima
-> (`web`, `build:web`, `lint:web`, `test`, `modulos:verificar`, `verificar`) — não
-> existe `build:core` nem nada parecido. A frase antiga mandava procurar um defeito
-> que não está lá.
+> **Não declara mais.** Os **oito** scripts da raiz são `web`, `build:web`, `lint:web`,
+> `typecheck:mobile`, `test`, `modulos:verificar`, `verificar` e `ensaio` — não existe
+> `build:core` nem nada parecido. A frase antiga mandava procurar um defeito que não
+> está lá. (⚠️ Esta linha dizia "os seis scripts" até 23/09/2026: `ensaio` entrou em
+> 18/09 e `typecheck:mobile` em 19/09. Confira com
+> `node -p "Object.keys(require('./package.json').scripts).join(' ')"`.)
 
 Em **apps/admin-web**:
 ```bash
@@ -282,9 +291,13 @@ node -p "Object.entries(require('./apps/mobile-app/package.json').dependencies).
 Controladas exclusivamente em `packages/core/src/constants/versions.ts`:
 
 ```
-WEB_VERSION  = "v10 - 2026-09-11-01"
-APP_VERSION  = "v10 - 2026-09-11-02"
+WEB_VERSION  = "v10 - 2026-09-23-01"
+APP_VERSION  = "v10 - 2026-09-23-01"
 ```
+
+> ⚠️ **ESTE BLOCO DIZIA `2026-09-11` ATÉ 23/09/2026** — doze dias de defasagem, com o
+> rodapé do site e do APK mostrando outra coisa. Ele é exemplo, não fonte: confira com
+> `grep VERSION packages/core/src/constants/versions.ts`.
 
 Convenção de commit: `WEB_v10 YYYY-MM-DD – NN - APP_v10 YYYY-MM-DD - NN`
 
@@ -712,6 +725,10 @@ app/
 │   └── google.tsx           → retorno do deep link plataformajairo://auth/google
 ├── central-comandos.tsx     → Painel de Engenharia: triagem de usuários e empresas
 ├── ajustes-globais.tsx      → Painel de Engenharia: white-label (título, e-mails, cores)
+├── sobre.tsx                → Sobre (empilhada, com cabeçalho e botão voltar)
+├── suporte.tsx              → Suporte (idem)
+├── financeiro/              → 🧩 MÓDULO: _layout, index, dinheiro-do-periodo, lancar,
+│                              meus-lancamentos (território do módulo, ver MODULOS.md)
 ├── (auth)/                  → guarita: tudo antes de entrar
 │   ├── _layout.tsx
 │   ├── index.tsx            → menu principal
@@ -743,7 +760,7 @@ app/
 ### Componentes e Telas Mobile
 ```
 components/
-├── auth/RegisterForm.tsx
+├── auth/                    → as telas da guarita (AuthScreen, MainMenuView, LoginGoogleView…)
 ├── client/ClientDashboard.tsx
 └── developer/DeveloperDashboard.tsx
 
@@ -1133,7 +1150,13 @@ inclusive numa máquina limpa — foi por isso que a versão com bcrypt foi reve
 - ❌ Nunca levar a lista de permissões de um módulo para uma tela da plataforma — a plataforma passaria a conhecer o negócio da peça; declare `rotaConfiguracao` no manifesto e deixe a plataforma só desenhar o link
 - ❌ Nunca chamar `useSearchParams()` sem um `<Suspense>` **acima** do componente que o chama — o `npm run build` falha (não avisa) com "should be wrapped in a suspense boundary"; `<Suspense>` dentro do próprio componente não resolve
 - ❌ Nunca abrir menu de linha com `position: absolute` dentro de tabela que rola — ele é recortado pelo `overflow`; usar `fixed` com `getBoundingClientRect`, e abrir para cima quando não couber embaixo
-- ❌ Nunca oferecer "EDITAR" numa perna de transferência — as duas pernas são amarradas (RN-23) e alterar uma deixa o saldo da outra conta errado para sempre; o caminho é excluir (o banco apaga as duas) e lançar de novo
+- ❌ Nunca oferecer "EDITAR" numa perna de transferência — as duas pernas são amarradas (RN-23) e alterar uma deixa o saldo da outra conta errado para sempre; o caminho é excluir (o banco apaga as duas) e lançar de novo — e desde 23/09/2026 **o banco também recusa** (`fin_gravar_lancamento` devolve 23514, trava 54); até ali a regra morava só na tela e uma chamada por fora sumia com R$ 899,00 do total da empresa
+- ❌ Nunca deixar uma regra de negócio morar SÓ na tela quando existe função no banco para cumpri-la — esconder o botão EDITAR da perna de transferência não impedia ninguém de chamar `fin_gravar_lancamento` direto; toda regra que a tela aplica tem de ter a trava correspondente dentro da função (e uma trava no `teste_<modulo>.sql` que a chame POR FORA da tela)
+- ❌ Nunca escrever policy de LEITURA de tabela de módulo só com `check_is_tenant_member` — isso deixa ler **qualquer integrante da empresa, com ou sem o módulo liberado**, e derruba em silêncio a chave `allowed_modules`, as permissões de "ver" e o modo percentual; a policy pergunta pelo MÓDULO (`fin_tem_acesso`) e, onde há valor, pela PERMISSÃO (`fin_pode`). Medido em 23/09/2026: um Dependente com `allowed_modules = {}` via 41 lançamentos, 26 contas e 5 orçamentos (trava 53)
+- ❌ Nunca pedir `saldo_abertura_centavos` num `select` direto de `fin_contas_movimento` (nem `select('*')`) — desde 23/09/2026 a coluna não tem `SELECT` para o app e a lista inteira responderia `permission denied for column`; o saldo de abertura vem da `fin_saldos_de_abertura`, que exige `cm_ver` (use `listarContasMovimento(t, { comSaldoAbertura: true })`)
+- ❌ Nunca gravar, alterar ou apagar em tabela `fin_*` direto do app (`.insert`, `.update`, `.delete`) — elas só dão `SELECT`; toda escrita é função `SECURITY DEFINER` com `fin_pode()`. O `excluirContaMovimento` fez `.delete()` direto do degrau 7 até 23/09/2026 e **nunca funcionou**: voltava `permission denied`, e a tela, que traduzia qualquer erro como "existem lançamentos", mentia até para a conta vazia
+- ❌ Nunca traduzir QUALQUER erro de um `catch` numa frase específica ("existem lançamentos") — foi o que escondeu por onze dias que a exclusão de cadastro não funcionava; traduza só o erro que você reconhece e mostre o resto como veio
+- ❌ Nunca confiar que "todas as travas passam" quer dizer "não há buraco" — as 52 travas de 22/09/2026 passavam com os achados A1 e A2 abertos, porque NENHUMA lia as tabelas como Dependente nem chamava a função por fora da tela; teste o caminho que o atacante usaria, não o que a tela usa
 - ❌ Nunca filtrar no navegador uma lista que o banco já sabe buscar — a lista carregada é só a primeira página do cadastro, e a tela diria "nada encontrado" sobre algo que existe
 - ❌ Nunca ler CSV com `split('\n')` + `split(',')` — quebra com vírgula dentro de aspas, quebra de linha dentro de aspas, `""` literal, e com o ponto e vírgula que o Excel brasileiro usa; percorrer com estado é a única forma
 - ❌ Nunca detectar o separador de um CSV sem respeitar aspas — um campo com quebra de linha faz a "primeira linha" terminar no meio das aspas e o separador sai errado
@@ -1206,7 +1229,7 @@ inclusive numa máquina limpa — foi por isso que a versão com bcrypt foi reve
 - ❌ Nunca escrever curinga de caminho terminado em asterisco-barra dentro de comentário de bloco — esse par FECHA o comentário, o resto do texto vira código, e o erro de sintaxe aparece dezenas de linhas depois da causa
 - ❌ Nunca usar `shell: true` no `spawnSync` com caminho ABSOLUTO no Windows — "C:\Program Files\..." quebra no espaço e o processo tenta rodar "C:\Program"; o `shell` só é necessário para comando de nome curto (`npm`, que lá é um `.cmd`)
 - ❌ Nunca mandar tabela de 13 ou 14 colunas para A4 em RETRATO — sobram 1,20 cm por coluna e "27.650,00" não cabe; use o campo `orientacao: "paisagem"` do `prepararImpressao.ts` (ausente = retrato, como sempre foi)
-- ❌ Nunca implementar "este usuário vê menos" filtrando na TELA — o valor viaja até o navegador e se lê com a tecla F12, na aba de rede, em texto puro; **esconder numa tela é conforto, não enviar é segurança**. No modo percentual do DINHEIRO DO PERÍODO quem decide é `fin_dinheiro_do_periodo`, que devolve os valores em NULO (trava 46)
+- ❌ Nunca implementar "este usuário vê menos" filtrando na TELA — o valor viaja até o navegador e se lê com a tecla F12, na aba de rede, em texto puro; **esconder numa tela é conforto, não enviar é segurança**. No modo percentual do DINHEIRO DO PERÍODO quem decide é `fin_dinheiro_do_periodo`, que devolve os valores em NULO (trava 46). ⚠️ E isso só é verdade desde 23/09/2026: até ali a **tabela** `fin_lancamentos` entregava os mesmos valores a qualquer integrante da empresa por leitura direta (achado A1, trava 53) — a função guardava a porta da frente com a dos fundos aberta
 - ❌ Nunca prometer sigilo que outra permissão desfaz — o modo percentual não esconde nada de quem tem `extrato_ver`, `lc_ver_todos`, `imprimir`, `orc_ver` ou `cm_ver` (a lista está em `PERMISSOES_QUE_REVELAM_VALOR`); a tela de CONFIGURAÇÕES **avisa** dizendo quais, e oferece retirá-las — avisar, e não bloquear, porque decidir pelo dono da empresa seria errado
 - ❌ Nunca guardar competência ("MÊS – ANO") como texto nem como dois inteiros — texto não ordena (`01/2027` viria antes de `09/2026`) e dois inteiros obrigam todo filtro de intervalo a um `OR`; use `date` travada no dia 1, com `CHECK (EXTRACT(DAY FROM competencia) = 1)` — sem o CHECK o banco passa a ter DUAS "SETEMBRO / 2026" e a tela mostra o mesmo mês duas vezes
 - ❌ Nunca deixar o relatório de orçamento mostrar só as contas ORÇADAS — a conta em que se gastou e não se orçou some da tela, e é justamente o gasto que ninguém planejou; o bloco `FORA` existe para isso

@@ -31,8 +31,8 @@
 -- MUDE-OS JUNTO.
 -- ---------------------------------------------------------------------------
 --
--- São as linhas 1 a 5, a 9 e a 16: tabelas (5), funções (36), policies (5),
--- triggers (10), índices (19), funções alcançáveis pelo app (34) e chaves para a
+-- São as linhas 1 a 5, a 9 e a 16: tabelas (5), funções (40), policies (5),
+-- triggers (10), índices (19), funções alcançáveis pelo app (38) e chaves para a
 -- plataforma (10) — mais a LISTA DE ASSINATURAS da linha 17, que entrou em
 -- 17/09/2026. **Eles não podem ser deduzidos do catálogo** — deduzi-los
 -- seria perguntar ao banco se o banco
@@ -181,7 +181,7 @@ internas AS (
 -- O PLACAR
 -- ---------------------------------------------------------------------------
 -- ---------------------------------------------------------------------------
--- A LISTA DE ASSINATURAS QUE O SCHEMA AFIRMA CRIAR — 36 linhas (18/09/2026)
+-- A LISTA DE ASSINATURAS QUE O SCHEMA AFIRMA CRIAR — 40 linhas (23/09/2026)
 -- ---------------------------------------------------------------------------
 -- ⚠️ AO MUDAR A ASSINATURA DE UMA FUNÇÃO, MUDE A LINHA CORRESPONDENTE AQUI.
 -- É de propósito que isto dê trabalho: assinatura de função é contrato, e
@@ -203,6 +203,8 @@ assinaturas_esperadas (nome, args) AS (
   ('fin_config_dinheiro', 'p_tenant_id uuid'),
   ('fin_copiar_orcamento', 'p_tenant_id uuid, p_origem date, p_destino date, p_substituir boolean'),
   ('fin_dinheiro_do_periodo', 'p_tenant_id uuid, p_competencia date'),
+  ('fin_excluir_conta_movimento', 'p_tenant_id uuid, p_id uuid'),
+  ('fin_excluir_identificadora', 'p_tenant_id uuid, p_id uuid'),
   ('fin_excluir_lancamento', 'p_tenant_id uuid, p_id uuid'),
   ('fin_excluir_orcamento', 'p_tenant_id uuid, p_id uuid'),
   ('fin_excluir_lancamentos_por_periodo', 'p_tenant_id uuid, p_conta_movimento_id uuid, p_data_inicial date, p_data_final date, p_simular boolean, p_ids uuid[]'),
@@ -228,8 +230,10 @@ assinaturas_esperadas (nome, args) AS (
   ('fin_proxima_ordem', 'p_tenant_id uuid, p_conta_id uuid, p_data date'),
   ('fin_reabrir_periodo', 'p_tenant_id uuid, p_conta_movimento_id uuid'),
   ('fin_restaurar_lancamento', 'p_tenant_id uuid, p_audit_id bigint'),
+  ('fin_saldos_de_abertura', 'p_tenant_id uuid'),
   ('fin_saldo_atual', 'p_tenant_id uuid, p_conta_movimento_id uuid'),
   ('fin_saldos_mensais_movimento', 'p_tenant_id uuid, p_ano integer'),
+  ('fin_tem_acesso', 'p_tenant_id uuid'),
   ('fin_transferir', 'p_tenant_id uuid, p_conta_origem_id uuid, p_conta_destino_id uuid, p_data date, p_valor_centavos bigint, p_historico text, p_ordem_origem integer, p_ordem_destino integer')
 ),
 
@@ -239,7 +243,7 @@ placar AS (
          '5' AS esperado, (SELECT count(*)::text FROM tabelas) AS encontrado
   UNION ALL
   SELECT 2, 'CONTAGEM', 'Funcoes do modulo (fin_*)',
-         '36', (SELECT count(*)::text FROM funcoes)
+         '40', (SELECT count(*)::text FROM funcoes)
   UNION ALL
   SELECT 3, 'CONTAGEM', 'Policies de RLS nas tabelas do modulo',
          '5', (SELECT count(*)::text FROM politicas)
@@ -261,7 +265,7 @@ placar AS (
          '0', (SELECT count(*)::text FROM alcance WHERE por_anon OR por_public)
   UNION ALL
   SELECT 9, 'CAMINHO FELIZ', 'Funcoes de cliente alcancaveis pelo app (authenticated)',
-         '34', (SELECT count(*)::text FROM alcance WHERE por_app)
+         '38', (SELECT count(*)::text FROM alcance WHERE por_app)
   UNION ALL
   SELECT 10, 'PORTA INTERNA', 'Funcoes internas que receberam GRANT indevido',
          '0', (SELECT count(*)::text FROM alcance a JOIN internas i USING (proname) WHERE a.por_app)

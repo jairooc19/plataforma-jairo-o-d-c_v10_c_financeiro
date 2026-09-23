@@ -27,6 +27,15 @@ export interface FiltroDeCadastro {
   /** `true` lista do mais recente para o mais antigo, ignorando os demais filtros. */
   ultimosAdicionados?: boolean;
   incluirInativos?: boolean;
+  /**
+   * Só nas contas movimento: traz também o SALDO DE ABERTURA.
+   *
+   * ⚠️ EXIGE `cm_ver` (23/09/2026). O saldo de abertura deixou de ser legível
+   * direto na tabela — é um valor, e só `cm_ver` o revela. Ele vem da função
+   * `fin_saldos_de_abertura`, que recusa com 42501 sem a permissão. Peça só na
+   * tela de CADASTRO; a lista do formulário de lançamento não precisa dele.
+   */
+  comSaldoAbertura?: boolean;
 }
 
 export const cadastroFinanceiroService = {
@@ -37,13 +46,19 @@ export const cadastroFinanceiroService = {
   /**
    * Lista as contas movimento da empresa, com os filtros cruzados.
    *
-   * A leitura é direta na tabela porque a RLS já limita à empresa do usuário —
-   * é a mesma consulta que o extrato e as listas de lançamento usam.
+   * A leitura é direta na tabela porque a RLS limita a quem tem acesso ao
+   * módulo naquela empresa (`fin_tem_acesso`) — é a mesma consulta que as
+   * listas de lançamento e de transferência usam.
+   *
+   * ⚠️ `saldo_abertura_centavos` NÃO ESTÁ NA LISTA DE COLUNAS, E NÃO PODE
+   * VOLTAR (23/09/2026): a coluna perdeu o `SELECT` no banco, e pedi-la aqui
+   * faria a lista inteira responder `permission denied for column`. Quem
+   * precisa dele passa `comSaldoAbertura`.
    */
   async listarContasMovimento(tenantId: string, filtro: FiltroDeCadastro = {}): Promise<ContaMovimento[]> {
     let q = supabase
       .from('fin_contas_movimento')
-      .select('id, tenant_id, nome, tipo, saldo_abertura_centavos, is_active, created_at')
+      .select('id, tenant_id, nome, tipo, is_active, created_at')
       .eq('tenant_id', tenantId);
 
     if (!filtro.incluirInativos) q = q.eq('is_active', true);
@@ -59,7 +74,18 @@ export const cadastroFinanceiroService = {
 
     const { data, error } = await q;
     if (error) throw new Error(error.message);
-    return (data ?? []) as ContaMovimento[];
+    const contas = (data ?? []) as ContaMovimento[];
+    if (!filtro.comSaldoAbertura || contas.length === 0) return contas;
+
+    const { data: saldos, error: erroSaldos } = await supabase.rpc('fin_saldos_de_abertura', {
+      p_tenant_id: tenantId,
+    });
+    if (erroSaldos) throw new Error(erroSaldos.message);
+    const porId = new Map(
+      ((saldos ?? []) as Array<{ id: string; saldo_abertura_centavos: number }>)
+        .map((s) => [s.id, s.saldo_abertura_centavos]),
+    );
+    return contas.map((c) => ({ ...c, saldo_abertura_centavos: porId.get(c.id) ?? 0 }));
   },
 
   /**
@@ -108,16 +134,20 @@ export const cadastroFinanceiroService = {
   /**
    * Exclui uma conta movimento.
    *
-   * ⚠️ SE HOUVER LANÇAMENTO, O BANCO RECUSA (RN-04, `ON DELETE RESTRICT`) — e é
-   * assim que deve ser. A tela transforma o erro `23001` na frase que sugere
-   * desativar em vez de excluir.
+   * ⚠️ SE HOUVER LANÇAMENTO, O BANCO RECUSA (RN-04) — e é assim que deve ser.
+   * A mensagem dele começa por "Existem lancamentos", e a tela a traduz na
+   * frase que sugere desativar em vez de excluir.
+   *
+   * ⚠️ ATÉ 23/09/2026 ISTO ERA UM `DELETE` DIRETO NA TABELA, E NUNCA
+   * FUNCIONOU: as tabelas `fin_*` só dão `SELECT` ao app. Todo clique voltava
+   * `permission denied`, e a tela dizia "existem lançamentos" até para a conta
+   * sem lançamento nenhum. Agora é a função, que confere `cm_excluir`.
    */
   async excluirContaMovimento(tenantId: string, id: string): Promise<void> {
-    const { error } = await supabase
-      .from('fin_contas_movimento')
-      .delete()
-      .eq('tenant_id', tenantId)
-      .eq('id', id);
+    const { error } = await supabase.rpc('fin_excluir_conta_movimento', {
+      p_tenant_id: tenantId,
+      p_id: id,
+    });
     if (error) throw new Error(error.message);
   },
 
@@ -181,12 +211,16 @@ export const cadastroFinanceiroService = {
     return (data as { id: string }).id;
   },
 
+  /**
+   * Exclui uma categoria — pela função, que confere `ci_excluir`, recusa a
+   * categoria do sistema (RN-30) e a que tem lançamento (RN-04). Ver a nota da
+   * `excluirContaMovimento`: o `DELETE` direto que havia aqui nunca funcionou.
+   */
   async excluirIdentificadora(tenantId: string, id: string): Promise<void> {
-    const { error } = await supabase
-      .from('fin_contas_identificadoras')
-      .delete()
-      .eq('tenant_id', tenantId)
-      .eq('id', id);
+    const { error } = await supabase.rpc('fin_excluir_identificadora', {
+      p_tenant_id: tenantId,
+      p_id: id,
+    });
     if (error) throw new Error(error.message);
   },
 

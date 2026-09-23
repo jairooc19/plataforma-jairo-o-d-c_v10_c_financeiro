@@ -54,6 +54,21 @@ const supabaseAnonKey =
  * 'react-native'. Isso evita erros de build na Vercel enquanto mantém a
  * inteligência no Mobile.
  */
+/**
+ * ⚠️ O ENDEREÇO DE RESERVA NÃO QUEBRA O BUILD — E JUSTAMENTE POR ISSO PRECISA
+ * AVISAR (23/09/2026, achado A6 da engenharia reversa). Sem as variáveis, o
+ * cliente nasce apontando para `placeholder.supabase.co` e toda chamada falha
+ * com um erro de rede que não menciona variável nenhuma. A reserva continua
+ * (sem ela o `next build` da Vercel morreria antes de publicar); o que muda é
+ * que agora ela se anuncia no console, uma vez, no arranque.
+ */
+if (supabaseUrl.includes('placeholder') || supabaseAnonKey === 'placeholder-key') {
+  console.warn(
+    '[Core/supabase] NEXT_PUBLIC_SUPABASE_URL/ANON_KEY (web) ou EXPO_PUBLIC_SUPABASE_URL/ANON_KEY (app) ' +
+      'ausentes: o cliente aponta para um endereço de reserva e toda chamada ao banco vai falhar.',
+  );
+}
+
 const customFetch: typeof fetch = (url, options) => {
   /**
    * Identificamos se estamos no Mobile (React Native) através do objeto

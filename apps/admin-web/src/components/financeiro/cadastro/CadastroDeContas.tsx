@@ -9,6 +9,7 @@ import { abrirImpressao } from "@/components/financeiro/prepararImpressao";
 import IconeFin from "@/components/financeiro/IconeFin";
 import ImportarCadastros from "@/components/financeiro/importar/ImportarCadastros";
 import { formatarBRL } from "@jairo/core";
+import { mensagemDeErro } from "@/lib/erro";
 
 /**
  * 📇 ORQUESTRADOR DOS DOIS CADASTROS (PJODC v10)
@@ -72,8 +73,10 @@ export default function CadastroDeContas({ variante }: { variante: "movimento" |
     setErro(null);
     try {
       const filtro = { texto: filtroTexto, tipo: filtroTipo, ultimosAdicionados: ultimos, incluirInativos };
+      // ⚠️ `comSaldoAbertura` SÓ AQUI (23/09/2026): o saldo de abertura saiu da
+      // leitura direta e exige `cm_ver`, que é a permissão desta tela.
       const lista = ehMovimento
-        ? await cadastroFinanceiroService.listarContasMovimento(tenantId, filtro)
+        ? await cadastroFinanceiroService.listarContasMovimento(tenantId, { ...filtro, comSaldoAbertura: true })
         : await cadastroFinanceiroService.listarIdentificadoras(tenantId, filtro);
       setItens(lista as unknown as ItemDeCadastro[]);
     } catch (e) {
@@ -166,8 +169,14 @@ export default function CadastroDeContas({ variante }: { variante: "movimento" |
       else await cadastroFinanceiroService.excluirIdentificadora(tenantId, item.id);
       setAviso("CADASTRO EXCLUÍDO.");
       await pesquisar();
-    } catch {
-      setErro("NÃO É POSSÍVEL EXCLUIR: EXISTEM LANÇAMENTOS USANDO ESTE CADASTRO. VOCÊ PODE DESATIVÁ-LO.");
+    } catch (e) {
+      // ⚠️ ATÉ 23/09/2026 QUALQUER ERRO VIRAVA "EXISTEM LANÇAMENTOS" — e como a
+      // exclusão nunca funcionava (faltava a função no banco), a frase aparecia
+      // até para a conta sem lançamento. Agora só vira essa frase quando é isso.
+      const texto = mensagemDeErro(e);
+      setErro(texto.startsWith("Existem lancamentos")
+        ? "NÃO É POSSÍVEL EXCLUIR: EXISTEM LANÇAMENTOS USANDO ESTE CADASTRO. VOCÊ PODE DESATIVÁ-LO."
+        : `NÃO FOI POSSÍVEL EXCLUIR: ${texto.toUpperCase()}`);
     }
   };
 

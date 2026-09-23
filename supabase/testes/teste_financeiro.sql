@@ -2910,6 +2910,253 @@ END;
 $$;
 
 
+-- ===========================================================================
+-- TESTE 53 — quem não tem o módulo NÃO LÊ as tabelas direto (achado A1, 23/09)
+-- ===========================================================================
+--
+-- ⚠️ ESTA TRAVA NASCEU DA ENGENHARIA REVERSA DE 23/09/2026. As policies de
+-- leitura das cinco tabelas `fin_*` perguntavam só "é membro ativo da
+-- empresa?". Um Dependente SEM o módulo liberado lia, com um `SELECT` direto
+-- (o mesmo que `supabase.from('fin_lancamentos').select('*')` faz pelo
+-- navegador), todos os lançamentos e o saldo de abertura das contas. As 52
+-- travas anteriores passavam porque NENHUMA lia as tabelas como Dependente.
+--
+-- O QUE SE PROVA AQUI (tudo com cenário próprio, sem depender dos testes acima):
+--   1. SEM o módulo: zero linhas nas cinco tabelas;
+--   2. COM o módulo e só `lc_criar`: vê o PRÓPRIO lançamento e nenhum alheio,
+--      vê a conta na lista, mas NÃO o saldo de abertura (coluna fechada e
+--      `fin_saldos_de_abertura` recusando sem `cm_ver`);
+--   3. o dono continua lendo tudo.
+DO $$
+DECLARE
+  v_mods text[]; v_cfg jsonb;
+  v_cm uuid; v_ci uuid;
+  v_sem_lanc int := -1; v_sem_cm int := -1; v_sem_ci int := -1; v_sem_fech int := -1; v_sem_orc int := -1;
+  v_meus int := -1; v_alheios int := -1; v_lista_cm int := -1; v_dono int := -1;
+  v_coluna text := 'nenhum'; v_saldos text := 'nenhum';
+BEGIN
+  SELECT allowed_modules, module_configs INTO v_mods, v_cfg
+    FROM public.tenant_members
+   WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1'
+     AND user_id = 'd1000000-0000-0000-0000-0000000000d1';
+
+  -- O dono monta o cenário: conta, categoria, lançamento, orçamento e fechamento.
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+  v_cm := (public.fin_gravar_conta_movimento('aa000000-0000-0000-0000-0000000000a1', NULL, 'T53 BANCO', 'BANCO', 120000, true)->>'id')::uuid;
+  v_ci := (public.fin_gravar_identificadora('aa000000-0000-0000-0000-0000000000a1', NULL, 'T53 FOLHA', 'DESPESA', true)->>'id')::uuid;
+  PERFORM public.fin_gravar_lancamento('aa000000-0000-0000-0000-0000000000a1', NULL, v_cm, v_ci,
+          DATE '2026-04-10', NULL, 'SAIDA', 'PROPRIO', 'CAIXA', 850000, 'T53 DO DONO');
+  PERFORM public.fin_gravar_orcamento('aa000000-0000-0000-0000-0000000000a1', NULL, DATE '2026-04-01', v_ci, 900000, NULL);
+  PERFORM public.fin_fechar_periodo('aa000000-0000-0000-0000-0000000000a1', v_cm, DATE '2026-01-31', NULL);
+  RESET ROLE;
+
+  -- 1) Dependente SEM o módulo
+  UPDATE public.tenant_members
+     SET allowed_modules = '{}'::text[], module_configs = '{}'::jsonb
+   WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1'
+     AND user_id = 'd1000000-0000-0000-0000-0000000000d1';
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"d1000000-0000-0000-0000-0000000000d1","role":"authenticated"}', true);
+  SELECT count(*) INTO v_sem_lanc FROM public.fin_lancamentos           WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1';
+  SELECT count(*) INTO v_sem_cm   FROM (SELECT id FROM public.fin_contas_movimento WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1') x;
+  SELECT count(*) INTO v_sem_ci   FROM public.fin_contas_identificadoras WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1';
+  SELECT count(*) INTO v_sem_fech FROM public.fin_fechamentos           WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1';
+  SELECT count(*) INTO v_sem_orc  FROM public.fin_orcamentos            WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1';
+  RESET ROLE;
+
+  -- 2) Dependente COM o módulo, só com `lc_criar`
+  UPDATE public.tenant_members
+     SET allowed_modules = ARRAY['financeiro'],
+         module_configs = jsonb_build_object('financeiro', jsonb_build_object(
+           'ativo', true, 'permissoes', jsonb_build_array('lc_criar')))
+   WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1'
+     AND user_id = 'd1000000-0000-0000-0000-0000000000d1';
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"d1000000-0000-0000-0000-0000000000d1","role":"authenticated"}', true);
+  PERFORM public.fin_gravar_lancamento('aa000000-0000-0000-0000-0000000000a1', NULL, v_cm, v_ci,
+          DATE '2026-04-11', NULL, 'SAIDA', 'PROPRIO', 'CAIXA', 1000, 'T53 DO DEPENDENTE');
+  SELECT count(*) FILTER (WHERE criado_por = 'd1000000-0000-0000-0000-0000000000d1' AND historico = 'T53 DO DEPENDENTE'),
+         count(*) FILTER (WHERE criado_por <> 'd1000000-0000-0000-0000-0000000000d1')
+    INTO v_meus, v_alheios
+    FROM public.fin_lancamentos WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1';
+  SELECT count(*) INTO v_lista_cm
+    FROM (SELECT id FROM public.fin_contas_movimento WHERE id = v_cm) x;
+  BEGIN
+    PERFORM saldo_abertura_centavos FROM public.fin_contas_movimento WHERE id = v_cm;
+  EXCEPTION WHEN OTHERS THEN v_coluna := SQLSTATE; END;
+  BEGIN
+    PERFORM * FROM public.fin_saldos_de_abertura('aa000000-0000-0000-0000-0000000000a1');
+  EXCEPTION WHEN OTHERS THEN v_saldos := SQLSTATE; END;
+  RESET ROLE;
+
+  -- 3) O dono continua lendo tudo
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+  SELECT count(*) INTO v_dono FROM public.fin_lancamentos
+   WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1' AND historico LIKE 'T53 %';
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  -- Devolve a configuração que o Dependente tinha antes deste teste.
+  UPDATE public.tenant_members
+     SET allowed_modules = v_mods, module_configs = v_cfg
+   WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1'
+     AND user_id = 'd1000000-0000-0000-0000-0000000000d1';
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    53,
+    CASE WHEN v_sem_lanc = 0 AND v_sem_cm = 0 AND v_sem_ci = 0 AND v_sem_fech = 0 AND v_sem_orc = 0
+          AND v_meus = 1 AND v_alheios = 0 AND v_lista_cm = 1
+          AND v_coluna = '42501' AND v_saldos = '42501' AND v_dono = 2
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-25, RN-27',
+    'Leitura direta das tabelas: sem o modulo nada; com o modulo so o proprio, sem saldo de abertura',
+    format('SEM modulo: lanc=%s cm=%s ci=%s fech=%s orc=%s (esperado 0 nos cinco); COM modulo e so lc_criar: meus=%s (1) alheios=%s (0) conta na lista=%s (1) coluna saldo=%s (42501) fin_saldos_de_abertura=%s (42501); dono ve=%s (2)',
+           v_sem_lanc, v_sem_cm, v_sem_ci, v_sem_fech, v_sem_orc,
+           v_meus, v_alheios, v_lista_cm, v_coluna, v_saldos, v_dono));
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 54 — perna de transferência NÃO se edita (RN-23, achado A2, 23/09)
+-- ===========================================================================
+--
+-- ⚠️ ATÉ 23/09/2026 A REGRA MORAVA SÓ NA TELA. Chamando a
+-- `fin_gravar_lancamento` por fora, a SAÍDA de uma transferência de 100,00
+-- virava 999,00 com a ENTRADA parada em 100,00 — R$ 899,00 sumiam do total
+-- da empresa, sem erro nenhum.
+DO $$
+DECLARE
+  v_a uuid; v_b uuid; v_perna uuid; v_ci uuid;
+  v_erro text := 'nenhum'; v_saida bigint; v_entrada bigint;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+  v_a := (public.fin_gravar_conta_movimento('aa000000-0000-0000-0000-0000000000a1', NULL, 'T54 CAIXA', 'CAIXA', 0, true)->>'id')::uuid;
+  v_b := (public.fin_gravar_conta_movimento('aa000000-0000-0000-0000-0000000000a1', NULL, 'T54 BANCO', 'BANCO', 0, true)->>'id')::uuid;
+  PERFORM public.fin_transferir('aa000000-0000-0000-0000-0000000000a1', v_a, v_b, DATE '2026-04-15', 10000, 'T54');
+
+  SELECT id, conta_identificadora_id INTO v_perna, v_ci
+    FROM public.fin_lancamentos
+   WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1' AND conta_movimento_id = v_a;
+
+  BEGIN
+    PERFORM public.fin_gravar_lancamento('aa000000-0000-0000-0000-0000000000a1', v_perna, v_a, v_ci,
+            DATE '2026-04-15', NULL, 'SAIDA', 'PROPRIO', 'CAIXA', 99900, 'T54 EDITADA');
+  EXCEPTION WHEN OTHERS THEN v_erro := SQLSTATE; END;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  SELECT valor_centavos INTO v_saida   FROM public.fin_lancamentos WHERE id = v_perna;
+  SELECT valor_centavos INTO v_entrada FROM public.fin_lancamentos
+   WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1' AND conta_movimento_id = v_b;
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    54,
+    CASE WHEN v_erro = '23514' AND v_saida = 10000 AND v_entrada = 10000
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-23',
+    'Editar uma perna de transferencia pela funcao e recusado e as duas pernas ficam iguais',
+    format('erro=%s (esperado 23514); saida=%s entrada=%s (esperado 10000 nas duas)',
+           v_erro, v_saida, v_entrada));
+END;
+$$;
+
+
+-- ===========================================================================
+-- TESTE 55 — excluir cadastro funciona e confere a permissão (RN-04, RN-25, RN-30)
+-- ===========================================================================
+--
+-- ⚠️ ATÉ 23/09/2026 EXCLUIR UM CADASTRO NUNCA FUNCIONOU: a tela fazia `DELETE`
+-- direto na tabela, que só dá `SELECT` ao app, e mostrava "EXISTEM
+-- LANÇAMENTOS" para qualquer erro. As permissões `cm_excluir`/`ci_excluir`
+-- não eram conferidas por ninguém.
+DO $$
+DECLARE
+  v_mods text[]; v_cfg jsonb;
+  v_livre uuid; v_livre2 uuid; v_usada uuid; v_destino uuid;
+  v_ci_livre uuid; v_ci_usada uuid; v_ci_sis uuid;
+  r1 text := 'ok'; r2 text := 'ok'; r3 text := 'ok'; r4 text := 'ok'; r5 text := 'ok'; r6 text := 'ok';
+  v_livre_sobrou int := -1; v_ci_livre_sobrou int := -1; v_livre2_sobrou int := -1;
+BEGIN
+  SELECT allowed_modules, module_configs INTO v_mods, v_cfg
+    FROM public.tenant_members
+   WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1'
+     AND user_id = 'd1000000-0000-0000-0000-0000000000d1';
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+  v_livre    := (public.fin_gravar_conta_movimento('aa000000-0000-0000-0000-0000000000a1', NULL, 'T55 LIVRE',   'BANCO', 0, true)->>'id')::uuid;
+  v_livre2   := (public.fin_gravar_conta_movimento('aa000000-0000-0000-0000-0000000000a1', NULL, 'T55 LIVRE 2', 'BANCO', 0, true)->>'id')::uuid;
+  v_usada    := (public.fin_gravar_conta_movimento('aa000000-0000-0000-0000-0000000000a1', NULL, 'T55 USADA',   'BANCO', 0, true)->>'id')::uuid;
+  v_destino  := (public.fin_gravar_conta_movimento('aa000000-0000-0000-0000-0000000000a1', NULL, 'T55 DESTINO', 'CAIXA', 0, true)->>'id')::uuid;
+  v_ci_livre := (public.fin_gravar_identificadora('aa000000-0000-0000-0000-0000000000a1', NULL, 'T55 CI LIVRE', 'DESPESA', true)->>'id')::uuid;
+  v_ci_usada := (public.fin_gravar_identificadora('aa000000-0000-0000-0000-0000000000a1', NULL, 'T55 CI USADA', 'DESPESA', true)->>'id')::uuid;
+  PERFORM public.fin_gravar_lancamento('aa000000-0000-0000-0000-0000000000a1', NULL, v_usada, v_ci_usada,
+          DATE '2026-04-20', NULL, 'SAIDA', 'PROPRIO', 'CAIXA', 500, 'T55');
+  -- a transferência garante que a categoria do sistema existe nesta empresa
+  PERFORM public.fin_transferir('aa000000-0000-0000-0000-0000000000a1', v_usada, v_destino, DATE '2026-04-20', 100, 'T55');
+  RESET ROLE;
+
+  SELECT id INTO v_ci_sis FROM public.fin_contas_identificadoras
+   WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1' AND is_sistema;
+
+  -- O dono exclui
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"a1000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+  BEGIN PERFORM public.fin_excluir_conta_movimento('aa000000-0000-0000-0000-0000000000a1', v_livre);
+  EXCEPTION WHEN OTHERS THEN r1 := SQLSTATE; END;
+  BEGIN PERFORM public.fin_excluir_conta_movimento('aa000000-0000-0000-0000-0000000000a1', v_usada);
+  EXCEPTION WHEN OTHERS THEN r2 := SQLSTATE; END;
+  BEGIN PERFORM public.fin_excluir_identificadora('aa000000-0000-0000-0000-0000000000a1', v_ci_livre);
+  EXCEPTION WHEN OTHERS THEN r3 := SQLSTATE; END;
+  BEGIN PERFORM public.fin_excluir_identificadora('aa000000-0000-0000-0000-0000000000a1', v_ci_sis);
+  EXCEPTION WHEN OTHERS THEN r4 := SQLSTATE; END;
+  BEGIN PERFORM public.fin_excluir_identificadora('aa000000-0000-0000-0000-0000000000a1', v_ci_usada);
+  EXCEPTION WHEN OTHERS THEN r5 := SQLSTATE; END;
+  RESET ROLE;
+
+  -- O Dependente, com o módulo mas SEM `cm_excluir`, tenta
+  UPDATE public.tenant_members
+     SET allowed_modules = ARRAY['financeiro'],
+         module_configs = jsonb_build_object('financeiro', jsonb_build_object(
+           'ativo', true, 'permissoes', jsonb_build_array('cm_ver', 'cm_gravar')))
+   WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1'
+     AND user_id = 'd1000000-0000-0000-0000-0000000000d1';
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"sub":"d1000000-0000-0000-0000-0000000000d1","role":"authenticated"}', true);
+  BEGIN PERFORM public.fin_excluir_conta_movimento('aa000000-0000-0000-0000-0000000000a1', v_livre2);
+  EXCEPTION WHEN OTHERS THEN r6 := SQLSTATE; END;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims','{}', true);
+
+  UPDATE public.tenant_members
+     SET allowed_modules = v_mods, module_configs = v_cfg
+   WHERE tenant_id = 'aa000000-0000-0000-0000-0000000000a1'
+     AND user_id = 'd1000000-0000-0000-0000-0000000000d1';
+
+  SELECT count(*) INTO v_livre_sobrou    FROM public.fin_contas_movimento       WHERE id = v_livre;
+  SELECT count(*) INTO v_ci_livre_sobrou FROM public.fin_contas_identificadoras WHERE id = v_ci_livre;
+  SELECT count(*) INTO v_livre2_sobrou   FROM public.fin_contas_movimento       WHERE id = v_livre2;
+
+  INSERT INTO public.resultado_teste_financeiro VALUES (
+    55,
+    CASE WHEN r1 = 'ok' AND v_livre_sobrou = 0 AND r2 = '23503'
+          AND r3 = 'ok' AND v_ci_livre_sobrou = 0 AND r4 = '42501' AND r5 = '23503'
+          AND r6 = '42501' AND v_livre2_sobrou = 1
+         THEN 'PASSOU' ELSE 'FALHOU' END,
+    'RN-04, RN-25, RN-30',
+    'Excluir cadastro: sem lancamento sai; com lancamento, do sistema ou sem permissao, fica',
+    format('conta livre=%s sobrou=%s (ok, 0); conta usada=%s (23503); categoria livre=%s sobrou=%s (ok, 0); categoria do sistema=%s (42501); categoria usada=%s (23503); dependente sem cm_excluir=%s sobrou=%s (42501, 1)',
+           r1, v_livre_sobrou, r2, r3, v_ci_livre_sobrou, r4, r5, r6, v_livre2_sobrou));
+END;
+$$;
+
+
 -- ---------------------------------------------------------------------------
 -- LIMPEZA FINAL
 -- ---------------------------------------------------------------------------

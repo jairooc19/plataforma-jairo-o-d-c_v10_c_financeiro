@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Manual da Plataforma Jairo ODC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,500;7..72,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* =====================================================================
+   PALETA — fonte preta, fundos e destaques suaves (pedido do dono)
+   ===================================================================== */
+:root {
+  color-scheme: light;
+  --tinta: #000000;          /* texto: preto, sempre */
+  --tinta-2: #1f2933;        /* legendas */
+  --azul: #2c5282;           /* destaque principal */
+  --azul-claro: #dbe6f3;
+  --papel: #ffffff;
+  --fundo: #f7f9fb;          /* chão da página, levemente azulado */
+  --suave-azul: #f0f4f8;
+  --suave-verde: #f0f9f7;
+  --suave-amarelo: #fef5e7;
+  --suave-vermelho: #fdf1f0;
+  --borda: #cfd8e3;
+  --verde: #276749;
+  --ambar: #975a16;
+  --vermelho: #9b2c2c;
+  --serif: "Literata", Georgia, "Times New Roman", serif;
+  --sans: "IBM Plex Sans", "Segoe UI", Roboto, Arial, sans-serif;
+  --mono: "IBM Plex Mono", Consolas, "Courier New", monospace;
+}
+
+/* A impressão em CORES só sai igual à tela se o navegador for proibido
+   de "economizar tinta". Por isso a regra vale para TODOS os elementos,
+   FORA do @media print. */
+*, *::before, *::after {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  box-sizing: border-box;
+}
+
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+body {
+  margin: 0;
+  background: var(--fundo);
+  color: var(--tinta);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.65;
+  padding-inline: 16px;
+  padding-block: 0 64px;
+}
+
+.pagina { max-width: 980px; margin: 0 auto; }
+
+h1, h2, h3, h4 { font-family: var(--serif); color: var(--tinta); text-wrap: balance; line-height: 1.25; }
+h1 { font-size: 2.3rem; margin: 0 0 .4rem; }
+h2 { font-size: 1.65rem; margin: 0 0 1rem; padding-bottom: .5rem; border-bottom: 2px solid var(--azul); }
+h3 { font-size: 1.2rem; margin: 1.8rem 0 .6rem; }
+h4 { font-size: 1.02rem; margin: 1.2rem 0 .4rem; font-family: var(--sans); font-weight: 700; }
+p, li { max-width: 72ch; }
+a { color: var(--azul); }
+a:focus-visible, button:focus-visible { outline: 3px solid var(--azul); outline-offset: 2px; }
+code, .mono { font-family: var(--mono); font-size: .9em; background: var(--suave-azul); padding: .05em .35em; border-radius: 4px; color: var(--tinta); }
+pre { font-family: var(--mono); font-size: .84rem; background: var(--suave-azul); border: 1px solid var(--borda); border-radius: 8px; padding: 14px 16px; overflow-x: auto; line-height: 1.5; color: var(--tinta); }
+pre code { background: none; padding: 0; }
+strong { font-weight: 700; }
+
+/* ---------------- capa ---------------- */
+.capa { padding-block: 48px 28px; }
+.sobretitulo { font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; font-weight: 700; color: var(--azul); margin: 0 0 .6rem; }
+.capa .linha-fina { font-size: 1.1rem; color: var(--tinta-2); max-width: 64ch; margin: 0 0 1.2rem; }
+.ficha { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin-top: 1rem; }
+.ficha div { background: var(--papel); border: 1px solid var(--borda); border-radius: 8px; padding: 10px 14px; }
+.ficha dt { font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--tinta-2); font-weight: 600; }
+.ficha dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ---------------- seções ---------------- */
+section { background: var(--papel); border: 1px solid var(--borda); border-radius: 12px; padding: 28px clamp(16px, 4vw, 40px); margin-block: 22px; }
+.numero-secao { font-family: var(--mono); font-size: .8rem; color: var(--azul); font-weight: 500; display: block; margin-bottom: .2rem; }
+
+/* ---------------- sumário ---------------- */
+.toc { background: var(--suave-azul); border: 1px solid var(--borda); border-radius: 12px; padding: 24px clamp(16px, 4vw, 36px); }
+.toc h2 { border-bottom-color: var(--azul); }
+.toc ol { columns: 2 280px; column-gap: 32px; margin: 0; padding-left: 1.4rem; }
+.toc li { break-inside: avoid; margin-bottom: .25rem; }
+.toc a { color: var(--tinta); text-decoration: none; border-bottom: 1px dotted var(--azul); }
+.toc a:hover { color: var(--azul); }
+
+/* ---------------- caixas ---------------- */
+.highlight-box, .example-box, .bonus-section, .alerta, .ok-box {
+  border-radius: 10px; padding: 14px 18px; margin: 1rem 0; border: 1px solid var(--borda);
+}
+.highlight-box { background: var(--suave-azul); border-left: 5px solid var(--azul); }
+.example-box { background: var(--suave-verde); border-left: 5px solid var(--verde); }
+.bonus-section { background: var(--suave-amarelo); border-left: 5px solid var(--ambar); }
+.alerta { background: var(--suave-vermelho); border-left: 5px solid var(--vermelho); }
+.ok-box { background: var(--suave-verde); border-left: 5px solid var(--verde); }
+.rotulo-caixa { display: block; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; font-weight: 700; margin-bottom: .3rem; color: var(--tinta); }
+.highlight-box p:last-child, .example-box p:last-child, .bonus-section p:last-child, .alerta p:last-child, .ok-box p:last-child { margin-bottom: 0; }
+
+/* selos de honestidade */
+.selo { display: inline-block; font-size: .7rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: .1em .55em; border-radius: 999px; border: 1px solid; vertical-align: .1em; white-space: nowrap; }
+.selo.medido { background: var(--suave-verde); border-color: var(--verde); color: var(--tinta); }
+.selo.lido { background: var(--suave-azul); border-color: var(--azul); color: var(--tinta); }
+.selo.provado { background: var(--suave-amarelo); border-color: var(--ambar); color: var(--tinta); }
+.selo.nao { background: var(--suave-vermelho); border-color: var(--vermelho); color: var(--tinta); }
+
+/* ---------------- tabelas ---------------- */
+.tabela-rolagem { overflow-x: auto; margin: 1rem 0; border: 1px solid var(--borda); border-radius: 8px; }
+table { width: 100%; border-collapse: collapse; font-size: .9rem; background: var(--papel); }
+table thead { background-color: var(--azul); }
+table thead th { color: #ffffff; text-align: left; padding: 9px 12px; font-weight: 600; font-size: .82rem; letter-spacing: .02em; }
+table td { padding: 8px 12px; border-top: 1px solid var(--borda); vertical-align: top; color: var(--tinta); }
+table tbody tr:nth-child(even) td { background: var(--suave-azul); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ---------------- diagramas em caixas ---------------- */
+.fluxo { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; margin: 1rem 0; }
+.fluxo .passo { flex: 1 1 150px; background: var(--suave-azul); border: 1px solid var(--borda); border-radius: 8px; padding: 10px 12px; font-size: .88rem; }
+.fluxo .passo b { display: block; font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--azul); }
+.fluxo .seta { align-self: center; font-weight: 700; color: var(--azul); }
+.camadas { display: grid; gap: 10px; margin: 1rem 0; }
+.camada { border: 1px solid var(--borda); border-radius: 10px; padding: 12px 16px; }
+.camada h4 { margin: 0 0 .3rem; }
+.camada.c1 { background: var(--suave-amarelo); }
+.camada.c2 { background: var(--suave-verde); }
+.camada.c3 { background: var(--suave-azul); }
+.grade-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+
+details { background: var(--suave-azul); border: 1px solid var(--borda); border-radius: 8px; padding: 10px 14px; margin: 1rem 0; }
+details summary { cursor: pointer; font-weight: 600; }
+details pre { white-space: pre-wrap; background: var(--papel); }
+
+.rodape { text-align: center; font-size: .85rem; color: var(--tinta-2); margin-top: 32px; }
+
+/* =====================================================================
+   BOTÃO DE IMPRESSÃO — fixo no canto superior direito
+   ===================================================================== */
+.print-container { position: fixed; top: calc(14px + env(safe-area-inset-top, 0px)); right: 14px; z-index: 1000; }
+.print-button {
+  font-family: var(--sans); font-weight: 600; font-size: .9rem;
+  background: var(--azul); color: #ffffff; border: none; border-radius: 8px;
+  padding: 10px 16px; cursor: pointer; box-shadow: 0 2px 8px rgba(44, 82, 130, .3);
+}
+.print-button:hover { background: #234268; }
+.print-menu {
+  display: none; position: absolute; top: calc(100% + 6px); right: 0; min-width: 210px;
+  background: var(--papel); border: 1px solid var(--borda); border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .12); overflow: hidden;
+}
+.print-menu.aberto { display: block; }
+.print-menu button {
+  display: block; width: 100%; text-align: left; font-family: var(--sans); font-size: .9rem;
+  background: var(--papel); color: var(--tinta); border: none; padding: 11px 16px; cursor: pointer;
+}
+.print-menu button + button { border-top: 1px solid var(--borda); }
+.print-menu button:hover, .print-menu button:focus-visible { background: var(--suave-azul); }
+
+/* =====================================================================
+   MODO PRETO & BRANCO — ligado pela classe .print-bw no <body>
+   (é a ÚNICA regra que troca cores; o @media print não mexe em cor)
+   ===================================================================== */
+.print-bw, .print-bw * { color: #000 !important; background-color: #fff !important; border-color: #000 !important; box-shadow: none !important; }
+.print-bw table thead, .print-bw table thead th { background-color: #333 !important; color: #fff !important; }
+.print-bw table tbody tr:nth-child(even) td { background-color: #f2f2f2 !important; }
+.print-bw .highlight-box, .print-bw .example-box, .print-bw .bonus-section, .print-bw .alerta, .print-bw .ok-box,
+.print-bw pre, .print-bw code, .print-bw details, .print-bw .toc, .print-bw .fluxo .passo, .print-bw .camada { background-color: #f2f2f2 !important; }
+.print-bw a { text-decoration: underline; }
+
+/* =====================================================================
+   @media print — SÓ layout, quebras, margens e display. NENHUMA cor.
+   ===================================================================== */
+@page { size: A4; margin: 0.5cm; }
+@media print {
+  .print-container { display: none !important; }
+  body { padding: 0; margin: 0; }
+  .pagina { max-width: none; margin: 0; }
+  section { box-shadow: none; margin: 0 0 .4cm; padding: .4cm .5cm; page-break-inside: avoid; }
+  section h2 { page-break-inside: avoid; page-break-after: avoid; }
+  h2, h3 { page-break-after: avoid; }
+  .toc, .highlight-box, .bonus-section, .example-box, .alerta, .ok-box, pre, .fluxo, .camadas { page-break-inside: avoid; }
+  table { page-break-inside: avoid; }
+  tr { page-break-inside: avoid; }
+  .tabela-rolagem { overflow: visible; border-style: solid; }
+  pre { overflow: visible; white-space: pre-wrap; }
+  details { display: block; }
+  details > * { display: block; }
+  .print-button, .print-menu { box-shadow: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="print-container" id="printContainer">
+  <button type="button" class="print-button" id="printButton" aria-haspopup="true" aria-expanded="false" aria-controls="printMenu">🖨️ Imprimir ▾</button>
+  <div class="print-menu" id="printMenu" role="menu">
+    <button type="button" role="menuitem" id="printCores">Cores (A4)</button>
+    <button type="button" role="menuitem" id="printPB">Preto &amp; Branco (A4)</button>
+  </div>
+</div>
+
+<div class="pagina">
+
+<!-- ================================================================== -->
+<header class="capa">
+  <p class="sobretitulo">Estudo · Engenharia reversa completa · 23/09/2026</p>
+  <h1>Manual da Plataforma Jairo O D C v10</h1>
+  <p class="linha-fina">O sistema inteiro explicado do zero: o banco de dados, o “cérebro” compartilhado, o site, o aplicativo e o módulo Controle Financeiro. Os números foram medidos neste dia. O manual também aponta, sem rodeio, o que encontrei de errado.</p>
+  <dl class="ficha">
+    <div><dt>Commit estudado</dt><dd><code>a92d751</code> (master = GitHub)</dd></div>
+    <div><dt>Arquivos no Git</dt><dd>355</dd></div>
+    <div><dt>Linhas de código e SQL</dt><dd>≈ 52.700</dd></div>
+    <div><dt>Ensaio geral hoje</dt><dd>11 de 11 provas ✅</dd></div>
+    <div><dt>Achados sérios</dt><dd>2, corrigidos no degrau 10</dd></div>
+  </dl>
+
+  <details>
+    <summary>O pedido que originou este estudo (transcrição literal)</summary>
+<pre>SOBRE O Teste do APK no celular, DEPENDENTE APRESENTOU Falta o convite.
+
+SUA MISSÃO AGORA É FAZER UMA ENGENHARIA REVERSA COMPLETA DO CÓDIGO 100%, A APRESENTAR O RESULTADO
+
+NO FORMATO HONESTIDADE: 100% HONESTA, SEM INVENÇÕES O PÚBLICO É PESSOA QUE PRECISA 100% DE ORIENTAÇÃO.
+
+ ESTILO DE ENSINO: EXPLICAR O ÓBVIO E IMPLÍCITO, COM EXEMPLOS PRÁTICOS, EM FORMATO INTUITIVO E DIDÁTICO.
+
+FORMATO DE ENTREGA: CRIE UM ARQUIVO HTML, QUE SIRVA DE MANUAL PARA VOCÊ E PARA HUMANO ENTENDER TUDO SOBRE O SISTEMA COM:
+
+ 1. SUMÁRIO DE TODO O CONTEÚDO DO ESTUDO;
+ 2. CORPO: TODO O CONTEÚDO COMPLETO DO ESTUDO;
+ 3. DESIGN: SOFISTICADO COM COR DAS FONTES EM PRETO E FUNDOS E DESTAQUES SUAVES;
+
+4. BOTÃO DE IMPRESSÃO POSICIONADO FIXO NO CANTO SUPERIOR DIREITO,
+ MENU DROPDOWN COM 2 OPÇÕES DE IMPRESSÃO:
+
+ REQUISITOS DE FUNCIONALIDADE:
+ - Botão e menu envolvidos em &lt;div class="print-container"&gt;
+ - Menu dropdown deve abrir ao clicar no botão
+ - Usuário DEVE conseguir navegar com mouse entre as 2 opções sem menu fechar
+ - Menu deve fechar ao clicar FORA do container (nem no botão nem no menu)
+ - Usar event.stopPropagation() para prevenir "bubbling" de eventos
+ - JavaScript DEVE usar addEventListener em printMenu com stopPropagation
+ - Documento listener deve checar !container.contains(event.target)
+
+ OPÇÃO "CORES (A4)":
+ - Preserva TODAS as cores originais da tela
+ - JavaScript REMOVE classe .print-bw antes de window.print()
+ - Espera 100ms para browser renderizar mudança
+ - Chama window.print()
+ - @media print NÃO força nenhuma cor (nem color, nem background-color)
+ - @media print cuida APENAS de: layout, quebras de página, margens, display
+ - Resultado: cores exatas como vistas na tela (azul #2c5282, fundos suaves, etc)
+
+ OPÇÃO "PRETO &amp; BRANCO (A4)":
+ - JavaScript ADICIONA classe .print-bw ANTES de window.print()
+ - Classe .print-bw sobrescreve TODAS as cores para escala cinza/preto
+ - Espera 100ms para browser aplicar estilos da classe
+ - Chama window.print()
+ - APÓS impressão, remove classe .print-bw (volta ao normal na tela)
+ - Resultado: documento totalmente em preto, cinzas e branco
+
+ IMPLEMENTAÇÃO CRÍTICA DO CSS:
+ - print-color-adjust: exact em TODOS os elementos (fora de @media print)
+     - @media print contém APENAS: display, page-break-*, overflow, margin, padding, border-style
+     - @media print NÃO contém: color, background-color, fill, stroke (deixa o browser decidir)
+     - Classe .print-bw define: color: #000, background-color: #fff, border-color: #000, etc
+     - Classe .print-bw.table thead { background-color: #333 } (cinza escuro, não preto puro)
+
+  5. JAVASCRIPT FUNCIONANDO SEM ERROS:
+     - setTimeout(100ms) após remover/adicionar classe .print-bw
+     - setTimeout(100ms) ANTES de window.print()
+     - setTimeout(100ms) APÓS window.print() para remover .print-bw
+     - event.stopPropagation() em todos os listeners do printMenu
+     - console.log() confirmando carregamento bem-sucedido
+
+  6. CSS @MEDIA PRINT OTIMIZADO PARA A4:
+     - Sem sobrescrita de cores (deixar navegador preservar ou converter conforme modo)
+     - page-break-inside: avoid em sections, tabelas, caixas de destaque
+     - page-break-after: avoid em h2, h3
+     - Margens mínimas (0 ou 0.5cm) para A4
+     - Sem box-shadow
+     - Sem cores de fundo impostas (deixar classes .print-bw decidir)
+
+  7. CORES MANTIDAS EXATAMENTE COMO NA TELA (MODO CORES):
+     - Quando usuário clica "Cores (A4)":
+       * Classe .print-bw é REMOVIDA
+       * Todos os estilos de cor originais retornam (sem sobrescrita)
+       * Impressão mostra: azul #2c5282, fundos #f0f4f8, #f0f9f7, #fef5e7, etc
+       * Tabelas com thead azul e linhas com fundo suave
+
+  8. QUEBRAS DE PÁGINA INTELIGENTES (PAGE-BREAK-INSIDE: AVOID):
+     - section { page-break-inside: avoid }
+     - section h2 { page-break-inside: avoid; page-break-after: avoid }
+     - .toc, .highlight-box, .bonus-section, .example-box { page-break-inside: avoid }
+     - table { page-break-inside: avoid }
+     - Resultado: seções inteiras não são cortadas no meio da página
+
+  9. MENU SE OCULTA NA IMPRESSÃO:
+      - .print-container { display: none !important } em @media print
+      - Menu não aparece em nenhuma página impressa
+
+  10. COMPATIBILIDADE CROSS-BROWSER:
+      - Funcionar identicamente em Chrome, Firefox, Safari, Edge
+      - Testar menu dropdown em todos os navegadores
+      - Testar impressão de cores e P&amp;B em todos os navegadores
+      - SEM erros no console do navegador
+      - Arquivo pronto para download e armazenamento.</pre>
+  </details>
+</header>
+
+<!-- ================================================================== -->
+<nav class="toc" id="sumario" aria-label="Sumário">
+  <h2>Sumário</h2>
+  <ol>
+    <li><a href="#s1">Resumo em uma página</a></li>
+    <li><a href="#s2">Como ler este manual (os selos de honestidade)</a></li>
+    <li><a href="#s3">A ideia central: o Sol e as peças de LEGO</a></li>
+    <li><a href="#s4">O mapa do repositório, em números</a></li>
+    <li><a href="#s5">As três camadas: banco, cérebro e telas</a></li>
+    <li><a href="#s6">Quem é quem: os papéis de pessoa</a></li>
+    <li><a href="#s7">A entrada pelo SITE, passo a passo</a></li>
+    <li><a href="#s8">A entrada pelo APLICATIVO (e o teste que você fez)</a></li>
+    <li><a href="#s9">O banco da plataforma: 7 tabelas</a></li>
+    <li><a href="#s10">As duas chaves para abrir um módulo</a></li>
+    <li><a href="#s11">O Controle Financeiro: os conceitos</a></li>
+    <li><a href="#s12">As 18 telas do módulo no site</a></li>
+    <li><a href="#s13">Como o saldo é calculado</a></li>
+    <li><a href="#s14">Transferência, conferência, fechamento, lixeira e importação</a></li>
+    <li><a href="#s15">Orçamento e Dinheiro do Período</a></li>
+    <li><a href="#s16">As 23 permissões do Dependente</a></li>
+    <li><a href="#s17">O módulo dentro do aplicativo</a></li>
+    <li><a href="#s18">O Painel de Engenharia (Desenvolvedor)</a></li>
+    <li><a href="#s19">Segurança: o que protege e o que é conforto</a></li>
+    <li><a href="#s20">As provas automáticas (o ensaio geral)</a></li>
+    <li><a href="#s21">Como uma mudança chega ao ar</a></li>
+    <li><a href="#s22">ACHADOS desta engenharia reversa</a></li>
+    <li><a href="#s23">O que eu NÃO verifiquei</a></li>
+    <li><a href="#s24">Glossário</a></li>
+    <li><a href="#s25">Bônus: sugestões de próximos degraus</a></li>
+  </ol>
+</nav>
+
+<!-- ================================================================== -->
+<section id="s1">
+  <span class="numero-secao">01</span>
+  <h2>Resumo em uma página</h2>
+  <p><strong>O que é o sistema:</strong> uma plataforma para <em>várias empresas ao mesmo tempo</em> (o nome técnico é “multi-tenant”). Cada empresa tem um dono (o <strong>Proprietário</strong>), uma equipe (os <strong>Dependentes</strong>) e só enxerga os próprios dados. Acima de todos existe o <strong>Desenvolvedor</strong>, que aprova quem entra e decide quais produtos cada empresa contratou.</p>
+  <p><strong>O que ele faz hoje:</strong> a plataforma cuida de login, perfil, empresas, equipe, cores e auditoria. Um único produto de negócio está plugado: o <strong>Controle Financeiro</strong>, com contas, lançamentos, extrato com saldo, transferências, fechamento de período, lixeira, orçamento e o painel “Dinheiro do Período”.</p>
+  <p><strong>Onde ele roda:</strong></p>
+  <ul>
+    <li><strong>Site</strong> (para computador): publicado na Vercel. É onde está o módulo inteiro.</li>
+    <li><strong>Aplicativo</strong> (Android): distribuído como APK pelo Expo (EAS). Ali o módulo tem uma parte, que é o Dinheiro do Período, com lançar e “meus lançamentos”.</li>
+    <li><strong>Banco de dados</strong>: Supabase (PostgreSQL). É ele que decide quem pode ver e fazer o quê.</li>
+  </ul>
+
+  <div class="ok-box">
+    <span class="rotulo-caixa">Estado hoje (23/09/2026) <span class="selo medido">medido</span></span>
+    <p>O <code>npm run ensaio</code> passou <strong>11 de 11 provas</strong>: 143 testes do Core, verificador de LEGO, lint, build (29 rotas), tipos do aplicativo, instalação limpa do SQL, os dois inventários (4 e 17), as travas do módulo (52/52), as travas da plataforma (16/16) e o ensaio de atualização (21/21). Seu teste do APK também deu certo: o Dependente sem equipe viu <strong>“Conta criada. Falta o convite.”</strong>, que é exatamente o resultado esperado do degrau 09.</p>
+  </div>
+
+  <div class="alerta">
+    <span class="rotulo-caixa">Os dois achados sérios <span class="selo provado">provado em banco descartável</span></span>
+    <p><strong>1.</strong> Um Dependente da empresa, <strong>mesmo sem o módulo liberado e sem nenhuma permissão</strong>, consegue ler <em>todos</em> os lançamentos e saldos direto das tabelas. As telas escondem, mas o banco entrega. <strong>2.</strong> O banco aceita editar <strong>só uma das duas pernas</strong> de uma transferência, e isso cria dinheiro do nada numa conta. Quem impede hoje é só a tela. Os detalhes, a prova e a correção proposta estão na <a href="#s22">seção 22</a>.</p>
+  </div>
+  <div class="ok-box">
+    <span class="rotulo-caixa">Atualização do mesmo dia: corrigidos no degrau 10 <span class="selo medido">medido</span></span>
+    <p>Com a sua autorização, A1, A2, A3, A4 e A6 foram corrigidos. Na correção apareceu o <strong>A7</strong> (excluir cadastro nunca funcionou), também corrigido. As travas novas 53, 54 e 55 foram vistas <strong>falhar</strong> no schema antigo e passar no novo. Ensaio geral depois da correção: <strong>11/11</strong>, com <code>teste_financeiro.sql</code> em <strong>55/55</strong>. O A5 (fatiar arquivos grandes) ficou para um degrau próprio. O resto deste manual descreve o sistema <em>antes</em> da correção, e a <a href="#s22">seção 22</a> diz o que mudou.</p>
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<section id="s2">
+  <span class="numero-secao">02</span>
+  <h2>Como ler este manual (os selos de honestidade)</h2>
+  <p>Cada afirmação importante traz um selo dizendo <strong>como eu sei</strong> o que estou dizendo. Assim você separa o que foi medido hoje do que foi só lido ou deduzido.</p>
+  <div class="tabela-rolagem"><table>
+    <thead><tr><th>Selo</th><th>O que significa</th><th>Exemplo</th></tr></thead>
+    <tbody>
+      <tr><td><span class="selo medido">medido</span></td><td>Rodei um comando hoje e copiei o número que ele devolveu.</td><td>“143 testes passaram”</td></tr>
+      <tr><td><span class="selo lido">lido no código</span></td><td>Abri o arquivo e li o trecho. Não executei.</td><td>“a função confere <code>fin_pode</code> antes de gravar”</td></tr>
+      <tr><td><span class="selo provado">provado</span></td><td>Montei um banco PostgreSQL descartável no seu computador, apliquei os arquivos SQL do projeto e executei o cenário. O banco foi apagado em seguida.</td><td>“o banco aceitou editar uma perna só”</td></tr>
+      <tr><td><span class="selo nao">não verificado</span></td><td>Não tive como conferir daqui: depende do Supabase publicado, da Vercel ou do seu aparelho.</td><td>“a lista de Redirect URLs do Supabase”</td></tr>
+    </tbody>
+  </table></div>
+  <div class="highlight-box">
+    <span class="rotulo-caixa">Até onde vai o “100%”</span>
+    <p>São cerca de 52.700 linhas. Li <strong>por inteiro</strong> os documentos de regra (<code>CLAUDE.md</code>, <code>MODULOS.md</code>), as definições de todas as tabelas, a lista completa de funções, policies e gatilhos, e as funções centrais (permissão, gravar lançamento, transferência, saldo, dinheiro do período). O resto (telas e estilos) eu mapeei <strong>arquivo por arquivo pela estrutura</strong>, com buscas dirigidas, sem ler cada linha de visual. A <a href="#s23">seção 23</a> lista com precisão o que ficou de fora.</p>
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<section id="s3">
+  <span class="numero-secao">03</span>
+  <h2>A ideia central: o Sol e as peças de LEGO</h2>
+  <p>Todo o projeto obedece a uma regra que o dono chama de <strong>princípio LEGO</strong>:</p>
+  <div class="grade-2">
+    <div class="camada c1"><h4>☀️ A Plataforma (o Sol)</h4><p>Login, usuários, empresas, equipe, permissões de entrada, cores do sistema, perfil e auditoria. <strong>Funciona sozinha</strong>, sem nenhum módulo.</p></div>
+    <div class="camada c2"><h4>🧩 O Módulo (a peça)</h4><p>Um produto de negócio que se encaixa na plataforma. Hoje existe um só: <code>financeiro</code>, com prefixo <code>fin_</code> no banco. <strong>Pluga e despluga.</strong></p></div>
+  </div>
+  <div class="example-box">
+    <span class="rotulo-caixa">Exemplo prático do porquê</span>
+    <p>Imagine que amanhã você queira vender um segundo produto, “Estoque”. Se o código do Financeiro estivesse misturado com o do login, tirar o Financeiro de uma empresa quebraria o login. Com o LEGO, o Estoque entra em pastas próprias (<code>estoque/</code>, prefixo <code>est_</code>) e o Financeiro continua intocado.</p>
+  </div>
+  <h3>Os 3 pontos de solda <span class="selo lido">lido no código</span></h3>
+  <p>São os <strong>únicos</strong> lugares da plataforma onde o nome de um módulo pode aparecer:</p>
+  <div class="tabela-rolagem"><table>
+    <thead><tr><th>#</th><th>Onde</th><th>O que tem lá</th></tr></thead>
+    <tbody>
+      <tr><td>S1</td><td><code>packages/core/src/modules/registro.ts</code></td><td>2 linhas: o <code>import</code> do manifesto e a entrada na lista <code>MODULOS_INSTALADOS</code></td></tr>
+      <tr><td>S2</td><td><code>packages/core/src/index.ts</code></td><td>1 linha: <code>export * from './modules/financeiro';</code></td></tr>
+      <tr><td>S3</td><td>banco</td><td>Nenhuma linha em arquivo da plataforma: o <em>seed do módulo</em> grava a linha dele no catálogo <code>platform_modules</code>, e o <em>reset do módulo</em> a apaga</td></tr>
+    </tbody>
+  </table></div>
+  <p><strong>O manifesto</strong> é o “cartão de visita” que o módulo entrega. O do Financeiro diz: id <code>financeiro</code>, nome “Controle Financeiro”, rota no site <code>/dashboard/financeiro</code>, rota no app <code>/financeiro</code>, tela de configuração <code>/dashboard/financeiro/dependentes</code>, prefixo <code>fin_</code>, versão 1.0.0.</p>
+  <p><strong>Quem vigia a regra:</strong> o script <code>scripts/verificar-modulos.mjs</code> (<code>npm run modulos:verificar</code>) percorre os arquivos da plataforma e acusa qualquer citação a um módulo fora das soldas. Hoje: <strong>nenhuma violação</strong> <span class="selo medido">medido</span>.</p>
+</section>
+
+<!-- ================================================================== -->
+<section id="s4">
+  <span class="numero-secao">04</span>
+  <h2>O mapa do repositório, em números</h2>
+  <p>O projeto é um <strong>monorepo</strong>: uma pasta só, com três “sub-projetos” que compartilham código (a ferramenta que amarra os três é o <em>npm workspaces</em>).</p>
+  <div class="tabela-rolagem"><table>
+    <thead><tr><th>Pasta</th><th>O que é</th><th class="num">Arquivos de código</th><th class="num">Linhas</th></tr></thead>
+    <tbody>
+      <tr><td><code>packages/core</code></td><td>O <strong>cérebro</strong> (<code>@jairo/core</code>): regras, chamadas ao banco, datas, dinheiro. Usado pelo site e pelo app.</td><td class="num">45</td><td class="num">7.794</td></tr>
+      <tr><td><code>apps/admin-web/src</code></td><td>O <strong>site</strong> (Next.js 16.2.2)</td><td class="num">112</td><td class="num">16.266</td></tr>
+      <tr><td><code>apps/mobile-app/src</code></td><td>O <strong>aplicativo</strong>: componentes, telas, serviços (Expo 57 / React Native 0.86.3)</td><td class="num">104</td><td class="num">14.498</td></tr>
+      <tr><td><code>apps/mobile-app/app</code></td><td>As <strong>rotas</strong> do aplicativo (no Expo Router, cada arquivo é um endereço)</td><td class="num">25</td><td class="num">1.886</td></tr>
+      <tr><td><code>supabase</code></td><td>O <strong>banco</strong>: criação, testes e inventários em SQL</td><td class="num">13</td><td class="num">11.669</td></tr>
+      <tr><td><code>scripts</code></td><td>O verificador de LEGO e o ensaio geral</td><td class="num">2</td><td class="num">621</td></tr>
+      <tr><td colspan="2"><strong>Total</strong></td><td class="num"><strong>301</strong></td><td class="num"><strong>52.734</strong></td></tr>
+    </tbody>
+  </table></div>
+  <p><span class="selo medido">medido</span> com <code>git ls-files</code> + <code>wc -l</code>, contando os arquivos <code>.ts .tsx .sql .mjs .js</code>. As linhas <strong>incluem comentários</strong>, e neste projeto os comentários são muitos e longos, porque guardam o “porquê” de cada decisão.</p>
+  <h3>Os documentos da raiz</h3>
+  <ul>
+    <li><code>CLAUDE.md</code>: o guia de instruções. As <strong>proibições</strong> e os <strong>pulos do gato</strong> ficam no fim dele.</li>
+    <li><code>MODULOS.md</code>: o mapa plataforma × módulos.</li>
+    <li><code>HISTORICO.md</code>: a memória, versão por versão, com o porquê de cada decisão.</li>
+    <li><code>supabase/LEIA-ME-ORDEM.md</code>: qual SQL rodar, e em que ordem.</li>
+  </ul>
+  <div class="highlight-box">
+    <span class="rotulo-caixa">A pasta <code>_estudos/</code> está vazia no Git <span class="selo medido">medido</span></span>
+    <p>Os estudos em HTML saíram do repositório nos commits <code>c1bdc4a</code> e <code>e66b0dd</code> (19/09/2026), mas <strong>continuam no histórico</strong>. Um exemplo: a especificação do módulo volta com <code>git show c1bdc4a^:_estudos/modulo-financeiro-especificacao.html</code>. Usei esse arquivo recuperado para conferir a lista de regras RN-01 a RN-31 da seção 11. Este manual foi salvo em <code>_estudos/</code>, fora do Git, até você decidir o que fazer com ele.</p>
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<section id="s5">
+  <span class="numero-secao">05</span>
+  <h2>As três camadas: banco, cérebro e telas</h2>
+  <div class="camadas">
+    <div class="camada c3"><h4>3 · Telas: o site e o aplicativo</h4><p>Mostram e coletam dados. <strong>Não decidem nada de segurança.</strong> Esconder um botão é só conforto visual.</p></div>
+    <div class="camada c2"><h4>2 · O cérebro: <code>@jairo/core</code></h4><p>Onde mora a lógica compartilhada: serviços que chamam o banco, cálculo de datas no fuso do Brasil, dinheiro em centavos, regras testáveis. O site e o app importam daqui, e por isso fazem a <em>mesma</em> coisa.</p></div>
+    <div class="camada c1"><h4>1 · O banco: Supabase (PostgreSQL)</h4><p>Guarda os dados e <strong>decide quem pode o quê</strong>, com dois mecanismos: <strong>RLS</strong> (filtros automáticos por linha) e <strong>funções SECURITY DEFINER</strong> (operações que conferem a permissão por dentro).</p></div>
+  </div>
+
+  <h3>Um cliente só, sem chave mestra <span class="selo lido">lido no código</span></h3>
+  <p>O arquivo <code>packages/core/src/lib/supabase.ts</code> cria <strong>uma única</strong> conexão, com a chave pública (“anon”). Ela funciona como o crachá de visitante: só entra onde as regras do banco deixam. Até a v9 existia também uma “chave mestra” que passava por cima de tudo. Ela foi removida na v10, e toda operação administrativa virou uma função <code>admin_*</code> no banco que confere <code>is_superuser()</code>.</p>
+  <div class="example-box">
+    <span class="rotulo-caixa">Exemplo: “promover um usuário a Proprietário”</span>
+    <p>A tela chama <code>tenantService.promoverParaProprietario()</code> → o Core chama <code>supabase.rpc('admin_promote_to_owner', …)</code> → a função no banco pergunta primeiro “quem está chamando é Desenvolvedor?”. Se não for, responde com o erro <code>42501</code> (sem permissão), e nada acontece, <strong>venha o pedido do site, do app ou de alguém que forjou a chamada</strong>.</p>
+  </div>
+
+  <h3>Detalhes que parecem bobos e não são</h3>
+  <ul>
+    <li><strong>Dinheiro em centavos inteiros</strong> (<code>lib/dinheiro.ts</code>, coluna <code>bigint</code>). Motivo: no computador, <code>0,1 + 0,2</code> dá <code>0,30000000000000004</code>. Somando 300 linhas, o centavo some. Com inteiros isso não acontece.</li>
+    <li><strong>Data de calendário ≠ instante</strong> (<code>lib/datas.ts</code>). Um vencimento é “05/09”, uma data sem hora (tipo <code>date</code>). Um registro criado tem instante exato (tipo <code>timestamptz</code>). Misturar os dois faz um lançamento de 01/09 aparecer como 31/08, conforme o fuso.</li>
+    <li><strong>Telemetria local</strong> (<code>analytics/</code>): os eventos só vão para o console. Não há PostHog, cookie nem envio externo.</li>
+  </ul>
+</section>
+
+<!-- ================================================================== -->
+<section id="s6">
+  <span class="numero-secao">06</span>
+  <h2>Quem é quem: os papéis de pessoa</h2>
+  <div class="tabela-rolagem"><table>
+    <thead><tr><th>Papel</th><th>Onde fica gravado</th><th>Como entra</th><th>O que pode</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Desenvolvedor</strong></td><td><code>users.is_superuser = true</code> (só se grava pelo SQL Editor)</td><td>E-mail + senha</td><td>Triagem de usuários, criar empresas, contratar módulos por empresa, cores do sistema, apagar dados de módulo</td></tr>
+      <tr><td><strong>Proprietário</strong> (OWNER)</td><td><code>tenant_members.role = 'OWNER'</code> + <code>tenants.owner_id</code></td><td>Google</td><td>Tudo dentro da própria empresa, em tudo o que ela contratou. Monta a equipe e dá as permissões.</td></tr>
+      <tr><td><strong>Dependente</strong> (DEPENDENT)</td><td><code>tenant_members.role = 'DEPENDENT'</code></td><td>Google</td><td>Só o que o dono liberar: o módulo (em <code>allowed_modules</code>) e, dentro dele, as permissões (em <code>module_configs</code>)</td></tr>
+      <tr><td>Visualizador (VIEWER)</td><td>aceito pela regra do banco (<code>CHECK</code>)</td><td>—</td><td>Previsto no banco e com uma tela <code>viewer-only</code> na guarita do site, mas <strong>não há fluxo que crie</strong> esse papel hoje <span class="selo lido">lido no código</span></td></tr>
+    </tbody>
+  </table></div>
+  <div class="highlight-box">
+    <span class="rotulo-caixa">O óbvio que precisa ser dito</span>
+    <p>O botão que a pessoa aperta na guarita (“Sou Proprietário” / “Sou Dependente”) <strong>não dá poder nenhum</strong>. Ele só decide qual pergunta fazer ao banco depois do login e qual sala de espera mostrar. Quem é dono e quem é equipe está gravado em <code>tenant_members</code>, e a pessoa não pode mudar isso sozinha.</p>
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<section id="s7">
+  <span class="numero-secao">07</span>
+  <h2>A entrada pelo SITE, passo a passo</h2>
+  <p>Arquivos centrais: <code>components/AuthInterface.tsx</code> (escolhe a tela), <code>components/auth/hooks/useAuthLogic.ts</code> (a lógica, 500 linhas) e <code>app/dashboard/page.tsx</code> (o painel) <span class="selo lido">lido no código</span>.</p>
+
+  <h3>Proprietário e Dependente (Google)</h3>
+  <div class="fluxo">
+    <div class="passo"><b>1 · Menu</b>Escolhe “Acessar” e depois o papel. O papel fica guardado em memória (<code>papelDoAcesso</code>).</div>
+    <div class="seta">→</div>
+    <div class="passo"><b>2 · Google</b>Abre o popup. O Google devolve um “ID Token”, que o Supabase troca por uma sessão.</div>
+    <div class="seta">→</div>
+    <div class="passo"><b>3 · Perfil</b><code>ensure_google_user_profile</code> garante a linha em <code>users</code>.</div>
+    <div class="seta">→</div>
+    <div class="passo"><b>4 · Cookies</b><code>syncGoogleSessionAction</code> copia a sessão para os cookies, para o servidor enxergar o login.</div>
+    <div class="seta">→</div>
+    <div class="passo"><b>5 · Cadastro</b>Primeiro acesso? Vai para “Completar Cadastro” (planeta, país, estado, cidade).</div>
+    <div class="seta">→</div>
+    <div class="passo"><b>6 · Triagem</b>Nenhum vínculo: sala de espera. Um vínculo: entra. Vários: escolhe a empresa.</div>
+  </div>
+  <div class="tabela-rolagem"><table>
+    <thead><tr><th>Situação</th><th>Tela</th><th>Quem precisa agir</th></tr></thead>
+    <tbody>
+      <tr><td>Proprietário sem empresa</td><td><code>waiting-approval</code> (“Aguardando Triagem”)</td><td>O <strong>Desenvolvedor</strong>, que cria a empresa dele na Central</td></tr>
+      <tr><td>Dependente sem equipe</td><td><code>waiting-team</code> (“Conta criada. Falta o convite.”)</td><td>O <strong>dono da empresa</strong>, que inclui o e-mail dele na equipe</td></tr>
+    </tbody>
+  </table></div>
+  <p>Sem a variável <code>NEXT_PUBLIC_GOOGLE_CLIENT_ID</code>, o site não quebra: troca o popup por um <strong>redirecionamento</strong> conduzido pelo Supabase, que volta em <code>/auth/google/callback</code>.</p>
+
+  <h3>Desenvolvedor (senha)</h3>
+  <p>Formulário de e-mail e senha → Server Action <code>loginWithCatracaAction</code> → o servidor pergunta ao banco se aquela conta é superusuário. Se não for, a sessão é encerrada na hora, com a mensagem “Esta conta não tem acesso ao Painel de Engenharia”. A “Catraca” antirrobô existe como arquivo, mas está em <strong>modo liberado</strong> (sempre deixa passar).</p>
+
+  <h3>Proteções do site</h3>
+  <ul>
+    <li><strong>Celular não entra no painel</strong>: o <code>proxy.ts</code> redireciona pelo tipo de navegador (camada grossa, fácil de enganar), e o <code>MobileBlocker</code> mede a largura real da janela (&lt; 768px), que é a camada que vale.</li>
+    <li><strong>Sair</strong> encerra as duas metades da sessão: a do navegador e a dos cookies (<code>lib/logout.ts</code>).</li>
+    <li>A empresa escolhida fica em <code>sessionStorage.active_tenant_id</code>. Isso é só a <em>preferência</em> de qual empresa mostrar; o banco continua conferindo se a pessoa é de lá.</li>
+  </ul>
+</section>
+
+<!-- ================================================================== -->
+<section id="s8">
+  <span class="numero-secao">08</span>
+  <h2>A entrada pelo APLICATIVO (e o teste que você fez)</h2>
+  <h3>O porteiro: <code>app/_layout.tsx</code> <span class="selo lido">lido no código</span></h3>
+  <ol>
+    <li>Carrega as cores do sistema (<code>global_settings</code>).</li>
+    <li>Verifica se o app foi aberto <strong>pelo retorno do Google</strong> (endereço <code>plataformajairo://auth/google</code>). Se foi, deixa a rota <code>app/auth/google.tsx</code> cuidar do resto.</li>
+    <li>Tenta restaurar a sessão guardada no cofre do aparelho (<code>storageService</code>, com SecureStore).</li>
+    <li>Se o aparelho tem biometria cadastrada, pede a digital ou o rosto antes de entrar.</li>
+    <li>Com sessão: vai para as abas <code>(tabs)</code>. Sem sessão: vai para a guarita <code>(auth)</code>.</li>
+    <li>Um vigia (<code>usePermissionWatch</code>) escuta, em tempo real, mudanças em <code>tenant_members</code>. Se o dono tirar o acesso de alguém, o app percebe. O canal cai quando o app vai para segundo plano e volta quando ele retorna.</li>
+  </ol>
+
+  <h3>Por que o papel vai para o cofre do aparelho</h3>
+  <p>No site, o popup do Google abre e fecha dentro da mesma página, e a memória (<code>useState</code>) nunca se perde. No celular, o login <strong>sai do aplicativo</strong>: abre o navegador do sistema, e o Android pode fechar o app enquanto isso. Na volta não sobra memória nenhuma, e o endereço de retorno é escrito pelo Supabase, sem espaço para um parâmetro nosso. Por isso, <strong>antes</strong> de abrir o navegador, o papel escolhido é gravado no cofre (<code>services/papelDeAcessoService.ts</code>, chave <code>pjodc_papel_de_acesso</code>) e lido de volta nos três pontos do retorno.</p>
+
+  <div class="ok-box">
+    <span class="rotulo-caixa">O seu teste, explicado</span>
+    <p>Você entrou como <strong>Usuário Dependente</strong> com uma conta Google sem equipe. O caminho foi: a guarita gravou <code>DEPENDENT</code> no cofre → o navegador abriu o Google → o Supabase criou a conta → o app voltou pelo deep link → “Completar Cadastro” (todo Dependente novo passa por ali) → a triagem leu <code>DEPENDENT</code> do cofre → perguntou ao banco “ele é Dependente de alguma empresa?” → resposta vazia → tela <strong>“Conta criada. Falta o convite.”</strong>. Antes do degrau 09, o “Completar Cadastro” tinha <code>'OWNER'</code> fixo no código, e esse mesmo teste terminaria em “Aguardando Triagem”, esperando um Desenvolvedor que nunca iria agir.</p>
+  </div>
+
+  <h3>As rotas do aplicativo <span class="selo medido">medido</span></h3>
+  <div class="tabela-rolagem"><table>
+    <thead><tr><th>Rota</th><th>Para quê</th></tr></thead>
+    <tbody>
+      <tr><td><code>(auth)/index, login, signup, complete-profile, select-tenant, about, contact</code></td><td>A guarita: tudo o que vem antes de entrar</td></tr>
+      <tr><td><code>(tabs)/index</code> e <code>(tabs)/perfil</code></td><td>As abas nativas: Início e Perfil (o Desenvolvedor vê só Início)</td></tr>
+      <tr><td><code>auth/google</code></td><td>Recebe o retorno do Google (sem parênteses: precisa responder no endereço real <code>/auth/google</code>)</td></tr>
+      <tr><td><code>central-comandos</code>, <code>ajustes-globais</code></td><td>Painel de Engenharia no celular</td></tr>
+      <tr><td><code>sobre</code>, <code>suporte</code>, <code>modal</code>, <code>+not-found</code>, <code>+html</code></td><td>Telas auxiliares</td></tr>
+      <tr><td><code>financeiro/_layout, index, dinheiro-do-periodo, lancar, meus-lancamentos</code></td><td>O módulo (seção 17)</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ================================================================== -->
+<section id="s9">
+  <span class="numero-secao">09</span>
+  <h2>O banco da plataforma: 7 tabelas</h2>
+  <p>Arquivo: <code>supabase/criar-bd/plataforma_01_schema.sql</code>. Conteúdo <span class="selo medido">medido</span>: <strong>2 extensões, 7 tabelas, 27 funções, 12 policies (regras de linha), 15 gatilhos</strong>. O banco é criado <em>do zero</em>, na ordem <code>00</code> (demolir) → <code>01</code> (construir) → <code>02</code> (dados iniciais).</p>
+  <div class="tabela-rolagem"><table>
+    <thead><tr><th>Tabela</th><th>O que guarda</th><th>Detalhe que importa</th></tr></thead>
+    <tbody>
+      <tr><td><code>users</code></td><td>O perfil de cada pessoa: nome, e-mail, localização, se é Desenvolvedor, como entrou (senha ou Google), se completou o cadastro</td><td>A pessoa pode alterar o próprio perfil, mas <strong>só algumas colunas</strong>: não consegue se promover a Desenvolvedor</td></tr>
+      <tr><td><code>tenants</code></td><td>As empresas: nome, <em>slug</em> (nome para endereço), dono, ativa/inativa</td><td>“Remover empresa” é desativar (<code>is_active = false</code>), nunca apagar</td></tr>
+      <tr><td><code>tenant_members</code></td><td>Quem é de qual empresa, com qual papel</td><td><code>allowed_modules</code> é uma <strong>lista de verdade</strong> (<code>text[]</code>), e <code>module_configs</code> guarda as permissões de cada módulo (formato JSON)</td></tr>
+      <tr><td><code>global_settings</code></td><td>Uma linha só (id = 1): título e cores do sistema, e-mails de administração</td><td>Qualquer um pode ler (as cores aparecem antes do login); só o Desenvolvedor altera</td></tr>
+      <tr><td><code>audit_log</code></td><td>A trilha de auditoria: tabela, operação, quem fez, o “antes” e o “depois”</td><td>Ninguém escreve aqui pela aplicação; quem grava são gatilhos. Só o Desenvolvedor lê.</td></tr>
+      <tr><td><code>platform_modules</code></td><td>O catálogo de módulos existentes</td><td>Nasce <strong>vazia</strong>; quem grava a linha é o seed do módulo</td></tr>
+      <tr><td><code>tenant_modules</code></td><td>Qual empresa contratou qual módulo</td><td>Quem contrata é o Desenvolvedor, na tela “Módulos”</td></tr>
+    </tbody>
+  </table></div>
+  <h3>As 27 funções, agrupadas</h3>
+  <ul>
+    <li><strong>Nascimento da conta</strong>: <code>handle_auto_confirm_email</code>, <code>handle_new_user</code>, <code>ensure_google_user_profile</code>, <code>sync_auth_users</code>, <code>check_profile_completed</code>.</li>
+    <li><strong>Quem é quem</strong>: <code>is_superuser</code>, <code>check_is_tenant_member</code>, <code>check_is_tenant_owner</code>, <code>can_view_user_profile</code>, <code>get_user_by_email_for_invite</code>.</li>
+    <li><strong>Desenvolvedor</strong>: <code>admin_list_users</code>, <code>admin_list_user_tenants</code>, <code>admin_sync_user_tenants</code>, <code>admin_promote_to_owner</code>, <code>admin_update_global_settings</code>, <code>admin_set_tenant_module</code>, <code>admin_list_tenant_modules</code>, <code>admin_list_all_tenants</code>, <code>admin_apagar_dados_do_modulo</code>, <code>gerar_slug_empresa</code>.</li>
+    <li><strong>Módulos</strong>: <code>modulo_contratado</code>, <code>validar_modulos_do_membro</code>, <code>modulos_do_membro</code>, <code>modulos_contratados</code>.</li>
+    <li><strong>Manutenção</strong>: <code>delete_user_permanently</code>, <code>marcar_atualizacao</code> (atualiza o <code>updated_at</code>), <code>registrar_auditoria</code>.</li>
+  </ul>
+  <div class="example-box">
+    <span class="rotulo-caixa">Exemplo: como a plataforma apaga dados de um módulo sem conhecer módulo nenhum</span>
+    <p>O seed do Financeiro grava no catálogo: <code>funcao_limpeza = 'fin_apagar_dados_da_empresa'</code>. Quando o Desenvolvedor manda apagar os dados de um módulo numa empresa, <code>admin_apagar_dados_do_modulo</code> lê esse <em>nome</em> no catálogo e executa a função. A plataforma nunca escreve “financeiro” em lugar nenhum.</p>
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<section id="s10">
+  <span class="numero-secao">10</span>
+  <h2>As duas chaves para abrir um módulo</h2>
+  <p>Para uma pessoa abrir o Financeiro, <strong>duas</strong> coisas têm de ser verdade, e cada uma é decidida por alguém diferente:</p>
+  <div class="grade-2">
+    <div class="camada c1"><h4>🔑 Chave 1: a empresa contratou?</h4><p>Tabela <code>tenant_modules</code>. Quem decide: o <strong>Desenvolvedor</strong>.</p></div>
+    <div class="camada c2"><h4>🔑 Chave 2: o dono liberou para esta pessoa?</h4><p>Coluna <code>tenant_members.allowed_modules</code>. Quem decide: o <strong>Proprietário</strong>.</p></div>
+  </div>
+  <p>Quem cruza as duas é a função <code>modulos_do_membro(empresa)</code>. Para o <strong>dono</strong>, ela devolve tudo o que a empresa contratou, porque a coluna <code>allowed_modules</code> dele fica vazia: ela é a chave que ele <em>entrega</em> à equipe, e não a dele próprio.</p>
+  <div class="example-box">
+    <span class="rotulo-caixa">Exemplo com três pessoas da empresa “Padaria Sol”</span>
+    <div class="tabela-rolagem"><table>
+      <thead><tr><th>Pessoa</th><th>Empresa contratou Financeiro?</th><th>allowed_modules</th><th>Abre o módulo?</th></tr></thead>
+      <tbody>
+        <tr><td>Ana (dona)</td><td>Sim</td><td><code>{}</code> (vazio)</td><td><strong>Sim</strong>: dona recebe o que a empresa contratou</td></tr>
+        <tr><td>Beto (dependente)</td><td>Sim</td><td><code>{financeiro}</code></td><td><strong>Sim</strong>, e dentro dele faz só o que as permissões dele deixarem</td></tr>
+        <tr><td>Caio (dependente)</td><td>Sim</td><td><code>{}</code></td><td><strong>Não</strong> pela tela. Mas veja o achado A1 na seção 22.</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+  <p>Uma trava extra: o gatilho <code>validar_modulos_membro</code> <strong>recusa</strong> gravar em <code>allowed_modules</code> um módulo que a empresa não contratou.</p>
+  <p><strong>A pergunta seguinte</strong>, “o que a pessoa pode FAZER lá dentro”, é do módulo: fica em <code>module_configs → financeiro → permissoes</code> e é editada na tela <em>Equipe e Permissões</em> do próprio Financeiro (seção 16).</p>
+</section>
+
+<!-- ================================================================== -->
+<section id="s11">
+  <span class="numero-secao">11</span>
+  <h2>O Controle Financeiro: os conceitos</h2>
+  <p>Banco do módulo: <code>supabase/criar-bd-financeiro/</code>. Conteúdo <span class="selo medido">medido</span>: <strong>5 tabelas, 36 funções, 5 policies, 10 gatilhos</strong>. Todas as tabelas começam com <code>fin_</code> e apontam para a plataforma por chave estrangeira.</p>
+
+  <h3>As duas perguntas de todo lançamento</h3>
+  <div class="grade-2">
+    <div class="camada c3"><h4>ONDE o dinheiro está? → Conta Movimento</h4><p>Tipos: CAIXA, BANCO, OUTRAS. Tem <strong>saldo de abertura</strong>, que pode ser negativo (conta no vermelho). Exemplo: “BANCO DO BRASIL”, “CAIXA DA LOJA”.</p></div>
+    <div class="camada c2"><h4>POR QUE o dinheiro se mexeu? → Conta Identificadora</h4><p>Tipos: DESPESA, RECEITA, OUTRAS. <strong>Não tem saldo</strong>: ela explica o dinheiro, não guarda. Exemplo: “ENERGIA”, “VENDAS”, “SALÁRIOS”.</p></div>
+  </div>
+
+  <h3>Anatomia de um lançamento (<code>fin_lancamentos</code>)</h3>
+  <div class="example-box">
+    <span class="rotulo-caixa">Exemplo: “Paguei a conta de luz de R$ 150,00 pelo banco, no dia 05/09”</span>
+    <div class="tabela-rolagem"><table>
+      <thead><tr><th>Campo</th><th>Valor gravado</th><th>Por quê</th></tr></thead>
+      <tbody>
+        <tr><td>conta_movimento</td><td>BANCO DO BRASIL</td><td>de onde saiu</td></tr>
+        <tr><td>conta_identificadora</td><td>ENERGIA</td><td>o motivo</td></tr>
+        <tr><td>tipo_conta_movimento / identificadora</td><td>BANCO / DESPESA</td><td>“fotografia” dos tipos, para relatórios antigos não mudarem (RN-10)</td></tr>
+        <tr><td>data_movimento</td><td>2026-09-05</td><td>tipo <code>date</code>: sem hora e sem fuso</td></tr>
+        <tr><td>ordem_extrato</td><td>2</td><td>desempata lançamentos do mesmo dia; sugerida automaticamente (RN-11/12)</td></tr>
+        <tr><td>tipo_movimento</td><td>SAIDA</td><td>é daqui que vem o sinal</td></tr>
+        <tr><td>valor_centavos</td><td>15000</td><td>sempre positivo e em centavos (RN-15)</td></tr>
+        <tr><td>propriedade</td><td>PROPRIO</td><td>dinheiro da empresa ou de terceiros (classificação)</td></tr>
+        <tr><td>regime</td><td>CAIXA</td><td>CAIXA = dinheiro que andou; COMPETÊNCIA = só registro (não entra no saldo)</td></tr>
+        <tr><td>historico</td><td>CONTA DE AGOSTO</td><td>até 200 caracteres, gravado em maiúsculas</td></tr>
+        <tr><td>conferido</td><td>false</td><td>marcado depois, ao bater com o extrato do banco</td></tr>
+        <tr><td>criado_por</td><td>(id de quem lançou)</td><td>nunca editável (RN-22)</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <h3>As 5 tabelas</h3>
+  <ul>
+    <li><code>fin_contas_movimento</code> e <code>fin_contas_identificadoras</code>: os cadastros. O nome é único por empresa, <em>ignorando acento e maiúsculas</em> (“Energia” = “ENERGIA” = “energía”).</li>
+    <li><code>fin_lancamentos</code>: os movimentos.</li>
+    <li><code>fin_fechamentos</code>: uma linha por conta, com a data “fechado até”.</li>
+    <li><code>fin_orcamentos</code>: quanto se planejou, por conta identificadora e por mês (competência travada no dia 1).</li>
+  </ul>
+
+  <h3>As regras de negócio (RN) <span class="selo lido">lido na especificação recuperada do Git</span></h3>
+  <div class="tabela-rolagem"><table>
+    <thead><tr><th>RN</th><th>Regra</th><th>Quem garante</th></tr></thead>
+    <tbody>
+      <tr><td>01</td><td>Nome de conta não pode ser vazio</td><td>banco</td></tr>
+      <tr><td>02</td><td>Nome único por empresa, sem diferença de acento e caixa</td><td>índice único</td></tr>
+      <tr><td>03</td><td>Filtros de pesquisa se combinam</td><td>consulta</td></tr>
+      <tr><td>04</td><td>Não se exclui cadastro que já tem lançamento</td><td>banco</td></tr>
+      <tr><td>05</td><td>IMPRIMIR só habilita quando a pesquisa trouxe registros</td><td>tela</td></tr>
+      <tr><td>06</td><td>Conta desativada some das listas de lançamento novo, mas fica no histórico</td><td>banco + tela</td></tr>
+      <tr><td>07</td><td>O tipo de um cadastro com lançamento não muda (desative e crie outro)</td><td>banco</td></tr>
+      <tr><td>08</td><td>Saldo de abertura pode ser negativo</td><td>banco</td></tr>
+      <tr><td>09</td><td>“+ ADICIONAR NOVA” abre janela e devolve a conta já selecionada</td><td>tela</td></tr>
+      <tr><td>10</td><td>Os tipos das contas são fotografados no lançamento</td><td>banco</td></tr>
+      <tr><td>11–12</td><td>Ordem sugerida; se já existe no dia, os seguintes são empurrados</td><td>banco</td></tr>
+      <tr><td>13–14, 16</td><td>Data muito à frente, movimento incoerente e valor fora do padrão: <em>avisa, não bloqueia</em></td><td>tela</td></tr>
+      <tr><td>15</td><td>Valor sempre maior que zero</td><td>banco</td></tr>
+      <tr><td>17</td><td>O extrato só aparece com data inicial e final válidas</td><td>tela</td></tr>
+      <tr><td>18–19</td><td>TERCEIROS entra no saldo; COMPETÊNCIA não entra</td><td>banco</td></tr>
+      <tr><td>20–21</td><td>Linha pode ser CONFERIDA; ordem do extrato: data → ordem → instante</td><td>banco</td></tr>
+      <tr><td>22</td><td>Quem criou nunca muda</td><td>banco</td></tr>
+      <tr><td>23</td><td>Transferência: contas diferentes, duas pernas numa operação só</td><td>banco (<strong>veja o achado A2</strong>)</td></tr>
+      <tr><td>24</td><td>Período fechado por conta: nada se cria, edita ou exclui até a data de corte</td><td>banco</td></tr>
+      <tr><td>25</td><td>Toda operação confere a permissão antes de agir</td><td>banco (<code>fin_pode</code>)</td></tr>
+      <tr><td>26</td><td>Excluir pede confirmação e deixa rastro (hoje pode ser restaurado pela lixeira)</td><td>tela + auditoria</td></tr>
+      <tr><td>27</td><td>Ninguém lê dado de outra empresa</td><td>RLS</td></tr>
+      <tr><td>28</td><td>Apagar os dados de uma empresa é operação do Desenvolvedor, tudo ou nada</td><td>banco + tela</td></tr>
+      <tr><td>29</td><td>Um lançamento nunca mistura contas de empresas diferentes</td><td>chave composta</td></tr>
+      <tr><td>30</td><td>A categoria “TRANSFERÊNCIA ENTRE CONTAS” é do sistema e não se altera</td><td>banco</td></tr>
+      <tr><td>31</td><td>As pernas da transferência recebem PRÓPRIO e CAIXA automaticamente</td><td>banco</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ================================================================== -->
+<section id="s12">
+  <span class="numero-secao">12</span>
+  <h2>As 18 telas do módulo no site</h2>
+  <p>Todas ficam sob <code>/dashboard/financeiro/</code> <span class="selo medido">medido</span>. A coluna “Como se chega” diz por qual caminho a pessoa encontra a tela.</p>
+  <div class="tabela-rolagem"><table>
+    <thead><tr><th>Endereço</th><th>O que faz</th><th>Como se chega</th></tr></thead>
+    <tbody>
+      <tr><td><code>/</code> (início do módulo)</td><td>Cartão grande DINHEIRO DO PERÍODO + atalhos NOVO LANÇAMENTO e PESQUISAR</td><td>cartão do módulo no painel</td></tr>
+      <tr><td><code>contas-movimento</code></td><td>Cadastro de contas movimento (inclui importar CSV)</td><td>OPÇÕES › CADASTROS</td></tr>
+      <tr><td><code>contas-identificadoras</code></td><td>Cadastro de contas identificadoras (inclui importar CSV)</td><td>OPÇÕES › CADASTROS</td></tr>
+      <tr><td><code>lancamentos/novo</code></td><td>Formulário de lançamento com o extrato da conta ao lado; também edita (<code>?editar=id</code>)</td><td>início, OPÇÕES, pesquisa</td></tr>
+      <tr><td><code>lancamentos/pesquisar</code></td><td>Filtros cruzados, imprimir, exportar TSV, excluir</td><td>início, OPÇÕES</td></tr>
+      <tr><td><code>transferencia</code></td><td>Transferir entre duas contas movimento</td><td>link dentro do formulário de lançamento</td></tr>
+      <tr><td><code>dependentes</code></td><td>Equipe e Permissões (as 23 caixas + configuração do Dinheiro do Período) e manutenção (exclusão por período, lixeira, histórico de fechamentos)</td><td>OPÇÕES › CONFIGURAÇÕES</td></tr>
+      <tr><td><code>dashboards/contas-movimento</code></td><td>Saldos mês a mês por conta, no ano</td><td>OPÇÕES › DASHBOARDS</td></tr>
+      <tr><td><code>dashboards/contas-identificadoras</code></td><td>Movimento mês a mês por categoria</td><td>OPÇÕES › DASHBOARDS</td></tr>
+      <tr><td><code>conferencia</code></td><td>Extrato de uma conta movimento com saldo linha a linha; fechar período</td><td>clique numa célula do dashboard</td></tr>
+      <tr><td><code>conferencia-identificadora</code></td><td>Extrato de uma conta identificadora (coluna ACUMULADO, sem saldo)</td><td>clique numa célula do dashboard</td></tr>
+      <tr><td><code>orcamento/novo</code></td><td>Montar o orçamento de um mês (copiar de outro mês)</td><td>OPÇÕES › ORÇAMENTO</td></tr>
+      <tr><td><code>orcamento/pesquisar</code></td><td>Ver os meses orçados</td><td>OPÇÕES › ORÇAMENTO</td></tr>
+      <tr><td><code>dinheiro-do-periodo</code></td><td>Orçado × realizado por conta, em barras</td><td>cartão grande do início</td></tr>
+      <tr><td><code>dinheiro-do-periodo/lancar</code></td><td>Lançar a partir de uma barra do Dinheiro do Período</td><td>dentro do Dinheiro do Período</td></tr>
+      <tr><td><code>imprimir</code></td><td>Página de impressão (abre em nova guia, recebe os dados pelo <code>localStorage</code>)</td><td>botões IMPRIMIR</td></tr>
+      <tr><td><code>lancamentos</code></td><td>Página com dois cartões (NOVO e PESQUISAR)</td><td><strong>nenhum link aponta para ela</strong> (achado A4)</td></tr>
+      <tr><td><code>orcamento</code></td><td>Página com cartões de orçamento</td><td><strong>nenhum link aponta para ela</strong> (achado A4)</td></tr>
+    </tbody>
+  </table></div>
+  <p>O menu OPÇÕES fica em <code>components/financeiro/menu/opcoes.ts</code>. Cada item pode exigir uma permissão (<code>exige</code>) para aparecer. Isso é conforto de tela; quem barra de verdade são as funções do banco.</p>
+</section>
+
+<!-- ================================================================== -->
+<section id="s13">
+  <span class="numero-secao">13</span>
+  <h2>Como o saldo é calculado</h2>
+  <p>Função <code>fin_extrato</code> <span class="selo lido">lido no código</span>. A receita tem três ingredientes:</p>
+  <ol>
+    <li>Começa pelo <strong>saldo de abertura</strong> da conta, somado a tudo o que aconteceu antes da data inicial pedida.</li>
+    <li>Considera <strong>só lançamentos de regime CAIXA</strong> (RN-19). Os de COMPETÊNCIA ficam fora.</li>
+    <li>Ordena por <strong>data → ordem no extrato (vazios por último) → instante de criação</strong> e acumula: ENTRADA soma, SAÍDA subtrai.</li>
+  </ol>
+  <div class="example-box">
+    <span class="rotulo-caixa">Exemplo numérico: conta “BANCO X”, saldo de abertura R$ 1.200,00</span>
+    <div class="tabela-rolagem"><table>
+      <thead><tr><th>Data</th><th>Ordem</th><th>Histórico</th><th>Regime</th><th class="num">Entrada</th><th class="num">Saída</th><th class="num">Saldo</th></tr></thead>
+      <tbody>
+        <tr><td colspan="6"><em>SALDO INICIAL</em></td><td class="num">1.200,00</td></tr>
+        <tr><td>05/09</td><td>1</td><td>VENDA BALCÃO</td><td>CAIXA</td><td class="num">500,00</td><td class="num"></td><td class="num">1.700,00</td></tr>
+        <tr><td>05/09</td><td>2</td><td>CONTA DE LUZ</td><td>CAIXA</td><td class="num"></td><td class="num">150,00</td><td class="num">1.550,00</td></tr>
+        <tr><td>06/09</td><td>—</td><td>PROVISÃO 13º</td><td>COMPETÊNCIA</td><td colspan="3"><em>não aparece: não é dinheiro que andou</em></td></tr>
+      </tbody>
+    </table></div>
+    <p>Saldo final: <strong>R$ 1.550,00</strong>, o mesmo número que o extrato do banco mostraria.</p>
+  </div>
+  <div class="highlight-box">
+    <span class="rotulo-caixa">Saldo não se soma entre meses</span>
+    <p>Saldo é uma <em>fotografia</em> acumulada. Somar os saldos finais de janeiro a dezembro é como pesar a mesma pessoa doze vezes e dizer que ela pesa 840 kg. O número do ano é a coluna de <strong>dezembro</strong>. Já o <em>fluxo</em> (o que entrou ou saiu no mês) se soma. O dashboard de contas movimento segue essa regra, e as linhas de TOTAL vêm prontas do banco, nunca somadas pela tela.</p>
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<section id="s14">
+  <span class="numero-secao">14</span>
+  <h2>Transferência, conferência, fechamento, lixeira e importação</h2>
+
+  <h3>Transferência (<code>fin_transferir</code>)</h3>
+  <p>Passar R$ 100,00 do CAIXA para o BANCO gera <strong>dois lançamentos amarrados</strong> pelo mesmo <code>transferencia_id</code>: uma SAÍDA de 100 no CAIXA e uma ENTRADA de 100 no BANCO, ambas na categoria de sistema “TRANSFERÊNCIA ENTRE CONTAS”, com PRÓPRIO e CAIXA. Somando as duas contas, o total não muda, e é assim que tem de ser. Excluir uma perna apaga as duas juntas (<span class="selo lido">lido no código</span>). Editar uma perna, a tela não oferece. Veja o achado A2.</p>
+
+  <h3>Conferido</h3>
+  <p>Cada linha do extrato tem uma caixa CONFERIDO (<code>fin_marcar_conferido</code>, permissão <code>conciliar</code>). Serve para bater linha a linha com o extrato do banco.</p>
+
+  <h3>Fechamento de período (<code>fin_fechar_periodo</code> / <code>fin_reabrir_periodo</code>)</h3>
+  <p>Fecha <strong>por conta</strong>: “BANCO X fechado até 31/08”. Depois disso, nada com data até 31/08 naquela conta pode ser criado, editado, movido ou excluído. Uma edição também é recusada se a data <em>antiga</em> estiver fechada; sem essa trava, daria para “tirar” um lançamento de um mês fechado mudando a data dele. Reabrir exige a mesma permissão (<code>fechar_periodo</code>), e o histórico dos fechamentos aparece em Configurações.</p>
+
+  <h3>Exclusão, exclusão em lote e lixeira</h3>
+  <ul>
+    <li><strong>Um lançamento</strong>: <code>fin_excluir_lancamento</code>, com a permissão “excluir próprios” ou “excluir de qualquer pessoa”.</li>
+    <li><strong>Por período</strong>: <code>fin_excluir_lancamentos_por_periodo</code>. Por padrão ela <strong>só simula</strong> e devolve quantos registros sairiam; apagar exige pedir explicitamente. A mesma função conta e apaga, para o número da confirmação nunca mentir. Transferências entram inteiras no conjunto.</li>
+    <li><strong>Lixeira</strong>: não existe uma tabela de lixeira. Quando algo é apagado, o gatilho de auditoria guarda o “antes” em <code>audit_log</code>. A lixeira lê dali (<code>fin_listar_exclusoes</code>) e restaura regravando (<code>fin_restaurar_lancamento</code>). <code>fin_limpar_lixeira</code> apaga a trilha, e esse é o único ponto em que a informação some de vez.</li>
+  </ul>
+
+  <h3>Importação de cadastros por CSV</h3>
+  <p><code>components/financeiro/importar/lerArquivo.ts</code> + <code>packages/core/.../importacao.ts</code> (com testes). Cuidados que o código tem, cada um nascido de um defeito real: tira o BOM que o Excel põe no começo do arquivo, tenta UTF-8 e cai para Windows-1252 se aparecer <code>�</code>, respeita vírgula e quebra de linha dentro de aspas e detecta ponto e vírgula. A gravação é <strong>uma viagem só</strong> ao banco (<code>fin_importar_*</code>), que devolve o relatório de criados, já existentes e repetidos.</p>
+</section>
+
+<!-- ================================================================== -->
+<section id="s15">
+  <span class="numero-secao">15</span>
+  <h2>Orçamento e Dinheiro do Período</h2>
+  <p><strong>Orçamento</strong> (<code>fin_orcamentos</code>): quanto se planeja gastar ou receber em cada conta identificadora, em cada mês. A competência é gravada como data no <strong>dia 1</strong> (setembro/2026 = <code>2026-09-01</code>), com trava no banco, para nunca existirem duas “setembro/2026”.</p>
+  <p><strong>Dinheiro do Período</strong> (<code>fin_dinheiro_do_periodo</code>): para cada conta, o orçado, o realizado, o saldo e o percentual consumido.</p>
+  <div class="example-box">
+    <span class="rotulo-caixa">Exemplo: ENERGIA em setembro</span>
+    <p>Orçado R$ 400,00. Saídas de R$ 350,00 e um reembolso (entrada) de R$ 38,00 → realizado = 350 − 38 = <strong>R$ 312,00</strong> → consumo = <strong>78%</strong>. Conta com gasto e sem orçamento aparece num bloco à parte, “FORA”, para o gasto não planejado não sumir.</p>
+  </div>
+  <h3>O modo “só percentual”</h3>
+  <p>O dono pode configurar um Dependente para ver <strong>só o percentual</strong>. O banco devolve orçado, realizado e saldo como <strong>vazio (NULL)</strong> e arredonda o percentual para inteiro, para o valor não viajar até o celular ou o navegador dele <span class="selo lido">lido no código</span>.</p>
+  <div class="alerta">
+    <span class="rotulo-caixa">Mas o sigilo tem furos</span>
+    <p>O próprio código avisa que quem tem <code>extrato_ver</code>, <code>lc_ver_todos</code>, <code>imprimir</code>, <code>orc_ver</code> ou <code>cm_ver</code> chega aos valores por outra tela, e a tela de Configurações alerta o dono. <strong>O que o código não diz</strong> é que, mesmo sem nenhuma dessas cinco, o Dependente lê os valores direto da tabela <code>fin_lancamentos</code>. É o achado A1 (seção 22).</p>
+  </div>
+  <p>No aplicativo, o botão <strong>“VALORES + %” × “SÓ %”</strong> é outra coisa: é conforto de quem está olhando (por exemplo, para mostrar a tela a alguém). A escolha fica guardada no cofre do aparelho e só alterna quando o banco já mandou os valores.</p>
+</section>
+
+<!-- ================================================================== -->
+<section id="s16">
+  <span class="numero-secao">16</span>
+  <h2>As 23 permissões do Dependente</h2>
+  <p>Lista em <code>packages/core/src/modules/financeiro/tipos.ts</code> (<code>PERMISSOES_FINANCEIRO</code>) <span class="selo medido">medido: 23</span>. Ficam gravadas em <code>module_configs → financeiro → permissoes</code>, e a função <code>fin_pode(empresa, permissão)</code> é quem responde “pode?”. O dono tem todas automaticamente.</p>
+  <div class="tabela-rolagem"><table>
+    <thead><tr><th>Grupo</th><th>Chave</th><th>Rótulo na tela</th></tr></thead>
+    <tbody>
+      <tr><td rowspan="3">Contas movimento</td><td><code>cm_ver</code></td><td>VER CONTAS MOVIMENTO ⚠ revela saldo de abertura</td></tr>
+      <tr><td><code>cm_gravar</code></td><td>CRIAR E EDITAR CONTAS MOVIMENTO</td></tr>
+      <tr><td><code>cm_excluir</code></td><td>EXCLUIR OU DESATIVAR CONTAS MOVIMENTO</td></tr>
+      <tr><td rowspan="3">Contas identificadoras</td><td><code>ci_ver</code></td><td>VER CONTAS IDENTIFICADORAS</td></tr>
+      <tr><td><code>ci_gravar</code></td><td>CRIAR E EDITAR CONTAS IDENTIFICADORAS</td></tr>
+      <tr><td><code>ci_excluir</code></td><td>EXCLUIR OU DESATIVAR CONTAS IDENTIFICADORAS</td></tr>
+      <tr><td rowspan="7">Lançamentos</td><td><code>lc_ver_todos</code></td><td>VER TODOS OS LANÇAMENTOS DA EMPRESA ⚠</td></tr>
+      <tr><td><code>lc_criar</code></td><td>CRIAR LANÇAMENTO</td></tr>
+      <tr><td><code>lc_editar_proprios</code></td><td>EDITAR OS PRÓPRIOS LANÇAMENTOS</td></tr>
+      <tr><td><code>lc_editar_todos</code></td><td>EDITAR LANÇAMENTOS DE QUALQUER PESSOA</td></tr>
+      <tr><td><code>lc_excluir_proprios</code></td><td>EXCLUIR OS PRÓPRIOS LANÇAMENTOS</td></tr>
+      <tr><td><code>lc_excluir_todos</code></td><td>EXCLUIR LANÇAMENTOS DE QUALQUER PESSOA</td></tr>
+      <tr><td><code>lc_excluir_lote</code></td><td>EXCLUIR EM LOTE E RESTAURAR DA LIXEIRA</td></tr>
+      <tr><td rowspan="5">Operação</td><td><code>transferencia</code></td><td>REGISTRAR TRANSFERÊNCIA ENTRE CONTAS</td></tr>
+      <tr><td><code>extrato_ver</code></td><td>VER A CONFERÊNCIA DA CONTA (SALDOS) ⚠</td></tr>
+      <tr><td><code>conciliar</code></td><td>MARCAR LANÇAMENTOS COMO CONFERIDOS</td></tr>
+      <tr><td><code>imprimir</code></td><td>IMPRIMIR E EXPORTAR ⚠</td></tr>
+      <tr><td><code>fechar_periodo</code></td><td>FECHAR E REABRIR PERÍODO</td></tr>
+      <tr><td rowspan="5">Orçamento e período</td><td><code>orc_ver</code></td><td>VER O ORÇAMENTO ⚠</td></tr>
+      <tr><td><code>orc_gravar</code></td><td>CRIAR E EDITAR ORÇAMENTO</td></tr>
+      <tr><td><code>orc_excluir</code></td><td>EXCLUIR ORÇAMENTO</td></tr>
+      <tr><td><code>dp_ver</code></td><td>VER O DINHEIRO DO PERÍODO</td></tr>
+      <tr><td><code>dp_meus_lancamentos</code></td><td>VER OS PRÓPRIOS LANÇAMENTOS DO PERÍODO (APLICATIVO)</td></tr>
+    </tbody>
+  </table></div>
+  <p>⚠ = uma das cinco permissões que revelam valores apesar do modo percentual. Além das permissões, cada Dependente tem duas configurações: <code>dinheiro_contas</code> (quais contas ele vê no Dinheiro do Período; <strong>ausente = todas, lista vazia = nenhuma</strong>) e <code>dinheiro_percentual</code> (vê só o %).</p>
+  <div class="highlight-box">
+    <span class="rotulo-caixa">Por que “excluir de qualquer pessoa” e “excluir em lote” são separadas</span>
+    <p>“Pode apagar UM lançamento de um colega” e “pode apagar UM ANO inteiro” são poderes de tamanhos diferentes. Juntas, dar a primeira a um auxiliar daria a segunda de brinde.</p>
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<section id="s17">
+  <span class="numero-secao">17</span>
+  <h2>O módulo dentro do aplicativo</h2>
+  <p>Código em <code>apps/mobile-app/src/modules/financeiro/</code> (14 arquivos) e rotas em <code>apps/mobile-app/app/financeiro/</code> <span class="selo medido">medido</span>.</p>
+  <div class="fluxo">
+    <div class="passo"><b>Início</b>O painel do cliente mostra o cartão do módulo. A lista vem de <code>modulos_do_membro</code>, que antes do degrau 08 era lida errado e dizia ao dono “Nenhum módulo ativo”.</div>
+    <div class="seta">→</div>
+    <div class="passo"><b>Porta do módulo</b><code>financeiro/index</code>: um cartão, DINHEIRO DO PERÍODO.</div>
+    <div class="seta">→</div>
+    <div class="passo"><b>Dinheiro do Período</b>Barras por conta, seletor de mês, botão VALORES + % × SÓ %.</div>
+    <div class="seta">→</div>
+    <div class="passo"><b>Lançar</b>A partir de uma barra (exige <code>lc_criar</code>).</div>
+    <div class="seta">→</div>
+    <div class="passo"><b>Meus lançamentos</b>Os próprios lançamentos do período, com editar e excluir (exige <code>dp_meus_lancamentos</code>).</div>
+  </div>
+  <p>O que existe só no site: cadastros, pesquisa, transferência, dashboards, conferência, fechamento, orçamento, equipe e permissões, lixeira e impressão.</p>
+</section>
+
+<!-- ================================================================== -->
+<section id="s18">
+  <span class="numero-secao">18</span>
+  <h2>O Painel de Engenharia (Desenvolvedor)</h2>
+  <div class="tabela-rolagem"><table>
+    <thead><tr><th>Ferramenta</th><th>Site</th><th>Aplicativo</th><th>Função do banco</th></tr></thead>
+    <tbody>
+      <tr><td>Central de triagem e empresas</td><td><code>/dashboard/tenants</code></td><td><code>central-comandos</code></td><td><code>admin_list_users</code>, <code>admin_sync_user_tenants</code>, <code>admin_promote_to_owner</code></td></tr>
+      <tr><td>Ajustes globais (título, cores, e-mails)</td><td><code>/dashboard/settings</code></td><td><code>ajustes-globais</code></td><td><code>admin_update_global_settings</code></td></tr>
+      <tr><td>Contratar módulo por empresa</td><td><code>/dashboard/modulos</code></td><td><strong>não existe no app</strong></td><td><code>admin_set_tenant_module</code></td></tr>
+    </tbody>
+  </table></div>
+  <p>O Desenvolvedor não tem empresa nem perfil de cliente: o painel dele mostra também a latência do banco (<code>pingDatabase</code>).</p>
+</section>
+
+<!-- ================================================================== -->
+<section id="s19">
+  <span class="numero-secao">19</span>
+  <h2>Segurança: o que protege e o que é conforto</h2>
+  <div class="tabela-rolagem"><table>
+    <thead><tr><th>Mecanismo</th><th>Protege de verdade?</th><th>Por quê</th></tr></thead>
+    <tbody>
+      <tr><td>Esconder botão ou item de menu</td><td>❌ conforto</td><td>Quem sabe o endereço ou chama a API por fora passa direto</td></tr>
+      <tr><td>Papel escolhido na guarita / cofre do aparelho</td><td>❌ conforto</td><td>Só escolhe a triagem; o banco não pergunta qual botão foi apertado</td></tr>
+      <tr><td>Bloqueio de celular por tipo de navegador</td><td>❌ conforto</td><td>O tipo de navegador se falsifica em dois cliques</td></tr>
+      <tr><td>Funções <code>fin_*</code> / <code>admin_*</code> com checagem dentro</td><td>✅ sim</td><td>A operação só acontece depois de <code>fin_pode</code> ou <code>is_superuser</code> dizerem sim</td></tr>
+      <tr><td>Escrita nas tabelas <code>fin_*</code></td><td>✅ sim</td><td>Não existe policy de INSERT, UPDATE ou DELETE: grava-se só por função <span class="selo lido">lido</span></td></tr>
+      <tr><td>RLS de leitura das tabelas <code>fin_*</code></td><td>⚠️ parcial</td><td>Separa empresas (A não lê B), mas <strong>dentro da empresa qualquer membro ativo lê tudo</strong>, sem olhar módulo nem permissão (achado A1)</td></tr>
+      <tr><td>Chave composta <code>(tenant_id, id)</code></td><td>✅ sim</td><td>Um lançamento não consegue apontar para a conta de outra empresa</td></tr>
+      <tr><td>Colunas protegidas em <code>users</code></td><td>✅ sim</td><td>A pessoa altera nome e endereço, não <code>is_superuser</code></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ================================================================== -->
+<section id="s20">
+  <span class="numero-secao">20</span>
+  <h2>As provas automáticas (o ensaio geral)</h2>
+  <p>Comando: <code>npm run ensaio</code> (<code>scripts/ensaio-geral.mjs</code>). Rodado hoje, 23/09/2026 <span class="selo medido">medido</span>:</p>
+  <div class="tabela-rolagem"><table>
+    <thead><tr><th>#</th><th>Prova</th><th>Resultado</th><th>O que ela pega</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Testes do Core (<code>npm test</code>)</td><td>✅ 143 / 0 falhas</td><td>Erros de cálculo em datas, dinheiro, dashboards, orçamento, importação, manutenção</td></tr>
+      <tr><td>2</td><td>Verificador de LEGO</td><td>✅ 0 violações</td><td>Nome de módulo fora das soldas</td></tr>
+      <tr><td>3</td><td>Lint do site</td><td>✅</td><td>Código com padrões perigosos</td></tr>
+      <tr><td>4</td><td>Build do site</td><td>✅ 29 rotas</td><td>O que impediria a Vercel de publicar</td></tr>
+      <tr><td>5</td><td>Tipos do aplicativo</td><td>✅</td><td>Erro de tipo e import quebrado no app</td></tr>
+      <tr><td>6</td><td>Instalação limpa do SQL</td><td>✅ 4 arquivos</td><td>SQL que não roda num banco vazio</td></tr>
+      <tr><td>7</td><td><code>inventario.sql</code></td><td>✅ 4 ok</td><td>Peças da plataforma faltando ou sobrando</td></tr>
+      <tr><td>8</td><td><code>inventario_financeiro.sql</code></td><td>✅ 17 ok</td><td>Peças do módulo, inclusive assinatura de função</td></tr>
+      <tr><td>9</td><td><code>teste_financeiro.sql</code></td><td>✅ 52 ok</td><td>As travas do módulo</td></tr>
+      <tr><td>10</td><td><code>teste_rls.sql</code></td><td>✅ 16 ok</td><td>As travas da plataforma</td></tr>
+      <tr><td>11</td><td>Ensaio de atualização</td><td>✅ 21 ok</td><td>Função duplicada quando o schema novo é aplicado sobre o antigo</td></tr>
+    </tbody>
+  </table></div>
+  <div class="highlight-box">
+    <span class="rotulo-caixa">O que o ensaio NÃO prova</span>
+    <p>O login de verdade do Google (GoTrue), a API do Supabase publicado, as configurações de painel (Redirect URLs, Google Cloud Console) e o comportamento no aparelho. E, como os dois achados mostram, 52 travas verdes não quer dizer “nenhum buraco”: quer dizer que os buracos <em>testados</em> estão fechados.</p>
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<section id="s21">
+  <span class="numero-secao">21</span>
+  <h2>Como uma mudança chega ao ar</h2>
+  <div class="fluxo">
+    <div class="passo"><b>Código</b>Alterado e provado com <code>npm run ensaio</code> (responsabilidade de quem escreve)</div>
+    <div class="seta">→</div>
+    <div class="passo"><b>GitHub</b>Commit + push na <code>master</code></div>
+    <div class="seta">→</div>
+    <div class="passo"><b>Vercel</b>Constrói e publica o site sozinha</div>
+    <div class="seta">→</div>
+    <div class="passo"><b>Você</b>Abre o site publicado e testa</div>
+  </div>
+  <div class="fluxo">
+    <div class="passo"><b>App</b>Build <code>preview</code> na EAS (lançado por mim)</div>
+    <div class="seta">→</div>
+    <div class="passo"><b>APK</b>Você baixa e instala. O JavaScript vai <em>embutido</em>: o rodapé mostra a versão daquele commit para sempre.</div>
+  </div>
+  <div class="fluxo">
+    <div class="passo"><b>Banco</b>Você cola o SQL no SQL Editor do Supabase. Todo arquivo entregue termina num <code>SELECT</code> que devolve linhas OK/DIVERGE, porque o editor esconde mensagens.</div>
+  </div>
+  <h3>Variáveis de ambiente <span class="selo lido">lido no código</span></h3>
+  <ul>
+    <li><strong>Site (3)</strong>: <code>NEXT_PUBLIC_SUPABASE_URL</code>, <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>, <code>NEXT_PUBLIC_GOOGLE_CLIENT_ID</code>.</li>
+    <li><strong>App (2)</strong>: <code>EXPO_PUBLIC_SUPABASE_URL</code>, <code>EXPO_PUBLIC_SUPABASE_ANON_KEY</code>.</li>
+    <li>Não existe (e não deve existir) chave de serviço (<code>SUPABASE_SERVICE_ROLE_KEY</code>) na aplicação.</li>
+  </ul>
+  <p>Versão atual em <code>packages/core/src/constants/versions.ts</code>: <strong>WEB v10 - 2026-09-20-01</strong> e <strong>APP v10 - 2026-09-20-01</strong> <span class="selo medido">medido</span>.</p>
+</section>
+
+<!-- ================================================================== -->
+<section id="s22">
+  <span class="numero-secao">22</span>
+  <h2>ACHADOS desta engenharia reversa</h2>
+  <p>Estão em ordem de gravidade. Esta seção foi escrita antes da correção; a tabela abaixo diz o que o degrau 10 fez com cada um, no mesmo dia.</p>
+  <div class="tabela-rolagem"><table>
+    <thead><tr><th>Achado</th><th>Estado em 23/09/2026</th><th>O que foi feito</th></tr></thead>
+    <tbody>
+      <tr><td>A1 · leitura direta</td><td>✅ corrigido · trava 53</td><td>Função <code>fin_tem_acesso</code>; policies novas nas 5 tabelas; saldo de abertura sem <code>SELECT</code> de coluna, agora pela <code>fin_saldos_de_abertura</code> (exige <code>cm_ver</code>). A PESQUISAR avisa quando a pessoa vê só os próprios lançamentos.</td></tr>
+      <tr><td>A2 · perna de transferência</td><td>✅ corrigido · trava 54</td><td><code>fin_gravar_lancamento</code> recusa com 23514</td></tr>
+      <tr><td>A7 · excluir cadastro (achado na correção)</td><td>✅ corrigido · trava 55</td><td><code>fin_excluir_conta_movimento</code> e <code>fin_excluir_identificadora</code>; a tela deixou de dizer “existem lançamentos” para qualquer erro</td></tr>
+      <tr><td>A3 · documentação</td><td>✅ corrigido</td><td>Schema, <code>MODULOS.md</code>, <code>CLAUDE.md</code>, três comentários de permissões; entrada nova no <code>HISTORICO.md</code></td></tr>
+      <tr><td>A4 · páginas sem link</td><td>✅ apagadas</td><td>O site passou de 29 para 27 rotas</td></tr>
+      <tr><td>A5 · arquivos &gt; 150 linhas</td><td>⏸ adiado</td><td>Fica para um degrau próprio, arquivo por arquivo</td></tr>
+      <tr><td>A6 · sobras</td><td>✅ corrigido</td><td>Backup apagado; aviso no console quando faltam as variáveis do Supabase</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>A1 · Qualquer membro da empresa lê os dados financeiros direto da tabela <span class="selo provado">provado</span></h3>
+  <div class="alerta">
+    <p><strong>O que é:</strong> as policies de leitura das 5 tabelas <code>fin_*</code> dizem apenas “é membro ativo desta empresa?” (<code>check_is_tenant_member</code>). Elas <strong>não</strong> perguntam se a pessoa tem o módulo liberado, se está ativa no módulo, nem se tem <code>lc_ver_todos</code>, <code>cm_ver</code> ou o modo percentual. O Supabase expõe essas tabelas para leitura (<code>GRANT SELECT … TO authenticated</code>), então quem tiver a sessão pode pedir <code>supabase.from('fin_lancamentos').select('*')</code> pelo navegador.</p>
+    <p><strong>Consequência:</strong> o modo “só percentual”, a permissão “ver todos os lançamentos” e a própria chave 2 (<code>allowed_modules</code>) protegem <strong>as telas</strong>, não os dados.</p>
+  </div>
+  <div class="example-box">
+    <span class="rotulo-caixa">A prova (banco descartável, com os arquivos SQL do projeto)</span>
+    <p>O dono criou “BANCO X” (abertura R$ 1.200,00) e lançou “FOLHA” de R$ 8.500,00. Um Dependente com <code>allowed_modules = {}</code> e <code>module_configs = {}</code> fez um <code>SELECT</code> direto:</p>
+<pre>dependente tem o modulo liberado?  | {} {}
+fin_pode(lc_ver_todos)             | false
+SELECT direto fin_lancamentos      | FOLHA 850000
+SELECT direto fin_contas_movimento | BANCO X abertura 120000</pre>
+    <p>Limite honesto: simulei o papel <code>authenticated</code> dentro do PostgreSQL, que é o mesmo papel que a API do Supabase usa. <strong>Não</strong> fiz a chamada contra o Supabase publicado <span class="selo nao">não verificado lá</span>.</p>
+  </div>
+  <p><strong>Correção proposta (a decidir):</strong> trocar as policies de leitura para exigir o módulo e a permissão, por exemplo:</p>
+<pre>-- lançamentos: vê todos quem pode; vê os próprios quem tem o módulo ativo
+USING ( public.fin_pode(tenant_id, 'lc_ver_todos')
+     OR (criado_por = auth.uid() AND public.fin_pode(tenant_id, 'lc_criar')) )
+-- contas movimento: public.fin_pode(tenant_id, 'cm_ver')  … e assim por diante</pre>
+  <p>As telas que usam funções <code>fin_*</code> não seriam afetadas, porque essas funções rodam com privilégio próprio. Há só <strong>8 leituras diretas</strong> no Core (<code>cadastroService</code> ×4, <code>extratoService</code> ×1, <code>lancamentoService</code> ×3) que precisariam ser revistas uma a uma, e uma trava nova em <code>teste_financeiro.sql</code>, vista falhar antes da correção.</p>
+
+  <h3>A2 · O banco aceita editar só uma perna de uma transferência <span class="selo provado">provado</span></h3>
+  <div class="alerta">
+    <p><strong>O que é:</strong> <code>fin_gravar_lancamento</code> não verifica <code>transferencia_id</code>. A regra “nunca oferecer EDITAR numa perna de transferência” existe só na tela. Quem tem <code>lc_editar_proprios</code> ou <code>lc_editar_todos</code> e chama a função por fora altera uma perna sozinha.</p>
+  </div>
+<pre>antes  | SAIDA=10000 ENTRADA=10000
+edicao | ACEITA: {"success" : true, ...}
+depois | ENTRADA=10000 SAIDA=99900</pre>
+  <p>Resultado: saíram R$ 999,00 do CAIXA e entraram R$ 100,00 no BANCO. <strong>R$ 899,00 sumiram do total da empresa</strong>, sem erro nenhum, contrariando a RN-23.</p>
+  <p><strong>Correção proposta:</strong> no começo do ramo de edição, recusar quando o lançamento tiver <code>transferencia_id</code> (“exclua e transfira de novo”), mais uma trava nova no teste.</p>
+
+  <h3>A3 · Documentação que envelheceu <span class="selo medido">medido</span></h3>
+  <div class="tabela-rolagem"><table>
+    <thead><tr><th>Onde</th><th>Diz</th><th>A verdade hoje</th></tr></thead>
+    <tbody>
+      <tr><td>cabeçalho de <code>financeiro_01_schema.sql</code></td><td>4 tabelas · 20 funções · 8 policies · 9 triggers</td><td>5 tabelas · 36 funções · 5 policies · 10 gatilhos</td></tr>
+      <tr><td><code>permissaoService.ts</code> (comentário)</td><td>“as 17 permissões”</td><td>23</td></tr>
+      <tr><td><code>MODULOS.md</code></td><td>app: “(2 telas)”</td><td>4 telas + o layout</td></tr>
+      <tr><td><code>CLAUDE.md</code> › Versões do Sistema</td><td>WEB 2026-09-11-01 / APP 2026-09-11-02</td><td>as duas: 2026-09-20-01</td></tr>
+      <tr><td><code>CLAUDE.md</code> › Componentes mobile</td><td>lista <code>components/auth/RegisterForm.tsx</code></td><td>esse arquivo não existe</td></tr>
+      <tr><td><code>CLAUDE.md</code> › Estrutura de rotas mobile</td><td>não lista <code>sobre.tsx</code>, <code>suporte.tsx</code> nem <code>financeiro/</code></td><td>existem</td></tr>
+      <tr><td><code>CLAUDE.md</code> › Comandos</td><td>“os seis scripts da raiz”</td><td>são 8 (entraram <code>typecheck:mobile</code> e <code>ensaio</code>)</td></tr>
+      <tr><td><code>MODULOS.md</code>, schema do módulo</td><td>citam <code>_estudos/modulo-financeiro-especificacao.html</code></td><td>só existe no histórico do Git</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>A4 · Duas páginas sem nenhum link <span class="selo medido">medido</span></h3>
+  <p><code>/dashboard/financeiro/lancamentos</code> e <code>/dashboard/financeiro/orcamento</code> existem e funcionam, mas <strong>nenhum link do sistema aponta para elas</strong>: só se chega digitando o endereço. Não causam dano. A decisão é mantê-las como atalho ou apagá-las.</p>
+
+  <h3>A5 · A regra das 150 linhas <span class="selo medido">medido</span></h3>
+  <p>O <code>CLAUDE.md</code> diz que arquivo com mais de ~150 linhas deve ser fatiado. Hoje, <strong>102 dos 285</strong> arquivos <code>.ts/.tsx/.mjs</code> (sem contar testes) passam desse limite, contando comentários. Os maiores: <code>mobile/modules/financeiro/estilos.ts</code> (556), <code>auth/hooks/useAuthLogic.ts</code> (500), <code>core/modules/financeiro/tipos.ts</code> (495), <code>lancamentos/pesquisar/page.tsx</code> (471), <code>dependentes/page.tsx</code> (426). Não é defeito de funcionamento; é dívida de organização.</p>
+
+  <h3>A6 · Sobras e caminhos adormecidos <span class="selo lido">lido no código</span></h3>
+  <ul>
+    <li><code>packages/core/package.json.backup.sdk54</code>: sobra de atualização. Os dois backups da raiz já tinham saído; este ficou.</li>
+    <li>O caminho “Dependente com senha” em <code>useAuthLogic.ts</code> continua escrito, mas nenhuma tela chega a ele. Está documentado como mantido <em>de propósito</em>.</li>
+    <li>A Catraca antirrobô está em modo liberado; o cadastro por senha (<code>SignUpView</code>) só é alcançável pelo desvio de “planeta”. As duas coisas são intencionais.</li>
+    <li>Se as variáveis do Supabase faltarem, <code>lib/supabase.ts</code> aponta para <code>placeholder.supabase.co</code>. O sistema não quebra na montagem, mas também não avisa: as chamadas simplesmente falham.</li>
+  </ul>
+</section>
+
+<!-- ================================================================== -->
+<section id="s23">
+  <span class="numero-secao">23</span>
+  <h2>O que eu NÃO verifiquei</h2>
+  <ul>
+    <li><span class="selo nao">não verificado</span> O site publicado na Vercel e o banco publicado no Supabase: não abri nenhum dos dois neste estudo.</li>
+    <li><span class="selo nao">não verificado</span> As configurações de painel: Redirect URLs, provedor Google do Supabase e Google Cloud Console.</li>
+    <li><span class="selo nao">não verificado</span> O aplicativo no aparelho: confiei no seu relato do teste.</li>
+    <li>Não li linha por linha os arquivos de <strong>estilo e layout visual</strong> (por exemplo <code>estilos.ts</code>, <code>Colors.ts</code>, <code>*.styles.ts</code>) nem cada componente de tela. Mapeei-os pela estrutura, pelos nomes e por buscas dirigidas.</li>
+    <li>Não li cada uma das 52 travas do <code>teste_financeiro.sql</code>. Conferi a contagem e o resultado (52/52) e fiz buscas pelos temas dos achados.</li>
+    <li>As provas A1 e A2 foram feitas num PostgreSQL 18 local com o simulador de Supabase do próprio projeto (<code>00_supabase_falso.sql</code>), e não no Supabase real.</li>
+  </ul>
+</section>
+
+<!-- ================================================================== -->
+<section id="s24">
+  <span class="numero-secao">24</span>
+  <h2>Glossário</h2>
+  <div class="tabela-rolagem"><table>
+    <thead><tr><th>Termo</th><th>Em português claro</th></tr></thead>
+    <tbody>
+      <tr><td>Multi-tenant / tenant</td><td>Um sistema, várias empresas. Cada empresa é um “tenant” (inquilino) e só vê o que é dela.</td></tr>
+      <tr><td>Monorepo</td><td>Uma pasta com vários projetos que compartilham código.</td></tr>
+      <tr><td>Supabase</td><td>Serviço que hospeda o banco PostgreSQL, o login e a API.</td></tr>
+      <tr><td>RLS (Row Level Security)</td><td>Filtro automático por linha: o banco devolve só as linhas que a pessoa pode ver, mesmo que ela peça tudo.</td></tr>
+      <tr><td>Policy</td><td>Uma regra de RLS (“pode ler se for membro da empresa”).</td></tr>
+      <tr><td>Função / RPC</td><td>Um procedimento guardado no banco que a tela chama pelo nome (<code>supabase.rpc('nome')</code>).</td></tr>
+      <tr><td>SECURITY DEFINER</td><td>Função que roda com o poder do dono do banco. Por isso ela mesma tem de conferir quem chamou.</td></tr>
+      <tr><td>Chave anon</td><td>A chave pública do Supabase, o “crachá de visitante”. Vai dentro do site e do app.</td></tr>
+      <tr><td>JWT / sessão</td><td>O “ingresso” que prova quem você é depois do login. O banco lê dele o <code>auth.uid()</code>.</td></tr>
+      <tr><td>OAuth / ID Token</td><td>Entrar com o Google: o Google confirma quem você é e o Supabase cria a sessão.</td></tr>
+      <tr><td>Deep link</td><td>Endereço que abre o app direto numa tela (<code>plataformajairo://auth/google</code>).</td></tr>
+      <tr><td>Server Action</td><td>Função do site que roda no servidor da Vercel. Aqui são só duas, ambas de login.</td></tr>
+      <tr><td>Seed</td><td>Arquivo que grava os dados iniciais obrigatórios.</td></tr>
+      <tr><td>Idempotente</td><td>Pode rodar duas vezes sem estragar nada.</td></tr>
+      <tr><td>Sobrecarga de função</td><td>Duas funções com o mesmo nome e parâmetros diferentes. No PostgreSQL, a velha continua viva.</td></tr>
+      <tr><td>Regime CAIXA × COMPETÊNCIA</td><td>CAIXA = o dinheiro andou de fato; COMPETÊNCIA = registro do mês a que a despesa pertence.</td></tr>
+      <tr><td>APK / EAS</td><td>O instalador do app Android / o serviço do Expo que o constrói.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ================================================================== -->
+<section id="s25" class="bonus-section">
+  <span class="numero-secao">25</span>
+  <h2>Bônus: sugestões de próximos degraus</h2>
+  <p>Na ordem em que eu faria, cada um só depois da sua autorização:</p>
+  <ol>
+    <li><strong>Degrau 10: fechar o A1.</strong> Novas policies de leitura nas 5 tabelas <code>fin_*</code>, revisão das 8 leituras diretas do Core, uma trava nova no <code>teste_financeiro.sql</code> vista falhar antes da correção, e o SQL entregue com o <code>SELECT</code> de OK/DIVERGE. É o mais importante, porque hoje a promessa de sigilo das telas não se sustenta no banco.</li>
+    <li><strong>No mesmo degrau: fechar o A2.</strong> Uma linha na <code>fin_gravar_lancamento</code> e uma trava. É pequeno e do mesmo tipo (regra que só a tela cumpria).</li>
+    <li><strong>Faxina de documentação (A3).</strong> Oito correções pontuais, com o comando que recalcula cada número escrito ao lado dele, como o próprio <code>CLAUDE.md</code> manda.</li>
+    <li><strong>Decidir as duas páginas sem link (A4)</strong> e apagar o <code>package.json.backup.sdk54</code>.</li>
+    <li><strong>Fatiar aos poucos os maiores arquivos (A5)</strong>, começando por <code>useAuthLogic.ts</code> (500 linhas), sempre um de cada vez e com o ensaio verde.</li>
+    <li><strong>Pergunta de produto:</strong> a contratação de módulo (<code>/dashboard/modulos</code>) deve existir também no aplicativo, ou fica só no site?</li>
+  </ol>
+</section>
+
+<p class="rodape">Manual gerado em 23/09/2026 a partir do commit <code>a92d751</code> · Plataforma Jairo O D C v10 · Estudo de engenharia reversa</p>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var container = document.getElementById('printContainer');
+  var button = document.getElementById('printButton');
+  var printMenu = document.getElementById('printMenu');
+  var btnCores = document.getElementById('printCores');
+  var btnPB = document.getElementById('printPB');
+  var ESPERA = 100;
+
+  function abrirMenu() { printMenu.classList.add('aberto'); button.setAttribute('aria-expanded', 'true'); }
+  function fecharMenu() { printMenu.classList.remove('aberto'); button.setAttribute('aria-expanded', 'false'); }
+
+  button.addEventListener('click', function (event) {
+    event.stopPropagation();
+    if (printMenu.classList.contains('aberto')) { fecharMenu(); } else { abrirMenu(); }
+  });
+
+  // Todos os eventos dentro do menu param aqui: o mouse pode passear entre
+  // as duas opções sem que nada suba até o documento e feche o menu.
+  ['click', 'mousedown', 'mouseover', 'mouseout', 'mousemove'].forEach(function (tipo) {
+    printMenu.addEventListener(tipo, function (event) { event.stopPropagation(); });
+  });
+
+  // Fecha só quando o clique acontece FORA do container (nem no botão, nem no menu).
+  document.addEventListener('click', function (event) {
+    if (!container.contains(event.target)) { fecharMenu(); }
+  });
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') { fecharMenu(); }
+  });
+
+  function imprimirCores(event) {
+    event.stopPropagation();
+    fecharMenu();
+    document.body.classList.remove('print-bw');
+    setTimeout(function () {
+      window.print();
+    }, ESPERA);
+  }
+
+  function imprimirPB(event) {
+    event.stopPropagation();
+    fecharMenu();
+    document.body.classList.add('print-bw');
+    setTimeout(function () {
+      window.print();
+      setTimeout(function () {
+        document.body.classList.remove('print-bw');
+      }, ESPERA);
+    }, ESPERA);
+  }
+
+  btnCores.addEventListener('click', imprimirCores);
+  btnPB.addEventListener('click', imprimirPB);
+
+  // Rede de segurança: se o navegador devolver o controle antes de a janela
+  // de impressão fechar, o afterprint também devolve a tela às cores normais.
+  window.addEventListener('afterprint', function () {
+    setTimeout(function () { document.body.classList.remove('print-bw'); }, ESPERA);
+  });
+
+  console.log('[Manual PJODC] Página carregada: menu de impressão pronto (Cores A4 / Preto & Branco A4).');
+})();
+</script>
+</body>
+</html>

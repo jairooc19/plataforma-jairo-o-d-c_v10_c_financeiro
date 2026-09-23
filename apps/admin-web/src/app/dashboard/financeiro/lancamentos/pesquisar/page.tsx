@@ -205,6 +205,14 @@ export default function PesquisarLancamentosPage() {
   return (
     <div className="space-y-6">
       <h1 className="flex items-center gap-2.5 text-2xl font-black uppercase tracking-tighter text-slate-800"><IconeFin nome="pesquisar" tamanho={26} traco={1.75} />PESQUISAR LANÇAMENTOS</h1>
+      {/* ⚠️ 23/09/2026 — quem decide o que aparece é o BANCO (policy de
+          `fin_lancamentos`): sem uma destas três permissões, só os próprios.
+          Esta frase só explica a lista mais curta; não esconde nada. */}
+      {!carregandoContexto && !(pode("lc_ver_todos") || pode("extrato_ver") || pode("lc_excluir_lote")) && (
+        <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
+          VOCÊ VÊ SOMENTE OS LANÇAMENTOS QUE VOCÊ MESMO REGISTROU.
+        </p>
+      )}
 
       {erro && <div className="bg-red-50 border border-red-200 rounded-2xl px-5 py-4 text-xs font-bold uppercase text-red-800">{erro}</div>}
 

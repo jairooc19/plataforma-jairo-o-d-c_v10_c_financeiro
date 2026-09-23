@@ -21,8 +21,14 @@
 -- estrangeira. Desplugar o módulo é rodar o `financeiro_00_reset.sql` e apagar
 -- as 5 pastas.
 --
--- O QUE ESTE ARQUIVO CRIA
---   4 tabelas · 20 funções · 4 RLS ENABLE · 8 policies · 9 triggers
+-- O QUE ESTE ARQUIVO CRIA (recontado em 23/09/2026)
+--   5 tabelas · 40 funções · 5 RLS ENABLE · 5 policies · 10 triggers
+--
+-- ⚠️ ESTA LINHA DIZIA "4 tabelas · 20 funções · 8 policies · 9 triggers" ATÉ
+-- 23/09/2026 — cinco rodadas de defasagem. Não confie nela; reconte:
+--   grep -c "^CREATE OR REPLACE FUNCTION" supabase/criar-bd-financeiro/financeiro_01_schema.sql
+--   grep -c "^CREATE POLICY"              supabase/criar-bd-financeiro/financeiro_01_schema.sql
+--   grep -c "^CREATE TRIGGER"             supabase/criar-bd-financeiro/financeiro_01_schema.sql
 -- ===========================================================================
 
 
@@ -304,6 +310,50 @@ AS $$
                   'financeiro' = ANY(m.allowed_modules)
                   AND COALESCE((m.module_configs -> 'financeiro' ->> 'ativo')::boolean, false)
                   AND (m.module_configs -> 'financeiro' -> 'permissoes') ? p_permissao
+                )
+              )
+     );
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 4.1b TEM ACESSO AO MÓDULO? (23/09/2026 — achado A1 da engenharia reversa)
+-- ---------------------------------------------------------------------------
+--
+-- ⚠️ POR QUE ESTA FUNÇÃO NASCEU. Até 23/09/2026 as policies de LEITURA das
+-- cinco tabelas `fin_*` perguntavam só "é membro ativo desta empresa?"
+-- (`check_is_tenant_member`). Qualquer integrante — mesmo SEM o módulo
+-- liberado em `allowed_modules` e SEM permissão nenhuma — lia todos os
+-- lançamentos e saldos com um `supabase.from('fin_lancamentos').select('*')`
+-- feito do navegador. As telas escondiam; o banco entregava. Provado num
+-- PostgreSQL descartável: um Dependente com `allowed_modules = {}` leu
+-- "FOLHA 850000" e o saldo de abertura do "BANCO X".
+--
+-- Ela responde a pergunta da CHAVE 2 da plataforma dentro do módulo: o módulo
+-- está contratado E (a pessoa é a dona OU o dono o liberou e ligou para ela).
+-- É a mesma regra da `fin_pode()`, sem exigir uma permissão específica.
+--
+-- ⚠️ ELA PRECISA DE `GRANT` PARA `authenticated`, ao contrário das funções
+-- internas: é chamada DE DENTRO DAS POLICIES, que rodam com o papel de quem
+-- consulta. Sem o GRANT, toda leitura das tabelas estouraria 42501.
+CREATE OR REPLACE FUNCTION public.fin_tem_acesso(p_tenant_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT public.modulo_contratado(p_tenant_id, 'financeiro')
+     AND EXISTS (
+       SELECT 1
+         FROM public.tenant_members m
+        WHERE m.tenant_id = p_tenant_id
+          AND m.user_id = auth.uid()
+          AND m.is_active = true
+          AND (
+                m.role = 'OWNER'
+             OR (
+                  'financeiro' = ANY(m.allowed_modules)
+                  AND COALESCE((m.module_configs -> 'financeiro' ->> 'ativo')::boolean, false)
                 )
               )
      );
@@ -906,6 +956,119 @@ END;
 $$;
 
 -- ---------------------------------------------------------------------------
+-- 4.6b SALDOS DE ABERTURA (23/09/2026 — achado A1)
+-- ---------------------------------------------------------------------------
+--
+-- ⚠️ O SALDO DE ABERTURA SAIU DA LEITURA DIRETA DA TABELA. A partir de
+-- 23/09/2026 a coluna `saldo_abertura_centavos` não recebe `SELECT` (ver a
+-- seção 7): a lista de contas movimento é lida por quem tem acesso ao módulo
+-- — ela alimenta o formulário de lançamento, a transferência, os filtros —,
+-- mas o SALDO DE ABERTURA é um valor, e a tela de CONFIGURAÇÕES promete ao
+-- dono que só `cm_ver` o revela (`PERMISSOES_QUE_REVELAM_VALOR`). Linha a
+-- linha a RLS não sabe esconder UMA coluna; o privilégio de coluna sabe.
+CREATE OR REPLACE FUNCTION public.fin_saldos_de_abertura(p_tenant_id uuid)
+RETURNS TABLE (id uuid, saldo_abertura_centavos bigint)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT public.fin_pode(p_tenant_id, 'cm_ver') THEN
+    RAISE EXCEPTION 'Sem permissao para ver as contas movimento.' USING ERRCODE = '42501';
+  END IF;
+
+  RETURN QUERY
+    SELECT c.id, c.saldo_abertura_centavos
+      FROM public.fin_contas_movimento c
+     WHERE c.tenant_id = p_tenant_id;
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 4.6c EXCLUIR CADASTRO (RN-04, RN-25, RN-30) — 23/09/2026
+-- ---------------------------------------------------------------------------
+--
+-- ⚠️ EXCLUIR UM CADASTRO NUNCA FUNCIONOU ATÉ ESTA DATA. A tela apagava com um
+-- `DELETE` direto na tabela — e desde o degrau 7 as tabelas `fin_*` só dão
+-- `SELECT` ao app (escrita só por função, seção 7). Todo clique em EXCLUIR
+-- voltava `permission denied`, e a tela, que tratava QUALQUER erro como
+-- "existem lançamentos", mostrava essa frase mesmo para a conta sem lançamento
+-- nenhum. E as permissões `cm_excluir` e `ci_excluir` não eram conferidas por
+-- ninguém no banco. Achado ao corrigir o A1 da engenharia reversa.
+--
+-- A conferência de lançamento vem ANTES do DELETE, com mensagem própria: a
+-- chave estrangeira (RN-04, `ON DELETE RESTRICT`) recusaria de todo jeito, mas
+-- com um texto que a tela não saberia traduzir.
+CREATE OR REPLACE FUNCTION public.fin_excluir_conta_movimento(p_tenant_id uuid, p_id uuid)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT public.fin_pode(p_tenant_id, 'cm_excluir') THEN
+    RAISE EXCEPTION 'Sem permissao para excluir conta movimento.' USING ERRCODE = '42501';
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM public.fin_contas_movimento
+                  WHERE id = p_id AND tenant_id = p_tenant_id) THEN
+    RAISE EXCEPTION 'Conta movimento nao encontrada nesta empresa.' USING ERRCODE = 'P0002';
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM public.fin_lancamentos
+              WHERE tenant_id = p_tenant_id AND conta_movimento_id = p_id) THEN
+    RAISE EXCEPTION 'Existem lancamentos usando esta conta: desative-a em vez de excluir.'
+      USING ERRCODE = '23503';
+  END IF;
+
+  DELETE FROM public.fin_contas_movimento WHERE id = p_id AND tenant_id = p_tenant_id;
+  RETURN json_build_object('success', true, 'id', p_id);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.fin_excluir_identificadora(p_tenant_id uuid, p_id uuid)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_sistema boolean;
+BEGIN
+  IF NOT public.fin_pode(p_tenant_id, 'ci_excluir') THEN
+    RAISE EXCEPTION 'Sem permissao para excluir conta identificadora.' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT is_sistema INTO v_sistema
+    FROM public.fin_contas_identificadoras
+   WHERE id = p_id AND tenant_id = p_tenant_id;
+
+  IF v_sistema IS NULL THEN
+    RAISE EXCEPTION 'Conta identificadora nao encontrada nesta empresa.' USING ERRCODE = 'P0002';
+  END IF;
+
+  -- RN-30: a categoria "TRANSFERÊNCIA ENTRE CONTAS" é do sistema.
+  IF v_sistema THEN
+    RAISE EXCEPTION 'A categoria de transferencia e do sistema e nao pode ser excluida.'
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM public.fin_lancamentos
+              WHERE tenant_id = p_tenant_id AND conta_identificadora_id = p_id) THEN
+    RAISE EXCEPTION 'Existem lancamentos usando esta conta: desative-a em vez de excluir.'
+      USING ERRCODE = '23503';
+  END IF;
+
+  -- ⚠️ O ORÇAMENTO DELA SAI JUNTO (chave `ON DELETE CASCADE` da 2.5): sem
+  -- lançamento nenhum, não há realizado a comparar, e um orçamento de uma
+  -- conta que não existe mais não teria onde aparecer.
+  DELETE FROM public.fin_contas_identificadoras WHERE id = p_id AND tenant_id = p_tenant_id;
+  RETURN json_build_object('success', true, 'id', p_id);
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
 -- 4.7 GRAVAR LANÇAMENTO (RN-10, 11, 12, 15, 22, 24, 25, 29)
 -- ---------------------------------------------------------------------------
 --
@@ -940,6 +1103,7 @@ DECLARE
   v_conta_old uuid;
   v_data_old  date;
   v_permissao text;
+  v_transf    uuid;
 BEGIN
   -- 1) Permissão: criar é uma; editar depende de ser o autor ou não.
   IF p_id IS NULL THEN
@@ -948,8 +1112,8 @@ BEGIN
       RAISE EXCEPTION 'Sem permissao para criar lancamento.' USING ERRCODE = '42501';
     END IF;
   ELSE
-    SELECT criado_por, conta_movimento_id, data_movimento
-      INTO v_criador, v_conta_old, v_data_old
+    SELECT criado_por, conta_movimento_id, data_movimento, transferencia_id
+      INTO v_criador, v_conta_old, v_data_old, v_transf
       FROM public.fin_lancamentos
      WHERE id = p_id AND tenant_id = p_tenant_id;
 
@@ -957,11 +1121,24 @@ BEGIN
       RAISE EXCEPTION 'Lancamento nao encontrado nesta empresa.' USING ERRCODE = '23503';
     END IF;
 
+    -- ⚠️ RN-23 — PERNA DE TRANSFERÊNCIA NÃO SE EDITA (23/09/2026, achado A2).
+    -- Até esta data a regra morava SÓ NA TELA, que não oferece EDITAR numa
+    -- perna. Chamando a função por fora, dava para mudar uma perna sozinha:
+    -- provado num banco descartável, a SAÍDA virou 999,00 com a ENTRADA em
+    -- 100,00, e R$ 899,00 sumiram do total da empresa sem erro nenhum.
+    -- O caminho certo é excluir (o banco apaga as duas pernas juntas) e
+    -- transferir de novo. Vem DEPOIS da permissão para não contar, a quem não
+    -- pode editar, que aquele id é uma perna de transferência.
     IF NOT (
       public.fin_pode(p_tenant_id, 'lc_editar_todos')
       OR (v_criador = auth.uid() AND public.fin_pode(p_tenant_id, 'lc_editar_proprios'))
     ) THEN
       RAISE EXCEPTION 'Sem permissao para editar este lancamento.' USING ERRCODE = '42501';
+    END IF;
+
+    IF v_transf IS NOT NULL THEN
+      RAISE EXCEPTION 'Lancamento de transferencia nao pode ser editado: exclua (as duas pernas saem juntas) e transfira de novo.'
+        USING ERRCODE = '23514';
     END IF;
 
     -- RN-24: a data ANTIGA também não pode estar em período fechado, senão
@@ -3490,8 +3667,24 @@ $$;
 
 
 -- ===========================================================================
--- 5. POLICIES — leitura pelos membros; escrita só pelas funções
+-- 5. POLICIES — leitura por quem tem acesso ao módulo; escrita só pelas funções
 -- ===========================================================================
+--
+-- ⚠️ 23/09/2026 — AS CINCO POLICIES DE LEITURA FORAM APERTADAS (achado A1).
+-- Elas diziam "membro ativo da empresa lê tudo" (`check_is_tenant_member`), e
+-- isso derrubava em silêncio três promessas das telas: a CHAVE 2 da plataforma
+-- (`allowed_modules`), a permissão `lc_ver_todos` e o modo "só percentual" do
+-- DINHEIRO DO PERÍODO. Agora:
+--
+--   • cadastros e fechamentos → quem tem acesso ao módulo (`fin_tem_acesso`);
+--     o SALDO DE ABERTURA não sai por aqui (privilégio de coluna, seção 7);
+--   • lançamentos → quem pode ver os de todos (`lc_ver_todos`, ou `extrato_ver`
+--     e `lc_excluir_lote`, que já mostram todos por função) OU o próprio autor;
+--   • orçamento → `orc_ver`.
+--
+-- ⚠️ AS FUNÇÕES `fin_*` NÃO SÃO AFETADAS: são `SECURITY DEFINER` e o dono delas
+-- é o dono das tabelas, então a RLS não se aplica lá dentro. Estas policies
+-- valem só para a LEITURA DIRETA feita pelo app (`supabase.from('fin_...')`).
 --
 -- ⚠️ NÃO HÁ POLICY DE INSERT/UPDATE/DELETE EM NENHUMA TABELA, e é deliberado.
 -- Uma policy sabe dizer "pode escrever nesta linha", mas não sabe validar a
@@ -3503,22 +3696,27 @@ $$;
 DROP POLICY IF EXISTS "Contas movimento da empresa" ON public.fin_contas_movimento;
 CREATE POLICY "Contas movimento da empresa" ON public.fin_contas_movimento
 FOR SELECT TO authenticated
-USING (public.check_is_tenant_member(tenant_id) OR public.check_is_tenant_owner(tenant_id));
+USING (public.fin_tem_acesso(tenant_id));
 
 DROP POLICY IF EXISTS "Identificadoras da empresa" ON public.fin_contas_identificadoras;
 CREATE POLICY "Identificadoras da empresa" ON public.fin_contas_identificadoras
 FOR SELECT TO authenticated
-USING (public.check_is_tenant_member(tenant_id) OR public.check_is_tenant_owner(tenant_id));
+USING (public.fin_tem_acesso(tenant_id));
 
 DROP POLICY IF EXISTS "Lancamentos da empresa" ON public.fin_lancamentos;
 CREATE POLICY "Lancamentos da empresa" ON public.fin_lancamentos
 FOR SELECT TO authenticated
-USING (public.check_is_tenant_member(tenant_id) OR public.check_is_tenant_owner(tenant_id));
+USING (
+       public.fin_pode(tenant_id, 'lc_ver_todos')
+    OR public.fin_pode(tenant_id, 'extrato_ver')
+    OR public.fin_pode(tenant_id, 'lc_excluir_lote')
+    OR (criado_por = auth.uid() AND public.fin_tem_acesso(tenant_id))
+);
 
 DROP POLICY IF EXISTS "Fechamentos da empresa" ON public.fin_fechamentos;
 CREATE POLICY "Fechamentos da empresa" ON public.fin_fechamentos
 FOR SELECT TO authenticated
-USING (public.check_is_tenant_member(tenant_id) OR public.check_is_tenant_owner(tenant_id));
+USING (public.fin_tem_acesso(tenant_id));
 
 -- ⚠️ 18/09/2026 — A POLICY DO ORÇAMENTO É DE LEITURA, E COM `TO authenticated`.
 -- Sem o `TO`, o padrão do PostgreSQL é PUBLIC, e foi assim que a lista de
@@ -3527,7 +3725,7 @@ USING (public.check_is_tenant_member(tenant_id) OR public.check_is_tenant_owner(
 DROP POLICY IF EXISTS "Orcamentos da empresa" ON public.fin_orcamentos;
 CREATE POLICY "Orcamentos da empresa" ON public.fin_orcamentos
 FOR SELECT TO authenticated
-USING (public.check_is_tenant_member(tenant_id) OR public.check_is_tenant_owner(tenant_id));
+USING (public.fin_pode(tenant_id, 'orc_ver'));
 
 
 -- ===========================================================================
@@ -3590,7 +3788,18 @@ REVOKE ALL ON public.fin_fechamentos            FROM anon, authenticated;
 REVOKE ALL ON public.fin_orcamentos             FROM anon, authenticated;
 
 -- Leitura filtrada pela RLS; escrita, nenhuma.
-GRANT SELECT ON public.fin_contas_movimento       TO authenticated;
+--
+-- ⚠️ 23/09/2026 — `fin_contas_movimento` RECEBE SELECT COLUNA A COLUNA, SEM
+-- `saldo_abertura_centavos` (achado A1). A lista de contas precisa estar
+-- aberta a quem lança e a quem transfere; o saldo de abertura é um VALOR, que
+-- só `cm_ver` deve revelar — e ele sai pela `fin_saldos_de_abertura`, que
+-- confere a permissão. O `REVOKE ALL` acima também retira os privilégios de
+-- coluna de uma execução anterior, e é isso que mantém o arquivo reaplicável.
+-- ⚠️ CONSEQUÊNCIA PARA QUEM ESCREVE CÓDIGO: `select('*')` nesta tabela passa a
+-- responder `permission denied for column`. Liste as colunas.
+GRANT SELECT (id, tenant_id, nome, nome_normalizado, tipo, is_active,
+              criado_por, created_at, updated_at)
+             ON public.fin_contas_movimento       TO authenticated;
 GRANT SELECT ON public.fin_contas_identificadoras TO authenticated;
 GRANT SELECT ON public.fin_lancamentos            TO authenticated;
 GRANT SELECT ON public.fin_fechamentos            TO authenticated;
@@ -3670,6 +3879,11 @@ REVOKE EXECUTE ON FUNCTION public.fin_competencias_orcadas(uuid, date, date, uui
 REVOKE EXECUTE ON FUNCTION public.fin_copiar_orcamento(uuid, date, date, boolean)         FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_dinheiro_do_periodo(uuid, date)                     FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_apagar_dados_da_empresa(uuid)                      FROM PUBLIC, anon, authenticated;
+-- 23/09/2026 — as quatro da engenharia reversa (achados A1 e A7).
+REVOKE EXECUTE ON FUNCTION public.fin_tem_acesso(uuid)                                   FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_saldos_de_abertura(uuid)                           FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_excluir_conta_movimento(uuid, uuid)                FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_excluir_identificadora(uuid, uuid)                 FROM PUBLIC, anon, authenticated;
 
 GRANT EXECUTE ON FUNCTION public.fin_normalizar(text)                                   TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_pode(uuid, text)                                   TO authenticated;
@@ -3725,6 +3939,15 @@ GRANT EXECUTE ON FUNCTION public.fin_listar_orcamento(uuid, date)               
 GRANT EXECUTE ON FUNCTION public.fin_competencias_orcadas(uuid, date, date, uuid)        TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_copiar_orcamento(uuid, date, date, boolean)         TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_dinheiro_do_periodo(uuid, date)                     TO authenticated;
+
+-- 23/09/2026 — `fin_tem_acesso` é chamada DENTRO das policies, com o papel de
+-- quem consulta: sem este GRANT, toda leitura direta estouraria 42501. As
+-- outras três conferem a permissão por dentro (`cm_ver`, `cm_excluir`,
+-- `ci_excluir`).
+GRANT EXECUTE ON FUNCTION public.fin_tem_acesso(uuid)                                   TO authenticated;
+GRANT EXECUTE ON FUNCTION public.fin_saldos_de_abertura(uuid)                           TO authenticated;
+GRANT EXECUTE ON FUNCTION public.fin_excluir_conta_movimento(uuid, uuid)                TO authenticated;
+GRANT EXECUTE ON FUNCTION public.fin_excluir_identificadora(uuid, uuid)                 TO authenticated;
 
 -- ⚠️ `fin_apagar_dados_da_empresa` NÃO recebe GRANT para `authenticated`: ela é
 -- chamada de dentro de `admin_apagar_dados_do_modulo`, que roda como dono do

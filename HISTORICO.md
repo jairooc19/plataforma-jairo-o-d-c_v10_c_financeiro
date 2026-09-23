@@ -17,6 +17,117 @@ todas foram pagas com um defeito em produção.
 
 ---
 
+**2026-09-23 — v10: DEGRAU 10, as correções da engenharia reversa completa**
+
+O dono do projeto testou o APK do degrau 09 (o Dependente sem equipe viu "Conta criada.
+Falta o convite." — **passou**) e pediu uma engenharia reversa do sistema inteiro, com
+honestidade total (`_estudos/estudo-2026-09-23-engenharia-reversa-completa.html`). Ela
+achou dois buracos sérios, **provados num PostgreSQL descartável** com os arquivos SQL do
+projeto, e ele autorizou corrigir tudo.
+
+---
+
+### 1) A1 — QUALQUER INTEGRANTE DA EMPRESA LIA O FINANCEIRO INTEIRO
+
+As policies de LEITURA das cinco tabelas `fin_*` diziam só "membro ativo da empresa":
+
+```sql
+USING (public.check_is_tenant_member(tenant_id) OR public.check_is_tenant_owner(tenant_id))
+```
+
+Separava uma empresa da outra (A não lê B) — e mais nada. Um Dependente **sem** o módulo
+em `allowed_modules` e **sem** permissão nenhuma fazia `supabase.from('fin_lancamentos')
+.select('*')` pelo navegador e recebia tudo. Na prova de 23/09: com `allowed_modules = {}`
+e `module_configs = {}`, ele leu **"FOLHA 850000"** e o saldo de abertura do "BANCO X".
+
+> ⚠️ **ISSO DERRUBAVA TRÊS PROMESSAS AO MESMO TEMPO, EM SILÊNCIO:** a chave 2 da plataforma
+> (`allowed_modules`), a permissão `lc_ver_todos` (a tela PESQUISAR nem a conferia) e o
+> modo "só percentual" do DINHEIRO DO PERÍODO — cuja função devolvia os valores em NULO
+> enquanto a tabela os entregava pela porta dos fundos. O `CLAUDE.md` tinha a regra
+> "esconder numa tela é conforto, não enviar é segurança"; o banco a cumpria numa função e
+> a violava na tabela ao lado.
+
+**A correção:**
+- função nova `fin_tem_acesso(tenant)` — a mesma regra da `fin_pode()` sem exigir permissão
+  específica: módulo contratado E (dono OU liberado e ligado para a pessoa);
+- cadastros e fechamentos: `fin_tem_acesso`; orçamento: `fin_pode('orc_ver')`;
+- lançamentos: `lc_ver_todos` OU `extrato_ver` OU `lc_excluir_lote` (as duas últimas já
+  mostram os lançamentos de todos por função) OU **o próprio autor**;
+- `saldo_abertura_centavos` perdeu o `SELECT` (privilégio de COLUNA — a RLS não sabe
+  esconder uma coluna) e passou a sair pela `fin_saldos_de_abertura`, que exige `cm_ver`.
+
+> ⚠️ **AS FUNÇÕES `fin_*` NÃO FORAM AFETADAS.** São 40, e 39 são `SECURITY DEFINER` (a
+> única que não é, `fin_normalizar`, não lê tabela nenhuma); o dono delas é o dono das
+> tabelas, e a RLS não se aplica lá dentro. As policies
+> só valem para a leitura direta, e só havia **oito** no Core (`cadastroService` ×4,
+> `extratoService` ×1, `lancamentoService` ×3), conferidas uma a uma.
+
+> ⚠️ **`fin_tem_acesso` PRECISA DE `GRANT` — AO CONTRÁRIO DAS FUNÇÕES INTERNAS.** Ela é
+> chamada DE DENTRO das policies, com o papel de quem consulta. Sem o GRANT, toda leitura
+> das tabelas estouraria 42501.
+
+---
+
+### 2) A2 — O BANCO ACEITAVA EDITAR UMA PERNA SÓ DE UMA TRANSFERÊNCIA
+
+"Nunca oferecer EDITAR numa perna de transferência" estava no `CLAUDE.md` e na tela — e
+em mais lugar nenhum. A `fin_gravar_lancamento` não olhava `transferencia_id`. Na prova: a
+SAÍDA de uma transferência de 100,00 virou **999,00** com a ENTRADA parada em 100,00, e
+**R$ 899,00 sumiram do total da empresa** sem erro nenhum. Agora a função recusa com
+`23514` — depois de conferir a permissão, para não contar a quem não pode editar que aquele
+id é uma perna.
+
+---
+
+### 3) A7 — EXCLUIR CADASTRO NUNCA FUNCIONOU (achado AO CORRIGIR o A1)
+
+Revendo as oito leituras diretas do Core, apareceram duas **escritas** diretas:
+`excluirContaMovimento` e `excluirIdentificadora` faziam `.delete()` na tabela. Desde o
+degrau 7 as tabelas `fin_*` só dão `SELECT` ao app. **Todo clique em EXCLUIR voltava
+`permission denied`** — e a tela, que traduzia QUALQUER erro como "EXISTEM LANÇAMENTOS
+USANDO ESTE CADASTRO", mostrava essa frase até para a conta sem lançamento nenhum. Onze
+dias assim, e as permissões `cm_excluir`/`ci_excluir` não eram conferidas por ninguém no
+banco. Nasceram `fin_excluir_conta_movimento` e `fin_excluir_identificadora` (conferem a
+permissão, recusam a categoria do sistema — RN-30 — e a que tem lançamento — RN-04), e a
+tela passou a traduzir só o erro que reconhece.
+
+---
+
+### 4) AS TRÊS TRAVAS NOVAS FORAM VISTAS FALHAR
+
+53 (leitura direta), 54 (perna de transferência) e 55 (excluir cadastro). Aplicadas sobre o
+schema do commit anterior, as três deram **FALHOU** — a 53 com o tamanho do buraco no
+detalhe: *lanc=41 cm=26 ci=12 fech=4 orc=5* vistos por um Dependente sem o módulo. Sobre o
+schema novo: **55/55**.
+
+> ⚠️ **AS 52 TRAVAS ANTERIORES PASSAVAM COM OS DOIS BURACOS ABERTOS**, porque nenhuma lia
+> as tabelas como Dependente nem chamava uma função por fora da tela. Teste verde prova que
+> os caminhos TESTADOS estão fechados — nada além disso.
+
+---
+
+### 5) O RESTO DA LISTA
+
+- **A3 — documentação:** o cabeçalho do schema do módulo dizia "4 tabelas · 20 funções · 8
+  policies · 9 triggers" (são 5 · 40 · 5 · 10); "17 permissões" em três comentários (são
+  23); `MODULOS.md` dizia "2 telas" no aplicativo (são 4 + o layout) e "18 rotas" no site;
+  o `CLAUDE.md` mostrava versões de 11/09, listava um `RegisterForm.tsx` que não existe,
+  omitia `sobre`, `suporte` e `financeiro/` das rotas do app e dizia "os seis scripts da
+  raiz" (são oito). E os estudos que o `MODULOS.md` cita saíram da pasta em 19/09 — ficou
+  anotado como tirá-los do histórico.
+- **A4 — duas páginas sem link nenhum apontando para elas** (`/dashboard/financeiro/
+  lancamentos` e `/dashboard/financeiro/orcamento`) foram **apagadas**: repetiam cartões que
+  já existem no início do módulo e no menu OPÇÕES, e "uma porta por pergunta" é decisão de
+  13/09. O site passa de 18 para **16** rotas no módulo. Voltam do Git se um dia fizerem falta.
+- **A6:** `packages/core/package.json.backup.sdk54` apagado; o `lib/supabase.ts` passou a
+  AVISAR no console quando cai no endereço de reserva por falta de variável.
+- **A5 (arquivos com mais de 150 linhas) NÃO foi feito, de propósito.** São 102 arquivos, e
+  fatiar o `useAuthLogic.ts` (500 linhas, o login inteiro) às cegas antes de um envio — sem
+  o dono poder testar localmente — trocaria dívida de organização por risco de login
+  quebrado. Fica como degrau próprio, um arquivo de cada vez.
+
+---
+
 **2026-09-20 — v10: DEGRAU 09, a porta do Dependente no aplicativo (+ a faxina dos órfãos)**
 
 Dois pedidos num commit. O primeiro fecha uma divergência de sete dias entre a web e o
